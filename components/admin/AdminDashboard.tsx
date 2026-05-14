@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   MessageCircle,
@@ -9,9 +9,129 @@ import {
   AlertCircle,
   LogOut,
   ShieldCheck,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
-interface MetricCard {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface SuscriptoresMetrica {
+  premium_activos_actuales: number;
+  whatsapp_confirmados_actuales: number;
+  pausados_actuales: number;
+  altas_periodo: number;
+  tasa_confirmacion_whatsapp_pct: number | null;
+}
+
+interface SuscripcionesMetrica {
+  activadas_definitivamente_periodo: number;
+  creadas_periodo: number;
+}
+
+interface MetricasResponse {
+  ok: boolean;
+  periodo: { desde_utc: string; hasta_utc: string };
+  suscriptores: SuscriptoresMetrica;
+  suscripciones: SuscripcionesMetrica;
+}
+
+// ---------------------------------------------------------------------------
+// Hook: fetch métricas reales
+// ---------------------------------------------------------------------------
+
+function useMetricasBasicas() {
+  const [data, setData] = useState<MetricasResponse | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/metricas-basicas")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((json: MetricasResponse) => setData(json))
+      .catch(() => setError(true))
+      .finally(() => setCargando(false));
+  }, []);
+
+  return { data, cargando, error };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function fechaCorta(iso: string) {
+  return iso.slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// PremiumActivosCard
+// ---------------------------------------------------------------------------
+
+function PremiumActivosCard({ metricas }: { metricas: MetricasResponse | null }) {
+  const [abierto, setAbierto] = useState(false);
+
+  const s = metricas?.suscriptores;
+  const sus = metricas?.suscripciones;
+  const valor = s?.premium_activos_actuales ?? "—";
+  const tasa =
+    s?.tasa_confirmacion_whatsapp_pct != null
+      ? `${s.tasa_confirmacion_whatsapp_pct}%`
+      : "—";
+
+  return (
+    <div
+      className="rounded-xl border border-emerald-800/40 bg-gray-900 p-5 flex flex-col gap-3 cursor-pointer select-none transition-colors hover:border-emerald-700/60"
+      onClick={() => setAbierto((v) => !v)}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-emerald-400">
+          <Users size={20} />
+        </span>
+        <span className="text-gray-600">
+          {abierto ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </span>
+      </div>
+      <div>
+        <p className="text-2xl font-bold">{valor}</p>
+        <p className="text-sm text-gray-400 mt-0.5">Premium activos</p>
+      </div>
+
+      {abierto && s && (
+        <div className="mt-1 pt-3 border-t border-gray-800 flex flex-col gap-1.5 text-sm">
+          <Row label="WhatsApp confirmados" valor={`${s.whatsapp_confirmados_actuales} / ${s.premium_activos_actuales}`} />
+          <Row label="Tasa confirmación" valor={tasa} />
+          <Row label="Pausados" valor={s.pausados_actuales} />
+          <Row label="Altas hoy" valor={s.altas_periodo} />
+          {sus && (
+            <Row label="Suscripciones activadas hoy" valor={sus.activadas_definitivamente_periodo} />
+          )}
+          {metricas?.periodo && (
+            <p className="text-xs text-gray-600 mt-1">
+              Período UTC: {fechaCorta(metricas.periodo.desde_utc)} → {fechaCorta(metricas.periodo.hasta_utc)}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, valor }: { label: string; valor: string | number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-gray-400">{label}</span>
+      <span className="text-white font-medium">{valor}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mock cards (restantes)
+// ---------------------------------------------------------------------------
+
+interface MockCard {
   titulo: string;
   valor: number | string;
   icono: React.ReactNode;
@@ -19,81 +139,69 @@ interface MetricCard {
   alerta?: boolean;
 }
 
-const MOCK_METRICAS: MetricCard[] = [
-  {
-    titulo: "Premium activos",
-    valor: 142,
-    icono: <Users size={20} />,
-    color: "emerald",
-  },
+const MOCK_CARDS: MockCard[] = [
   {
     titulo: "WhatsApp confirmados",
-    valor: 138,
+    valor: "—",
     icono: <ShieldCheck size={20} />,
     color: "sky",
   },
   {
     titulo: "Mensajes enviados hoy",
-    valor: 97,
+    valor: "—",
     icono: <Send size={20} />,
     color: "violet",
   },
   {
     titulo: "Mensajes fallidos",
-    valor: 3,
+    valor: "—",
     icono: <AlertCircle size={20} />,
     color: "red",
-    alerta: true,
   },
   {
     titulo: "Contenido pendiente",
-    valor: 5,
+    valor: "—",
     icono: <Clock size={20} />,
     color: "amber",
-    alerta: true,
   },
   {
     titulo: "Errores recientes",
-    valor: 1,
+    valor: "—",
     icono: <AlertTriangle size={20} />,
     color: "red",
-    alerta: true,
   },
 ];
 
-const colorClasses: Record<string, { icon: string; border: string; badge: string }> = {
-  emerald: {
-    icon: "text-emerald-400",
-    border: "border-emerald-800/40",
-    badge: "bg-emerald-900/50 text-emerald-300",
-  },
-  sky: {
-    icon: "text-sky-400",
-    border: "border-sky-800/40",
-    badge: "bg-sky-900/50 text-sky-300",
-  },
-  violet: {
-    icon: "text-violet-400",
-    border: "border-violet-800/40",
-    badge: "bg-violet-900/50 text-violet-300",
-  },
-  red: {
-    icon: "text-red-400",
-    border: "border-red-800/40",
-    badge: "bg-red-900/50 text-red-300",
-  },
-  amber: {
-    icon: "text-amber-400",
-    border: "border-amber-800/40",
-    badge: "bg-amber-900/50 text-amber-300",
-  },
+const colorClasses: Record<string, { icon: string; border: string }> = {
+  sky: { icon: "text-sky-400", border: "border-sky-800/40" },
+  violet: { icon: "text-violet-400", border: "border-violet-800/40" },
+  red: { icon: "text-red-400", border: "border-red-800/40" },
+  amber: { icon: "text-amber-400", border: "border-amber-800/40" },
 };
 
+function PlaceholderCard({ card }: { card: MockCard }) {
+  const colors = colorClasses[card.color];
+  return (
+    <div className={`rounded-xl border bg-gray-900 p-5 flex flex-col gap-3 ${colors.border}`}>
+      <span className={colors.icon}>{card.icono}</span>
+      <div>
+        <p className="text-2xl font-bold text-gray-600">{card.valor}</p>
+        <p className="text-sm text-gray-400 mt-0.5">{card.titulo}</p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AdminDashboard
+// ---------------------------------------------------------------------------
+
 export function AdminDashboard() {
-  const [cargando, setCargando] = useState(false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const { data, cargando, error } = useMetricasBasicas();
 
   async function handleLogout() {
-    setCargando(true);
+    setCerrandoSesion(true);
     await fetch("/api/admin/auth/logout", { method: "POST" });
     window.location.href = "/admin/login";
   }
@@ -112,47 +220,47 @@ export function AdminDashboard() {
           </div>
           <button
             onClick={handleLogout}
-            disabled={cargando}
+            disabled={cerrandoSesion}
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
           >
             <LogOut size={15} />
-            {cargando ? "Cerrando..." : "Cerrar sesión"}
+            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
           </button>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
-        {/* Mock data banner */}
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/40 px-4 py-2.5 text-sm text-amber-300">
-          <AlertTriangle size={15} className="shrink-0" />
-          Datos de ejemplo — sin conexión a Edge Functions aún
-        </div>
+        {/* Estado de carga / error */}
+        {cargando && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
+            <span className="animate-pulse">Cargando métricas...</span>
+          </div>
+        )}
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
+            <AlertCircle size={15} className="shrink-0" />
+            Error al cargar métricas. Verificá tu sesión o la conexión con la Edge Function.
+          </div>
+        )}
+        {!cargando && !error && !data?.ok && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/40 px-4 py-2.5 text-sm text-amber-300">
+            <AlertTriangle size={15} className="shrink-0" />
+            La Edge Function respondió pero reportó un error interno.
+          </div>
+        )}
+        {!cargando && !error && data?.ok && (
+          <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/40 px-4 py-2.5 text-sm text-amber-300">
+            <AlertTriangle size={15} className="shrink-0" />
+            5 cards restantes en placeholder — se conectarán gradualmente
+          </div>
+        )}
 
-        {/* Metric cards */}
+        {/* Grid de cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {MOCK_METRICAS.map((card) => {
-            const colors = colorClasses[card.color];
-            const mostrarAlerta = card.alerta && Number(card.valor) > 0;
-            return (
-              <div
-                key={card.titulo}
-                className={`rounded-xl border bg-gray-900 p-5 flex flex-col gap-3 ${colors.border}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`${colors.icon}`}>{card.icono}</span>
-                  {mostrarAlerta && (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors.badge}`}>
-                      alerta
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{card.valor}</p>
-                  <p className="text-sm text-gray-400 mt-0.5">{card.titulo}</p>
-                </div>
-              </div>
-            );
-          })}
+          <PremiumActivosCard metricas={data} />
+          {MOCK_CARDS.map((card) => (
+            <PlaceholderCard key={card.titulo} card={card} />
+          ))}
         </div>
       </main>
     </div>
