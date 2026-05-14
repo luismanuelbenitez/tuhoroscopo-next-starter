@@ -9,16 +9,23 @@ export async function GET() {
 
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const internalKey = process.env.WHATSAPP_INTERNAL_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
     return NextResponse.json(
-      { ok: false, motivo: "env_missing", detalle: "SUPABASE_URL no configurada" },
+      { ok: false, motivo: "config_error", detalle: "SUPABASE_URL no configurada" },
       { status: 500 }
     );
   }
   if (!internalKey) {
     return NextResponse.json(
-      { ok: false, motivo: "env_missing", detalle: "WHATSAPP_INTERNAL_KEY no configurada" },
+      { ok: false, motivo: "config_error", detalle: "WHATSAPP_INTERNAL_KEY no configurada" },
+      { status: 500 }
+    );
+  }
+  if (!serviceRoleKey) {
+    return NextResponse.json(
+      { ok: false, motivo: "config_error", detalle: "SUPABASE_SERVICE_ROLE_KEY no configurada" },
       { status: 500 }
     );
   }
@@ -31,6 +38,7 @@ export async function GET() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceRoleKey}`,
         "x-internal-key": internalKey,
       },
       body: JSON.stringify({ log: false }),
@@ -45,15 +53,23 @@ export async function GET() {
   }
 
   if (!res.ok) {
-    let detalle = `Error ${res.status} desde Edge Function`;
+    let efMotivo: string | null = null;
     try {
       const errData = await res.json();
-      if (errData.motivo) detalle = `EF devolvió: ${errData.motivo} (HTTP ${res.status})`;
+      efMotivo = errData.motivo ?? errData.message ?? errData.error ?? null;
     } catch {
-      // respuesta sin JSON — usamos el detalle genérico
+      // respuesta sin JSON — efMotivo queda null
     }
     return NextResponse.json(
-      { ok: false, motivo: "ef_error", detalle, efStatus: res.status },
+      {
+        ok: false,
+        motivo: "ef_error",
+        detalle: efMotivo
+          ? `EF devolvió: ${efMotivo} (HTTP ${res.status})`
+          : `Error ${res.status} desde Edge Function`,
+        efStatus: res.status,
+        efMotivo,
+      },
       { status: 502 }
     );
   }
