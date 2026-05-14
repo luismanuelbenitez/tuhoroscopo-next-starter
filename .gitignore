@@ -1,9 +1,10 @@
 # dependencias
-/node_modules
+node_modules/
 
 # build output
-/.next
-/out
+.next/
+out/
+.vercel/
 
 # sistema operativo
 .DS_Store
@@ -12,7 +13,15 @@ Thumbs.db
 # env files
 .env
 .env.local
+.env.development
+.env.production
 .env.*.local
+*.env
+
+# credenciales
+credenciales*.txt
+*.key
+*.pem
 
 # logs
 npm-debug.log*
