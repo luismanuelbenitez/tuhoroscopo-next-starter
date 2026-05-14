@@ -44,17 +44,26 @@ interface MetricasResponse {
 function useMetricasBasicas() {
   const [data, setData] = useState<MetricasResponse | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/metricas-basicas")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json: MetricasResponse) => setData(json))
-      .catch(() => setError(true))
+      .then(async (r) => {
+        const json = await r.json().catch(() => null);
+        if (!r.ok) {
+          const detalle: string = json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`;
+          setErrorMsg(detalle);
+          return;
+        }
+        setData(json as MetricasResponse);
+      })
+      .catch((e: unknown) => {
+        setErrorMsg(e instanceof Error ? e.message : "Error de red");
+      })
       .finally(() => setCargando(false));
   }, []);
 
-  return { data, cargando, error };
+  return { data, cargando, errorMsg };
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +207,7 @@ function PlaceholderCard({ card }: { card: MockCard }) {
 
 export function AdminDashboard() {
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const { data, cargando, error } = useMetricasBasicas();
+  const { data, cargando, errorMsg } = useMetricasBasicas();
 
   async function handleLogout() {
     setCerrandoSesion(true);
@@ -236,19 +245,19 @@ export function AdminDashboard() {
             <span className="animate-pulse">Cargando métricas...</span>
           </div>
         )}
-        {error && (
+        {errorMsg && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
             <AlertCircle size={15} className="shrink-0" />
-            Error al cargar métricas. Verificá tu sesión o la conexión con la Edge Function.
+            {errorMsg}
           </div>
         )}
-        {!cargando && !error && !data?.ok && (
+        {!cargando && !errorMsg && !data?.ok && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/40 px-4 py-2.5 text-sm text-amber-300">
             <AlertTriangle size={15} className="shrink-0" />
             La Edge Function respondió pero reportó un error interno.
           </div>
         )}
-        {!cargando && !error && data?.ok && (
+        {!cargando && !errorMsg && data?.ok && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/40 px-4 py-2.5 text-sm text-amber-300">
             <AlertTriangle size={15} className="shrink-0" />
             5 cards restantes en placeholder — se conectarán gradualmente
