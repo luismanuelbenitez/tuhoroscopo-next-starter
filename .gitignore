@@ -28,3 +28,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+backend/supabase/functions/ef_debug_env/
