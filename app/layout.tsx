@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Tu Horóscopo Cósmico",
@@ -19,12 +20,14 @@ icons: {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const isAdmin = headers().get("x-is-admin") === "1";
+
   return (
     <html lang="es">
       <body className="bg-cosmic min-h-screen flex flex-col">
-        <Header />
+        {!isAdmin && <Header />}
         <main className="flex-1">{children}</main>
-        <Footer />
+        {!isAdmin && <Footer />}
       </body>
     </html>
   );
