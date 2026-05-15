@@ -211,6 +211,12 @@ export default function SuscriptoresPage() {
           <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3">
             Suscriptores
           </span>
+          <a
+            href="/admin/mensajes-problematicos"
+            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
+          >
+            Mensajes
+          </a>
         </div>
       </header>
 
