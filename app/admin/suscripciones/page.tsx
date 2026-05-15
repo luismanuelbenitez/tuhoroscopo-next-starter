@@ -439,7 +439,7 @@ export default function SuscripcionesPage() {
   async function cerrarSesion() {
     setCerrandoSesion(true);
     try {
-      await fetch("/api/admin/logout", { method: "POST" });
+      await fetch("/api/admin/auth/logout", { method: "POST" });
       window.location.href = "/admin/login";
     } catch {
       setCerrandoSesion(false);
