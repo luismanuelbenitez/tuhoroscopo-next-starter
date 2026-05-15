@@ -217,6 +217,12 @@ export default function SuscriptoresPage() {
           >
             Mensajes
           </a>
+          <a
+            href="/admin/contenido"
+            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
+          >
+            Contenido
+          </a>
         </div>
       </header>
 
