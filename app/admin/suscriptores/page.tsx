@@ -10,6 +10,7 @@ import {
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
+import { SuscriptorDetalle } from "@/components/admin/SuscriptorDetalle";
 
 // ===========================================================================
 // Types
@@ -105,6 +106,7 @@ export default function SuscriptoresPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // Fetch whenever filtros change
   useEffect(() => {
@@ -159,6 +161,12 @@ export default function SuscriptoresPage() {
   function handleSiguiente() {
     if (paginacion?.next_offset == null) return;
     setFiltros({ ...filtros, offset: paginacion.next_offset });
+  }
+
+  function handleRowClick(s: Suscriptor) {
+    const numId = parseInt(s.id, 10);
+    if (!Number.isFinite(numId)) return;
+    setSelectedId((prev) => (prev === numId ? null : numId));
   }
 
   async function handleLogout() {
@@ -322,10 +330,15 @@ export default function SuscriptoresPage() {
                         ? "bg-orange-950/10"
                         : "";
 
+                    const isSelected = selectedId === parseInt(s.id, 10);
+
                     return (
                       <tr
                         key={s.id}
-                        className={`border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors ${rowHighlight}`}
+                        onClick={() => handleRowClick(s)}
+                        className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
+                          isSelected ? "bg-violet-950/20" : rowHighlight
+                        }`}
                       >
                         {/* Nombre + email */}
                         <td className="px-4 py-3 min-w-[160px]">
@@ -408,6 +421,14 @@ export default function SuscriptoresPage() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Detalle suscriptor */}
+        {selectedId !== null && (
+          <SuscriptorDetalle
+            id={selectedId}
+            onClose={() => setSelectedId(null)}
+          />
         )}
       </main>
     </div>
