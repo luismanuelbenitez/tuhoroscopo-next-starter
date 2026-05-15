@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { MensajeDetalle } from "@/components/admin/MensajeDetalle";
 
 // ===========================================================================
 // Types
@@ -140,6 +141,7 @@ export default function MensajesProblematicosPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
     async function doFetch() {
@@ -192,6 +194,10 @@ export default function MensajesProblematicosPage() {
   function handleSiguiente() {
     if (paginacion?.next_offset == null) return;
     setFiltros({ ...filtros, offset: paginacion.next_offset });
+  }
+
+  function handleRowClick(m: Mensaje) {
+    setSelectedId((prev) => (prev === m.id ? null : m.id));
   }
 
   async function handleLogout() {
@@ -368,17 +374,20 @@ export default function MensajesProblematicosPage() {
                   )}
                   {!cargando &&
                     mensajes.map((m) => {
-                      const rowCls =
-                        m.estado === "fallo_definitivo"
-                          ? "bg-red-950/10"
-                          : m.estado === "procesando"
-                          ? "bg-sky-950/10"
-                          : "";
+                      const isSelected = selectedId === m.id;
+                      const rowCls = isSelected
+                        ? "bg-violet-950/20"
+                        : m.estado === "fallo_definitivo"
+                        ? "bg-red-950/10"
+                        : m.estado === "procesando"
+                        ? "bg-sky-950/10"
+                        : "";
 
                       return (
                         <tr
                           key={m.id}
-                          className={`border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors ${rowCls}`}
+                          onClick={() => handleRowClick(m)}
+                          className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${rowCls}`}
                         >
                           {/* ID */}
                           <td className="px-4 py-3 text-gray-500 font-mono text-xs">
@@ -461,6 +470,11 @@ export default function MensajesProblematicosPage() {
               </table>
             </div>
           </div>
+        )}
+
+        {/* Detalle de mensaje */}
+        {selectedId !== null && (
+          <MensajeDetalle id={selectedId} onClose={() => setSelectedId(null)} />
         )}
 
         {/* Pagination */}
