@@ -1,0 +1,478 @@
+{
+  "info": {
+    "name": "THC — E2E Flujo Premium",
+    "description": "Colección para testear el flujo completo premium de Tu Horóscopo Cósmico.\n\nOrden de ejecución:\n1. [STEP 1] Checkout — registra usuario y obtiene init_point\n2. Aprobar pago manualmente en Mercado Pago Sandbox\n3. [STEP 3A] Webhook MP — preapproval (authorizes subscription)\n4. [STEP 3B] Webhook MP — payment (activa premium + envía bienvenida WA)\n5. [STEP 5] Webhook WA Inbound — simula respuesta del usuario (confirma número)\n6. [STEP 6] Admin — verificar estado final del suscriptor\n7. [STEP 7] Admin Logs — ver logs generados\n\nVariables de colección requeridas:\n  - NEXT_URL: URL del frontend (ej: https://tuhoroscopo.vercel.app o http://localhost:3000)\n  - SUPABASE_URL: URL base del proyecto Supabase\n  - SUPABASE_SERVICE_ROLE_KEY: JWT con permisos de service_role\n  - WHATSAPP_INTERNAL_KEY: Clave interna entre funciones\n  - ANON_KEY_SUPABASE: JWT anon (para EFs con verify_jwt)\n  - PREAPPROVAL_ID: ID del preapproval devuelto por MP sandbox\n  - PAYMENT_ID: ID del pago devuelto por MP sandbox\n  - TEST_WHATSAPP: Número WhatsApp E.164 del usuario test (ej: +59899123456)\n  - TEST_SUSCRIPTOR_ID: ID del suscriptor en DB (obtenido del STEP 1)\n  - ADMIN_SESSION_COOKIE: Cookie de sesión admin (obtener via /admin/login)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "NEXT_URL", "value": "http://localhost:3000", "type": "string" },
+    { "key": "SUPABASE_URL", "value": "", "type": "string" },
+    { "key": "SUPABASE_SERVICE_ROLE_KEY", "value": "", "type": "string" },
+    { "key": "WHATSAPP_INTERNAL_KEY", "value": "", "type": "string" },
+    { "key": "ANON_KEY_SUPABASE", "value": "", "type": "string" },
+    { "key": "PREAPPROVAL_ID", "value": "", "type": "string" },
+    { "key": "PAYMENT_ID", "value": "", "type": "string" },
+    { "key": "TEST_WHATSAPP", "value": "+59899123456", "type": "string" },
+    { "key": "TEST_SUSCRIPTOR_ID", "value": "", "type": "string" },
+    { "key": "ADMIN_SESSION_COOKIE", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "STEP 1 — Checkout (registrar usuario + obtener init_point)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{NEXT_URL}}/api/iniciar-checkout",
+          "host": ["{{NEXT_URL}}"],
+          "path": ["api", "iniciar-checkout"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Test E2E\",\n  \"telefono\": \"999123456\",\n  \"whatsapp\": \"+59899123456\",\n  \"signo\": \"Aries\",\n  \"contenido_preferido\": \"Amor\",\n  \"pais\": \"UY\",\n  \"fuente\": \"postman-e2e\",\n  \"version_politicas\": \"v1.0\",\n  \"acepto_politicas\": true\n}"
+        },
+        "description": "Registra el usuario de prueba y obtiene el init_point de Mercado Pago sandbox.\n\nEsperado:\n- status 200\n- body: { resultado: 'ok', init_point: '...', id_suscriptor: N }\n\nGuardar id_suscriptor en variable TEST_SUSCRIPTOR_ID.\nAbrir init_point en browser para aprobar el pago en MP sandbox.\n\nNOTA: Modificar el campo whatsapp para que coincida con TEST_WHATSAPP."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Tiene init_point', () => pm.expect(res.init_point).to.be.a('string'));",
+              "pm.test('Tiene id_suscriptor', () => pm.expect(res.id_suscriptor).to.be.a('number'));",
+              "if (res.id_suscriptor) {",
+              "  pm.collectionVariables.set('TEST_SUSCRIPTOR_ID', String(res.id_suscriptor));",
+              "  console.log('TEST_SUSCRIPTOR_ID seteado:', res.id_suscriptor);",
+              "}",
+              "if (res.init_point) {",
+              "  console.log('ABRIR EN BROWSER:', res.init_point);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 2 — (Manual) Aprobar pago en MP Sandbox",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://sandbox.mercadopago.com.uy",
+          "protocol": "https",
+          "host": ["sandbox", "mercadopago", "com", "uy"]
+        },
+        "description": "Este paso es MANUAL.\n\n1. Abrir el init_point obtenido en STEP 1 en un browser.\n2. Usar una cuenta MP de prueba (comprador sandbox) para aprobar el pago.\n3. MP generará un preapproval_id y un payment_id.\n4. Obtener esos IDs desde:\n   - Panel de Developer de MP (sandbox > activity)\n   - O los webhooks que MP intentará enviar (si hay URL configurada)\n5. Guardar preapproval_id en variable PREAPPROVAL_ID.\n6. Guardar el payment_id en variable PAYMENT_ID.\n\nNOTA: Si no hay webhook URL configurada en MP sandbox, los IDs se obtienen\ndel panel de MP developer o inspeccionando los logs de Supabase."
+      }
+    },
+    {
+      "name": "STEP 3A — Webhook MP preapproval (authorized)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" },
+          { "key": "x-manual-test", "value": "true" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=preapproval&id={{PREAPPROVAL_ID}}",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_mp"],
+          "query": [
+            { "key": "topic", "value": "preapproval" },
+            { "key": "id", "value": "{{PREAPPROVAL_ID}}" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "description": "Simula el webhook de MP para el evento preapproval (autorización de suscripción).\n\nRequisito: PREAPPROVAL_ID seteado (ID real de MP sandbox).\n\nEsperado:\n- status 200 (responde OK inmediatamente, fire-and-forget)\n- La EF irá a buscar el preapproval real a MP sandbox\n- Si está 'authorized': suscriptores.estado_suscripcion='activa', premium_activo=true\n\nVerificar en Supabase:\n  SELECT estado_suscripcion, premium_activo FROM suscriptores WHERE id = :test_id;\n\nNOTA: El procesamiento real corre async (fire-and-forget). Esperar ~3s antes\nde verificar el estado en DB."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200 (fire-and-forget)', () => pm.response.to.have.status(200));",
+              "console.log('Webhook preapproval enviado. Esperar 3-5s y verificar DB.');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 3B — Webhook MP payment (activa premium + bienvenida WA)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" },
+          { "key": "x-manual-test", "value": "true" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_mp",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_mp"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"payment\",\n  \"data\": { \"id\": \"{{PAYMENT_ID}}\" }\n}"
+        },
+        "description": "Simula el webhook de MP para el evento payment (cobro aprobado).\n\nREQUISITO CRÍTICO: Header 'x-manual-test: true' es OBLIGATORIO porque\nSANDBOX_AUTOMATIC=false. Sin este header, el handlePayment ignora el evento en sandbox.\n\nEsperado tras el procesamiento (async ~8-10s por sleep de 5s interno):\n- pagos: fila insertada con estado aprobado\n- suscriptores.bienvenida_enviada = true\n- mensajes_enviados: fila con nombre_plantilla='bienvenida_validacion_numero' (nombre REAL)\n- El usuario de test debería recibir WhatsApp con el template de bienvenida\n\nAlternativa con IPN querystring:\n  POST {{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=payment&id={{PAYMENT_ID}}\n  (también requiere x-manual-test: true)\n\nSi no se tiene PAYMENT_ID real, probar con topic=payment_trigger:\n  POST {{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=payment_trigger\n  (activa el mock sandbox sin buscar pago real en MP)"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200 (fire-and-forget)', () => pm.response.to.have.status(200));",
+              "console.log('Webhook payment enviado. El procesamiento tarda ~8s (sleep 5s interno).');",
+              "console.log('Verificar en DB: bienvenida_enviada=true, mensajes_enviados con bienvenida_validacion_numero');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 3B-alt — Webhook MP payment_trigger (sin PAYMENT_ID real)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" },
+          { "key": "x-manual-test", "value": "true" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=payment_trigger&id={{TEST_SUSCRIPTOR_ID}}",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_mp"],
+          "query": [
+            { "key": "topic", "value": "payment_trigger" },
+            { "key": "id", "value": "{{TEST_SUSCRIPTOR_ID}}" }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "description": "Alternativa al STEP 3B cuando no se tiene el PAYMENT_ID real de MP sandbox.\n\ntopic=payment_trigger activa el sandbox mock del ef_webhook_mp:\n- No va a buscar el pago a MP API\n- Usa datos mock para simular el cobro\n- El resto del flujo (bienvenida_enviada, mensajes_enviados) funciona igual\n\nUsar solo si STEP 3B no es posible por falta de PAYMENT_ID."
+      }
+    },
+    {
+      "name": "STEP 4 — (Manual) Esperar WhatsApp de bienvenida",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/mensajes_enviados?id_suscriptor=eq.{{TEST_SUSCRIPTOR_ID}}&select=id,nombre_plantilla,estado,fecha_enviado,creado_en&order=id.desc&limit=5",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "mensajes_enviados"],
+          "query": [
+            { "key": "id_suscriptor", "value": "eq.{{TEST_SUSCRIPTOR_ID}}" },
+            { "key": "select", "value": "id,nombre_plantilla,estado,fecha_enviado,creado_en" },
+            { "key": "order", "value": "id.desc" },
+            { "key": "limit", "value": "5" }
+          ]
+        },
+        "description": "Consulta los últimos mensajes encolados para el suscriptor de prueba.\nUsar para verificar que la bienvenida fue encolada y enviada.\n\nEsperado:\n- Una fila con nombre_plantilla = nombre_real_template_bienvenida\n- estado = 'enviado' (o 'delivered' si WA ya confirmó entrega)\n\nHeaders requeridos para REST API de Supabase:"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.collectionVariables.get('SUPABASE_SERVICE_ROLE_KEY') });",
+              "pm.request.headers.add({ key: 'apikey', value: pm.collectionVariables.get('SUPABASE_SERVICE_ROLE_KEY') });"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('Hay mensajes encolados', () => pm.expect(rows.length).to.be.greaterThan(0));",
+              "if (rows.length > 0) { console.log('Último mensaje:', JSON.stringify(rows[0])); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 5 — Webhook WA Inbound (simula respuesta del usuario)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{ANON_KEY_SUPABASE}}" },
+          { "key": "apikey", "value": "{{ANON_KEY_SUPABASE}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_inbound",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_whatsapp_inbound"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload\": {\n    \"entry\": [\n      {\n        \"changes\": [\n          {\n            \"value\": {\n              \"messages\": [\n                {\n                  \"from\": \"59899123456\",\n                  \"id\": \"wamid.test123456789\",\n                  \"timestamp\": \"{{$timestamp}}\",\n                  \"type\": \"text\",\n                  \"text\": {\n                    \"body\": \"Hola, confirmo!\"\n                  }\n                }\n              ],\n              \"contacts\": [\n                {\n                  \"wa_id\": \"59899123456\"\n                }\n              ]\n            }\n          }\n        ]\n      }\n    ]\n  },\n  \"id_evento\": \"test_evento_e2e_001\"\n}"
+        },
+        "description": "Simula un mensaje entrante de WhatsApp del usuario de prueba.\nEsto activa el flujo de confirmación de número en ef_webhook_whatsapp_inbound.\n\nIMPORTANTE:\n- Modificar 'from' y 'wa_id' para que coincidan con el número del test\n  (sin el + inicial: '59899123456' para +59899123456)\n- El body puede ser cualquier texto excepto 'BAJA'\n- El mensaje de tipo 'reaction' también es válido para confirmar\n\nFlujo esperado tras la confirmación:\n1. suscriptores.whatsapp_confirmado = true\n2. mensajes_enviados: fila con template 'confirmacion_numero_ok'\n3. ef_genera_guarda_contenido_premium disparado (on-demand)\n4. ef_envio_premium_post_confirmacion disparado\n5. El usuario recibe 2 WA más: primer_mensaje_premium + contenido premium\n\nNOTA: Requiere que bienvenida_enviada=true Y bienvenida esté en mensajes_enviados\n(verificar con STEP 4 antes de ejecutar este)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const res = pm.response.json();",
+              "pm.test('Resultado ok o ya_confirmado', () => {",
+              "  pm.expect(['ok', 'ya_confirmado', 'sin_accion']).to.include(res.resultado);",
+              "});",
+              "console.log('Respuesta inbound:', JSON.stringify(res));",
+              "if (res.resultado === 'ok') {",
+              "  console.log('Confirmación exitosa. primer_contenido_habilitado:', res.primer_contenido_habilitado);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 6A — Verificar estado suscriptor (REST API)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "apikey", "value": "{{SUPABASE_SERVICE_ROLE_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/suscriptores?id=eq.{{TEST_SUSCRIPTOR_ID}}&select=id,nombre,tipo_suscripcion,estado_suscripcion,premium_activo,whatsapp_confirmado,bienvenida_enviada,primer_envio_premium_enviado,fecha_vencimiento_premium,estado_mensaje,actualizado_en",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "suscriptores"],
+          "query": [
+            { "key": "id", "value": "eq.{{TEST_SUSCRIPTOR_ID}}" },
+            { "key": "select", "value": "id,nombre,tipo_suscripcion,estado_suscripcion,premium_activo,whatsapp_confirmado,bienvenida_enviada,primer_envio_premium_enviado,fecha_vencimiento_premium,estado_mensaje,actualizado_en" }
+          ]
+        },
+        "description": "Verifica el estado final del suscriptor de prueba en la DB.\n\nEstado esperado tras el flujo completo:\n- tipo_suscripcion: 'premium'\n- estado_suscripcion: 'activa'\n- premium_activo: true\n- whatsapp_confirmado: true\n- bienvenida_enviada: true\n- primer_envio_premium_enviado: true\n- fecha_vencimiento_premium: fecha futura (30 días)\n- estado_mensaje: 'activo'"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('Suscriptor encontrado', () => pm.expect(rows.length).to.equal(1));",
+              "if (rows.length > 0) {",
+              "  const s = rows[0];",
+              "  pm.test('premium_activo=true', () => pm.expect(s.premium_activo).to.be.true);",
+              "  pm.test('whatsapp_confirmado=true', () => pm.expect(s.whatsapp_confirmado).to.be.true);",
+              "  pm.test('bienvenida_enviada=true', () => pm.expect(s.bienvenida_enviada).to.be.true);",
+              "  pm.test('primer_envio_premium_enviado=true', () => pm.expect(s.primer_envio_premium_enviado).to.be.true);",
+              "  pm.test('estado_suscripcion=activa', () => pm.expect(s.estado_suscripcion).to.equal('activa'));",
+              "  console.log('Estado suscriptor:', JSON.stringify(s));",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 6B — Verificar mensajes enviados (outbox completo)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "apikey", "value": "{{SUPABASE_SERVICE_ROLE_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/mensajes_enviados?id_suscriptor=eq.{{TEST_SUSCRIPTOR_ID}}&select=id,tipo_mensaje,nombre_plantilla,estado,fecha_enviado,creado_en&order=id.asc",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "mensajes_enviados"],
+          "query": [
+            { "key": "id_suscriptor", "value": "eq.{{TEST_SUSCRIPTOR_ID}}" },
+            { "key": "select", "value": "id,tipo_mensaje,nombre_plantilla,estado,fecha_enviado,creado_en" },
+            { "key": "order", "value": "id.asc" }
+          ]
+        },
+        "description": "Verifica todos los mensajes encolados para el suscriptor de prueba.\n\nEsperado (orden cronológico):\n1. tipo=operativo, nombre_plantilla=bienvenida_validacion_numero (real), estado=enviado\n2. tipo=operativo, nombre_plantilla=confirmacion_numero_ok (real), estado=enviado\n3. tipo=operativo, nombre_plantilla=primer_mensaje_premium, estado=enviado\n4. tipo=premium, nombre_plantilla=null (el sender usa metadata.variables.cuerpo), estado=enviado"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('Al menos 3 mensajes enviados', () => pm.expect(rows.length).to.be.at.least(3));",
+              "const tipos = rows.map(r => r.tipo_mensaje);",
+              "const tieneOperativo = tipos.includes('operativo');",
+              "const tienePremium = tipos.includes('premium');",
+              "pm.test('Tiene mensajes operativos', () => pm.expect(tieneOperativo).to.be.true);",
+              "pm.test('Tiene mensaje premium', () => pm.expect(tienePremium).to.be.true);",
+              "console.log('Mensajes enviados:', rows.map(r => ({ id: r.id, tipo: r.tipo_mensaje, plantilla: r.nombre_plantilla, estado: r.estado })));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 6C — Verificar contenido premium generado",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_SERVICE_ROLE_KEY}}" },
+          { "key": "apikey", "value": "{{SUPABASE_SERVICE_ROLE_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/contenido_premium?id_suscriptor=eq.{{TEST_SUSCRIPTOR_ID}}&select=id,tipo,fecha_envio_programada,origen_generacion,creado_en&order=id.desc&limit=3",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "contenido_premium"],
+          "query": [
+            { "key": "id_suscriptor", "value": "eq.{{TEST_SUSCRIPTOR_ID}}" },
+            { "key": "select", "value": "id,tipo,fecha_envio_programada,origen_generacion,creado_en" },
+            { "key": "order", "value": "id.desc" },
+            { "key": "limit", "value": "3" }
+          ]
+        },
+        "description": "Verifica que se generó contenido premium para el suscriptor de prueba.\n\nEsperado:\n- Al menos 1 fila con tipo='diario' (o 'domingo' si es domingo UTC)\n- origen_generacion='manual' (modo on-demand)\n- fecha_envio_programada = approximately now + 2 minutes (momento de generación)"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('Contenido premium generado', () => pm.expect(rows.length).to.be.greaterThan(0));",
+              "if (rows.length > 0) { console.log('Contenido:', JSON.stringify(rows[0])); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 7 — Admin Logs (verificar trazabilidad)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "{{ADMIN_SESSION_COOKIE}}" }
+        ],
+        "url": {
+          "raw": "{{NEXT_URL}}/api/admin/logs?limit=50&fecha_desde=2026-05-14",
+          "host": ["{{NEXT_URL}}"],
+          "path": ["api", "admin", "logs"],
+          "query": [
+            { "key": "limit", "value": "50" },
+            { "key": "fecha_desde", "value": "2026-05-14" }
+          ]
+        },
+        "description": "Verifica los logs generados por las EFs durante el flujo E2E.\nRequiere sesión admin activa (ADMIN_SESSION_COOKIE).\n\nFunciones que deben aparecer en los logs:\n- ef_webhook_mp (handlePreapproval, handlePayment)\n- ef_whatsapp_sender (envíos)\n- ef_webhook_whatsapp_inbound (confirmación)\n- ef_genera_guarda_contenido_premium (generación)\n- ef_envio_premium_post_confirmacion (envío primer contenido)\n\nVerificar que exito=true en todas las funciones clave."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const res = pm.response.json();",
+              "pm.test('Respuesta ok', () => pm.expect(res.ok).to.be.true);",
+              "const logs = res.logs || [];",
+              "console.log('Total logs:', logs.length);",
+              "const funciones = [...new Set(logs.map(l => l.nombre_funcion))];",
+              "console.log('Funciones en logs:', funciones);",
+              "const errores = logs.filter(l => l.exito === false || l.exitoso === false);",
+              "if (errores.length > 0) {",
+              "  console.warn('LOGS CON ERROR:', errores.map(e => ({ fn: e.nombre_funcion, resultado: e.resultado })));",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "STEP 8 — Admin: Ver detalle suscriptor (panel admin)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "{{ADMIN_SESSION_COOKIE}}" }
+        ],
+        "url": {
+          "raw": "{{NEXT_URL}}/api/admin/suscriptores?buscar={{TEST_SUSCRIPTOR_ID}}&limit=1",
+          "host": ["{{NEXT_URL}}"],
+          "path": ["api", "admin", "suscriptores"],
+          "query": [
+            { "key": "buscar", "value": "{{TEST_SUSCRIPTOR_ID}}" },
+            { "key": "limit", "value": "1" }
+          ]
+        },
+        "description": "Verifica el estado del suscriptor de prueba desde el API admin (con sanitización PII).\nRequiere sesión admin activa.\n\nEsperado:\n- Suscriptor aparece en la lista\n- Estado correcto según el flujo"
+      }
+    },
+    {
+      "name": "EXTRA — Comando BAJA (simula opt-out de mensajes)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{ANON_KEY_SUPABASE}}" },
+          { "key": "apikey", "value": "{{ANON_KEY_SUPABASE}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_inbound",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_whatsapp_inbound"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload\": {\n    \"entry\": [\n      {\n        \"changes\": [\n          {\n            \"value\": {\n              \"messages\": [\n                {\n                  \"from\": \"59899123456\",\n                  \"id\": \"wamid.baja_test_001\",\n                  \"timestamp\": \"{{$timestamp}}\",\n                  \"type\": \"text\",\n                  \"text\": {\n                    \"body\": \"BAJA\"\n                  }\n                }\n              ]\n            }\n          }\n        ]\n      }\n    ]\n  },\n  \"id_evento\": \"test_baja_e2e_001\"\n}"
+        },
+        "description": "Simula que el usuario envía 'BAJA' por WhatsApp.\n\nEsperado:\n- estado_mensaje = 'pausado_usuario'\n- mensajes_enviados: fila con plantilla baja_info_mp o baja_thc (según estado MP)\n- Rate limit: 24h. Si ya se envió BAJA en las últimas 24h, responde sin_accion."
+      }
+    },
+    {
+      "name": "EXTRA — Comando ALTA (simula opt-in de mensajes)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{ANON_KEY_SUPABASE}}" },
+          { "key": "apikey", "value": "{{ANON_KEY_SUPABASE}}" },
+          { "key": "x-internal-key", "value": "{{WHATSAPP_INTERNAL_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_inbound",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_whatsapp_inbound"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payload\": {\n    \"entry\": [\n      {\n        \"changes\": [\n          {\n            \"value\": {\n              \"messages\": [\n                {\n                  \"from\": \"59899123456\",\n                  \"id\": \"wamid.alta_test_001\",\n                  \"timestamp\": \"{{$timestamp}}\",\n                  \"type\": \"text\",\n                  \"text\": {\n                    \"body\": \"ALTA\"\n                  }\n                }\n              ]\n            }\n          }\n        ]\n      }\n    ]\n  },\n  \"id_evento\": \"test_alta_e2e_001\"\n}"
+        },
+        "description": "Simula que el usuario envía 'ALTA' por WhatsApp (reactiva mensajes).\n\nEsperado:\n- estado_mensaje = 'activo'\n- No afecta premium_activo ni estado_suscripcion\n- Funciona: ALTA, ACTIVAR, REACTIVAR, VOLVER"
+      }
+    }
+  ]
+}
