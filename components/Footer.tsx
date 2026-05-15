@@ -27,41 +27,6 @@ export function Footer() {
           </Link>
         </div>
 
-        {/* Redes sociales */}
-        <div className="flex justify-center gap-8 text-lg">
-          <a
-            href="https://facebook.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-pink-400 hover:drop-shadow-[0_0_6px_rgba(255,192,203,0.8)] transition"
-          >
-            Facebook
-          </a>
-          <a
-            href="https://instagram.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-pink-400 hover:drop-shadow-[0_0_6px_rgba(255,192,203,0.8)] transition"
-          >
-            Instagram
-          </a>
-          <a
-            href="https://tiktok.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-pink-400 hover:drop-shadow-[0_0_6px_rgba(255,192,203,0.8)] transition"
-          >
-            TikTok
-          </a>
-          <a
-            href="https://youtube.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-pink-400 hover:drop-shadow-[0_0_6px_rgba(255,192,203,0.8)] transition"
-          >
-            YouTube
-          </a>
-        </div>
 
         {/* Copyright */}
         <p className="text-white/60">

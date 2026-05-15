@@ -11,8 +11,8 @@ export default function SubscriptionSummary() {
       <div className="mx-auto max-w-3xl">
         <div className="rounded-xl bg-cosmic-surface/70 border border-white/10 p-6 md:p-8 shadow-glow backdrop-blur-sm">
           <div className="mx-auto max-w-xl text-center">
-            <span className="inline-block text-[20px] tracking-widest uppercase text-cosmic-gold/90 bg-black/20 border border-white/10 rounded-full px-3 py-1 mb-6">
-              Flexibilidad total
+            <span className="inline-block text-[13px] tracking-widest uppercase text-cosmic-gold/90 bg-black/20 border border-white/10 rounded-full px-3 py-1 mb-6">
+              Sin app. Solo WhatsApp.
             </span>
             <h1 className="text-white text-2xl md:text-3xl font-extrabold">
               Suscripción premium mensual

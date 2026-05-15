@@ -1,81 +1,85 @@
-// ============================================================
-// === Archivo: app/HomeContent.tsx
-// === Descripción: Componente principal de la Landing Page.
-// ===              Muestra H1, Mockup, Beneficios, Testimonios y CTA.
-// ===              Modificado para mejorar persuasión y claridad.
-// ============================================================
-'use client'; // Necesario porque importa Client Components
-
-// --- IMPORTACIONES ---
-// Verifica CUIDADOSAMENTE que estas rutas coincidan EXACTAMENTE
-// con la ubicación y el nombre (MAYÚSCULAS/minúsculas) de tus archivos.
+'use client';
 
 import { CTAButton } from '@/components/CTAButton';
 import Logo from '@/components/logo';
-import BenefitsGridLite from '@/components/Benefits/BenefitsGridLite'; // ¿Está en components/Benefits/ ?
-import Testimonios from '@/components/Testimonios';         // ¿Está en components/ ?
-import WhatsAppMockup from '@/components/WhatsAppMockup';     // ¿Está en components/ ?
+import BenefitsGridLite from '@/components/Benefits/BenefitsGridLite';
+import WhatsAppMockup from '@/components/WhatsAppMockup';
 import SubscriptionSummary from '@/components/SubscriptionSummary';
 
 export default function HomeContent() {
-
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
-      {/* Sección Hero Principal */}
+
+      {/* Hero */}
       <section className="text-center max-w-3xl mx-auto mb-16 md:mb-24">
         <div className="mb-6">
-          <Logo className="h-16 w-auto mx-auto" /> {/* Logo */}
+          <Logo className="h-16 w-auto mx-auto" />
         </div>
 
-        {/* Título Principal (H1) */}
         <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 leading-tight">
-          Recibí tu Horóscopo Premium. Personalizado y directo a tu WhatsApp.
+          Cada mañana, un mensaje hecho para vos.
         </h1>
-        {/* Subtítulo */}
         <p className="text-lg md:text-xl text-white/70 mb-8">
-          Comenzá cada día con la guía astrológica que necesitás, incluyendo mensajes de audio y consejos únicos para vos.
+          Tu horóscopo del día, tu afirmación, tu número y color de la suerte, y un consejo para lo que querés trabajar. Todo en un mensaje breve, directo a WhatsApp.
         </p>
 
-        {/* Mockup Visual de WhatsApp */}
         <div className="my-10 md:my-12 flex justify-center">
-            <WhatsAppMockup />
+          <WhatsAppMockup />
         </div>
 
-        {/* CTA Principal */}
-        <CTAButton href="/checkout" text="Recibir mi Horóscopo Premium Ahora" className="text-lg" />
-        <p className="text-xs text-white/50 mt-2">Suscripción mensual $U 390. Cancelás cuando quieras.</p>
+        <CTAButton href="/checkout" text="Quiero mi guía diaria" className="text-lg" />
+        <p className="text-sm text-white/50 mt-3">$U 390/mes · Sin apps · Cancelás cuando quieras</p>
       </section>
 
-      {/* Sección de Beneficios */}
+      {/* Beneficios */}
       <section className="mb-16 md:mb-24">
-        {/* Título para Beneficios */}
         <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-10 md:mb-12">
-          Tu suscripción premium incluye todo esto:
+          Todo lo que recibís
         </h2>
-        {/* Grid de Beneficios */}
         <BenefitsGridLite />
       </section>
 
-       {/* Sección de Testimonios */}
+      {/* Cómo funciona */}
       <section className="mb-16 md:mb-24">
-        <Testimonios />
+        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-10 md:mb-12">
+          ¿Cómo funciona?
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="text-center px-4">
+            <div className="text-6xl font-extrabold text-violet-400 mb-3 leading-none">1</div>
+            <h3 className="text-lg font-bold text-white mb-2">Te registrás en minutos</h3>
+            <p className="text-white/65 text-sm leading-relaxed">
+              Ingresás tu nombre, tu signo y tu número de WhatsApp. Elegís en qué querés enfocarte.
+            </p>
+          </div>
+          <div className="text-center px-4">
+            <div className="text-6xl font-extrabold text-violet-400 mb-3 leading-none">2</div>
+            <h3 className="text-lg font-bold text-white mb-2">Confirmás tu WhatsApp</h3>
+            <p className="text-white/65 text-sm leading-relaxed">
+              Te enviamos un mensaje de bienvenida. Lo respondés para activar tu cuenta. Un solo paso.
+            </p>
+          </div>
+          <div className="text-center px-4">
+            <div className="text-6xl font-extrabold text-violet-400 mb-3 leading-none">3</div>
+            <h3 className="text-lg font-bold text-white mb-2">Recibís tu guía cada mañana</h3>
+            <p className="text-white/65 text-sm leading-relaxed">
+              Tu mensaje personalizado llega directo a tu WhatsApp. Sin apps. Sin spam. Solo vos y tu guía.
+            </p>
+          </div>
+        </div>
       </section>
 
-      {/* Sección Final de Precio/CTA */}
+      {/* CTA Final */}
       <section className="text-center max-w-2xl mx-auto">
-         {/* Título CTA Final */}
-         <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
-          Listo para transformar tu día a día?
+        <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
+          Empezá hoy. Primer mensaje en minutos.
         </h2>
-        {/* Resumen del plan */}
         <SubscriptionSummary />
-         {/* Botón CTA Final */}
-         <div className="mt-8">
-             <CTAButton href="/checkout" text="Empezar mi Suscripción Premium" className="text-xl" />
-         </div>
+        <div className="mt-8">
+          <CTAButton href="/checkout" text="Quiero mi guía diaria" className="text-xl" />
+        </div>
       </section>
 
     </div>
   );
 }
-
