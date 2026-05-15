@@ -501,6 +501,12 @@ export default function SuscripcionesPage() {
           <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3">
             Suscripciones
           </span>
+          <a
+            href="/admin/logs"
+            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
+          >
+            Logs
+          </a>
         </div>
       </header>
 

@@ -212,6 +212,348 @@ function BoolVal({ value, trueLabel = "Sí", falseLabel = "No" }: { value: boole
 }
 
 // ===========================================================================
+// AccionesPremium
+// ===========================================================================
+
+type AccionKey =
+  | "activar_premium_manual"
+  | "desactivar_premium_manual"
+  | "cambiar_fecha_vencimiento"
+  | "cambiar_estado_suscripcion";
+
+interface AccionInfo {
+  label: string;
+  descripcion: string;
+  impacto: string;
+  peligrosa: boolean;
+}
+
+const ACCION_INFO: Record<AccionKey, AccionInfo> = {
+  activar_premium_manual: {
+    label: "Activar Premium",
+    descripcion: "Activa el acceso premium manualmente.",
+    impacto:
+      "Cambia premium_activo → true y estado_suscripcion → activa. NO crea pago ni suscripción en Mercado Pago.",
+    peligrosa: false,
+  },
+  desactivar_premium_manual: {
+    label: "Desactivar Premium",
+    descripcion: "Desactiva el acceso premium manualmente.",
+    impacto:
+      "Cambia premium_activo → false y estado_suscripcion → suspendida. NO cancela Mercado Pago.",
+    peligrosa: true,
+  },
+  cambiar_fecha_vencimiento: {
+    label: "Cambiar Vencimiento",
+    descripcion: "Ajusta la fecha de vencimiento del premium.",
+    impacto:
+      "Actualiza fecha_vencimiento_premium en la base de datos local. No modifica Mercado Pago.",
+    peligrosa: false,
+  },
+  cambiar_estado_suscripcion: {
+    label: "Cambiar Estado",
+    descripcion: "Cambia el estado_suscripcion local del suscriptor.",
+    impacto:
+      "Modifica estado_suscripcion. No afecta Mercado Pago ni premium_activo directamente.",
+    peligrosa: false,
+  },
+};
+
+const ESTADOS_SUSCRIPCION = [
+  "pendiente_autorizacion",
+  "activa",
+  "suspendida",
+  "cancelada_no_renueva",
+  "finalizada",
+] as const;
+
+function AccionesPremium({
+  suscriptor,
+  onAccionOk,
+}: {
+  suscriptor: SuscriptorData;
+  onAccionOk: () => void;
+}) {
+  const [accionActiva, setAccionActiva] = useState<AccionKey | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [fecha, setFecha] = useState("");
+  const [nuevoEstado, setNuevoEstado] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  function abrirAccion(accion: AccionKey) {
+    setAccionActiva(accion);
+    setMotivo("");
+    setFecha("");
+    setNuevoEstado("");
+    setResultado(null);
+  }
+
+  function cancelar() {
+    if (submitting) return;
+    setAccionActiva(null);
+    setResultado(null);
+  }
+
+  async function ejecutar() {
+    if (!accionActiva || submitting) return;
+    const motivoTrim = motivo.trim();
+    if (motivoTrim.length < 5) return;
+
+    setSubmitting(true);
+    setResultado(null);
+
+    try {
+      const body: Record<string, unknown> = {
+        id_suscriptor: suscriptor.id,
+        accion: accionActiva,
+        motivo: motivoTrim,
+      };
+      if (accionActiva === "activar_premium_manual" || accionActiva === "cambiar_fecha_vencimiento") {
+        body.fecha_vencimiento_premium = fecha;
+      }
+      if (accionActiva === "cambiar_estado_suscripcion") {
+        body.nuevo_estado_suscripcion = nuevoEstado;
+      }
+
+      const res = await fetch("/api/admin/suscriptor-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      let json: Record<string, unknown>;
+      try {
+        json = await res.json();
+      } catch {
+        json = {};
+      }
+
+      if (!res.ok || !json.ok) {
+        setResultado({
+          ok: false,
+          texto:
+            (json.detalle as string) ??
+            (json.motivo as string) ??
+            `Error HTTP ${res.status}`,
+        });
+      } else {
+        setResultado({
+          ok: true,
+          texto: (json.mensaje as string) ?? "Acción aplicada correctamente.",
+        });
+        // Esperar un momento para que el usuario vea el resultado, luego refrescar
+        setTimeout(() => {
+          cancelar();
+          onAccionOk();
+        }, 1800);
+      }
+    } catch (e: unknown) {
+      setResultado({
+        ok: false,
+        texto: e instanceof Error ? e.message : "Error de red",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const needsFecha =
+    accionActiva === "activar_premium_manual" ||
+    accionActiva === "cambiar_fecha_vencimiento";
+  const needsEstado = accionActiva === "cambiar_estado_suscripcion";
+
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  const canSubmit =
+    motivo.trim().length >= 5 &&
+    (!needsFecha || fechaValida) &&
+    (!needsEstado || !!nuevoEstado);
+
+  const info = accionActiva ? ACCION_INFO[accionActiva] : null;
+
+  return (
+    <div>
+      {/* Botones de acción */}
+      {!accionActiva && (
+        <div className="flex flex-wrap gap-2">
+          {!suscriptor.premium_activo ? (
+            <button
+              onClick={() => abrirAccion("activar_premium_manual")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-emerald-700/70 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 transition-colors"
+            >
+              Activar Premium
+            </button>
+          ) : (
+            <button
+              onClick={() => abrirAccion("desactivar_premium_manual")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-800/70 bg-red-950/40 text-red-300 hover:bg-red-900/50 transition-colors"
+            >
+              Desactivar Premium
+            </button>
+          )}
+
+          <button
+            onClick={() => abrirAccion("cambiar_fecha_vencimiento")}
+            className="text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
+          >
+            Cambiar Vencimiento
+          </button>
+
+          <button
+            onClick={() => abrirAccion("cambiar_estado_suscripcion")}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-600/60 bg-gray-800/30 text-gray-300 hover:bg-gray-700/40 transition-colors"
+          >
+            Cambiar Estado
+          </button>
+        </div>
+      )}
+
+      {/* Panel de confirmación */}
+      {accionActiva && info && (
+        <div
+          className={`rounded-lg border p-4 ${
+            info.peligrosa
+              ? "border-red-800/60 bg-red-950/25"
+              : "border-amber-800/40 bg-amber-950/15"
+          }`}
+        >
+          {/* Cabecera */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-white">
+              Confirmar: {info.label}
+            </span>
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+              aria-label="Cancelar"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* Contexto de la acción */}
+          <div className="mb-4 space-y-1.5 text-xs">
+            <p className="text-gray-400">
+              Suscriptor:{" "}
+              <span className="text-white font-semibold">{suscriptor.nombre}</span>{" "}
+              <span className="text-gray-500">(#{suscriptor.id})</span>
+            </p>
+            <p className="text-gray-400">{info.descripcion}</p>
+            <p
+              className={`text-xs font-medium ${
+                info.peligrosa ? "text-red-300" : "text-amber-300"
+              }`}
+            >
+              Impacto: {info.impacto}
+            </p>
+          </div>
+
+          {/* Campo: fecha de vencimiento */}
+          {needsFecha && (
+            <div className="mb-3">
+              <label className="block text-xs text-gray-400 mb-1">
+                Nueva fecha de vencimiento{" "}
+                <span className="text-red-400">*</span>{" "}
+                <span className="text-gray-600">(YYYY-MM-DD)</span>
+              </label>
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                disabled={submitting}
+                className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+              />
+            </div>
+          )}
+
+          {/* Campo: nuevo estado */}
+          {needsEstado && (
+            <div className="mb-3">
+              <label className="block text-xs text-gray-400 mb-1">
+                Nuevo estado_suscripcion <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={nuevoEstado}
+                onChange={(e) => setNuevoEstado(e.target.value)}
+                disabled={submitting}
+                className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+              >
+                <option value="">Seleccionar estado…</option>
+                {ESTADOS_SUSCRIPCION.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Campo: motivo */}
+          <div className="mb-3">
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-red-400">*</span>{" "}
+              <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              disabled={submitting}
+              rows={2}
+              placeholder="Describir el motivo de esta acción…"
+              className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 resize-none placeholder-gray-600 disabled:opacity-50"
+            />
+            <p className="text-right text-xs text-gray-600 mt-0.5">
+              {motivo.trim().length} car.
+            </p>
+          </div>
+
+          {/* Resultado */}
+          {resultado && (
+            <div
+              className={`mb-3 text-xs rounded px-3 py-2 flex items-start gap-2 ${
+                resultado.ok
+                  ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
+                  : "bg-red-950/50 text-red-300 border border-red-800/40"
+              }`}
+            >
+              {resultado.ok ? (
+                <Check size={12} className="shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              )}
+              <span>{resultado.texto}</span>
+            </div>
+          )}
+
+          {/* Botones */}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 hover:border-gray-500 disabled:opacity-40 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={ejecutar}
+              disabled={!canSubmit || submitting}
+              className={`text-xs px-4 py-1.5 rounded-lg border font-medium transition-colors disabled:opacity-40 ${
+                info.peligrosa
+                  ? "border-red-700 bg-red-900/50 text-red-200 hover:bg-red-800/60"
+                  : "border-violet-700 bg-violet-900/50 text-violet-200 hover:bg-violet-800/60"
+              }`}
+            >
+              {submitting ? "Ejecutando…" : `Confirmar — ${info.label}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Main component
 // ===========================================================================
 
@@ -224,6 +566,7 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
   const [data, setData] = useState<DetalleData | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setCargando(true);
@@ -243,7 +586,7 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
       })
       .catch((e: unknown) => setErrorMsg(e instanceof Error ? e.message : "Error de red"))
       .finally(() => setCargando(false));
-  }, [id]);
+  }, [id, refreshKey]);
 
   return (
     <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
@@ -511,7 +854,6 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
                   </table>
                 </div>
 
-                {/* Error details from failed messages */}
                 {data.mensajes_fallidos.some((m) => m.ultimo_error) && (
                   <div className="mt-2 space-y-1">
                     {data.mensajes_fallidos
@@ -689,6 +1031,14 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
                 </div>
               </Sect>
             )}
+
+            {/* Acciones Premium */}
+            <Sect title="Acciones Premium">
+              <AccionesPremium
+                suscriptor={data.suscriptor}
+                onAccionOk={() => setRefreshKey((k) => k + 1)}
+              />
+            </Sect>
           </>
         )}
       </div>
