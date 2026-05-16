@@ -12,6 +12,9 @@ import {
   ChevronUp,
   Tag,
   Search,
+  Plus,
+  Pencil,
+  Power,
 } from "lucide-react";
 
 // ===========================================================================
@@ -88,6 +91,23 @@ type Filtros = {
   vencidos: boolean;
 };
 
+type FormData = {
+  codigo: string;
+  descripcion: string;
+  tipo_descuento: string;
+  valor_descuento: string;
+  activo: boolean;
+  fecha_inicio: string;
+  fecha_fin: string;
+  max_usos_total: string;
+  max_usos_por_usuario: string;
+  precio_recurrente_normal: string;
+  aplica_a_producto: string;
+  aplica_a_plan: string;
+};
+
+type Notif = { msg: string; type: "ok" | "error" };
+
 // ===========================================================================
 // Constants
 // ===========================================================================
@@ -97,6 +117,21 @@ const DEFAULT_FILTROS: Filtros = {
   activo: "",
   tipo: "",
   vencidos: false,
+};
+
+const DEFAULT_FORM: FormData = {
+  codigo: "",
+  descripcion: "",
+  tipo_descuento: "porcentaje",
+  valor_descuento: "",
+  activo: true,
+  fecha_inicio: "",
+  fecha_fin: "",
+  max_usos_total: "",
+  max_usos_por_usuario: "1",
+  precio_recurrente_normal: "390",
+  aplica_a_producto: "premium",
+  aplica_a_plan: "mensual",
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -185,6 +220,15 @@ function buildQuery(f: Filtros): string {
   return p.toString();
 }
 
+function isoToDateInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    return iso.split("T")[0];
+  } catch {
+    return "";
+  }
+}
+
 // ===========================================================================
 // Sub-components
 // ===========================================================================
@@ -207,7 +251,8 @@ function StatCard({
 }
 
 function TipoBadge({ tipo }: { tipo: string }) {
-  const cls = TIPO_CLS[tipo] ?? "bg-gray-800 text-gray-400 border border-gray-700/50";
+  const cls =
+    TIPO_CLS[tipo] ?? "bg-gray-800 text-gray-400 border border-gray-700/50";
   return (
     <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-mono ${cls}`}>
       {TIPO_LABEL[tipo] ?? tipo}
@@ -268,28 +313,18 @@ function UsosList({ codigoId }: { codigoId: string }) {
     fetch(`/api/admin/cupones/usos?codigo_id=${encodeURIComponent(codigoId)}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok) {
-          setUsos(data.usos);
-        } else {
-          setErr(data.motivo ?? "Error al cargar usos");
-        }
+        if (data.ok) setUsos(data.usos);
+        else setErr(data.motivo ?? "Error al cargar usos");
       })
       .catch(() => setErr("Error de red"))
       .finally(() => setCargando(false));
   }, [codigoId]);
 
   if (cargando)
-    return (
-      <p className="text-xs text-gray-500 animate-pulse py-2">Cargando usos…</p>
-    );
-  if (err)
-    return (
-      <p className="text-xs text-red-400 py-2">Error: {err}</p>
-    );
+    return <p className="text-xs text-gray-500 animate-pulse py-2">Cargando usos…</p>;
+  if (err) return <p className="text-xs text-red-400 py-2">Error: {err}</p>;
   if (!usos || usos.length === 0)
-    return (
-      <p className="text-xs text-gray-600 py-2">Sin usos registrados.</p>
-    );
+    return <p className="text-xs text-gray-600 py-2">Sin usos registrados.</p>;
 
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-800">
@@ -310,10 +345,7 @@ function UsosList({ codigoId }: { codigoId: string }) {
         </thead>
         <tbody>
           {usos.map((u) => (
-            <tr
-              key={u.id}
-              className="border-b border-gray-800/40 last:border-0 hover:bg-gray-800/20"
-            >
+            <tr key={u.id} className="border-b border-gray-800/40 last:border-0 hover:bg-gray-800/20">
               <td className="px-3 py-2">
                 <span className={`font-mono ${USO_ESTADO_CLS[u.estado_uso] ?? "text-gray-400"}`}>
                   {u.estado_uso}
@@ -326,20 +358,390 @@ function UsosList({ codigoId }: { codigoId: string }) {
                 {u.precio_aplicado !== null ? `$U ${u.precio_aplicado}` : "—"}
               </td>
               <td className="px-3 py-2 text-violet-400">
-                {u.valor_descuento_aplicado !== null
-                  ? `-$U ${u.valor_descuento_aplicado}`
-                  : "—"}
+                {u.valor_descuento_aplicado !== null ? `-$U ${u.valor_descuento_aplicado}` : "—"}
               </td>
-              <td className="px-3 py-2 text-gray-400">
-                {fmtDateTime(u.fecha_aplicacion)}
-              </td>
-              <td className="px-3 py-2 font-mono text-gray-600">
-                {u.preapproval_id ?? "—"}
-              </td>
+              <td className="px-3 py-2 text-gray-400">{fmtDateTime(u.fecha_aplicacion)}</td>
+              <td className="px-3 py-2 font-mono text-gray-600">{u.preapproval_id ?? "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ===========================================================================
+// Modal form (crear / editar)
+// ===========================================================================
+
+function CuponModal({
+  mode,
+  cupon,
+  onClose,
+  onSuccess,
+}: {
+  mode: "crear" | "editar";
+  cupon: Cupon | null;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const esEditar = mode === "editar";
+  const tieneUsos = esEditar && (cupon?.usos_actuales ?? 0) > 0;
+
+  const [form, setForm] = useState<FormData>(() => {
+    if (esEditar && cupon) {
+      return {
+        codigo: cupon.codigo,
+        descripcion: cupon.descripcion ?? "",
+        tipo_descuento: cupon.tipo_descuento,
+        valor_descuento: cupon.valor_descuento !== null ? String(cupon.valor_descuento) : "",
+        activo: cupon.activo,
+        fecha_inicio: isoToDateInput(cupon.fecha_inicio),
+        fecha_fin: isoToDateInput(cupon.fecha_fin),
+        max_usos_total: cupon.max_usos_total !== null ? String(cupon.max_usos_total) : "",
+        max_usos_por_usuario:
+          cupon.max_usos_por_usuario !== null ? String(cupon.max_usos_por_usuario) : "1",
+        precio_recurrente_normal:
+          cupon.precio_recurrente_normal !== null ? String(cupon.precio_recurrente_normal) : "390",
+        aplica_a_producto: cupon.aplica_a_producto ?? "premium",
+        aplica_a_plan: cupon.aplica_a_plan ?? "mensual",
+      };
+    }
+    return { ...DEFAULT_FORM };
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function upd(patch: Partial<FormData>) {
+    setForm((prev) => ({ ...prev, ...patch }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: Record<string, unknown> = {
+        accion: esEditar ? "editar" : "crear",
+      };
+
+      if (esEditar && cupon) {
+        payload.id = cupon.id;
+        payload.descripcion = form.descripcion || null;
+        payload.activo = form.activo;
+        payload.fecha_inicio = form.fecha_inicio || null;
+        payload.fecha_fin = form.fecha_fin || null;
+        payload.max_usos_total = form.max_usos_total ? Number(form.max_usos_total) : null;
+        payload.max_usos_por_usuario = form.max_usos_por_usuario
+          ? Number(form.max_usos_por_usuario)
+          : null;
+        payload.aplica_a_producto = form.aplica_a_producto || null;
+        payload.aplica_a_plan = form.aplica_a_plan || null;
+        if (!tieneUsos) {
+          payload.tipo_descuento = form.tipo_descuento;
+          payload.valor_descuento = form.valor_descuento ? Number(form.valor_descuento) : null;
+          payload.precio_recurrente_normal = form.precio_recurrente_normal
+            ? Number(form.precio_recurrente_normal)
+            : null;
+        }
+      } else {
+        payload.codigo = form.codigo.toUpperCase();
+        payload.descripcion = form.descripcion || null;
+        payload.tipo_descuento = form.tipo_descuento;
+        payload.valor_descuento = form.valor_descuento ? Number(form.valor_descuento) : null;
+        payload.activo = form.activo;
+        payload.fecha_inicio = form.fecha_inicio || null;
+        payload.fecha_fin = form.fecha_fin || null;
+        payload.max_usos_total = form.max_usos_total ? Number(form.max_usos_total) : null;
+        payload.max_usos_por_usuario = form.max_usos_por_usuario
+          ? Number(form.max_usos_por_usuario)
+          : 1;
+        payload.precio_recurrente_normal = form.precio_recurrente_normal
+          ? Number(form.precio_recurrente_normal)
+          : 390;
+        payload.aplica_a_producto = form.aplica_a_producto || "premium";
+        payload.aplica_a_plan = form.aplica_a_plan || "mensual";
+      }
+
+      const res = await fetch("/api/admin/cupones/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        setError(data.error ?? "Error al guardar");
+      } else {
+        const codigo =
+          data.cupon?.codigo ?? (esEditar ? cupon?.codigo : form.codigo.toUpperCase());
+        onSuccess(
+          esEditar ? `Cupón "${codigo}" actualizado.` : `Cupón "${codigo}" creado.`
+        );
+        onClose();
+      }
+    } catch {
+      setError("Error de red");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const iCls =
+    "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500 disabled:opacity-40 disabled:cursor-not-allowed";
+  const lbl = "block text-xs text-gray-400 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900">
+          <h2 className="text-sm font-semibold text-white">
+            {esEditar ? `Editar cupón: ${cupon?.codigo}` : "Nuevo cupón de descuento"}
+          </h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-6">
+          {/* Warning: tiene usos */}
+          {tieneUsos && (
+            <div className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 flex gap-2.5">
+              <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-300">Cupón con usos registrados</p>
+                <p className="text-xs text-amber-300/80 mt-0.5">
+                  Este cupón ya tiene {cupon?.usos_actuales} uso
+                  {(cupon?.usos_actuales ?? 0) !== 1 ? "s" : ""}. Solo se pueden modificar reglas
+                  operativas. El tipo y valor del descuento son de solo lectura.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Identificación */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Identificación
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Código *</label>
+                {esEditar ? (
+                  <div className="font-mono text-sm text-violet-300 bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2">
+                    {cupon?.codigo}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      className={iCls}
+                      value={form.codigo}
+                      onChange={(e) => upd({ codigo: e.target.value.toUpperCase() })}
+                      placeholder="EJ: VERANO25"
+                      maxLength={32}
+                      required
+                      autoFocus
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Mayúsculas, números, guiones (2–32 chars)
+                    </p>
+                  </>
+                )}
+              </div>
+              <div>
+                <label className={lbl}>Descripción</label>
+                <input
+                  type="text"
+                  className={iCls}
+                  value={form.descripcion}
+                  onChange={(e) => upd({ descripcion: e.target.value })}
+                  placeholder="Descuento de verano…"
+                  maxLength={200}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Descuento */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Descuento
+            </p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className={lbl}>Tipo *</label>
+                {tieneUsos ? (
+                  <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2">
+                    <TipoBadge tipo={form.tipo_descuento} />
+                  </div>
+                ) : (
+                  <select
+                    className={iCls}
+                    value={form.tipo_descuento}
+                    onChange={(e) => upd({ tipo_descuento: e.target.value })}
+                    required
+                  >
+                    <option value="porcentaje">Porcentaje</option>
+                    <option value="monto_fijo">Monto fijo</option>
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className={lbl}>
+                  Valor {form.tipo_descuento === "porcentaje" ? "(1–100 %)" : "(UYU)"} *
+                </label>
+                <input
+                  type="number"
+                  className={iCls}
+                  value={form.valor_descuento}
+                  onChange={(e) => upd({ valor_descuento: e.target.value })}
+                  placeholder={form.tipo_descuento === "porcentaje" ? "10" : "100"}
+                  disabled={tieneUsos}
+                  required={!tieneUsos}
+                  min={form.tipo_descuento === "porcentaje" ? 1 : 0.01}
+                  max={form.tipo_descuento === "porcentaje" ? 100 : undefined}
+                  step="any"
+                />
+              </div>
+              <div>
+                <label className={lbl}>Precio normal (UYU)</label>
+                <input
+                  type="number"
+                  className={iCls}
+                  value={form.precio_recurrente_normal}
+                  onChange={(e) => upd({ precio_recurrente_normal: e.target.value })}
+                  placeholder="390"
+                  disabled={tieneUsos}
+                  min={1}
+                  step="any"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Vigencia y límites */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Vigencia y límites
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Fecha inicio</label>
+                <input
+                  type="date"
+                  className={iCls}
+                  value={form.fecha_inicio}
+                  onChange={(e) => upd({ fecha_inicio: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Fecha fin</label>
+                <input
+                  type="date"
+                  className={iCls}
+                  value={form.fecha_fin}
+                  onChange={(e) => upd({ fecha_fin: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Máx. usos totales</label>
+                <input
+                  type="number"
+                  className={iCls}
+                  value={form.max_usos_total}
+                  onChange={(e) => upd({ max_usos_total: e.target.value })}
+                  placeholder="Ilimitado"
+                  min={1}
+                  step={1}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Máx. usos por usuario</label>
+                <input
+                  type="number"
+                  className={iCls}
+                  value={form.max_usos_por_usuario}
+                  onChange={(e) => upd({ max_usos_por_usuario: e.target.value })}
+                  placeholder="1"
+                  min={1}
+                  step={1}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Alcance */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Alcance
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Aplica a producto</label>
+                <input
+                  type="text"
+                  className={iCls}
+                  value={form.aplica_a_producto}
+                  onChange={(e) => upd({ aplica_a_producto: e.target.value })}
+                  placeholder="premium"
+                />
+              </div>
+              <div>
+                <label className={lbl}>Aplica a plan</label>
+                <input
+                  type="text"
+                  className={iCls}
+                  value={form.aplica_a_plan}
+                  onChange={(e) => upd({ aplica_a_plan: e.target.value })}
+                  placeholder="mensual"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Estado */}
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.activo}
+              onChange={(e) => upd({ activo: e.target.checked })}
+              className="w-4 h-4 accent-violet-500"
+            />
+            <span className="text-sm text-gray-300">Cupón activo al guardar</span>
+          </label>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
+              <AlertCircle size={14} className="shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-800">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {loading ? "Guardando…" : esEditar ? "Guardar cambios" : "Crear cupón"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -351,9 +753,15 @@ function UsosList({ codigoId }: { codigoId: string }) {
 function CuponDetalle({
   cupon,
   onClose,
+  onEditar,
+  onToggle,
+  toggleLoading,
 }: {
   cupon: Cupon;
   onClose: () => void;
+  onEditar: (c: Cupon) => void;
+  onToggle: (c: Cupon) => void;
+  toggleLoading: boolean;
 }) {
   const [showUsos, setShowUsos] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
@@ -366,26 +774,49 @@ function CuponDetalle({
   if (comp.usos_agotados) advertencias.push("Usos agotados");
   if (!c.activo) advertencias.push("Inactivo");
   if (comp.tipo_no_soportado_mvp)
-    advertencias.push(`Tipo "${c.tipo_descuento}" no soportado en MVP — no puede aplicarse en el checkout actual`);
+    advertencias.push(
+      `Tipo "${c.tipo_descuento}" no soportado en MVP — no puede aplicarse en el checkout actual`
+    );
 
   return (
     <div className="mt-4 border border-gray-700 rounded-xl bg-gray-900/70 shadow-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Tag size={15} className="text-violet-400 shrink-0" />
           <span className="text-white font-semibold text-sm font-mono">{c.codigo}</span>
           {c.descripcion && (
-            <span className="text-gray-500 text-xs">— {c.descripcion}</span>
+            <span className="text-gray-500 text-xs truncate">— {c.descripcion}</span>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-300 transition-colors"
-          aria-label="Cerrar"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0 ml-4">
+          <button
+            onClick={() => onEditar(c)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 text-gray-300 hover:text-white hover:border-gray-600 transition-colors"
+          >
+            <Pencil size={11} />
+            Editar
+          </button>
+          <button
+            onClick={() => onToggle(c)}
+            disabled={toggleLoading}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+              c.activo
+                ? "border-amber-700/60 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50"
+                : "border-green-700/60 bg-green-900/30 text-green-300 hover:bg-green-900/50"
+            }`}
+          >
+            <Power size={11} />
+            {toggleLoading ? "…" : c.activo ? "Desactivar" : "Activar"}
+          </button>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-300 transition-colors ml-1"
+            aria-label="Cerrar"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="px-5 py-4 space-y-5">
@@ -430,7 +861,9 @@ function CuponDetalle({
           {c.cantidad_ciclos_descuento !== null && (
             <DataRow
               label="Ciclos con descuento"
-              value={`${c.cantidad_ciclos_descuento} ciclo${c.cantidad_ciclos_descuento !== 1 ? "s" : ""}`}
+              value={`${c.cantidad_ciclos_descuento} ciclo${
+                c.cantidad_ciclos_descuento !== 1 ? "s" : ""
+              }`}
             />
           )}
           <DataRow label="Moneda" value={moneda} />
@@ -485,15 +918,12 @@ function CuponDetalle({
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
             Restricciones
           </p>
+          <DataRow label="Aplica a producto" value={c.aplica_a_producto ?? "Todos"} />
+          <DataRow label="Aplica a plan" value={c.aplica_a_plan ?? "Todos"} />
           <DataRow
-            label="Aplica a producto"
-            value={c.aplica_a_producto ?? "Todos"}
+            label="Estado"
+            value={<ActivoBadge activo={c.activo} vencido={comp.vencido} />}
           />
-          <DataRow
-            label="Aplica a plan"
-            value={c.aplica_a_plan ?? "Todos"}
-          />
-          <DataRow label="Estado" value={<ActivoBadge activo={c.activo} vencido={comp.vencido} />} />
         </div>
 
         {/* Auditoría */}
@@ -556,6 +986,11 @@ export default function CuponesPage() {
   const [busquedaInput, setBusquedaInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const [formMode, setFormMode] = useState<null | "crear" | "editar">(null);
+  const [formCupon, setFormCupon] = useState<Cupon | null>(null);
+  const [notif, setNotif] = useState<Notif | null>(null);
+  const [toggleLoadingId, setToggleLoadingId] = useState<string | null>(null);
+
   const cargar = useCallback(async (f: Filtros) => {
     setCargando(true);
     setErrorMsg(null);
@@ -598,6 +1033,56 @@ export default function CuponesPage() {
     setSelectedId((prev) => (prev === id ? null : id));
   }
 
+  function showNotif(msg: string, type: "ok" | "error" = "ok") {
+    setNotif({ msg, type });
+    setTimeout(() => setNotif(null), 5000);
+  }
+
+  function handleNuevo() {
+    setFormMode("crear");
+    setFormCupon(null);
+  }
+
+  function handleEditar(c: Cupon) {
+    setFormMode("editar");
+    setFormCupon(c);
+  }
+
+  function handleFormClose() {
+    setFormMode(null);
+    setFormCupon(null);
+  }
+
+  function handleFormSuccess(msg: string) {
+    cargar(filtros);
+    showNotif(msg, "ok");
+  }
+
+  async function handleToggle(c: Cupon) {
+    setToggleLoadingId(c.id);
+    try {
+      const res = await fetch("/api/admin/cupones/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "toggle_activo", id: c.id, activo: !c.activo }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        await cargar(filtros);
+        showNotif(
+          `Cupón "${json.codigo}" ${json.activo ? "activado" : "desactivado"}.`,
+          "ok"
+        );
+      } else {
+        showNotif(json.error ?? "Error al cambiar estado", "error");
+      }
+    } catch {
+      showNotif("Error de red al cambiar estado", "error");
+    } finally {
+      setToggleLoadingId(null);
+    }
+  }
+
   async function cerrarSesion() {
     setCerrandoSesion(true);
     try {
@@ -633,53 +1118,33 @@ export default function CuponesPage() {
             {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
           </button>
         </div>
-        {/* Nav */}
         <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <a
-            href="/admin"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Dashboard
           </a>
-          <a
-            href="/admin/suscriptores"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin/suscriptores" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Suscriptores
           </a>
-          <a
-            href="/admin/mensajes-problematicos"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin/mensajes-problematicos" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Mensajes
           </a>
-          <a
-            href="/admin/contenido"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin/contenido" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Contenido
           </a>
-          <a
-            href="/admin/suscripciones"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin/suscripciones" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Suscripciones
           </a>
           <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3 whitespace-nowrap">
             Cupones
           </span>
-          <a
-            href="/admin/logs"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap"
-          >
+          <a href="/admin/logs" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
             Logs
           </a>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-
-        {/* Summary cards */}
+        {/* Stats */}
         {resumen && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             <StatCard label="Total códigos" value={resumen.total} />
@@ -691,9 +1156,46 @@ export default function CuponesPage() {
           </div>
         )}
 
+        {/* Actions bar */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">
+            Cupones de descuento
+          </p>
+          <button
+            onClick={handleNuevo}
+            className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors"
+          >
+            <Plus size={14} />
+            Nuevo cupón
+          </button>
+        </div>
+
+        {/* Notification */}
+        {notif && (
+          <div
+            className={`mb-4 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${
+              notif.type === "ok"
+                ? "border-green-800/50 bg-green-950/40 text-green-300"
+                : "border-red-800/50 bg-red-950/40 text-red-300"
+            }`}
+          >
+            {notif.type === "ok" ? (
+              <CheckCircle2 size={14} className="shrink-0" />
+            ) : (
+              <AlertCircle size={14} className="shrink-0" />
+            )}
+            <span className="flex-1">{notif.msg}</span>
+            <button
+              onClick={() => setNotif(null)}
+              className="opacity-60 hover:opacity-100 transition-opacity"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {/* Búsqueda */}
           <div className="flex gap-0 rounded-lg overflow-hidden border border-gray-700">
             <div className="flex items-center px-3 bg-gray-900">
               <Search size={13} className="text-gray-500" />
@@ -715,7 +1217,6 @@ export default function CuponesPage() {
             Buscar
           </button>
 
-          {/* Activo */}
           <select
             value={filtros.activo}
             onChange={(e) => applyFiltro({ busqueda: busquedaInput, activo: e.target.value })}
@@ -726,7 +1227,6 @@ export default function CuponesPage() {
             <option value="false">Solo inactivos</option>
           </select>
 
-          {/* Tipo */}
           <select
             value={filtros.tipo}
             onChange={(e) => applyFiltro({ busqueda: busquedaInput, tipo: e.target.value })}
@@ -740,7 +1240,6 @@ export default function CuponesPage() {
             <option value="meses_gratis">Meses gratis</option>
           </select>
 
-          {/* Vencidos toggle */}
           <button
             onClick={() => applyFiltro({ busqueda: busquedaInput, vencidos: !filtros.vencidos })}
             className={`text-sm px-3 py-2 rounded-lg border transition-colors ${
@@ -752,7 +1251,6 @@ export default function CuponesPage() {
             Solo vencidos
           </button>
 
-          {/* Reset */}
           {(filtros.busqueda || filtros.activo || filtros.tipo || filtros.vencidos) && (
             <button
               onClick={() => {
@@ -800,23 +1298,16 @@ export default function CuponesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-800 bg-gray-900/60">
-                    {[
-                      "Código",
-                      "Tipo",
-                      "Valor",
-                      "Precio normal",
-                      "Vigencia",
-                      "Usos",
-                      "Estado",
-                      "",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    {["Código", "Tipo", "Valor", "Precio normal", "Vigencia", "Usos", "Estado", ""].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -840,7 +1331,6 @@ export default function CuponesPage() {
                         onClick={() => handleRowClick(c.id)}
                         className={`border-b border-gray-800/50 cursor-pointer transition-colors hover:bg-gray-800/25 ${rowBg}`}
                       >
-                        {/* Código */}
                         <td className="px-4 py-3">
                           <span className="font-mono text-sm text-violet-300 font-semibold">
                             {c.codigo}
@@ -851,59 +1341,35 @@ export default function CuponesPage() {
                             </p>
                           )}
                         </td>
-
-                        {/* Tipo */}
                         <td className="px-4 py-3">
                           <TipoBadge tipo={c.tipo_descuento} />
                         </td>
-
-                        {/* Valor */}
                         <td className="px-4 py-3 text-gray-200 text-sm font-semibold whitespace-nowrap">
                           {fmtValor(c)}
                         </td>
-
-                        {/* Precio normal */}
                         <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                           {c.precio_recurrente_normal !== null
                             ? `$${c.moneda ?? "UYU"} ${c.precio_recurrente_normal}`
                             : "—"}
                         </td>
-
-                        {/* Vigencia */}
                         <td className="px-4 py-3 text-xs whitespace-nowrap">
-                          <span
-                            className={
-                              c.computed.vencido ? "text-red-400" : "text-gray-400"
-                            }
-                          >
+                          <span className={c.computed.vencido ? "text-red-400" : "text-gray-400"}>
                             {c.fecha_inicio ? fmtDate(c.fecha_inicio) : "—"}
                             {" → "}
                             {c.fecha_fin ? fmtDate(c.fecha_fin) : "∞"}
                           </span>
                         </td>
-
-                        {/* Usos */}
                         <td className="px-4 py-3 text-xs whitespace-nowrap">
                           <span
-                            className={
-                              c.computed.usos_agotados
-                                ? "text-red-400"
-                                : "text-gray-300"
-                            }
+                            className={c.computed.usos_agotados ? "text-red-400" : "text-gray-300"}
                           >
                             {c.usos_actuales}
-                            {c.max_usos_total !== null
-                              ? ` / ${c.max_usos_total}`
-                              : " / ∞"}
+                            {c.max_usos_total !== null ? ` / ${c.max_usos_total}` : " / ∞"}
                           </span>
                         </td>
-
-                        {/* Estado */}
                         <td className="px-4 py-3">
                           <ActivoBadge activo={c.activo} vencido={c.computed.vencido} />
                         </td>
-
-                        {/* Warnings icon */}
                         <td className="px-4 py-3 text-right">
                           {hasWarnings && (
                             <AlertTriangle size={13} className="text-amber-400 inline" />
@@ -917,7 +1383,7 @@ export default function CuponesPage() {
             </div>
 
             <p className="mt-2 text-xs text-gray-600">
-              {cupones.length} código{cupones.length !== 1 ? "s" : ""} · Solo lectura
+              {cupones.length} código{cupones.length !== 1 ? "s" : ""}
             </p>
 
             {/* Detail panel */}
@@ -925,11 +1391,24 @@ export default function CuponesPage() {
               <CuponDetalle
                 cupon={selectedCupon}
                 onClose={() => setSelectedId(null)}
+                onEditar={handleEditar}
+                onToggle={handleToggle}
+                toggleLoading={toggleLoadingId === selectedCupon.id}
               />
             )}
           </>
         )}
       </main>
+
+      {/* Modal */}
+      {formMode && (
+        <CuponModal
+          mode={formMode}
+          cupon={formCupon}
+          onClose={handleFormClose}
+          onSuccess={handleFormSuccess}
+        />
+      )}
     </div>
   );
 }
