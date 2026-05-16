@@ -102,13 +102,25 @@ serve(async (req)=>{
     // 1) INPUT
     // ------------------------------------------------------------------------
     const body = await req.json().catch(()=>({}));
-    const { id_suscriptor, whatsapp, email } = body;
+    const {
+      id_suscriptor,
+      whatsapp,
+      email,
+      monto: montoBody,
+      codigo_descuento,
+      codigo_descuento_id,
+      descuento_estado,
+      descuento_metadata,
+    } = body;
     if (!id_suscriptor || !whatsapp) {
       return json({
         ok: false,
         error: "Datos incompletos"
       }, 400);
     }
+    // Monto final: usa el que viene del servidor (ya validado), fallback a MP_AMOUNT.
+    const transactionAmount = (typeof montoBody === "number" && montoBody > 0) ? montoBody : MP_AMOUNT;
+    const tieneDescuento = !!codigo_descuento;
     // ------------------------------------------------------------------------
     // 2) EMAIL FINAL (OBLIGATORIO PARA MP)
     // ------------------------------------------------------------------------
@@ -182,7 +194,7 @@ serve(async (req)=>{
     // preferimos NO reutilizarla automáticamente.
     // Eso es una decisión conservadora y segura.
     // ---------------------------------------------------------------------------
-    if (suscripcionExistente) {
+    if (suscripcionExistente && !tieneDescuento) {
       // -------------------------------------------------------------------------
       // Fecha base de comparación
       // -------------------------------------------------------------------------
@@ -293,7 +305,7 @@ serve(async (req)=>{
       auto_recurring: {
         frequency: MP_FREQUENCY,
         frequency_type: MP_FREQUENCY_TYPE,
-        transaction_amount: MP_AMOUNT,
+        transaction_amount: transactionAmount,
         currency_id: MP_CURRENCY_ID
       },
       back_url
@@ -329,7 +341,7 @@ serve(async (req)=>{
     //
     // Por eso capturamos el error explícitamente.
     // ------------------------------------------------------------------------
-    const { error: insertSuscripcionError } = await supabase.from("suscripciones").insert({
+    const insertSuscripcionPayload: Record<string, unknown> = {
       suscriptor_id: Number(id_suscriptor),
       provider: "mercadopago",
       preapproval_id,
@@ -337,7 +349,7 @@ serve(async (req)=>{
       estado: ESTADO_PENDIENTE,
       preapproval_status_mp: mpData.status || "pending",
       currency_id: MP_CURRENCY_ID,
-      amount: MP_AMOUNT,
+      amount: transactionAmount,
       frequency: MP_FREQUENCY,
       frequency_type: MP_FREQUENCY_TYPE,
       payer_email: payerEmail,
@@ -345,8 +357,15 @@ serve(async (req)=>{
       init_point,
       sandbox_init_point: mpData.sandbox_init_point,
       back_url,
-      raw: mpData
-    });
+      raw: mpData,
+    };
+    if (tieneDescuento) {
+      insertSuscripcionPayload.codigo_descuento = codigo_descuento;
+      insertSuscripcionPayload.codigo_descuento_id = codigo_descuento_id || null;
+      insertSuscripcionPayload.descuento_estado = descuento_estado || "validado";
+      insertSuscripcionPayload.descuento_metadata = descuento_metadata || null;
+    }
+    const { error: insertSuscripcionError } = await supabase.from("suscripciones").insert(insertSuscripcionPayload);
     if (insertSuscripcionError) {
       await logFunc("error_insert_suscripcion", {
         id_suscriptor,
@@ -404,13 +423,14 @@ serve(async (req)=>{
       suscriptor_id: Number(id_suscriptor),
       provider: "mercadopago",
       status: "initiated",
-      amount: MP_AMOUNT,
+      amount: transactionAmount,
       currency: MP_CURRENCY_ID,
       link_pago: init_point,
       preapproval_id,
       provider_payment_id: `INIT-${preapproval_id}`,
       metadata: {
-        env: MP_ENV
+        env: MP_ENV,
+        ...(tieneDescuento && { codigo_descuento }),
       }
     });
     if (insertPagoError) {

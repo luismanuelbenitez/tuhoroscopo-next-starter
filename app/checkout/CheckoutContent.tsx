@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent, ChangeEvent } from 'react';
-import { Loader2, Shield, Sparkles, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Loader2, Shield, Sparkles, CheckCircle2, MessageCircle, Tag, X } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
 import WAPreview from '@/components/WAPreview';
 
@@ -22,6 +22,16 @@ interface FormData {
   whatsapp: string;
 }
 
+interface DescuentoAplicado {
+  codigo: string;
+  codigo_id: string;
+  tipo_descuento: string;
+  precio_original: number;
+  precio_aplicado: number;
+  valor_descuento_aplicado: number;
+  mensaje_usuario: string;
+}
+
 export default function CheckoutContent() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -32,6 +42,10 @@ export default function CheckoutContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [acepta, setAcepta] = useState(false);
+  const [codigoInput, setCodigoInput] = useState('');
+  const [codigoLoading, setCodigoLoading] = useState(false);
+  const [codigoError, setCodigoError] = useState<string | null>(null);
+  const [descuento, setDescuento] = useState<DescuentoAplicado | null>(null);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -46,6 +60,36 @@ export default function CheckoutContent() {
   const handleCheckboxChange = (e: ChangeEvent<HTMLInputElement>) => {
     setAcepta(e.target.checked);
     setError(null);
+  };
+
+  const handleAplicarCodigo = async () => {
+    const codigo = codigoInput.trim().toUpperCase();
+    if (!codigo) return;
+    setCodigoLoading(true);
+    setCodigoError(null);
+    try {
+      const res = await fetch('/api/validar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo, precio_base: 390 }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDescuento({ ...data, codigo });
+      } else {
+        setCodigoError(data.error || 'Código inválido o expirado');
+      }
+    } catch {
+      setCodigoError('Error al verificar el código');
+    } finally {
+      setCodigoLoading(false);
+    }
+  };
+
+  const handleRemoverCodigo = () => {
+    setDescuento(null);
+    setCodigoInput('');
+    setCodigoError(null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -81,7 +125,7 @@ export default function CheckoutContent() {
     try {
       const { telefono, whatsapp } = normalizarUY(formData.whatsapp);
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         nombre: formData.name.trim(),
         telefono,
         whatsapp,
@@ -92,6 +136,10 @@ export default function CheckoutContent() {
         version_politicas: 'v1.0',
         acepto_politicas: acepta,
       };
+      if (descuento) {
+        payload.codigo_descuento = descuento.codigo;
+        payload.codigo_descuento_id = descuento.codigo_id;
+      }
 
       const response = await fetch('/api/iniciar-checkout', {
         method: 'POST',
@@ -212,6 +260,70 @@ export default function CheckoutContent() {
                       />
                     </div>
 
+                    {/* Código de descuento */}
+                    <div className="mt-4">
+                      {descuento ? (
+                        <div className="rounded-xl border border-green-700/40 bg-green-950/40 px-4 py-3 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold text-green-400 mb-0.5 flex items-center gap-1.5">
+                              <Tag size={11} />
+                              Descuento aplicado — {descuento.codigo}
+                            </p>
+                            <p className="text-[12px] text-white/65">{descuento.mensaje_usuario}</p>
+                            <p className="text-sm font-bold text-white mt-1">
+                              $U {descuento.precio_aplicado}
+                              <span className="text-white/40 line-through ml-2 text-xs font-normal">
+                                $U {descuento.precio_original}
+                              </span>
+                              <span className="text-white/55 text-xs font-normal">/mes</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoverCodigo}
+                            disabled={isLoading}
+                            className="text-white/40 hover:text-white/70 shrink-0 mt-0.5"
+                            aria-label="Quitar código"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-[12px] text-white/45 mb-1.5">
+                            ¿Tenés un código de descuento?
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={codigoInput}
+                              onChange={e => {
+                                setCodigoInput(e.target.value.toUpperCase());
+                                setCodigoError(null);
+                              }}
+                              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAplicarCodigo())}
+                              placeholder="TU-CODIGO"
+                              className="flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-violet-500/60"
+                              style={{ background: 'rgba(88,40,180,0.07)' }}
+                              disabled={isLoading || codigoLoading}
+                              maxLength={32}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAplicarCodigo}
+                              disabled={!codigoInput.trim() || isLoading || codigoLoading}
+                              className="rounded-lg border border-violet-600/35 bg-violet-900/45 px-3 py-2 text-sm text-violet-300 font-semibold hover:bg-violet-900/75 transition-colors disabled:opacity-45"
+                            >
+                              {codigoLoading ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
+                            </button>
+                          </div>
+                          {codigoError && (
+                            <p className="mt-1.5 text-[12px] text-red-400">{codigoError}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {error && (
                       <div className="mt-4 rounded-xl border border-red-700/50 bg-red-950/60 px-4 py-3 text-sm text-red-300">
                         {error}
@@ -235,7 +347,9 @@ export default function CheckoutContent() {
                     </button>
 
                     <p className="mt-3 text-center text-[12px] text-white/50">
-                      Pago seguro · $U 390/mes · Cancelás cuando quieras
+                      {descuento
+                        ? `Pago seguro · $U ${descuento.precio_aplicado}/mes · Cancelás cuando quieras`
+                        : 'Pago seguro · $U 390/mes · Cancelás cuando quieras'}
                     </p>
 
                     <div className="mt-5 pt-5 border-t border-white/8 grid grid-cols-2 gap-2.5">

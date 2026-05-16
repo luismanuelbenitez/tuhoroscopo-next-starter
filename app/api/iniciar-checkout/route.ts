@@ -133,24 +133,83 @@ export async function POST(req: Request) {
     if (DEBUG_LOGS) console.log(`✅ [${funcion}] Lead capturado. ID Suscriptor: ${idSuscriptor}`);
 
     // ----------------------------------------------------------------
+    // 3.5 Re-validación server-side del código de descuento (si viene)
+    // ----------------------------------------------------------------
+    const INTERNAL_KEY = process.env.WHATSAPP_INTERNAL_KEY;
+    let montoFinal = 390;
+    let descuentoValidado: Record<string, unknown> | null = null;
+
+    if (body.codigo_descuento) {
+      if (!INTERNAL_KEY) {
+        console.error(`❌ [${funcion}] WHATSAPP_INTERNAL_KEY no configurada para validar descuento`);
+        return NextResponse.json({ resultado: 'error', mensaje: 'Error interno de configuración' }, { status: 500 });
+      }
+
+      const resValidar = await fetch(`${EDGE_BASE_URL}/ef_validar_codigo_descuento`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'x-internal-key': INTERNAL_KEY,
+        },
+        body: JSON.stringify({
+          codigo: String(body.codigo_descuento).trim().toUpperCase(),
+          id_suscriptor: idSuscriptor,
+          whatsapp: body.whatsapp,
+          precio_base: 390,
+        }),
+        cache: 'no-store',
+      });
+
+      const dataValidar = await resValidar.json().catch(() => null);
+
+      if (resValidar.ok && dataValidar?.ok) {
+        const tiposPermitidosMVP = ['porcentaje', 'monto_fijo'];
+        if (tiposPermitidosMVP.includes(dataValidar.tipo_descuento)) {
+          montoFinal = Math.round(dataValidar.precio_aplicado);
+          descuentoValidado = {
+            codigo_id: dataValidar.codigo_id,
+            tipo_descuento: dataValidar.tipo_descuento,
+            precio_original: dataValidar.precio_original,
+            precio_aplicado: dataValidar.precio_aplicado,
+            valor_descuento_aplicado: dataValidar.valor_descuento_aplicado,
+            mensaje_usuario: dataValidar.mensaje_usuario,
+          };
+          if (DEBUG_LOGS) console.log(`✅ [${funcion}] Descuento validado: ${body.codigo_descuento} → $U ${montoFinal}`);
+        } else {
+          if (DEBUG_LOGS) console.log(`⚠️ [${funcion}] Tipo descuento no soportado en MVP: ${dataValidar.tipo_descuento}`);
+        }
+      } else {
+        if (DEBUG_LOGS) console.log(`⚠️ [${funcion}] Código de descuento inválido o expirado: ${body.codigo_descuento}`);
+      }
+    }
+
+    // ----------------------------------------------------------------
     // 4. PASO B: Llamada a EF 'ef_crear_suscripcion' (Inicio Pago MP)
     // ----------------------------------------------------------------
     // Objetivo: Obtener el link de pago de Mercado Pago para este usuario.
     const urlSuscripcion = `${EDGE_BASE_URL}/ef_crear_suscripcion`;
 
     // Payload ROBUSTO: Enviamos TODO lo necesario para que la EF trabaje sin problemas.
-    const payloadSuscripcion = {
+    const payloadSuscripcion: Record<string, unknown> = {
       id_suscriptor: idSuscriptor,  // Vinculación fundamental
       whatsapp: body.whatsapp,      // Necesario para buzón sintético si falta email
       email: body.email,            // Email real si el usuario lo dio (opcional pero recomendado)
       nombre: body.nombre,          // Para personalizar la experiencia en MP si se usa
-      monto: body.monto,            // (Opcional) La EF suele usar su propia ENV, pero lo pasamos por si acaso.
-      moneda: body.moneda,          // Igual que monto.
+      monto: montoFinal,            // Monto final (con o sin descuento, siempre desde server)
+      moneda: 'UYU',
       // Metadatos extra para logs o validaciones futuras en la EF
       telefono: body.telefono,
       signo: body.signo,
-      contenido_preferido: body.contenido_preferido
+      contenido_preferido: body.contenido_preferido,
     };
+
+    if (descuentoValidado) {
+      payloadSuscripcion.codigo_descuento = String(body.codigo_descuento).trim().toUpperCase();
+      payloadSuscripcion.codigo_descuento_id = descuentoValidado.codigo_id;
+      payloadSuscripcion.descuento_estado = 'validado';
+      payloadSuscripcion.descuento_metadata = descuentoValidado;
+    }
 
     if (DEBUG_LOGS) console.log(`🌐 [${funcion}] Contactando EF Suscripción MP: ${urlSuscripcion}`, payloadSuscripcion);
 

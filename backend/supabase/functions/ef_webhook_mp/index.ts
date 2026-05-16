@@ -253,6 +253,69 @@ async function handlePreapproval(preapprovalId) {
       return;
     }
     // ------------------------------------------------------------------------
+    // 4.5) APLICAR CÓDIGO DE DESCUENTO (solo cuando el preapproval se autoriza)
+    // ------------------------------------------------------------------------
+    if (status === "authorized" && internalKey) {
+      const { data: suscripcionRow } = await supabase
+        .from("suscripciones")
+        .select("id, codigo_descuento, codigo_descuento_id, descuento_estado, amount")
+        .eq("preapproval_id", preapprovalId)
+        .maybeSingle();
+
+      if (suscripcionRow?.descuento_estado === "validado" && suscripcionRow?.codigo_descuento) {
+        try {
+          const aplicarRes = await fetch(`${SUPABASE_URL}/functions/v1/ef_aplicar_codigo_descuento`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "x-internal-key": internalKey,
+            },
+            body: JSON.stringify({
+              codigo: suscripcionRow.codigo_descuento,
+              id_suscriptor: subActual.id,
+              preapproval_id: preapprovalId,
+              precio_original: 390,
+              precio_aplicado: suscripcionRow.amount,
+              aplicado_por: "ef_webhook_mp_preapproval",
+            }),
+          });
+
+          if (aplicarRes.ok) {
+            await supabase.from("suscripciones").update({
+              descuento_estado: "aplicado",
+              updated_at: ahora,
+            }).eq("preapproval_id", preapprovalId);
+
+            await registrarLog(supabase, FN, "DESCUENTO_APLICADO_OK", {
+              preapproval_id: preapprovalId,
+              codigo: suscripcionRow.codigo_descuento,
+              id_suscriptor: subActual.id,
+              precio_aplicado: suscripcionRow.amount,
+            });
+          } else {
+            const errText = await aplicarRes.text().catch(() => "");
+            await supabase.from("suscripciones").update({
+              descuento_estado: "fallido",
+              updated_at: ahora,
+            }).eq("preapproval_id", preapprovalId);
+            await registrarLog(supabase, FN, "DESCUENTO_APLICAR_EF_ERROR", {
+              preapproval_id: preapprovalId,
+              codigo: suscripcionRow.codigo_descuento,
+              status: aplicarRes.status,
+              response: errText,
+            }, false);
+          }
+        } catch (couponErr) {
+          await registrarLog(supabase, FN, "DESCUENTO_APLICAR_EXCEPTION", {
+            preapproval_id: preapprovalId,
+            codigo: suscripcionRow.codigo_descuento,
+            error: String(couponErr),
+          }, false);
+        }
+      }
+    }
+    // ------------------------------------------------------------------------
     // 5) ACTUALIZAR TABLA `suscriptores`
     //    ⚠️ SOLO cuando el contrato YA no es pending (como tu diseño original)
     //    ✅ CAMBIO MÍNIMO: NO existe más premium_pendiente_confirmacion

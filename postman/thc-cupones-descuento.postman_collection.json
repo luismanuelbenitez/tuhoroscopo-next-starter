@@ -1,0 +1,110 @@
+{
+  "info": {
+    "name": "THC — Cupones de Descuento MVP",
+    "_postman_id": "thc-cupones-mvp-001",
+    "description": "Colección para testear el flujo completo de cupones de descuento.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:3000", "description": "URL local (dev)" },
+    { "key": "SUPABASE_URL", "value": "https://<PROJECT>.supabase.co", "description": "URL de Supabase" },
+    { "key": "SUPABASE_ANON_KEY", "value": "<ANON_KEY>", "description": "Clave anon de Supabase" },
+    { "key": "PREAPPROVAL_ID", "value": "", "description": "Rellenar después del checkout" }
+  ],
+  "item": [
+    {
+      "name": "1. Validar código (válido)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{BASE_URL}}/api/validar-codigo", "host": ["{{BASE_URL}}"], "path": ["api", "validar-codigo"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"TEST50\",\n  \"precio_base\": 390\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Validar código (inválido)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{BASE_URL}}/api/validar-codigo", "host": ["{{BASE_URL}}"], "path": ["api", "validar-codigo"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"INEXISTENTE\",\n  \"precio_base\": 390\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Iniciar checkout con descuento",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{BASE_URL}}/api/iniciar-checkout", "host": ["{{BASE_URL}}"], "path": ["api", "iniciar-checkout"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Ana García\",\n  \"telefono\": \"99123456\",\n  \"whatsapp\": \"+59899123456\",\n  \"signo\": \"aries\",\n  \"contenido_preferido\": \"amor\",\n  \"pais\": \"UY\",\n  \"fuente\": \"web-vercel-checkout-v3\",\n  \"version_politicas\": \"v1.0\",\n  \"acepto_politicas\": true,\n  \"codigo_descuento\": \"TEST50\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Iniciar checkout sin descuento",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{BASE_URL}}/api/iniciar-checkout", "host": ["{{BASE_URL}}"], "path": ["api", "iniciar-checkout"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Carlos López\",\n  \"telefono\": \"98765432\",\n  \"whatsapp\": \"+59898765432\",\n  \"signo\": \"leo\",\n  \"contenido_preferido\": \"trabajo\",\n  \"pais\": \"UY\",\n  \"fuente\": \"web-vercel-checkout-v3\",\n  \"version_politicas\": \"v1.0\",\n  \"acepto_politicas\": true\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Simular webhook preapproval authorized (aplica descuento)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_ANON_KEY}}" },
+          { "key": "x-manual-test", "value": "true" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=preapproval&id={{PREAPPROVAL_ID}}",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_mp"],
+          "query": [
+            { "key": "topic", "value": "preapproval" },
+            { "key": "id", "value": "{{PREAPPROVAL_ID}}" }
+          ]
+        },
+        "body": { "mode": "none" }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Simular webhook payment (trigger manual sandbox)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_ANON_KEY}}" },
+          { "key": "x-manual-test", "value": "true" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/functions/v1/ef_webhook_mp?topic=payment_trigger&id=1",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["functions", "v1", "ef_webhook_mp"],
+          "query": [
+            { "key": "topic", "value": "payment_trigger" },
+            { "key": "id", "value": "1" }
+          ]
+        },
+        "body": { "mode": "none" }
+      },
+      "response": []
+    }
+  ]
+}
