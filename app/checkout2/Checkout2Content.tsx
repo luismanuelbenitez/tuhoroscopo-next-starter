@@ -4,6 +4,7 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import { Loader2, Shield, Zap, CheckCircle2, MessageCircle } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
 
+// ── Lógica idéntica a /checkout ──────────────────────────────────────────────
 function normalizarUY(num: string): { telefono: string; whatsapp: string } {
   const digits = num.replace(/\D/g, '');
   if (!/^09\d{7}$/.test(digits)) {
@@ -21,48 +22,66 @@ interface FormData {
   whatsapp: string;
 }
 
+// ── Mockup WhatsApp ───────────────────────────────────────────────────────────
 function WAPreview() {
   return (
-    <div className="bg-[#0b141a] rounded-2xl border border-white/8 overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-base shrink-0">
+    <div className="bg-[#0b141a] rounded-2xl border border-white/10 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-[#1f2c33]/60 border-b border-white/8">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-base shrink-0 shadow-md">
           ✨
         </div>
         <div>
-          <p className="text-white text-sm font-semibold leading-tight">Tu Horóscopo Cósmico</p>
-          <p className="text-green-400 text-xs">en línea</p>
+          <p className="text-white text-[13px] font-semibold leading-tight">Tu Horóscopo Cósmico</p>
+          <p className="text-green-400 text-[11px]">en línea</p>
         </div>
       </div>
-      <div className="px-4 py-4 space-y-3">
+
+      {/* Messages */}
+      <div className="px-4 py-5 space-y-3">
         <div className="flex justify-start">
-          <div className="bg-[#1f2c33] rounded-xl rounded-tl-sm px-3 py-2.5 max-w-[88%]">
-            <p className="text-white text-sm">🌟 Buenos días, María.</p>
-            <p className="text-white/80 text-sm mt-1">
-              Tu signo <strong>Géminis</strong> hoy viene con energía de renovación. Es momento de soltar lo que ya no te sirve.
+          <div className="bg-[#1f2c33] rounded-2xl rounded-tl-none px-4 py-3 max-w-[90%] shadow-sm">
+            <p className="text-white/90 text-sm leading-relaxed">
+              🌟 <span className="font-medium">Buenos días, María.</span>
             </p>
+            <p className="text-white/75 text-sm leading-relaxed mt-1">
+              Tu signo <strong className="text-white/90">Géminis</strong> hoy trae energía de renovación. Es momento de soltar lo que ya no te sirve.
+            </p>
+            <p className="text-white/30 text-[10px] mt-2 text-right">08:00 ✓✓</p>
           </div>
         </div>
+
         <div className="flex justify-start">
-          <div className="bg-[#1f2c33] rounded-xl rounded-tl-sm px-3 py-2.5 max-w-[88%]">
-            <p className="text-white text-sm">💜 <strong>Tu afirmación del día:</strong></p>
-            <p className="text-white/80 text-sm italic mt-1">&ldquo;Soy capaz de crear la vida que quiero.&rdquo;</p>
-            <p className="text-white/60 text-xs mt-2">
-              Número: <strong className="text-violet-400">7</strong> · Color: <strong className="text-violet-400">violeta</strong>
+          <div className="bg-[#1f2c33] rounded-2xl rounded-tl-none px-4 py-3 max-w-[90%] shadow-sm">
+            <p className="text-white/90 text-sm font-medium">💜 Tu afirmación del día</p>
+            <p className="text-white/75 text-sm italic mt-1">
+              &ldquo;Soy capaz de crear la vida que quiero.&rdquo;
             </p>
+            <p className="text-white/55 text-xs mt-2">
+              Número de la suerte: <strong className="text-violet-300">7</strong>
+              {' '}· Color: <strong className="text-violet-300">violeta</strong>
+            </p>
+            <p className="text-white/30 text-[10px] mt-2 text-right">08:01 ✓✓</p>
           </div>
         </div>
+
         <div className="flex justify-start">
-          <div className="bg-[#1f2c33] rounded-xl rounded-tl-sm px-3 py-2.5 max-w-[88%]">
-            <p className="text-white/60 text-xs">Foco: <strong className="text-white">Bienestar mental</strong></p>
+          <div className="bg-[#1f2c33] rounded-2xl rounded-tl-none px-4 py-3 max-w-[90%] shadow-sm">
+            <p className="text-white/55 text-[11px] uppercase tracking-wide font-medium">Foco: Bienestar mental</p>
             <p className="text-white/80 text-sm mt-1">Tomate 10 minutos sin pantallas hoy.</p>
+            <p className="text-white/30 text-[10px] mt-2 text-right">08:01 ✓✓</p>
           </div>
         </div>
       </div>
-      <p className="text-center text-white/25 text-[10px] pb-3">Así llega cada mañana a tu WhatsApp</p>
+
+      <p className="text-center text-white/35 text-[11px] pb-4">
+        Así llega cada mañana a tu WhatsApp
+      </p>
     </div>
   );
 }
 
+// ── Componente principal ──────────────────────────────────────────────────────
 export default function Checkout2Content() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -161,38 +180,59 @@ export default function Checkout2Content() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
 
-      {/* Hero strip */}
-      <div className="bg-gradient-to-r from-violet-900/50 via-fuchsia-900/30 to-violet-900/50 border-b border-white/8 py-8 px-4 text-center">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
+      {/* Glow ambiente sutil — solo decorativo */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-40"
+        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(109,40,217,0.25), transparent)' }}
+      />
+
+      {/* ── Hero compacto ────────────────────────────────────────── */}
+      <div className="relative border-b border-white/8 py-6 px-4 text-center">
+        <h1 className="text-2xl md:text-4xl font-extrabold text-white leading-tight mb-2">
           Tu guía diaria,{' '}
           <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
             directo a WhatsApp.
           </span>
         </h1>
-        <p className="text-white/65 text-sm md:text-base mb-5 max-w-lg mx-auto">
-          Horóscopo, afirmación y número de la suerte — personalizados para vos — cada mañana.
+
+        <p className="text-white/75 text-sm md:text-base max-w-md mx-auto mb-4">
+          Horóscopo, afirmación y número de la suerte, personalizados para vos, cada mañana.
         </p>
-        <div className="inline-flex items-baseline gap-2 bg-black/30 rounded-full px-5 py-2 border border-white/10 mb-4">
-          <span className="text-2xl font-extrabold text-white">$U 390</span>
-          <span className="text-white/55 text-sm">/mes</span>
-        </div>
-        <div className="flex justify-center flex-wrap gap-x-5 gap-y-1.5 text-xs text-white/50">
-          <span>✓ Sin apps</span>
-          <span>✓ Sin spam</span>
-          <span>✓ Solo WhatsApp</span>
-          <span>✓ Cancelás cuando quieras</span>
+
+        {/* Precio + trust en una sola línea compacta */}
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+          <span className="bg-violet-950/70 border border-violet-700/40 rounded-full px-4 py-1.5 font-bold text-white">
+            $U 390<span className="text-white/55 font-normal">/mes</span>
+          </span>
+          <span className="text-white/50">·</span>
+          <span className="text-white/65">Sin apps</span>
+          <span className="text-white/30">·</span>
+          <span className="text-white/65">Sin spam</span>
+          <span className="text-white/30">·</span>
+          <span className="text-white/65">Cancelás cuando quieras</span>
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
-        <div className="flex flex-col md:flex-row gap-8 md:gap-10 md:items-start">
+      {/* ── Layout dos columnas ──────────────────────────────────── */}
+      <div className="relative mx-auto max-w-5xl px-4 py-7 md:py-10">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-10 md:items-start">
 
-          {/* FORM — order-1 on mobile, order-2 on desktop */}
+          {/* FORMULARIO — orden 1 en mobile, derecha en desktop */}
           <div className="order-1 md:order-2 w-full md:w-[420px] md:shrink-0">
-            <div className="bg-gray-900 rounded-2xl border border-white/8 p-6 md:p-8 shadow-2xl">
-              <h2 className="text-lg font-bold text-white mb-1">Activá tu suscripción</h2>
-              <p className="text-white/50 text-sm mb-6">Empezás a recibir mensajes en minutos.</p>
+            <div
+              className="rounded-2xl border border-white/10 bg-gray-900/90 p-6 md:p-8 backdrop-blur-sm"
+              style={{ boxShadow: '0 0 0 1px rgba(139,92,246,0.15), 0 24px 64px rgba(0,0,0,0.6)' }}
+            >
+              {/* Encabezado del form */}
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white leading-tight">
+                  Activá tu suscripción
+                </h2>
+                <p className="text-white/60 text-sm mt-1">
+                  Completá tus datos y empezás hoy.
+                </p>
+              </div>
+
               <form onSubmit={handleSubmit} noValidate>
                 <LeadFormFields
                   formData={formData}
@@ -201,89 +241,92 @@ export default function Checkout2Content() {
                   acepta={acepta}
                   handleCheckboxChange={handleCheckboxChange}
                 />
+
                 {error && (
-                  <div className="mt-4 rounded-xl border border-red-800/60 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+                  <div className="mt-4 rounded-xl border border-red-700/50 bg-red-950/60 px-4 py-3 text-sm text-red-300">
                     {error}
                   </div>
                 )}
+
+                {/* CTA */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 font-bold text-white text-base shadow-lg hover:from-violet-500 hover:to-fuchsia-500 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-[18px] text-lg font-bold text-white transition-all hover:from-violet-500 hover:to-fuchsia-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
+                  style={{ boxShadow: '0 4px 24px rgba(139,92,246,0.45)' }}
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 size={20} className="animate-spin" />
                       Procesando…
                     </span>
                   ) : (
-                    'Activar mi guía diaria'
+                    'Activar mi guía diaria →'
                   )}
                 </button>
-                <p className="mt-3 text-center text-xs text-white/35">
-                  Serás redirigido a Mercado Pago de forma segura.
+
+                {/* Microcopy bajo el botón */}
+                <p className="mt-3 text-center text-[12px] text-white/50">
+                  Pago seguro · $U 390/mes · Cancelás cuando quieras
                 </p>
+
+                {/* Trust strip integrada — visible cerca del CTA */}
+                <div className="mt-5 pt-5 border-t border-white/8 grid grid-cols-2 gap-2.5">
+                  {[
+                    { icon: <Shield size={13} />, text: 'Datos protegidos' },
+                    { icon: <Zap size={13} />, text: 'Primer mensaje hoy' },
+                    { icon: <CheckCircle2 size={13} />, text: 'Cancelás online' },
+                    { icon: <MessageCircle size={13} />, text: 'Solo WhatsApp' },
+                  ].map(item => (
+                    <div key={item.text} className="flex items-center gap-2 text-[12px] text-white/55">
+                      <span className="text-violet-400 shrink-0">{item.icon}</span>
+                      {item.text}
+                    </div>
+                  ))}
+                </div>
               </form>
             </div>
           </div>
 
-          {/* PRODUCT INFO — order-2 on mobile, order-1 on desktop */}
+          {/* INFO DEL PRODUCTO — orden 2 en mobile, izquierda en desktop */}
           <div className="order-2 md:order-1 flex-1 space-y-5 min-w-0">
 
             <WAPreview />
 
             {/* Cómo funciona */}
-            <div className="bg-gray-900/60 rounded-2xl border border-white/8 p-5">
-              <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest mb-4">
+            <div className="rounded-2xl border border-white/8 bg-gray-900/50 p-5 backdrop-blur-sm">
+              <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-4">
                 ¿Cómo funciona?
               </p>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {[
                   {
                     n: '1',
                     title: 'Completás el formulario',
-                    desc: 'Nombre, signo, foco y número de WhatsApp. Un minuto.',
+                    desc: 'Nombre, signo, foco y WhatsApp. Un minuto.',
                   },
                   {
                     n: '2',
                     title: 'Confirmás tu WhatsApp',
-                    desc: 'Te enviamos un mensaje de bienvenida. Lo respondés para activar tu cuenta.',
+                    desc: 'Te enviamos un mensaje de bienvenida. Lo respondés para activar.',
                   },
                   {
                     n: '3',
                     title: 'Recibís tu guía cada mañana',
-                    desc: 'Sin apps. Sin spam. Solo tu mensaje del día, personalizado.',
+                    desc: 'Directo a WhatsApp. Sin apps. Sin spam.',
                   },
                 ].map(step => (
                   <div key={step.n} className="flex gap-4 items-start">
-                    <div className="text-2xl font-extrabold text-violet-500 leading-none w-6 shrink-0 mt-0.5">
+                    <div className="text-xl font-extrabold text-violet-500/80 leading-none w-5 shrink-0 mt-0.5">
                       {step.n}
                     </div>
                     <div>
-                      <p className="text-white font-semibold text-sm">{step.title}</p>
-                      <p className="text-white/50 text-sm mt-0.5">{step.desc}</p>
+                      <p className="text-white/90 font-semibold text-sm">{step.title}</p>
+                      <p className="text-white/60 text-sm mt-0.5 leading-relaxed">{step.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Trust grid */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: <Shield size={16} />, text: 'Datos protegidos' },
-                { icon: <Zap size={16} />, text: 'Primer mensaje en minutos' },
-                { icon: <CheckCircle2 size={16} />, text: 'Cancelás online cuando quieras' },
-                { icon: <MessageCircle size={16} />, text: 'Solo WhatsApp. Sin apps.' },
-              ].map(item => (
-                <div
-                  key={item.text}
-                  className="bg-gray-900/50 rounded-xl border border-white/8 px-4 py-3 flex items-center gap-2.5"
-                >
-                  <span className="text-violet-400 shrink-0">{item.icon}</span>
-                  <p className="text-white/60 text-xs leading-snug">{item.text}</p>
-                </div>
-              ))}
             </div>
 
           </div>
