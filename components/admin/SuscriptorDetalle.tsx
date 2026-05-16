@@ -589,9 +589,11 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
   }, [id, refreshKey]);
 
   return (
-    <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
-      {/* Panel header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 bg-gray-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
+        {/* Panel header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
         <div className="flex items-center gap-2">
           {data && (
             <span
@@ -615,7 +617,7 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
         </button>
       </div>
 
-      <div className="px-5 py-4">
+        <div className="px-5 py-4">
         {/* Loading */}
         {cargando && (
           <p className="text-sm text-gray-500 animate-pulse py-6 text-center">
@@ -1041,6 +1043,7 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
             </Sect>
           </>
         )}
+        </div>
       </div>
     </div>
   );

@@ -447,14 +447,13 @@ export default function SuscriptoresPage() {
           </div>
         )}
 
-        {/* Detalle suscriptor */}
-        {selectedId !== null && (
-          <SuscriptorDetalle
-            id={selectedId}
-            onClose={() => setSelectedId(null)}
-          />
-        )}
       </main>
+      {selectedId !== null && (
+        <SuscriptorDetalle
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }
