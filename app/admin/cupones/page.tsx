@@ -747,10 +747,10 @@ function CuponModal({
 }
 
 // ===========================================================================
-// Detail panel
+// Detail modal
 // ===========================================================================
 
-function CuponDetalle({
+function CuponDetalleModal({
   cupon,
   onClose,
   onEditar,
@@ -779,47 +779,49 @@ function CuponDetalle({
     );
 
   return (
-    <div className="mt-4 border border-gray-700 rounded-xl bg-gray-900/70 shadow-xl">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Tag size={15} className="text-violet-400 shrink-0" />
-          <span className="text-white font-semibold text-sm font-mono">{c.codigo}</span>
-          {c.descripcion && (
-            <span className="text-gray-500 text-xs truncate">— {c.descripcion}</span>
-          )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4 flex flex-col">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-6 py-4 border-b border-gray-700/60 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Tag size={15} className="text-violet-400 shrink-0" />
+            <span className="text-white font-semibold text-sm font-mono">{c.codigo}</span>
+            {c.descripcion && (
+              <span className="text-gray-500 text-xs truncate">— {c.descripcion}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <button
+              onClick={() => onEditar(c)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 text-gray-300 hover:text-white hover:border-gray-600 transition-colors"
+            >
+              <Pencil size={11} />
+              Editar
+            </button>
+            <button
+              onClick={() => onToggle(c)}
+              disabled={toggleLoading}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+                c.activo
+                  ? "border-amber-700/60 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50"
+                  : "border-green-700/60 bg-green-900/30 text-green-300 hover:bg-green-900/50"
+              }`}
+            >
+              <Power size={11} />
+              {toggleLoading ? "…" : c.activo ? "Desactivar" : "Activar"}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-300 transition-colors ml-1"
+              aria-label="Cerrar"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 ml-4">
-          <button
-            onClick={() => onEditar(c)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 text-gray-300 hover:text-white hover:border-gray-600 transition-colors"
-          >
-            <Pencil size={11} />
-            Editar
-          </button>
-          <button
-            onClick={() => onToggle(c)}
-            disabled={toggleLoading}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
-              c.activo
-                ? "border-amber-700/60 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50"
-                : "border-green-700/60 bg-green-900/30 text-green-300 hover:bg-green-900/50"
-            }`}
-          >
-            <Power size={11} />
-            {toggleLoading ? "…" : c.activo ? "Desactivar" : "Activar"}
-          </button>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-300 transition-colors ml-1"
-            aria-label="Cerrar"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
 
-      <div className="px-5 py-4 space-y-5">
+      <div className="px-6 py-5 space-y-5">
         {/* Advertencias */}
         {advertencias.length > 0 && (
           <div className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3">
@@ -969,6 +971,7 @@ function CuponDetalle({
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -1044,6 +1047,12 @@ export default function CuponesPage() {
   }
 
   function handleEditar(c: Cupon) {
+    setFormMode("editar");
+    setFormCupon(c);
+  }
+
+  function handleEditarFromDetail(c: Cupon) {
+    setSelectedId(null);
     setFormMode("editar");
     setFormCupon(c);
   }
@@ -1385,22 +1394,22 @@ export default function CuponesPage() {
             <p className="mt-2 text-xs text-gray-600">
               {cupones.length} código{cupones.length !== 1 ? "s" : ""}
             </p>
-
-            {/* Detail panel */}
-            {selectedCupon && (
-              <CuponDetalle
-                cupon={selectedCupon}
-                onClose={() => setSelectedId(null)}
-                onEditar={handleEditar}
-                onToggle={handleToggle}
-                toggleLoading={toggleLoadingId === selectedCupon.id}
-              />
-            )}
           </>
         )}
       </main>
 
-      {/* Modal */}
+      {/* Detail modal */}
+      {selectedCupon && !formMode && (
+        <CuponDetalleModal
+          cupon={selectedCupon}
+          onClose={() => setSelectedId(null)}
+          onEditar={handleEditarFromDetail}
+          onToggle={handleToggle}
+          toggleLoading={toggleLoadingId === selectedCupon.id}
+        />
+      )}
+
+      {/* Edit / create modal */}
       {formMode && (
         <CuponModal
           mode={formMode}
