@@ -4,6 +4,9 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import { Loader2, Shield, Sparkles, CheckCircle2, MessageCircle } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
 
+// Colocar logo en: public/logo-thc.png
+const LOGO_SRC = '/logo-thc.png';
+
 // ── Lógica idéntica a /checkout ──────────────────────────────────────────────
 function normalizarUY(num: string): { telefono: string; whatsapp: string } {
   const digits = num.replace(/\D/g, '');
@@ -37,8 +40,17 @@ function WAPreview() {
         className="flex items-center gap-3 px-4 py-2.5"
         style={{ background: '#202c33', borderBottom: '1px solid rgba(0,0,0,0.25)' }}
       >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0 text-sm">
-          ✨
+        {/* Avatar con logo — fallback: círculo violeta si public/logo-thc.png no existe */}
+        <div
+          className="w-8 h-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)' }}
+        >
+          <img
+            src={LOGO_SRC}
+            alt="Tu Horóscopo Cósmico"
+            className="w-full h-full object-cover"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-[13px] font-semibold leading-tight">Tu Horóscopo Cósmico</p>
@@ -249,11 +261,10 @@ export default function Checkout2Content() {
   return (
     <>
       {/*
-       * Suprime el fondo cósmico del body (estrellas, nebulosas, foto) solo en esta
-       * ruta. globals.css define body { background-image: stars + nebulae } sin
-       * !important, así que estos overrides con !important ganan en especificidad.
-       * body::before es el overlay fixed z-0 que también se oculta acá.
-       * background-color se alinea con el footer (#0e0b22) para que no haya corte.
+       * body: suprime fondo cósmico (estrellas, nebulosas) y el overlay fixed ::before.
+       * header: el <Header /> global está vacío en esta ruta; se colapsa su py-6
+       *   para que el hero empiece sin franja oscura vacía encima.
+       * #checkout2-fields: tinte violeta sutil en inputs para salir del gris neutro.
        */}
       <style jsx global>{`
         body {
@@ -263,17 +274,25 @@ export default function Checkout2Content() {
         body::before {
           display: none !important;
         }
+        header {
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+        }
+        #checkout2-fields input,
+        #checkout2-fields select {
+          background-color: rgba(88, 40, 180, 0.07) !important;
+        }
       `}</style>
 
       <div
         className="min-h-screen text-white relative z-[1]"
-        style={{ background: 'linear-gradient(180deg, #1a1035 0%, #150d2e 55%, #0e0b22 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #110927 0%, #0d0820 55%, #0e0b22 100%)' }}
       >
 
         {/* Glow sutil detrás del contenido */}
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-56"
-          style={{ background: 'radial-gradient(ellipse 65% 55% at 50% 0%, rgba(109,40,217,0.16), transparent)', zIndex: 0 }}
+          style={{ background: 'radial-gradient(ellipse 65% 55% at 50% 0%, rgba(88,28,180,0.11), transparent)', zIndex: 0 }}
         />
 
         {/* ── Hero ─────────────────────────────────────────────────── */}
@@ -281,7 +300,7 @@ export default function Checkout2Content() {
 
           <h1 className="text-2xl md:text-[2.6rem] font-extrabold text-white leading-tight mb-2">
             Cada mañana,{' '}
-            <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-violet-300 to-violet-500 bg-clip-text text-transparent">
               una guía hecha para vos.
             </span>
           </h1>
@@ -291,7 +310,7 @@ export default function Checkout2Content() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
-            <span className="bg-violet-950/70 border border-violet-700/40 rounded-full px-4 py-1.5 font-bold text-white">
+            <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
               $U 390<span className="text-white/55 font-normal">/mes</span>
             </span>
             <span className="text-white/30">·</span>
@@ -312,11 +331,11 @@ export default function Checkout2Content() {
             <div className="order-1 md:order-2 w-full md:w-[420px] md:shrink-0">
               <div
                 className="rounded-2xl overflow-hidden"
-                style={{ boxShadow: '0 0 0 1px rgba(139,92,246,0.22), 0 28px 72px rgba(0,0,0,0.75)' }}
+                style={{ boxShadow: '0 0 0 1px rgba(109,40,217,0.22), 0 28px 72px rgba(0,0,0,0.75)' }}
               >
-                <div style={{ height: '2px', background: 'linear-gradient(90deg, #7c3aed 0%, #c026d3 100%)' }} />
+                <div style={{ height: '2px', background: 'linear-gradient(90deg, #5b21b6 0%, #7c3aed 100%)' }} />
 
-                <div className="p-6 md:p-8" style={{ background: '#111827' }}>
+                <div className="p-6 md:p-8" style={{ background: '#0d0b1e' }}>
 
                   <div className="mb-6">
                     <h2 className="text-xl font-bold text-white leading-tight">Activá tu suscripción</h2>
@@ -324,13 +343,15 @@ export default function Checkout2Content() {
                   </div>
 
                   <form onSubmit={handleSubmit} noValidate>
-                    <LeadFormFields
-                      formData={formData}
-                      handleInputChange={handleInputChange}
-                      isLoading={isLoading}
-                      acepta={acepta}
-                      handleCheckboxChange={handleCheckboxChange}
-                    />
+                    <div id="checkout2-fields">
+                      <LeadFormFields
+                        formData={formData}
+                        handleInputChange={handleInputChange}
+                        isLoading={isLoading}
+                        acepta={acepta}
+                        handleCheckboxChange={handleCheckboxChange}
+                      />
+                    </div>
 
                     {error && (
                       <div className="mt-4 rounded-xl border border-red-700/50 bg-red-950/60 px-4 py-3 text-sm text-red-300">
@@ -341,8 +362,8 @@ export default function Checkout2Content() {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-[18px] text-lg font-bold text-white transition-all hover:from-violet-500 hover:to-fuchsia-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
-                      style={{ boxShadow: '0 6px 32px rgba(139,92,246,0.55)' }}
+                      className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 py-[16px] text-base font-bold text-white transition-all hover:from-violet-600 hover:to-violet-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55"
+                      style={{ boxShadow: '0 4px 24px rgba(109,40,217,0.35)' }}
                     >
                       {isLoading ? (
                         <span className="flex items-center justify-center gap-2">
