@@ -210,15 +210,173 @@ function ContenidoRich({ raw }: { raw: unknown }) {
 }
 
 // ===========================================================================
+// AccionesContenido — action buttons for a single contenido_premium item
+// ===========================================================================
+
+type AccionContenidoKey = "reencolar" | "cancelar_pendiente";
+
+function AccionesContenido({
+  item,
+  onAccionOk,
+}: {
+  item: Contenido;
+  onAccionOk?: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState<AccionContenidoKey | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const puedeReencolar = ["pendiente", "generado", "fallido", "fallo_definitivo"].includes(
+    item.estado_envio
+  );
+  const puedeCancelar = item.estado_envio === "encolado";
+
+  async function ejecutarAccion(accion: AccionContenidoKey) {
+    setCargando(true);
+    setResultado(null);
+    try {
+      const r = await fetch("/api/admin/contenido-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_contenido: item.id, accion, motivo }),
+      });
+      const json = await r.json().catch(() => null);
+      if (r.ok && json?.ok) {
+        setResultado({ ok: true, msg: json.mensaje ?? "Acción ejecutada." });
+        setConfirmando(null);
+        setMotivo("");
+        onAccionOk?.();
+      } else {
+        const det = json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`;
+        setResultado({ ok: false, msg: det });
+      }
+    } catch (e: unknown) {
+      setResultado({ ok: false, msg: e instanceof Error ? e.message : "Error de red" });
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  if (!puedeReencolar && !puedeCancelar) {
+    return (
+      <p className="text-xs text-gray-500">
+        No hay acciones disponibles para estado{" "}
+        <span className="text-gray-400">{item.estado_envio}</span>.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {resultado && (
+        <div
+          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+            resultado.ok
+              ? "border-emerald-800/40 bg-emerald-950/30 text-emerald-300"
+              : "border-red-800/40 bg-red-950/30 text-red-300"
+          }`}
+        >
+          {resultado.ok ? (
+            <Check size={14} className="shrink-0" />
+          ) : (
+            <AlertCircle size={14} className="shrink-0" />
+          )}
+          {resultado.msg}
+        </div>
+      )}
+
+      {confirmando === null && (
+        <div className="flex flex-wrap gap-2">
+          {puedeReencolar && (
+            <button
+              onClick={() => {
+                setConfirmando("reencolar");
+                setResultado(null);
+              }}
+              className="text-sm border border-amber-700 bg-amber-900/30 hover:bg-amber-800/50 text-amber-200 px-4 py-2 rounded-lg transition-colors"
+            >
+              Reencolar
+            </button>
+          )}
+          {puedeCancelar && (
+            <button
+              onClick={() => {
+                setConfirmando("cancelar_pendiente");
+                setResultado(null);
+              }}
+              className="text-sm border border-red-700 bg-red-900/30 hover:bg-red-800/50 text-red-200 px-4 py-2 rounded-lg transition-colors"
+            >
+              Cancelar envío pendiente
+            </button>
+          )}
+        </div>
+      )}
+
+      {confirmando !== null && (
+        <div className="rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-3 space-y-3">
+          <p className="text-sm text-gray-300 font-medium">
+            Confirmar:{" "}
+            <span className="text-white">
+              {confirmando === "reencolar" ? "Reencolar" : "Cancelar envío pendiente"}
+            </span>
+          </p>
+          {confirmando === "reencolar" && (
+            <p className="text-xs text-amber-300/80">
+              Inserta un nuevo mensaje en la cola. El suscriptor debe ser premium activo,
+              tener WhatsApp confirmado y no estar pausado.
+            </p>
+          )}
+          {confirmando === "cancelar_pendiente" && (
+            <p className="text-xs text-red-300/80">
+              Marca el mensaje pendiente como fallo_definitivo y resetea el contenido a{" "}
+              &apos;generado&apos;. Puede re-encolarse manualmente después.
+            </p>
+          )}
+          <textarea
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Motivo (requerido, mínimo 5 caracteres)"
+            rows={2}
+            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => ejecutarAccion(confirmando)}
+              disabled={cargando || motivo.trim().length < 5}
+              className="text-sm bg-violet-700 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              {cargando ? "Ejecutando…" : "Confirmar"}
+            </button>
+            <button
+              onClick={() => {
+                setConfirmando(null);
+                setMotivo("");
+              }}
+              disabled={cargando}
+              className="text-sm border border-gray-600 text-gray-400 hover:text-gray-200 px-4 py-2 rounded-lg transition-colors disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Inline detail panel (expanded row)
 // ===========================================================================
 
 function ContenidoDetalle({
   item,
   onClose,
+  onAccionOk,
 }: {
   item: Contenido;
   onClose: () => void;
+  onAccionOk?: () => void;
 }) {
   const [metaExpanded, setMetaExpanded] = useState(false);
 
@@ -354,6 +512,14 @@ function ContenidoDetalle({
               {item.diagnostico_admin.accion_sugerida.replace(/_/g, " ")}
             </p>
           )}
+
+        {/* Acciones del contenido */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+            Acciones del contenido
+          </p>
+          <AccionesContenido item={item} onAccionOk={onAccionOk} />
+        </div>
       </div>
       </div>
     </div>
@@ -403,6 +569,7 @@ export default function ContenidoPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   useEffect(() => {
     async function doFetch() {
@@ -438,7 +605,7 @@ export default function ContenidoPage() {
     }
 
     doFetch();
-  }, [filtros]);
+  }, [filtros, listRefreshKey]);
 
   function applyFiltro(patch: Partial<Filtros>) {
     setFiltros((prev) => ({ ...prev, ...patch, offset: 0 }));
@@ -817,7 +984,11 @@ export default function ContenidoPage() {
       {selectedId !== null && (() => {
         const item = contenido.find((c) => c.id === selectedId);
         return item ? (
-          <ContenidoDetalle item={item} onClose={() => setSelectedId(null)} />
+          <ContenidoDetalle
+            item={item}
+            onClose={() => setSelectedId(null)}
+            onAccionOk={() => setListRefreshKey((k) => k + 1)}
+          />
         ) : null;
       })()}
     </div>
