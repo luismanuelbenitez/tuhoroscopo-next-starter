@@ -16,6 +16,7 @@ import {
   Pencil,
   Power,
 } from "lucide-react";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 // ===========================================================================
 // Types
@@ -1128,27 +1129,7 @@ export default function CuponesPage() {
           </button>
         </div>
         <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <a href="/admin" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Dashboard
-          </a>
-          <a href="/admin/suscriptores" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Suscriptores
-          </a>
-          <a href="/admin/mensajes-problematicos" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Mensajes
-          </a>
-          <a href="/admin/contenido" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Contenido
-          </a>
-          <a href="/admin/suscripciones" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Suscripciones
-          </a>
-          <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3 whitespace-nowrap">
-            Cupones
-          </span>
-          <a href="/admin/logs" className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors whitespace-nowrap">
-            Logs
-          </a>
+          <AdminNav current="/admin/cupones" />
         </div>
       </header>
 

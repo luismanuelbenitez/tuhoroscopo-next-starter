@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { SuscriptorDetalle } from "@/components/admin/SuscriptorDetalle";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 // ===========================================================================
 // Types
@@ -201,40 +202,8 @@ export default function SuscriptoresPage() {
           </button>
         </div>
         {/* Nav */}
-        <div className="max-w-6xl mx-auto px-6 flex gap-0">
-          <a
-            href="/admin"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Dashboard
-          </a>
-          <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3">
-            Suscriptores
-          </span>
-          <a
-            href="/admin/mensajes-problematicos"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Mensajes
-          </a>
-          <a
-            href="/admin/contenido"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Contenido
-          </a>
-          <a
-            href="/admin/suscripciones"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Suscripciones
-          </a>
-          <a
-            href="/admin/logs"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Logs
-          </a>
+        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
+          <AdminNav current="/admin/suscriptores" />
         </div>
       </header>
 

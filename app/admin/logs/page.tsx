@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 // ===========================================================================
 // Types
@@ -314,40 +315,8 @@ export default function LogsPage() {
           </button>
         </div>
         {/* Nav */}
-        <div className="max-w-7xl mx-auto px-6 flex gap-0">
-          <a
-            href="/admin"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Dashboard
-          </a>
-          <a
-            href="/admin/suscriptores"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Suscriptores
-          </a>
-          <a
-            href="/admin/mensajes-problematicos"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Mensajes
-          </a>
-          <a
-            href="/admin/contenido"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Contenido
-          </a>
-          <a
-            href="/admin/suscripciones"
-            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
-          >
-            Suscripciones
-          </a>
-          <span className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3">
-            Logs
-          </span>
+        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
+          <AdminNav current="/admin/logs" />
         </div>
       </header>
 
