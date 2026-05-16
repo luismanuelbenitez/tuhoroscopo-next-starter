@@ -554,6 +554,473 @@ function AccionesPremium({
 }
 
 // ===========================================================================
+// AccionesGestion — WhatsApp confirmation + pause/resume messages
+// ===========================================================================
+
+type AccionGestionKey =
+  | "confirmar_whatsapp"
+  | "desconfirmar_whatsapp"
+  | "pausar_mensajes"
+  | "reactivar_mensajes";
+
+const ACCION_GESTION_INFO: Record<
+  AccionGestionKey,
+  { label: string; descripcion: string }
+> = {
+  confirmar_whatsapp: {
+    label: "Confirmar WhatsApp",
+    descripcion: "Marca el número de WhatsApp como confirmado manualmente.",
+  },
+  desconfirmar_whatsapp: {
+    label: "Desconfirmar WhatsApp",
+    descripcion: "Revierte la confirmación del número de WhatsApp.",
+  },
+  pausar_mensajes: {
+    label: "Pausar mensajes",
+    descripcion: "Pausa el envío de mensajes a este suscriptor.",
+  },
+  reactivar_mensajes: {
+    label: "Reactivar mensajes",
+    descripcion: "Reactiva el envío de mensajes a este suscriptor.",
+  },
+};
+
+function AccionesGestion({
+  suscriptor,
+  onAccionOk,
+}: {
+  suscriptor: SuscriptorData;
+  onAccionOk: () => void;
+}) {
+  const [accionActiva, setAccionActiva] = useState<AccionGestionKey | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const pausado = suscriptor.estado_mensaje === "pausado_usuario";
+
+  function abrirAccion(accion: AccionGestionKey) {
+    setAccionActiva(accion);
+    setMotivo("");
+    setResultado(null);
+  }
+
+  function cancelar() {
+    if (submitting) return;
+    setAccionActiva(null);
+    setResultado(null);
+  }
+
+  async function ejecutar() {
+    if (!accionActiva || submitting) return;
+    const motivoTrim = motivo.trim();
+    if (motivoTrim.length < 5) return;
+
+    setSubmitting(true);
+    setResultado(null);
+
+    try {
+      const res = await fetch("/api/admin/suscriptor-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_suscriptor: suscriptor.id,
+          accion: accionActiva,
+          motivo: motivoTrim,
+        }),
+      });
+
+      let json: Record<string, unknown>;
+      try { json = await res.json(); } catch { json = {}; }
+
+      if (!res.ok || !json.ok) {
+        setResultado({
+          ok: false,
+          texto:
+            (json.detalle as string) ??
+            (json.motivo as string) ??
+            `Error HTTP ${res.status}`,
+        });
+      } else {
+        setResultado({
+          ok: true,
+          texto: (json.mensaje as string) ?? "Acción aplicada correctamente.",
+        });
+        setTimeout(() => {
+          cancelar();
+          onAccionOk();
+        }, 1800);
+      }
+    } catch (e: unknown) {
+      setResultado({ ok: false, texto: e instanceof Error ? e.message : "Error de red" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canSubmit = motivo.trim().length >= 5;
+  const info = accionActiva ? ACCION_GESTION_INFO[accionActiva] : null;
+
+  return (
+    <div>
+      {!accionActiva && (
+        <div className="flex flex-wrap gap-2">
+          {!suscriptor.whatsapp_confirmado ? (
+            <button
+              onClick={() => abrirAccion("confirmar_whatsapp")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-emerald-700/70 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 transition-colors"
+            >
+              Confirmar WhatsApp
+            </button>
+          ) : (
+            <button
+              onClick={() => abrirAccion("desconfirmar_whatsapp")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-600/60 bg-gray-800/30 text-gray-300 hover:bg-gray-700/40 transition-colors"
+            >
+              Desconfirmar WhatsApp
+            </button>
+          )}
+          {!pausado ? (
+            <button
+              onClick={() => abrirAccion("pausar_mensajes")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
+            >
+              Pausar mensajes
+            </button>
+          ) : (
+            <button
+              onClick={() => abrirAccion("reactivar_mensajes")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-emerald-700/70 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 transition-colors"
+            >
+              Reactivar mensajes
+            </button>
+          )}
+        </div>
+      )}
+
+      {accionActiva && info && (
+        <div className="rounded-lg border border-amber-800/40 bg-amber-950/15 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-white">
+              Confirmar: {info.label}
+            </span>
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+              aria-label="Cancelar"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="mb-4 space-y-1 text-xs">
+            <p className="text-gray-400">
+              Suscriptor:{" "}
+              <span className="text-white font-semibold">{suscriptor.nombre}</span>{" "}
+              <span className="text-gray-500">(#{suscriptor.id})</span>
+            </p>
+            <p className="text-gray-400">{info.descripcion}</p>
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-red-400">*</span>{" "}
+              <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              disabled={submitting}
+              rows={2}
+              placeholder="Describir el motivo de esta acción…"
+              className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 resize-none placeholder-gray-600 disabled:opacity-50"
+            />
+            <p className="text-right text-xs text-gray-600 mt-0.5">
+              {motivo.trim().length} car.
+            </p>
+          </div>
+
+          {resultado && (
+            <div
+              className={`mb-3 text-xs rounded px-3 py-2 flex items-start gap-2 ${
+                resultado.ok
+                  ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
+                  : "bg-red-950/50 text-red-300 border border-red-800/40"
+              }`}
+            >
+              {resultado.ok ? (
+                <Check size={12} className="shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              )}
+              <span>{resultado.texto}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 hover:border-gray-500 disabled:opacity-40 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={ejecutar}
+              disabled={!canSubmit || submitting}
+              className="text-xs px-4 py-1.5 rounded-lg border border-violet-700 bg-violet-900/50 text-violet-200 hover:bg-violet-800/60 font-medium transition-colors disabled:opacity-40"
+            >
+              {submitting ? "Ejecutando…" : `Confirmar — ${info.label}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// EditarDatosForm
+// ===========================================================================
+
+const SIGNOS = [
+  "aries",
+  "tauro",
+  "géminis",
+  "cáncer",
+  "leo",
+  "virgo",
+  "libra",
+  "escorpio",
+  "sagitario",
+  "capricornio",
+  "acuario",
+  "piscis",
+] as const;
+
+interface DatosEditables {
+  nombre: string;
+  signo: string;
+  contenido_preferido: string;
+  whatsapp: string;
+  email: string;
+}
+
+function EditarDatosForm({
+  suscriptor,
+  onGuardado,
+}: {
+  suscriptor: SuscriptorData;
+  onGuardado: () => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [datos, setDatos] = useState<DatosEditables>({
+    nombre: suscriptor.nombre,
+    signo: suscriptor.signo,
+    contenido_preferido: suscriptor.contenido_preferido,
+    whatsapp: suscriptor.whatsapp,
+    email: suscriptor.email,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  function abrir() {
+    setDatos({
+      nombre: suscriptor.nombre,
+      signo: suscriptor.signo,
+      contenido_preferido: suscriptor.contenido_preferido,
+      whatsapp: suscriptor.whatsapp,
+      email: suscriptor.email,
+    });
+    setResultado(null);
+    setAbierto(true);
+  }
+
+  function cancelar() {
+    if (submitting) return;
+    setAbierto(false);
+    setResultado(null);
+  }
+
+  function cambiar(campo: keyof DatosEditables, valor: string) {
+    setDatos((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  async function guardar() {
+    if (submitting) return;
+    if (!datos.nombre.trim()) return;
+
+    setSubmitting(true);
+    setResultado(null);
+
+    try {
+      const res = await fetch("/api/admin/suscriptor-editar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_suscriptor: suscriptor.id,
+          nombre: datos.nombre,
+          signo: datos.signo,
+          contenido_preferido: datos.contenido_preferido,
+          whatsapp: datos.whatsapp,
+          email: datos.email,
+        }),
+      });
+
+      let json: Record<string, unknown>;
+      try { json = await res.json(); } catch { json = {}; }
+
+      if (!res.ok || !json.ok) {
+        setResultado({
+          ok: false,
+          texto:
+            (json.detalle as string) ??
+            (json.motivo as string) ??
+            `Error HTTP ${res.status}`,
+        });
+      } else {
+        setResultado({ ok: true, texto: "Datos guardados correctamente." });
+        setTimeout(() => {
+          cancelar();
+          onGuardado();
+        }, 1500);
+      }
+    } catch (e: unknown) {
+      setResultado({ ok: false, texto: e instanceof Error ? e.message : "Error de red" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        onClick={abrir}
+        className="text-xs px-3 py-1.5 rounded-lg border border-violet-700/60 bg-violet-950/30 text-violet-300 hover:bg-violet-900/40 transition-colors"
+      >
+        Editar datos básicos
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-700/60 bg-gray-800/20 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-semibold text-white">Editar datos básicos</span>
+        <button
+          onClick={cancelar}
+          disabled={submitting}
+          className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+          aria-label="Cancelar edición"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">
+            Nombre <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={datos.nombre}
+            onChange={(e) => cambiar("nombre", e.target.value)}
+            disabled={submitting}
+            className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Signo</label>
+          <select
+            value={datos.signo}
+            onChange={(e) => cambiar("signo", e.target.value)}
+            disabled={submitting}
+            className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+          >
+            <option value="">— seleccionar —</option>
+            {SIGNOS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Contenido preferido</label>
+          <input
+            type="text"
+            value={datos.contenido_preferido}
+            onChange={(e) => cambiar("contenido_preferido", e.target.value)}
+            disabled={submitting}
+            className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">WhatsApp</label>
+          <input
+            type="text"
+            value={datos.whatsapp}
+            onChange={(e) => cambiar("whatsapp", e.target.value)}
+            disabled={submitting}
+            className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Email</label>
+          <input
+            type="email"
+            value={datos.email}
+            onChange={(e) => cambiar("email", e.target.value)}
+            disabled={submitting}
+            className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+          />
+        </div>
+      </div>
+
+      {resultado && (
+        <div
+          className={`mt-3 text-xs rounded px-3 py-2 flex items-start gap-2 ${
+            resultado.ok
+              ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
+              : "bg-red-950/50 text-red-300 border border-red-800/40"
+          }`}
+        >
+          {resultado.ok ? (
+            <Check size={12} className="shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+          )}
+          <span>{resultado.texto}</span>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          onClick={cancelar}
+          disabled={submitting}
+          className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 hover:border-gray-500 disabled:opacity-40 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={guardar}
+          disabled={!datos.nombre.trim() || submitting}
+          className="text-xs px-4 py-1.5 rounded-lg border border-violet-700 bg-violet-900/50 text-violet-200 hover:bg-violet-800/60 font-medium transition-colors disabled:opacity-40"
+        >
+          {submitting ? "Guardando…" : "Guardar cambios"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
 // Main component
 // ===========================================================================
 
@@ -1033,6 +1500,22 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
                 </div>
               </Sect>
             )}
+
+            {/* Gestión WhatsApp y mensajes */}
+            <Sect title="Gestión WhatsApp y mensajes">
+              <AccionesGestion
+                suscriptor={data.suscriptor}
+                onAccionOk={() => setRefreshKey((k) => k + 1)}
+              />
+            </Sect>
+
+            {/* Editar datos básicos */}
+            <Sect title="Editar datos básicos">
+              <EditarDatosForm
+                suscriptor={data.suscriptor}
+                onGuardado={() => setRefreshKey((k) => k + 1)}
+              />
+            </Sect>
 
             {/* Acciones Premium */}
             <Sect title="Acciones Premium">

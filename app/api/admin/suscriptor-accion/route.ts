@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 
 // Allowlist local — subconjunto de las 8 acciones del EF.
-// Solo las acciones premium expuestas en esta sprint.
 const ACCIONES_PERMITIDAS = [
+  "pausar_mensajes",
+  "reactivar_mensajes",
+  "confirmar_whatsapp",
+  "desconfirmar_whatsapp",
   "activar_premium_manual",
   "desactivar_premium_manual",
   "cambiar_fecha_vencimiento",
