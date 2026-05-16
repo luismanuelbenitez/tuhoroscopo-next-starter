@@ -585,6 +585,12 @@ export function AdminDashboard() {
             Suscripciones
           </a>
           <a
+            href="/admin/cupones"
+            className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
+          >
+            Cupones
+          </a>
+          <a
             href="/admin/logs"
             className="text-sm text-gray-500 hover:text-gray-300 border-b-2 border-transparent py-2.5 px-3 transition-colors"
           >
