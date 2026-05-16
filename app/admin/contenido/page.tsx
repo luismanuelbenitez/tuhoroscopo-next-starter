@@ -89,9 +89,18 @@ function fmtDate(iso: string | null | undefined): string {
   }
 }
 
-function truncar(s: string | null, max = 55): string {
-  if (!s) return "—";
-  return s.length > max ? s.slice(0, max) + "…" : s;
+function truncar(s: unknown, max = 55): string {
+  if (s == null) return "—";
+  const str = typeof s === "string" ? s : JSON.stringify(s);
+  if (!str) return "—";
+  return str.length > max ? str.slice(0, max) + "…" : str;
+}
+
+function safeStr(v: unknown): string {
+  if (v == null) return "—";
+  if (typeof v === "string") return v || "—";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
 }
 
 // ===========================================================================
@@ -127,6 +136,75 @@ function TipoBadge({ tipo }: { tipo: string }) {
     <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${cls}`}>
       {tipo}
     </span>
+  );
+}
+
+// ===========================================================================
+// ContenidoRich — renders contenido field (string or JSON object)
+// ===========================================================================
+
+const CONTENIDO_CAMPOS: Array<{ key: string; label: string }> = [
+  { key: "saludo_inicial",     label: "Saludo inicial" },
+  { key: "horoscopo",          label: "Horóscopo" },
+  { key: "contenido_preferido",label: "Contenido preferido" },
+  { key: "numero",             label: "Número" },
+  { key: "color",              label: "Color" },
+  { key: "pausa",              label: "Pausa" },
+  { key: "pie_de_pagina",      label: "Pie de página" },
+];
+
+function ContenidoRich({ raw }: { raw: unknown }) {
+  let parsed: unknown = raw;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try { parsed = JSON.parse(trimmed); } catch { /* keep as string */ }
+    }
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return (
+      <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
+        {typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2)}
+      </p>
+    );
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  const known = CONTENIDO_CAMPOS.filter(({ key }) => obj[key] != null);
+  const unknownKeys = Object.keys(obj).filter(
+    (k) => !CONTENIDO_CAMPOS.some(({ key }) => key === k)
+  );
+
+  if (known.length === 0) {
+    return (
+      <pre className="text-xs text-gray-300 whitespace-pre-wrap break-all">
+        {JSON.stringify(obj, null, 2)}
+      </pre>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {known.map(({ key, label }) => (
+        <div key={key}>
+          <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">{label}</p>
+          <p className="text-sm text-gray-200 whitespace-pre-wrap">{String(obj[key])}</p>
+        </div>
+      ))}
+      {unknownKeys.length > 0 && (
+        <div>
+          <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Otros campos</p>
+          <pre className="text-xs text-gray-400 whitespace-pre-wrap break-all">
+            {JSON.stringify(
+              Object.fromEntries(unknownKeys.map((k) => [k, obj[k]])),
+              null,
+              2
+            )}
+          </pre>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -205,7 +283,7 @@ function ContenidoDetalle({
             value ? (
               <div key={label} className="flex gap-2 py-0.5">
                 <span className="text-gray-500 shrink-0 w-36">{label}</span>
-                <span className="text-gray-200">{value}</span>
+                <span className="text-gray-200">{safeStr(value)}</span>
               </div>
             ) : null
           )}
@@ -231,22 +309,20 @@ function ContenidoDetalle({
             </p>
             <div className="rounded-lg border border-red-800/30 bg-red-950/20 px-3 py-2.5">
               <pre className="text-xs text-red-300 whitespace-pre-wrap break-all leading-relaxed">
-                {item.ultimo_error}
+                {safeStr(item.ultimo_error)}
               </pre>
             </div>
           </div>
         )}
 
         {/* Contenido generado */}
-        {item.contenido && (
+        {item.contenido != null && (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
               Contenido generado
             </p>
             <div className="rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-3 max-h-64 overflow-y-auto">
-              <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
-                {item.contenido}
-              </p>
+              <ContenidoRich raw={item.contenido} />
             </div>
           </div>
         )}
@@ -683,17 +759,17 @@ export default function ContenidoPage() {
 
                           {/* Emoción */}
                           <td className="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">
-                            {c.emocion_dominante || "—"}
+                            {safeStr(c.emocion_dominante)}
                           </td>
 
                           {/* Color */}
                           <td className="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">
-                            {c.color || "—"}
+                            {safeStr(c.color)}
                           </td>
 
                           {/* Contenido preferido */}
                           <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                            {c.contenido_preferido || "—"}
+                            {safeStr(c.contenido_preferido)}
                           </td>
 
                           {/* Generado */}
@@ -710,7 +786,7 @@ export default function ContenidoPage() {
                             {c.ultimo_error ? (
                               <p
                                 className="text-xs text-red-300/80 leading-tight break-words"
-                                title={c.ultimo_error}
+                                title={safeStr(c.ultimo_error)}
                               >
                                 {truncar(c.ultimo_error, 60)}
                               </p>
