@@ -143,6 +143,7 @@ export default function MensajesProblematicosPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   useEffect(() => {
     async function doFetch() {
@@ -174,7 +175,7 @@ export default function MensajesProblematicosPage() {
     }
 
     doFetch();
-  }, [filtros]);
+  }, [filtros, listRefreshKey]);
 
   function handleBuscar() {
     setFiltros({ ...filtros, tipo_mensaje: inputTipo.trim(), offset: 0 });
@@ -487,7 +488,11 @@ export default function MensajesProblematicosPage() {
         )}
       </main>
       {selectedId !== null && (
-        <MensajeDetalle id={selectedId} onClose={() => setSelectedId(null)} />
+        <MensajeDetalle
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+          onAccionOk={() => setListRefreshKey((k) => k + 1)}
+        />
       )}
     </div>
   );

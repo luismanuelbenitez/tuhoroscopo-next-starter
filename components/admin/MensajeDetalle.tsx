@@ -143,19 +143,282 @@ function Sect({ title, children }: { title: string; children: React.ReactNode })
 }
 
 // ===========================================================================
+// AccionesMensaje
+// ===========================================================================
+
+type AccionMensajeKey = "reintentar" | "marcar_fallo_definitivo" | "resetear_a_fallido";
+
+const ACCION_MENSAJE_INFO: Record<
+  AccionMensajeKey,
+  { label: string; descripcion: string; advertencia?: string; peligrosa: boolean }
+> = {
+  reintentar: {
+    label: "Reintentar ahora",
+    descripcion: "Dispara el sender inmediatamente para este mensaje.",
+    advertencia:
+      "En producción esto intenta enviar un WhatsApp real al suscriptor. Verificá primero el estado del suscriptor.",
+    peligrosa: false,
+  },
+  marcar_fallo_definitivo: {
+    label: "Marcar fallo definitivo",
+    descripcion:
+      "Marca el mensaje como fallo definitivo. El CRON dejará de reintentarlo automáticamente.",
+    peligrosa: true,
+  },
+  resetear_a_fallido: {
+    label: "Resetear para reintento",
+    descripcion:
+      "Pasa el mensaje de fallo_definitivo a fallido con intentos=0. El CRON (ef_whatsapp_reintentos) lo reintentará en el próximo ciclo.",
+    peligrosa: false,
+  },
+};
+
+function AccionesMensaje({
+  mensaje,
+  onAccionOk,
+}: {
+  mensaje: Mensaje;
+  onAccionOk: () => void;
+}) {
+  const [accionActiva, setAccionActiva] = useState<AccionMensajeKey | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const estado = mensaje.estado;
+  const puedeReintentar = estado === "fallido";
+  const puedeFalloDefinitivo = estado === "fallido";
+  const puedeResetear = estado === "fallo_definitivo";
+  const hayAcciones = puedeReintentar || puedeFalloDefinitivo || puedeResetear;
+
+  function abrirAccion(accion: AccionMensajeKey) {
+    setAccionActiva(accion);
+    setMotivo("");
+    setResultado(null);
+  }
+
+  function cancelar() {
+    if (submitting) return;
+    setAccionActiva(null);
+    setResultado(null);
+  }
+
+  async function ejecutar() {
+    if (!accionActiva || submitting) return;
+    const motivoTrim = motivo.trim();
+    if (motivoTrim.length < 5) return;
+
+    setSubmitting(true);
+    setResultado(null);
+
+    try {
+      const res = await fetch("/api/admin/mensaje-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_mensaje: mensaje.id,
+          accion: accionActiva,
+          motivo: motivoTrim,
+        }),
+      });
+
+      let json: Record<string, unknown>;
+      try {
+        json = await res.json();
+      } catch {
+        json = {};
+      }
+
+      if (!res.ok || !json.ok) {
+        setResultado({
+          ok: false,
+          texto:
+            (json.detalle as string) ??
+            (json.motivo as string) ??
+            `Error HTTP ${res.status}`,
+        });
+      } else {
+        setResultado({
+          ok: true,
+          texto: (json.mensaje as string) ?? "Acción ejecutada correctamente.",
+        });
+        setTimeout(() => {
+          cancelar();
+          onAccionOk();
+        }, 2000);
+      }
+    } catch (e: unknown) {
+      setResultado({
+        ok: false,
+        texto: e instanceof Error ? e.message : "Error de red",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const info = accionActiva ? ACCION_MENSAJE_INFO[accionActiva] : null;
+
+  if (!hayAcciones) {
+    const TEXTO_INACTIVO: Record<string, string> = {
+      enviado:
+        "El mensaje fue enviado correctamente. No se puede reintentar para evitar duplicados.",
+      procesando:
+        "El mensaje está siendo procesado. Esperá a que el sender termine antes de tomar acción.",
+      pendiente:
+        "El mensaje está pendiente. El CRON lo tomará automáticamente en el próximo ciclo.",
+    };
+    return (
+      <p className="text-xs text-gray-500 italic">
+        {TEXTO_INACTIVO[estado] ?? `Estado "${estado}": sin acciones disponibles.`}
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      {!accionActiva && (
+        <div className="flex flex-wrap gap-2">
+          {puedeReintentar && (
+            <button
+              onClick={() => abrirAccion("reintentar")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
+            >
+              Reintentar ahora
+            </button>
+          )}
+          {puedeFalloDefinitivo && (
+            <button
+              onClick={() => abrirAccion("marcar_fallo_definitivo")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-800/60 bg-red-950/30 text-red-300 hover:bg-red-900/40 transition-colors"
+            >
+              Marcar fallo definitivo
+            </button>
+          )}
+          {puedeResetear && (
+            <button
+              onClick={() => abrirAccion("resetear_a_fallido")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
+            >
+              Resetear para reintento
+            </button>
+          )}
+        </div>
+      )}
+
+      {accionActiva && info && (
+        <div
+          className={`rounded-lg border p-4 ${
+            info.peligrosa
+              ? "border-red-800/60 bg-red-950/25"
+              : "border-amber-800/40 bg-amber-950/15"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-white">
+              Confirmar: {info.label}
+            </span>
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+              aria-label="Cancelar"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="mb-4 space-y-1.5 text-xs">
+            <p className="text-gray-400">
+              Mensaje:{" "}
+              <span className="text-white font-mono font-semibold">#{mensaje.id}</span>{" "}
+              <span className="text-gray-500">— {mensaje.tipo_mensaje}</span>
+            </p>
+            <p className="text-gray-400">{info.descripcion}</p>
+            {info.advertencia && (
+              <p className="text-amber-300 font-medium">
+                Advertencia: {info.advertencia}
+              </p>
+            )}
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-red-400">*</span>{" "}
+              <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              disabled={submitting}
+              rows={2}
+              placeholder="Describir el motivo de esta acción…"
+              className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 resize-none placeholder-gray-600 disabled:opacity-50"
+            />
+            <p className="text-right text-xs text-gray-600 mt-0.5">
+              {motivo.trim().length} car.
+            </p>
+          </div>
+
+          {resultado && (
+            <div
+              className={`mb-3 text-xs rounded px-3 py-2 flex items-start gap-2 ${
+                resultado.ok
+                  ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
+                  : "bg-red-950/50 text-red-300 border border-red-800/40"
+              }`}
+            >
+              {resultado.ok ? (
+                <Check size={12} className="shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              )}
+              <span>{resultado.texto}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={cancelar}
+              disabled={submitting}
+              className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 hover:border-gray-500 disabled:opacity-40 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={ejecutar}
+              disabled={motivo.trim().length < 5 || submitting}
+              className={`text-xs px-4 py-1.5 rounded-lg border font-medium transition-colors disabled:opacity-40 ${
+                info.peligrosa
+                  ? "border-red-700 bg-red-900/50 text-red-200 hover:bg-red-800/60"
+                  : "border-amber-700 bg-amber-900/50 text-amber-200 hover:bg-amber-800/60"
+              }`}
+            >
+              {submitting ? "Ejecutando…" : `Confirmar — ${info.label}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // MensajeDetalle
 // ===========================================================================
 
 export interface MensajeDetalleProps {
   id: number;
   onClose: () => void;
+  onAccionOk?: () => void;
 }
 
-export function MensajeDetalle({ id, onClose }: MensajeDetalleProps) {
+export function MensajeDetalle({ id, onClose, onAccionOk }: MensajeDetalleProps) {
   const [data, setData] = useState<DetalleData | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [metaExpanded, setMetaExpanded] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setCargando(true);
@@ -176,7 +439,7 @@ export function MensajeDetalle({ id, onClose }: MensajeDetalleProps) {
       })
       .catch((e: unknown) => setErrorMsg(e instanceof Error ? e.message : "Error de red"))
       .finally(() => setCargando(false));
-  }, [id]);
+  }, [id, refreshKey]);
 
   const estadoCls =
     data ? (ESTADO_CLS[data.mensaje.estado] ?? "bg-gray-800 text-gray-400 border-gray-700/40") : "";
@@ -492,6 +755,17 @@ export function MensajeDetalle({ id, onClose }: MensajeDetalleProps) {
                 </div>
               </Sect>
             )}
+
+            {/* Acciones del mensaje */}
+            <Sect title="Acciones del mensaje">
+              <AccionesMensaje
+                mensaje={data.mensaje}
+                onAccionOk={() => {
+                  setRefreshKey((k) => k + 1);
+                  onAccionOk?.();
+                }}
+              />
+            </Sect>
           </>
         )}
       </div>
