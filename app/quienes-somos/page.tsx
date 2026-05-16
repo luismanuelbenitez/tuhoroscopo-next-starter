@@ -1,64 +1,96 @@
-import Link from 'next/link'
+import Link from 'next/link';
+import StaticPageLayout from '@/components/StaticPageLayout';
 
 export default function QuienesSomos() {
   return (
-    <section className="relative flex items-center justify-center px-1 py-0 min-h-screen">
-      
-      {/* Fondo de estrellas */}
-      <div className="absolute inset-0 bg-[url('/stars-bg.svg')] bg-cover bg-center opacity-30" />
+    <StaticPageLayout>
 
-      {/* Contenedor central (sin margen extra) */}
-      <div className="mx-auto w-full max-w-4xl rounded-3xl bg-white/10 p-10 md:p-12 shadow-2xl ring-1 ring-white/15 backdrop-blur-lg">
-        
-        {/* Logo */}
-        <div className="flex justify-center mb-1">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <img 
-              src="../img/logo/logo.webp" 
-              alt="Tu Horóscopo Cósmico" 
-              className="h-44 drop-shadow-lg"
-            />
-          </Link>
-        </div>
-
-        {/* Título */}
-        <h2 className="text-5xl font-extrabold text-amber-300 drop-shadow-lg text-center">
-          Nuestra misión
-        </h2>
-        <p className="text-2xl text-pink-200 italic text-center mt-2">
-          Ayudarte a empezar el día mejor
+      {/* Header */}
+      <div className="mb-10">
+        <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+          El proyecto
         </p>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
+          ¿Quiénes somos?
+        </h1>
+        <p className="text-white/70 text-base md:text-lg leading-relaxed max-w-xl">
+          Tu Horóscopo Cósmico es una experiencia diaria de astrología práctica, enviada cada mañana directo a tu WhatsApp.
+        </p>
+      </div>
 
-        {/* Texto */}
-        <div className="text-white/90 leading-relaxed space-y-6 mt-6 text-lg">
-          <p>
-            Buscamos motivarte, inspirarte, invitarte a reflexionar y acompañarte
-            en cada momento, estés donde estés.
-          </p>
-          <h3 className="text-3xl font-semibold text-amber-200 mt-10">
-            ¿Quiénes somos?
-          </h3>
-          <p>
-            <span className="font-bold text-pink-300">Tu Horóscopo Cósmico</span>{" "}
-            nació para ayudarte a comenzar cada día con claridad, inspiración y propósito genuino.
-            Somos un equipo apasionado que fusiona astrología moderna con inteligencia artificial
-            para enviarte mensajes personalizados directos a tu WhatsApp,{" "}
-            <span className="font-bold text-amber-300">de manera simple y sin complicaciones</span>.
-          </p>
-          <p>
-            Creemos en una astrología práctica, cercana y pensada para la vida real.
-            Cada mensaje está diseñado para acompañarte, recordarte tu valor y alinear tu energía
-            con el universo.
-          </p>
-          <p className="text-pink-200 font-semibold text-xl">
-            Eso es valor real, y por eso la gente nos elige cada día.
-          </p>
+      {/* Qué es */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-4"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-base font-semibold text-violet-400 mb-3">¿Qué es?</h2>
+        <p className="text-white/80 text-sm leading-relaxed mb-3">
+          Es un servicio de mensajería personalizada que te acompaña al inicio del día. Combinamos astrología suave, claridad emocional y bienestar práctico para darte un punto de apoyo antes de arrancar.
+        </p>
+        <p className="text-white/80 text-sm leading-relaxed">
+          No prometemos predicciones absolutas ni resultados mágicos. Lo que sí hacemos es darte un mensaje breve, concreto y pensado para vos — basado en tu signo, tu nombre y el área en la que querés enfocarte.
+        </p>
+      </div>
+
+      {/* Qué recibís */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-4"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-base font-semibold text-violet-400 mb-4">¿Qué recibís cada mañana?</h2>
+        <div className="space-y-3">
+          {[
+            { label: 'Horóscopo del día', desc: 'Personalizado para tu signo. Una lectura breve sobre la energía del día y cómo usarla a tu favor.' },
+            { label: 'Foco del día', desc: 'Un consejo práctico según lo que elegiste trabajar: amor, trabajo, bienestar o un enfoque general.' },
+            { label: 'Número de la suerte', desc: 'Un número con una idea concreta para aplicar durante el día.' },
+            { label: 'Color del día', desc: 'Una referencia breve sobre qué puede aportar ese color a tu jornada.' },
+            { label: 'Pausa', desc: 'Un momento de respiración para empezar con calma antes de abrir el resto del teléfono.' },
+          ].map(item => (
+            <div key={item.label} className="flex gap-3 items-start">
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
+              <div>
+                <span className="text-white/90 text-sm font-semibold">{item.label}</span>
+                <span className="text-white/60 text-sm"> — {item.desc}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Decoración cósmica */}
-      <span className="absolute top-10 left-10 text-5xl opacity-30 animate-pulse">🌙</span>
-      <span className="absolute bottom-10 right-16 text-4xl opacity-30 animate-bounce">✨</span>
-    </section>
+      {/* Por qué WhatsApp */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-4"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-base font-semibold text-violet-400 mb-3">¿Por qué WhatsApp?</h2>
+        <p className="text-white/80 text-sm leading-relaxed">
+          Porque ya lo usás. Sin instalar apps nuevas, sin contraseñas adicionales, sin notificaciones que se pierden. El mensaje llega donde ya estás, cuando empieza tu día.
+        </p>
+      </div>
+
+      {/* Tono */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-10"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-base font-semibold text-violet-400 mb-3">Nuestro enfoque</h2>
+        <p className="text-white/80 text-sm leading-relaxed">
+          Creemos en una astrología accesible y útil, sin misticismo exagerado ni promesas vacías. El objetivo es simple: que empieces el día con un poco más de claridad y un poco menos de ruido.
+        </p>
+      </div>
+
+      {/* CTA */}
+      <div className="text-center">
+        <Link
+          href="/checkout"
+          className="inline-block rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-8 py-3.5 text-sm font-bold text-white transition-all hover:from-violet-600 hover:to-violet-400"
+          style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.30)' }}
+        >
+          Activar mi guía diaria →
+        </Link>
+        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · Cancelás cuando quieras</p>
+      </div>
+
+    </StaticPageLayout>
   );
 }

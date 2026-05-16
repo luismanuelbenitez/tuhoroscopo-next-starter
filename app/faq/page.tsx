@@ -1,92 +1,111 @@
-import Link from "next/link";
+import Link from 'next/link';
+import StaticPageLayout from '@/components/StaticPageLayout';
 
-export default function Contacto() {
+const FAQS = [
+  {
+    q: '¿Qué recibo exactamente?',
+    a: 'Cada mañana recibís un mensaje de WhatsApp con: tu horóscopo diario personalizado por signo, un consejo según el foco que elegiste (amor, trabajo, bienestar o general), tu número de la suerte del día con una idea práctica, tu color del día con un significado, y una pausa breve para arrancar con calma.',
+  },
+  {
+    q: '¿Cuándo me llega el mensaje?',
+    a: 'Los mensajes se envían temprano a la mañana, generalmente entre las 7 y las 9 AM (hora de Uruguay). El horario puede variar levemente. El primer mensaje llega poco después de confirmar tu WhatsApp al suscribirte.',
+  },
+  {
+    q: '¿Necesito instalar alguna app?',
+    a: 'No. Todo llega directamente a tu WhatsApp, que ya tenés instalado. Sin apps nuevas, sin contraseñas, sin configuraciones adicionales.',
+  },
+  {
+    q: '¿Cuánto cuesta?',
+    a: 'La suscripción cuesta $U 390 por mes. Sin cargos ocultos ni costos adicionales.',
+  },
+  {
+    q: '¿Cómo se paga?',
+    a: 'El pago se procesa de forma segura a través de Mercado Pago. Podés pagar con tarjeta de crédito, débito u otros medios disponibles en Mercado Pago para Uruguay.',
+  },
+  {
+    q: '¿Cómo cancelo?',
+    a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuhoroscopocosmico.com. Sin trámites complicados.',
+  },
+  {
+    q: '¿Qué pasa después de suscribirme?',
+    a: 'Una vez completado el pago, te enviamos un mensaje de bienvenida a tu WhatsApp. Respondés ese mensaje una vez para activar tu cuenta y a partir de la mañana siguiente empezás a recibir tu guía diaria.',
+  },
+  {
+    q: '¿Qué hago si no me llega el mensaje?',
+    a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuhoroscopocosmico.com.',
+  },
+  {
+    q: '¿Cómo pauso o cancelo los mensajes?',
+    a: 'Respondé "BAJA" a cualquier mensaje nuestro y te damos de baja de inmediato. También podés escribirnos directamente si preferís pausarlos por un tiempo.',
+  },
+  {
+    q: '¿El contenido es personalizado?',
+    a: 'Sí. Cada mensaje se construye con tu nombre, tu signo zodiacal y el foco que elegiste. No es un mensaje genérico enviado a todos — está pensado para vos.',
+  },
+  {
+    q: '¿Puedo cambiar mi foco o preferencia más adelante?',
+    a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuhoroscopocosmico.com y lo actualizamos.',
+  },
+  {
+    q: '¿Por qué me piden mi signo y mi preferencia?',
+    a: 'Para personalizar tu mensaje. Tu signo define el horóscopo y el tono general. Tu foco determina el consejo práctico del día. Sin esos datos, el mensaje sería igual para todos.',
+  },
+];
+
+export default function FAQ() {
   return (
-    <section className="relative flex items-center justify-center px-4 py-12">
+    <StaticPageLayout>
 
-      {/* Fondo de estrellas */}
-      <div className="absolute inset-0 bg-[url('/stars-bg.svg')] bg-cover bg-center opacity-30" />
-
-      {/* Contenedor central con mismo efecto que el premium */}
-      <div className="relative mx-auto w-full max-w-xl rounded-3xl 
-                      bg-white/10 p-6 md:p-8 shadow-2xl 
-                      ring-1 ring-white/15 backdrop-blur">
-
-        {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <img
-              src="../img/logo/logo.webp"
-              alt="Tu Horóscopo Cósmico"
-              className="h-20 drop-shadow-lg"
-            />
-          </Link>
-        </div>
-
-        {/* Título */}
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-amber-300 drop-shadow-lg mb-4">
-          Contactanos
-        </h2>
-        <p className="text-center text-pink-200 mb-6">
-          Tenés dudas, sugerencias o querés hablarnos 💫?  
-          Completá el formulario y te respondemos lo antes posible.
+      {/* Header */}
+      <div className="mb-10">
+        <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+          Dudas frecuentes
         </p>
-
-        {/* Formulario */}
-        <form className="space-y-4">
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Nombre</label>
-            <input
-              type="text"
-              placeholder="Tu nombre"
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Correo electrónico</label>
-            <input
-              type="email"
-              placeholder="tunombre@email.com"
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Mensaje</label>
-            <textarea
-              placeholder="Escribí tu mensaje aquí..."
-              rows={4}
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-              required
-            ></textarea>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="privacidad" className="w-4 h-4 text-pink-500" required />
-            <label htmlFor="privacidad" className="text-sm text-white/70">
-              Acepto la{" "}
-              <Link href="/politica-de-privacidad" className="text-pink-300 underline">
-                Política de Privacidad
-              </Link>.
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-amber-400 to-pink-500 hover:opacity-90 transition"
-          >
-            Enviar mensaje
-          </button>
-        </form>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
+          Preguntas frecuentes
+        </h1>
+        <p className="text-white/70 text-base leading-relaxed">
+          Todo lo que necesitás saber antes de suscribirte — o después.
+        </p>
       </div>
 
-      {/* Decoración cósmica */}
-      <span className="absolute top-10 left-10 text-4xl opacity-30 animate-pulse">🌙</span>
-      <span className="absolute bottom-10 right-16 text-3xl opacity-30 animate-bounce">✨</span>
-    </section>
+      {/* Q&A cards */}
+      <div className="space-y-3 mb-10">
+        {FAQS.map((faq, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-white/8 px-5 py-4"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+          >
+            <p className="text-white/95 text-sm font-semibold mb-2">{faq.q}</p>
+            <p className="text-white/60 text-sm leading-relaxed">{faq.a}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ¿Quedó alguna duda? */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-8 text-center"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <p className="text-white/80 text-sm mb-1">¿Quedó alguna duda sin responder?</p>
+        <Link href="/contacto" className="text-violet-400 text-sm hover:text-violet-300 transition-colors underline underline-offset-2">
+          Escribinos desde la página de contacto
+        </Link>
+      </div>
+
+      {/* CTA */}
+      <div className="text-center">
+        <Link
+          href="/checkout"
+          className="inline-block rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-8 py-3.5 text-sm font-bold text-white transition-all hover:from-violet-600 hover:to-violet-400"
+          style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.30)' }}
+        >
+          Activar mi guía diaria →
+        </Link>
+        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · Sin apps · Cancelás cuando quieras</p>
+      </div>
+
+    </StaticPageLayout>
   );
 }

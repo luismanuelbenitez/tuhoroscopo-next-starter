@@ -1,84 +1,87 @@
-import Link from 'next/link'
+import Link from 'next/link';
+import StaticPageLayout from '@/components/StaticPageLayout';
 
 export default function Contacto() {
   return (
-    <section className="relative flex items-center justify-center px-4 py-12">
+    <StaticPageLayout>
 
-      {/* Fondo de estrellas */}
-      <div className="absolute inset-0 bg-[url('/stars-bg.svg')] bg-cover bg-center opacty-30" />
-
-      {/* Contenedor central */}
-      <div className="mx-auto mt-10 w-full max-w-xl rounded-3xl bg-white/10 p-6 md:p-8 shadow-2xl ring-1 ring-white/15 backdrop-blur">
-
-        {/* Logo */}
-        <div className="flex justify-center mb-4">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <img
-              src="../img/logo/logo.webp"
-              alt="Tu Horóscopo Cósmico"
-              className="h-20 drop-shadow-lg"
-            />
-          </Link>
-        </div>
-
-        {/* Título */}
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-center text-amber-300 drop-shadow-lg">
-          Contactanos
-        </h2>
-        <p className="text-center text-pink-200">
-          Tenés dudas, sugerencias o querés hablarnos 💫?  
-          Completá el formulario y te respondemos lo antes posible.
+      {/* Header */}
+      <div className="mb-10">
+        <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+          Soporte
         </p>
-
-        {/* Formulario */}
-        <form className="space-y-4">
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Nombre</label>
-            <input
-              type="text"
-              placeholder="Tu nombre"
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Correo electrónico</label>
-            <input
-              type="email"
-              placeholder="tunombre@email.com"
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Mensaje</label>
-            <textarea
-              placeholder="Escribí tu mensaje aquí..."
-              rows={4}
-              className="mt-1 w-full rounded-xl bg-black/40 border border-white/20 text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-            ></textarea>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="privacidad" className="w-4 h-4 text-pink-500" />
-            <label htmlFor="privacidad" className="text-sm text-white/70">
-              Acepto la <Link href="/politica-de-privacidad" className="text-pink-300 underline">Política de Privacidad</Link>.
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-amber-400 to-pink-500 hover:opacity-90 transition"
-          >
-            Enviar mensaje
-          </button>
-        </form>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
+          Contacto
+        </h1>
+        <p className="text-white/70 text-base leading-relaxed">
+          Estamos para ayudarte. Si tenés una consulta sobre tu suscripción o el servicio, estas son las formas de comunicarte con nosotros.
+        </p>
       </div>
 
-      {/* Decoración cósmica */}
-      <span className="absolute top-10 left-10 text-4xl opacity-30 animate-pulse">🌙</span>
-      <span className="absolute bottom-10 right-16 text-3xl opacity-30 animate-bounce">✨</span>
-    </section>
+      {/* Canal principal */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-4"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-sm font-semibold text-violet-400 mb-3">Correo electrónico</h2>
+        <p className="text-white/80 text-sm leading-relaxed mb-3">
+          La forma más confiable de contactarnos. Respondemos en un plazo de 24 a 48 horas hábiles.
+        </p>
+        <a
+          href="mailto:hola@tuhoroscopocosmico.com"
+          className="inline-block text-white font-semibold text-sm bg-violet-900/50 border border-violet-500/25 rounded-xl px-4 py-2.5 hover:bg-violet-900/80 transition-colors"
+        >
+          hola@tuhoroscopocosmico.com
+        </a>
+      </div>
+
+      {/* Mensajes — dar de baja */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-4"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-sm font-semibold text-violet-400 mb-3">Pausar o cancelar mensajes</h2>
+        <p className="text-white/80 text-sm leading-relaxed">
+          Si querés pausar o detener los mensajes de WhatsApp, respondé <span className="text-violet-300 font-semibold">BAJA</span> a cualquier mensaje nuestro. Lo procesamos de inmediato, sin preguntas.
+        </p>
+        <p className="text-white/60 text-sm mt-2">
+          Para cancelar la suscripción de pago, podés hacerlo desde tu cuenta en Mercado Pago o escribirnos al correo de arriba.
+        </p>
+      </div>
+
+      {/* Motivos frecuentes */}
+      <div
+        className="rounded-2xl border border-white/8 p-6 mb-10"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <h2 className="text-sm font-semibold text-violet-400 mb-4">Motivos de contacto más frecuentes</h2>
+        <div className="space-y-2.5">
+          {[
+            'No recibí el mensaje de bienvenida después de suscribirme',
+            'Quiero cambiar mi signo o preferencia de contenido',
+            'Tengo una duda sobre el cobro en Mercado Pago',
+            'Quiero pausar los mensajes por un período',
+            'Tengo una sugerencia o comentario',
+          ].map(motivo => (
+            <div key={motivo} className="flex gap-3 items-start">
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
+              <p className="text-white/65 text-sm">{motivo}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FAQ link */}
+      <div className="text-center mb-8">
+        <p className="text-white/50 text-sm mb-2">¿Buscás una respuesta rápida?</p>
+        <Link
+          href="/faq"
+          className="text-violet-400 text-sm hover:text-violet-300 transition-colors underline underline-offset-2"
+        >
+          Revisá las preguntas frecuentes →
+        </Link>
+      </div>
+
+    </StaticPageLayout>
   );
 }
