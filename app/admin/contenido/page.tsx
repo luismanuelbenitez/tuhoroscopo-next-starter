@@ -144,29 +144,31 @@ function ContenidoDetalle({
   const [metaExpanded, setMetaExpanded] = useState(false);
 
   return (
-    <div className="mt-3 mb-1 rounded-xl border border-gray-700 bg-gray-900/80 overflow-hidden">
-      {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-gray-900">
-        <div className="flex items-center gap-2">
-          <TipoBadge tipo={item.tipo} />
-          <EstadoBadge estado={item.estado_envio} />
-          <span className="text-sm font-medium text-white">
-            Contenido #{item.id}
-          </span>
-          {item.id_suscriptor != null && (
-            <span className="text-sm text-gray-500">— sus #{item.id_suscriptor}</span>
-          )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <TipoBadge tipo={item.tipo} />
+            <EstadoBadge estado={item.estado_envio} />
+            <span className="text-sm font-medium text-white">
+              Contenido #{item.id}
+            </span>
+            {item.id_suscriptor != null && (
+              <span className="text-sm text-gray-500">— sus #{item.id_suscriptor}</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white transition-colors p-1 rounded shrink-0 ml-2"
+            aria-label="Cerrar detalle"
+          >
+            <X size={15} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-white transition-colors p-1 rounded"
-          aria-label="Cerrar detalle"
-        >
-          <X size={15} />
-        </button>
-      </div>
 
-      <div className="px-4 py-4 space-y-4">
+      <div className="px-5 py-4 space-y-4">
         {/* Diagnostico warnings */}
         {item.diagnostico_admin && item.diagnostico_admin.warnings.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -275,6 +277,7 @@ function ContenidoDetalle({
               {item.diagnostico_admin.accion_sugerida.replace(/_/g, " ")}
             </p>
           )}
+      </div>
       </div>
     </div>
   );
@@ -724,14 +727,6 @@ export default function ContenidoPage() {
           </div>
         )}
 
-        {/* Detail panel */}
-        {selectedId !== null && (() => {
-          const item = contenido.find((c) => c.id === selectedId);
-          return item ? (
-            <ContenidoDetalle item={item} onClose={() => setSelectedId(null)} />
-          ) : null;
-        })()}
-
         {/* Pagination */}
         {!cargando && paginacion && total > 0 && (
           <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
@@ -759,6 +754,12 @@ export default function ContenidoPage() {
           </div>
         )}
       </main>
+      {selectedId !== null && (() => {
+        const item = contenido.find((c) => c.id === selectedId);
+        return item ? (
+          <ContenidoDetalle item={item} onClose={() => setSelectedId(null)} />
+        ) : null;
+      })()}
     </div>
   );
 }

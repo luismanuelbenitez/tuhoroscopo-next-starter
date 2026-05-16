@@ -182,32 +182,34 @@ export function MensajeDetalle({ id, onClose }: MensajeDetalleProps) {
     data ? (ESTADO_CLS[data.mensaje.estado] ?? "bg-gray-800 text-gray-400 border-gray-700/40") : "";
 
   return (
-    <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
-      {/* Panel header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 bg-gray-900">
-        <div className="flex items-center gap-2">
-          {data && (
-            <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full border ${estadoCls}`}
-            >
-              {data.mensaje.estado}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700 shrink-0">
+          <div className="flex items-center gap-2">
+            {data && (
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full border ${estadoCls}`}
+              >
+                {data.mensaje.estado}
+              </span>
+            )}
+            <span className="text-sm font-medium text-white">
+              Mensaje #{id}
             </span>
-          )}
-          <span className="text-sm font-medium text-white">
-            Mensaje #{id}
-          </span>
-          {data && data.suscriptor && (
-            <span className="text-sm text-gray-500">— {data.suscriptor.nombre}</span>
-          )}
+            {data && data.suscriptor && (
+              <span className="text-sm text-gray-500">— {data.suscriptor.nombre}</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white transition-colors p-1 rounded"
+            aria-label="Cerrar detalle"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-white transition-colors p-1 rounded"
-          aria-label="Cerrar detalle"
-        >
-          <X size={16} />
-        </button>
-      </div>
 
       <div className="px-5 py-4">
         {/* Loading */}
@@ -492,6 +494,7 @@ export function MensajeDetalle({ id, onClose }: MensajeDetalleProps) {
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );

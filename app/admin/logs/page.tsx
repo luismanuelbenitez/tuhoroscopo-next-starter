@@ -134,24 +134,26 @@ function LogDetalle({ log, onClose }: { log: LogEntry; onClose: () => void }) {
   const isError = log.exito === false;
 
   return (
-    <div className={`mt-4 border rounded-xl shadow-xl ${isError ? "border-red-800/50 bg-red-950/10" : "border-gray-700 bg-gray-900/70"}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-        <div className="flex items-center gap-2">
-          <ExitoIcon exito={log.exito} />
-          <span className="text-white font-semibold text-sm">
-            Log #{log.id}
-          </span>
-          <span className="text-gray-500 text-xs font-mono">· {log.nombre_funcion}</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className={`relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border rounded-2xl shadow-2xl mx-4 ${isError ? "border-red-800/50" : "border-gray-700"}`}>
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700/60 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <ExitoIcon exito={log.exito} />
+            <span className="text-white font-semibold text-sm">
+              Log #{log.id}
+            </span>
+            <span className="text-gray-500 text-xs font-mono truncate">· {log.nombre_funcion}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-300 transition-colors shrink-0 ml-2"
+            aria-label="Cerrar detalle"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-300 transition-colors"
-          aria-label="Cerrar detalle"
-        >
-          <X size={16} />
-        </button>
-      </div>
 
       <div className="px-5 py-4 space-y-5">
         {/* Datos principales */}
@@ -188,6 +190,7 @@ function LogDetalle({ log, onClose }: { log: LogEntry; onClose: () => void }) {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -599,13 +602,12 @@ export default function LogsPage() {
               </div>
             )}
 
-            {/* Detail panel */}
-            {selectedLog && (
-              <LogDetalle log={selectedLog} onClose={() => setSelectedId(null)} />
-            )}
           </>
         )}
       </main>
+      {selectedLog && (
+        <LogDetalle log={selectedLog} onClose={() => setSelectedId(null)} />
+      )}
     </div>
   );
 }

@@ -490,11 +490,6 @@ export default function MensajesProblematicosPage() {
           </div>
         )}
 
-        {/* Detalle de mensaje */}
-        {selectedId !== null && (
-          <MensajeDetalle id={selectedId} onClose={() => setSelectedId(null)} />
-        )}
-
         {/* Pagination */}
         {!cargando && paginacion && total > 0 && (
           <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
@@ -522,6 +517,9 @@ export default function MensajesProblematicosPage() {
           </div>
         )}
       </main>
+      {selectedId !== null && (
+        <MensajeDetalle id={selectedId} onClose={() => setSelectedId(null)} />
+      )}
     </div>
   );
 }

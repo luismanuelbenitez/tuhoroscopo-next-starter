@@ -222,30 +222,32 @@ function SuscripcionDetalle({ item, onClose }: { item: Suscripcion; onClose: () 
   const hasDescuento = !!item.codigo_descuento;
 
   return (
-    <div className="mt-4 border border-gray-700 rounded-xl bg-gray-900/70 shadow-xl">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-        <div className="flex items-center gap-2">
-          {diag && (
-            <span
-              className={`w-2 h-2 rounded-full shrink-0 ${diag.healthy ? "bg-green-500" : "bg-red-500"}`}
-            />
-          )}
-          <span className="text-white font-semibold text-sm">
-            Suscripción #{item.id}
-          </span>
-          {item.suscriptor_id && (
-            <span className="text-gray-500 text-xs">· Suscriptor #{item.suscriptor_id}</span>
-          )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700/60 shrink-0">
+          <div className="flex items-center gap-2">
+            {diag && (
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${diag.healthy ? "bg-green-500" : "bg-red-500"}`}
+              />
+            )}
+            <span className="text-white font-semibold text-sm">
+              Suscripción #{item.id}
+            </span>
+            {item.suscriptor_id && (
+              <span className="text-gray-500 text-xs">· Suscriptor #{item.suscriptor_id}</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-300 transition-colors"
+            aria-label="Cerrar detalle"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-300 transition-colors"
-          aria-label="Cerrar detalle"
-        >
-          <X size={16} />
-        </button>
-      </div>
 
       <div className="px-5 py-4 space-y-5">
         {/* Diagnóstico */}
@@ -368,6 +370,7 @@ function SuscripcionDetalle({ item, onClose }: { item: Suscripcion; onClose: () 
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -759,13 +762,12 @@ export default function SuscripcionesPage() {
               </div>
             )}
 
-            {/* Detail panel */}
-            {selectedItem && (
-              <SuscripcionDetalle item={selectedItem} onClose={() => setSelectedId(null)} />
-            )}
           </>
         )}
       </main>
+      {selectedItem && (
+        <SuscripcionDetalle item={selectedItem} onClose={() => setSelectedId(null)} />
+      )}
     </div>
   );
 }
