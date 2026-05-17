@@ -800,7 +800,7 @@ serve(async (req)=>{
   // 5) Buscar suscriptor
   //   - Traemos lo mínimo para reglas de negocio
   // -------------------------------------------------------------------------
-  const { data: suscriptor, error: errSusc } = await supabase.from("suscriptores").select("id, nombre, whatsapp, tipo_suscripcion, estado_suscripcion, whatsapp_confirmado, preapproval_status, estado_mensaje").eq("whatsapp", numeroE164).maybeSingle();
+  const { data: suscriptor, error: errSusc } = await supabase.from("suscriptores").select("id, nombre, whatsapp, tipo_suscripcion, estado_suscripcion, whatsapp_confirmado, preapproval_status, estado_mensaje, menu_state").eq("whatsapp", numeroE164).maybeSingle();
   if (errSusc) {
     await registrarLog("error_buscar_suscriptor", {
       numeroE164,
@@ -1149,7 +1149,13 @@ serve(async (req)=>{
   //   - Si el orquestador falla, se loguea el error pero el inbound
   //     sigue respondiendo 200 a Meta (regla de oro del webhook).
   // =========================================================================
-  if (esMenu) {
+  // estaEnMenu: usuario confirmado dentro de un estado de menú activo escribió
+  // algo que no es un trigger ni BAJA. Sus inputs de navegación (1, 2, 0, etc.)
+  // deben llegar al orquestador igual que el trigger inicial.
+  const estaEnMenu = (suscriptor.menu_state ?? null) !== null
+    && suscriptor.whatsapp_confirmado === true
+    && !esBaja; // BAJA sigue su propio flujo (sección 6)
+  if (esMenu || estaEnMenu) {
     if (suscriptor.whatsapp_confirmado !== true) {
       // No activar menú para usuarios no confirmados.
       // El texto cae al flujo normal (sección 6 en adelante).

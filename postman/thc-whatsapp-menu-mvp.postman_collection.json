@@ -1,0 +1,185 @@
+{
+  "info": {
+    "name": "THC — Menú WhatsApp MVP",
+    "description": "Simulación de mensajes entrantes de WhatsApp para probar el menú interactivo premium de Tu Horóscopo Cósmico. Endpoint: ef_webhook_whatsapp_events (CAPA 1). Flujo: events → inbound → orquesta_menu_respuesta → sender.\n\nRequisitos:\n- Suscriptor premium activo con whatsapp_confirmado=true\n- Migración 20260517120000 aplicada\n- Plantillas aprobadas en Meta e insertadas en tabla plantillas\n- Variables de colección configuradas: SUPABASE_URL, WA_ID (número sin +)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "SUPABASE_URL",
+      "value": "https://TU_PROJECT_REF.supabase.co",
+      "description": "URL base del proyecto Supabase"
+    },
+    {
+      "key": "WA_ID",
+      "value": "598XXXXXXXXX",
+      "description": "Número WhatsApp del suscriptor de prueba, SIN el signo +"
+    },
+    {
+      "key": "PHONE_NUMBER_ID",
+      "value": "TU_PHONE_NUMBER_ID",
+      "description": "Phone Number ID de Meta"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 — Reset precondición (SQL manual)",
+      "request": {
+        "method": "GET",
+        "url": "https://placeholder",
+        "description": "Antes de cada test, ejecutar en Supabase SQL editor:\n\nUPDATE suscriptores\nSET\n  menu_state = NULL,\n  menu_state_updated_at = NULL,\n  estado_mensaje = 'activo',\n  contenido_preferido = 'bienestar'\nWHERE whatsapp = '+{{WA_ID}}';\n\nVerificar precondiciones:\nSELECT id, nombre, menu_state, menu_state_updated_at, estado_mensaje, whatsapp_confirmado\nFROM suscriptores\nWHERE whatsapp = '+{{WA_ID}}';"
+      }
+    },
+    {
+      "name": "01 — Trigger MENU (abrir menú)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.MENU001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482000\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"MENU\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Usuario escribe MENU. Esperar: menu_state='menu_principal', plantilla menu_principal enviada.\n\nVerificar:\nSELECT menu_state, menu_state_updated_at FROM suscriptores WHERE whatsapp='+{{WA_ID}}';\nSELECT nombre_plantilla, estado FROM mensajes_enviados WHERE id_suscriptor=<ID> ORDER BY fecha_creado DESC LIMIT 3;\nSELECT resultado, exito FROM log_funciones WHERE nombre_funcion='ef_orquesta_menu_respuesta' ORDER BY fecha_ejecucion DESC LIMIT 3;"
+      }
+    },
+    {
+      "name": "02 — Opción 1 (Cambiar enfoque)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.OPC1_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482060\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"1\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 1.\nEsperar: menu_state='menu_enfoque', plantilla menu_enfoque enviada.\nLa variable enfoque_actual debe mostrar el enfoque actual del suscriptor."
+      }
+    },
+    {
+      "name": "03 — Selección de enfoque (ej: 2 = trabajo_dinero)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.ENFOQUE_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482120\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"2\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_enfoque'. Usuario escribe 2 (trabajo_dinero).\nEsperar: contenido_preferido='trabajo_dinero', menu_state=null, plantilla menu_confirmacion_enfoque.\n\nCambiar body a '1','3','4' para bienestar, amor_relaciones, salud_energia."
+      }
+    },
+    {
+      "name": "04 — Opción 2 (Estado de suscripción)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.ESTADO_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482180\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"2\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 2.\nEsperar: menu_state sigue 'menu_principal' (keepalive), plantilla menu_estado_suscripcion.\nVerificar en metadata.variables: premium, suscripcion, mensajes, vencimiento."
+      }
+    },
+    {
+      "name": "05 — Opción 3 (Pausar / reactivar — abrir sub-menú)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.PAUSA_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482240\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"3\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 3.\nEsperar: menu_state='menu_pausa', plantilla menu_pausa.\nVerificar variable estado_mensajes: 'activos' si estado_mensaje='activo', 'pausados' si 'pausado_usuario'."
+      }
+    },
+    {
+      "name": "06 — Pausar mensajes (confirmar pausa)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.PAUSA_CONF_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482300\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"1\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_pausa'. Usuario escribe 1 (pausar).\nEsperar: estado_mensaje='pausado_usuario', menu_state=null, plantilla menu_pausa_confirmada.\nVerificar que premium_activo y estado_suscripcion NO cambiaron.\nLog debe tener nota: 'NO_cancela_MP_solo_pausa_mensajes'."
+      }
+    },
+    {
+      "name": "07 — Reactivar mensajes",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.REACTIV_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482360\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"2\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_pausa', estado_mensaje='pausado_usuario'. Usuario escribe 2 (reactivar).\nEsperar: estado_mensaje='activo', menu_state=null, plantilla menu_reactivacion_confirmada."
+      }
+    },
+    {
+      "name": "08 — Opción 4 (Ayuda)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.AYUDA_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482420\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"4\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 4.\nEsperar: menu_state sigue 'menu_principal', plantilla ayuda_usuario (reutilizada, ya aprobada)."
+      }
+    },
+    {
+      "name": "09 — Salir con 0 (desde menú principal)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.SALIR_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482480\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"0\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 0.\nEsperar: menu_state=null, plantilla menu_salir.\nLog: resultado='menu_salir'.\n\nPara probar '0' desde sub-menú (menu_enfoque / menu_pausa), primero setear ese estado manualmente:\nUPDATE suscriptores SET menu_state='menu_enfoque', menu_state_updated_at=NOW() WHERE whatsapp='+{{WA_ID}}';\nEsperar en ese caso: menu_state='menu_principal' (volver), plantilla menu_principal."
+      }
+    },
+    {
+      "name": "10 — Input inválido en menú principal",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.INV_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482540\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"hola\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal'. Usuario escribe 'hola'.\nEsperar: menu_state sigue 'menu_principal', menu_state_updated_at actualizado, plantilla menu_principal_invalido.\nCambiar body a '5', '9', o cualquier string que no sea 0-4 ni trigger."
+      }
+    },
+    {
+      "name": "11 — BAJA mientras está en el menú",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{SUPABASE_URL}}/functions/v1/ef_webhook_whatsapp_events",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [{\n    \"id\": \"ENTRY_ID\",\n    \"changes\": [{\n      \"field\": \"messages\",\n      \"value\": {\n        \"messaging_product\": \"whatsapp\",\n        \"metadata\": {\n          \"phone_number_id\": \"{{PHONE_NUMBER_ID}}\",\n          \"display_phone_number\": \"TU_NUMERO\"\n        },\n        \"contacts\": [{\n          \"profile\": { \"name\": \"Usuario Test\" },\n          \"wa_id\": \"{{WA_ID}}\"\n        }],\n        \"messages\": [{\n          \"id\": \"wamid.BAJA_MENU_001\",\n          \"from\": \"{{WA_ID}}\",\n          \"timestamp\": \"1747482600\",\n          \"type\": \"text\",\n          \"text\": { \"body\": \"BAJA\" }\n        }]\n      }\n    }]\n  }]\n}"
+        },
+        "description": "Precondición: menu_state='menu_principal' (o cualquier sub-estado). Usuario escribe BAJA.\nEsperar:\n- estado_mensaje='pausado_usuario'\n- menu_state=null (limpiado por BAJA)\n- menu_state_updated_at=null\n- Plantilla baja_info_mp o baja_thc (según preapproval_status)\n- El orquestador de menú NO fue llamado (estaEnMenu excluye esBaja=true)\n\nVerificar log:\nSELECT resultado FROM log_funciones WHERE nombre_funcion='ef_webhook_whatsapp_inbound' ORDER BY fecha_ejecucion DESC LIMIT 5;\nNO debe aparecer 'menu_detectado'. Debe aparecer 'baja_pausa_mensajes_ok'."
+      }
+    },
+    {
+      "name": "12 — Timeout simulado",
+      "request": {
+        "method": "GET",
+        "url": "https://placeholder",
+        "description": "Para simular timeout, primero ejecutar SQL:\n\nUPDATE suscriptores\nSET menu_state = 'menu_principal',\n    menu_state_updated_at = NOW() - INTERVAL '15 minutes'\nWHERE whatsapp = '+{{WA_ID}}';\n\nLuego enviar CUALQUIER mensaje (ej: request 10 con 'hola').\nEsperar:\n- menu_state=null\n- Plantilla menu_timeout\n- Log: resultado='menu_timeout_reset', menu_state_anterior='menu_principal'"
+      }
+    }
+  ]
+}
