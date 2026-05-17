@@ -8,6 +8,8 @@ const NAV_ITEMS = [
   { href: "/admin/suscripciones",          label: "Suscripciones" },
   { href: "/admin/cupones",                label: "Cupones" },
   { href: "/admin/logs",                   label: "Logs" },
+  { href: "/admin/cron",                   label: "Cron" },
+  { href: "/admin/config",                 label: "Config" },
 ] as const;
 
 export function AdminNav({ current }: { current: string }) {
