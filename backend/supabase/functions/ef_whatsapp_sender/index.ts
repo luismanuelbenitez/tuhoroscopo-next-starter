@@ -763,6 +763,59 @@ const TEMPLATE_VARIABLE_ORDER = {
   ],
   abandono_checkout: [
     "link_checkout"
+  ],
+  // --------------------------------------------------------------------------
+  // Menú de ajustes WhatsApp (12 plantillas)
+  // --------------------------------------------------------------------------
+  // Todas usan al menos {{1}} = nombre.
+  // Las que tienen más variables se documentan con sus placeholders en orden.
+  // --------------------------------------------------------------------------
+  menu_principal: [
+    "nombre"
+  ],
+  menu_salir: [
+    "nombre"
+  ],
+  menu_timeout: [
+    "nombre"
+  ],
+  menu_principal_invalido: [
+    "nombre"
+  ],
+  // {{1}} = nombre, {{2}} = enfoque_actual (ej: "amor_relaciones")
+  menu_enfoque: [
+    "nombre",
+    "enfoque_actual"
+  ],
+  // {{1}} = nombre, {{2}} = enfoque (nombre legible confirmado)
+  menu_confirmacion_enfoque: [
+    "nombre",
+    "enfoque"
+  ],
+  menu_enfoque_invalido: [
+    "nombre"
+  ],
+  // {{1}} = nombre, {{2}} = premium, {{3}} = suscripcion, {{4}} = mensajes, {{5}} = vencimiento
+  menu_estado_suscripcion: [
+    "nombre",
+    "premium",
+    "suscripcion",
+    "mensajes",
+    "vencimiento"
+  ],
+  // {{1}} = nombre, {{2}} = estado_mensajes (ej: "activos" / "pausados")
+  menu_pausa: [
+    "nombre",
+    "estado_mensajes"
+  ],
+  menu_pausa_confirmada: [
+    "nombre"
+  ],
+  menu_reactivacion_confirmada: [
+    "nombre"
+  ],
+  menu_pausa_invalido: [
+    "nombre"
   ]
 };
 // ============================================================================
@@ -1109,6 +1162,28 @@ const TEMPLATE_REQUIRED_VARIABLES = {
     "intencion_semana",
     "ritual_simple",
     "cierre_inspirador"
+  ],
+  // --------------------------------------------------------------------------
+  // Menú de ajustes — solo plantillas con más de una variable obligatoria
+  // --------------------------------------------------------------------------
+  menu_enfoque: [
+    "nombre",
+    "enfoque_actual"
+  ],
+  menu_confirmacion_enfoque: [
+    "nombre",
+    "enfoque"
+  ],
+  menu_estado_suscripcion: [
+    "nombre",
+    "premium",
+    "suscripcion",
+    "mensajes",
+    "vencimiento"
+  ],
+  menu_pausa: [
+    "nombre",
+    "estado_mensajes"
   ]
 };
 // ============================================================================
