@@ -60,6 +60,11 @@ const ANON_KEY_SUPABASE = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 // Worker/outbox (CAPA 4)
 const SENDER_FUNCTION_NAME = "ef_whatsapp_sender";
+// Menú interactivo WhatsApp
+const MENU_FUNCTION_NAME = "ef_orquesta_menu_respuesta";
+// Palabras que activan el menú (ya normalizadas: sin acentos, uppercase)
+// "MENÚ" normaliza a "MENU" → no necesita entrada separada
+const COMANDOS_MENU = ["MENU", "CONFIG", "AJUSTES", "PREFERENCIAS"];
 // Plantillas
 // ---------------------------------------------------------------------------
 // Clave lógica de plantilla de confirmación de número
@@ -661,6 +666,46 @@ async function dispararSender(id_mensaje) {
   };
 }
 // ============================================================================
+// Helper: llamar al orquestador de menú interactivo
+// ============================================================================
+// OBJETIVO:
+//   Delegar al orquestador de menú cuando el inbound detecta un trigger
+//   de menú (MENU / CONFIG / AJUSTES / PREFERENCIAS) para un usuario
+//   con whatsapp_confirmado=true.
+//
+// SEGURIDAD:
+//   Mismos headers internos que dispararSender.
+//
+// IMPORTANTE:
+//   El inbound siempre responde 200. Si el orquestador falla, se loguea
+//   el error pero el inbound no rompe el webhook.
+// ============================================================================
+async function llamarOrquestadorMenu(params) {
+  const url = `${SUPABASE_URL}/functions/v1/${MENU_FUNCTION_NAME}`;
+  const headers = {
+    "Content-Type": "application/json",
+    "x-internal-key": WHATSAPP_INTERNAL_KEY,
+    "Authorization": `Bearer ${ANON_KEY_SUPABASE}`,
+    "apikey": ANON_KEY_SUPABASE
+  };
+  const r = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      whatsapp: params.numeroE164,
+      text: params.texto
+    })
+  });
+  const text = await r.text();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text };
+  }
+  return { ok: r.ok, http_status: r.status, body: parsed };
+}
+// ============================================================================
 // Handler principal
 // ============================================================================
 serve(async (req)=>{
@@ -750,6 +795,7 @@ serve(async (req)=>{
   // -------------------------------------------------------------------------
   const esAyuda = parsed.tipo === "text" && textoNormalizado === COMANDO_AYUDA;
   const esEstado = parsed.tipo === "text" && textoNormalizado === COMANDO_ESTADO;
+  const esMenu = parsed.tipo === "text" && COMANDOS_MENU.includes(textoNormalizado);
   // -------------------------------------------------------------------------
   // 5) Buscar suscriptor
   //   - Traemos lo mínimo para reglas de negocio
@@ -1086,6 +1132,74 @@ serve(async (req)=>{
     }, 200);
   }
   // =========================================================================
+  // 5.6) MENÚ INTERACTIVO — Solo usuarios con whatsapp_confirmado=true
+  // =========================================================================
+  //
+  // OBJETIVO:
+  //   Delegar al orquestador de menú cuando el usuario escribe uno de los
+  //   triggers: MENU / MENÚ / CONFIG / AJUSTES / PREFERENCIAS.
+  //
+  // REGLAS:
+  //   - Solo se activa si whatsapp_confirmado=true.
+  //   - Si whatsapp_confirmado=false: se ignora este bloque y el texto cae
+  //     al flujo normal (puede confirmar el número si es premium activo).
+  //   - BAJA sigue siendo un comando independiente (sección 6).
+  //     La razón: BAJA se procesa incluso para no-premium; el menú no.
+  //   - La llamada al orquestador va envuelta en try/catch.
+  //   - Si el orquestador falla, se loguea el error pero el inbound
+  //     sigue respondiendo 200 a Meta (regla de oro del webhook).
+  // =========================================================================
+  if (esMenu) {
+    if (suscriptor.whatsapp_confirmado !== true) {
+      // No activar menú para usuarios no confirmados.
+      // El texto cae al flujo normal (sección 6 en adelante).
+      await registrarLog("menu_ignorado_no_confirmado", {
+        id_suscriptor: suscriptor.id,
+        numeroE164,
+        msgId: parsed.msgId,
+        textoNormalizado,
+        id_evento
+      }, true);
+      // No hay return: continúa al bloque BAJA y luego al flujo de confirmación.
+    } else {
+      // Usuario confirmado → delegar al orquestador de menú
+      await registrarLog("menu_detectado", {
+        id_suscriptor: suscriptor.id,
+        numeroE164,
+        textoNormalizado,
+        msgId: parsed.msgId,
+        id_evento
+      }, true);
+      try {
+        const resOrq = await llamarOrquestadorMenu({
+          numeroE164,
+          texto
+        });
+        await registrarLog(
+          resOrq.ok ? "menu_orquestador_ok" : "menu_orquestador_error",
+          {
+            id_suscriptor: suscriptor.id,
+            numeroE164,
+            http_status: resOrq.http_status,
+            respuesta: resOrq.body
+          },
+          resOrq.ok
+        );
+      } catch (e) {
+        await registrarLog("menu_orquestador_excepcion", {
+          id_suscriptor: suscriptor.id,
+          numeroE164,
+          error: String(e)
+        }, false);
+      }
+      return jsonResponse({
+        resultado: "ok",
+        accion: "menu_delegado_a_orquestador",
+        id_suscriptor: suscriptor.id
+      }, 200);
+    }
+  }
+  // =========================================================================
   // 6) BAJA (se procesa aunque NO sea premium activo)
   // =========================================================================
   if (esBaja) {
@@ -1144,6 +1258,9 @@ serve(async (req)=>{
     // ============================================================================
     const { error: pausaErr } = await supabase.from("suscriptores").update({
       estado_mensaje: "pausado_usuario",
+      // Limpiar sesión de menú si estaba activa
+      menu_state: null,
+      menu_state_updated_at: null,
       actualizado_en: nowUTCISO()
     }).eq("id", suscriptor.id);
     if (pausaErr) {

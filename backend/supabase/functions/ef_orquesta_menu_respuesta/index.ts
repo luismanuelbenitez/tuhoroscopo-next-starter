@@ -1,43 +1,99 @@
 // ============================================================================
 // EDGE FUNCTION: ef_orquesta_menu_respuesta
+// Sprint 1 — Menú WhatsApp MVP
 // ============================================================================
-// Responsabilidad:
-// - Procesar respuestas del usuario cuando está dentro de un menú (menu_state != null)
-// - Aplicar reglas globales: MENU / 0 / BAJA / ALTA / ESTADO / SOPORTE
-// - Timeout 10 min de estado
-// - Actualiza preferencia (contenido_preferido) y franja horaria (send_window)
-// - Usa OUTBOX + dispara ef_whatsapp_sender inmediatamente
+//
+// RESPONSABILIDAD:
+//   Procesar la interacción del usuario dentro del menú interactivo de WhatsApp.
+//   Es llamada por ef_webhook_whatsapp_inbound cuando detecta un trigger de menú
+//   (MENU / CONFIG / AJUSTES / PREFERENCIAS) para un usuario con
+//   whatsapp_confirmado=true.
+//
+// ALCANCE SPRINT 1:
+//   - Mostrar menú principal (4 opciones)
+//   - Manejar "0" para salir
+//   - Opciones 1-4: responden "próximamente"
+//   - Timeout de 10 minutos de inactividad
+//   - Advisory lock por suscriptor (evita carreras si llegan 2 mensajes)
+//
+// NO IMPLEMENTADO EN SPRINT 1 (pendiente):
+//   - Cambiar enfoque (opción 1)
+//   - Estado de suscripción (opción 2)
+//   - Pausar / reactivar (opción 3)
+//   - Ayuda avanzada (opción 4)
+//   - Cambiar horario
+//
+// ARQUITECTURA:
+//   Inbound detecta trigger → llama este orquestador → orquestador usa OUTBOX
+//   → encola en mensajes_enviados → dispara ef_whatsapp_sender → Meta API
+//
+// IMPORTANTE:
+//   - BAJA sigue siendo manejada por ef_webhook_whatsapp_inbound (sección 6).
+//     Si el usuario escribe BAJA, el inbound lo intercepta ANTES de llamar
+//     a este orquestador. BAJA nunca llega acá.
+//   - No toca Mercado Pago.
+//   - No toca estado_suscripcion.
+//   - No toca premium_activo.
+//   - No toca contenido_preferido (pendiente Sprint 3).
+//   - No toca estado_mensaje (pendiente Sprint 4).
+//
+// CAMPOS REQUERIDOS EN suscriptores (migración 20260517120000):
+//   - menu_state text DEFAULT NULL
+//   - menu_state_updated_at timestamptz DEFAULT NULL
+//
+// PLANTILLAS REQUERIDAS EN tabla `plantillas` + aprobadas en Meta:
+//   - menu_principal          — muestra las 4 opciones
+//   - menu_salir              — confirmación de salida
+//   - menu_timeout            — sesión expirada
+//   - menu_proximamente       — opción no disponible aún (Sprint 1)
+//   - menu_principal_invalido — input fuera de rango (no es 0-4)
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const FN = "ef_orquesta_menu_respuesta";
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
+
 const SENDER_FN = "ef_whatsapp_sender";
-// Si tenés orquestadores separados para BAJA/ALTA/ESTADO, ponelos acá:
-const ORQ_BAJA = "ef_orquesta_baja"; // <-- si existe
-const ORQ_ALTA = "ef_orquesta_alta"; // <-- si existe
-const ORQ_ESTADO = "ef_orquesta_estado"; // <-- si existe
-const ORQ_SOPORTE = "ef_orquesta_soporte"; // <-- opcional
 const TIMEOUT_MINUTES = 10;
+
+// Plantillas lógicas (deben existir en tabla `plantillas` y estar aprobadas en Meta)
+const PLANTILLA_MENU_PRINCIPAL = "menu_principal";
+const PLANTILLA_MENU_SALIR = "menu_salir";
+const PLANTILLA_MENU_TIMEOUT = "menu_timeout";
+const PLANTILLA_MENU_PROXIMAMENTE = "menu_proximamente";
+const PLANTILLA_MENU_INVALIDO = "menu_principal_invalido";
+
+// Triggers que abren el menú (normalizados: sin acentos, uppercase)
+// "MENÚ" → "MENU" después de normalizeText; no necesita entrada separada
+const TRIGGERS_MENU = ["MENU", "CONFIG", "AJUSTES", "PREFERENCIAS"];
+
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
 function nowISO() {
   return new Date().toISOString();
 }
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json"
-    }
+    headers: { "Content-Type": "application/json" }
   });
 }
+
 function normalizeText(input) {
   if (typeof input !== "string") return "";
-  return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+  return input.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toUpperCase();
 }
+
 async function registrarLog(resultado, detalle, exito = true) {
   try {
     await supabase.from("log_funciones").insert({
@@ -49,22 +105,23 @@ async function registrarLog(resultado, detalle, exito = true) {
       creado_por: "system"
     });
   } catch (_) {
-  // no romper
+    // No romper el flujo por logging
   }
 }
-// Advisory lock por suscriptor (evita carreras si llegan 2 mensajes seguidos)
+
+// Advisory lock por suscriptor: evita que dos mensajes simultáneos dupliquen acciones
 async function acquireLock(id_suscriptor) {
-  const { error } = await supabase.rpc("pg_advisory_lock", {
-    key: id_suscriptor
-  });
+  const { error } = await supabase.rpc("pg_advisory_lock", { key: id_suscriptor });
   return !error;
 }
+
 async function releaseLock(id_suscriptor) {
-  await supabase.rpc("pg_advisory_unlock", {
-    key: id_suscriptor
-  });
+  await supabase.rpc("pg_advisory_unlock", { key: id_suscriptor });
 }
-// OUTBOX enqueue: usando plantilla + variables
+
+// Encola mensaje en outbox usando nombre lógico de plantilla.
+// El sender usa el nombre_plantilla directamente como nombre de template Meta.
+// Los nombres lógicos deben coincidir con los nombres aprobados en Meta.
 async function enqueuePlantilla(params) {
   const row = {
     id_suscriptor: params.id_suscriptor,
@@ -77,25 +134,20 @@ async function enqueuePlantilla(params) {
     fecha_hora: nowISO(),
     metadata: {
       variables: params.variables ?? {},
-      contexto: "menu_mvp",
-      ...params.metadata_extra ?? {}
+      contexto: "menu_sprint1"
     }
   };
-  const { data, error } = await supabase.from("mensajes_enviados").insert(row).select("id").maybeSingle();
-  if (error) return {
-    ok: false,
-    error: error.message
-  };
-  if (!data?.id) return {
-    ok: false,
-    error: "no_id_mensaje"
-  };
-  return {
-    ok: true,
-    id_mensaje: data.id
-  };
+  const { data, error } = await supabase
+    .from("mensajes_enviados")
+    .insert(row)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data?.id) return { ok: false, error: "no_id_mensaje" };
+  return { ok: true, id_mensaje: data.id };
 }
-// Disparo sender (intento inmediato)
+
+// Dispara sender inmediato para el mensaje recién encolado
 async function dispararSender(id_mensaje) {
   const url = `${SUPABASE_URL}/functions/v1/${SENDER_FN}`;
   const headers = {
@@ -103,614 +155,291 @@ async function dispararSender(id_mensaje) {
     "Authorization": `Bearer ${ANON_KEY}`,
     "apikey": ANON_KEY
   };
-  // seguridad extra interna (si el sender la valida)
   if (WHATSAPP_INTERNAL_KEY) headers["x-internal-key"] = WHATSAPP_INTERNAL_KEY;
   const r = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      id_mensaje
-    })
+    body: JSON.stringify({ id_mensaje })
   });
   const txt = await r.text();
   let body = null;
-  try {
-    body = JSON.parse(txt);
-  } catch  {
-    body = {
-      raw: txt
-    };
-  }
-  return {
-    ok: r.ok,
-    status: r.status,
-    body
-  };
+  try { body = JSON.parse(txt); } catch { body = { raw: txt }; }
+  return { ok: r.ok, status: r.status, body };
 }
-// Llamar orquestadores auxiliares (si los tenés)
-async function callOrq(fnName, payload) {
-  const url = `${SUPABASE_URL}/functions/v1/${fnName}`;
-  const headers = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${ANON_KEY}`,
-    "apikey": ANON_KEY
-  };
-  if (WHATSAPP_INTERNAL_KEY) headers["x-internal-key"] = WHATSAPP_INTERNAL_KEY;
-  const r = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload)
-  });
-  const txt = await r.text();
-  let body = null;
-  try {
-    body = JSON.parse(txt);
-  } catch  {
-    body = {
-      raw: txt
-    };
-  }
-  return {
-    ok: r.ok,
-    status: r.status,
-    body
-  };
-}
-// Timeout check
+
+// Timeout: true si han pasado más de TIMEOUT_MINUTES desde la última actualización
 function isTimedOut(menuUpdatedAt) {
   if (!menuUpdatedAt) return true;
   const d = new Date(menuUpdatedAt);
   if (isNaN(d.getTime())) return true;
-  const diffMs = Date.now() - d.getTime();
-  return diffMs > TIMEOUT_MINUTES * 60 * 1000;
+  return (Date.now() - d.getTime()) > TIMEOUT_MINUTES * 60 * 1000;
 }
-// Helpers de “volver”
-function parentMenu(state) {
-  if (!state) return null;
-  switch(state){
-    case "menu_enfoque":
-    case "menu_horario":
-    case "menu_pausa":
-    case "menu_ayuda":
-      return "menu_principal";
-    case "menu_principal":
-    default:
-      return null; // salir
+
+// ============================================================================
+// Handler principal
+// ============================================================================
+
+serve(async (req) => {
+  if (req.method !== "POST") {
+    return json({ error: "Método no permitido" }, 405);
   }
-}
-// ============================================================================
-// MAIN
-// ============================================================================
-serve(async (req)=>{
-  if (req.method !== "POST") return json({
-    error: "Método no permitido"
-  }, 405);
+
   let body = null;
   try {
     body = await req.json();
-  } catch  {
-    return json({
-      error: "JSON inválido"
-    }, 400);
+  } catch {
+    return json({ error: "JSON inválido" }, 400);
   }
-  // Esperado desde inbound:
-  // { whatsapp: "+598...", text: "1", msgId?: "...", timestampUTC?: "..." }
+
+  // Campos esperados desde ef_webhook_whatsapp_inbound:
+  // { whatsapp: "+598...", text: "MENU" }
   const whatsapp = typeof body?.whatsapp === "string" ? body.whatsapp.trim() : null;
   const textRaw = body?.text ?? body?.mensaje ?? null;
   const input = normalizeText(textRaw);
-  if (!whatsapp) return json({
-    error: "Falta whatsapp"
-  }, 400);
-  // Buscar suscriptor por whatsapp
-  const { data: suscriptor, error: errS } = await supabase.from("suscriptores").select(`
+
+  if (!whatsapp) return json({ error: "Falta whatsapp" }, 400);
+
+  // -------------------------------------------------------------------------
+  // Buscar suscriptor
+  // NOTA: se incluye menu_state y menu_state_updated_at (requiere migración
+  // 20260517120000_add_menu_state_to_suscriptores.sql aplicada)
+  // -------------------------------------------------------------------------
+  const { data: suscriptor, error: errS } = await supabase
+    .from("suscriptores")
+    .select(`
       id,
       nombre,
       whatsapp,
       premium_activo,
       estado_suscripcion,
       tipo_suscripcion,
-      mensajes_pausados,
+      estado_mensaje,
       contenido_preferido,
-      send_window,
       menu_state,
       menu_state_updated_at
-    `).eq("whatsapp", whatsapp).maybeSingle();
+    `)
+    .eq("whatsapp", whatsapp)
+    .maybeSingle();
+
   if (errS) {
-    await registrarLog("error_buscar_suscriptor", {
-      whatsapp,
-      error: errS.message
-    }, false);
-    return json({
-      resultado: "error",
-      mensaje: "Error buscando suscriptor"
-    }, 500);
+    await registrarLog("error_buscar_suscriptor", { whatsapp, error: errS.message }, false);
+    return json({ resultado: "error", mensaje: "Error buscando suscriptor" }, 500);
   }
   if (!suscriptor) {
-    await registrarLog("whatsapp_no_registrado", {
-      whatsapp,
-      input
-    }, true);
-    return json({
-      resultado: "sin_accion",
-      motivo: "no_registrado"
-    }, 200);
+    await registrarLog("whatsapp_no_registrado", { whatsapp, input }, true);
+    return json({ resultado: "sin_accion", motivo: "no_registrado" }, 200);
   }
-  // Gate “premium activo o pausado”: aceptamos menú si es premium (activo o pausado)
-  // Ajustá esto a tu modelo real:
-  const esPremium = suscriptor?.tipo_suscripcion === "premium" || suscriptor?.premium_activo === true || suscriptor?.estado_suscripcion === "activa" || suscriptor?.estado_suscripcion === "pausada";
-  if (!esPremium) {
+
+  // -------------------------------------------------------------------------
+  // Gate: solo usuarios premium
+  // El inbound ya verificó whatsapp_confirmado=true antes de llamar acá.
+  // Esta verificación es defensa en profundidad.
+  // -------------------------------------------------------------------------
+  if (suscriptor.tipo_suscripcion !== "premium") {
     await registrarLog("menu_bloqueado_no_premium", {
       id_suscriptor: suscriptor.id,
-      whatsapp
+      whatsapp,
+      tipo_suscripcion: suscriptor.tipo_suscripcion
     }, true);
-    return json({
-      resultado: "sin_accion",
-      motivo: "no_premium"
-    }, 200);
+    return json({ resultado: "sin_accion", motivo: "no_premium" }, 200);
   }
-  // Lock por suscriptor
+
+  // -------------------------------------------------------------------------
+  // Advisory lock por suscriptor
+  // Evita duplicados si llegan dos mensajes simultáneos del mismo usuario
+  // -------------------------------------------------------------------------
   const locked = await acquireLock(suscriptor.id);
   if (!locked) {
-    await registrarLog("lock_no_adquirido", {
-      id_suscriptor: suscriptor.id
-    }, false);
-    return json({
-      resultado: "sin_accion",
-      motivo: "lock"
-    }, 200);
+    await registrarLog("lock_no_adquirido", { id_suscriptor: suscriptor.id }, false);
+    return json({ resultado: "sin_accion", motivo: "lock" }, 200);
   }
+
   try {
-    // 1) Timeout
-    if (suscriptor?.menu_state && isTimedOut(suscriptor?.menu_state_updated_at ?? null)) {
-      // reset estado y avisar expiración
+    // ==========================================================================
+    // 1) TIMEOUT: menu_state activo pero expiró
+    // ==========================================================================
+    // Si el usuario tiene un estado de menú activo pero han pasado más de
+    // TIMEOUT_MINUTES minutos sin actividad, se resetea el estado y se avisa.
+    // Después del reset, se continúa procesando el mensaje entrante
+    // como si fuera desde fuera del menú.
+    // ==========================================================================
+    if (suscriptor.menu_state && isTimedOut(suscriptor.menu_state_updated_at ?? null)) {
       await supabase.from("suscriptores").update({
         menu_state: null,
         menu_state_updated_at: nowISO(),
         actualizado_en: nowISO()
       }).eq("id", suscriptor.id);
+
       const enq = await enqueuePlantilla({
         id_suscriptor: suscriptor.id,
         whatsapp,
-        nombre_plantilla: "menu_timeout",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
+        nombre_plantilla: PLANTILLA_MENU_TIMEOUT,
+        variables: { nombre: suscriptor.nombre ?? "" }
       });
       if (enq.ok) await dispararSender(enq.id_mensaje);
+
       await registrarLog("menu_timeout_reset", {
-        id_suscriptor: suscriptor.id
+        id_suscriptor: suscriptor.id,
+        menu_state_anterior: suscriptor.menu_state
       }, true);
-      return json({
-        resultado: "ok",
-        accion: "timeout_reset"
-      }, 200);
+      return json({ resultado: "ok", accion: "timeout_reset" }, 200);
     }
-    // 2) Reglas globales (siempre primero)
-    if (input === "MENU" || input === "MENÚ" || input === "CONFIG" || input === "AJUSTES" || input === "PREFERENCIAS") {
-      // Set menu_principal y enviar template menu_principal
+
+    // ==========================================================================
+    // 2) TRIGGER GLOBAL: usuario escribe MENU / CONFIG / AJUSTES / PREFERENCIAS
+    // ==========================================================================
+    // Siempre muestra el menú principal, independientemente del estado actual.
+    // Si estaba en un sub-menú, lo lleva de vuelta al principal.
+    // ==========================================================================
+    if (TRIGGERS_MENU.includes(input)) {
       await supabase.from("suscriptores").update({
         menu_state: "menu_principal",
         menu_state_updated_at: nowISO(),
         actualizado_en: nowISO()
       }).eq("id", suscriptor.id);
+
       const enq = await enqueuePlantilla({
         id_suscriptor: suscriptor.id,
         whatsapp,
-        nombre_plantilla: "menu_principal",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
+        nombre_plantilla: PLANTILLA_MENU_PRINCIPAL,
+        variables: { nombre: suscriptor.nombre ?? "" }
       });
       if (enq.ok) await dispararSender(enq.id_mensaje);
+
       await registrarLog("menu_principal_mostrado", {
-        id_suscriptor: suscriptor.id
-      }, true);
-      return json({
-        resultado: "ok",
-        accion: "menu_principal"
-      }, 200);
-    }
-    if (input === "BAJA") {
-      if (ORQ_BAJA) {
-        const r = await callOrq(ORQ_BAJA, {
-          whatsapp
-        });
-        await registrarLog("orq_baja_called", {
-          id_suscriptor: suscriptor.id,
-          r
-        }, r.ok);
-        return json({
-          resultado: "ok",
-          accion: "baja"
-        }, 200);
-      }
-    }
-    if (input === "ALTA") {
-      if (ORQ_ALTA) {
-        const r = await callOrq(ORQ_ALTA, {
-          whatsapp
-        });
-        await registrarLog("orq_alta_called", {
-          id_suscriptor: suscriptor.id,
-          r
-        }, r.ok);
-        return json({
-          resultado: "ok",
-          accion: "alta"
-        }, 200);
-      }
-    }
-    if (input === "ESTADO") {
-      if (ORQ_ESTADO) {
-        const r = await callOrq(ORQ_ESTADO, {
-          whatsapp
-        });
-        await registrarLog("orq_estado_called", {
-          id_suscriptor: suscriptor.id,
-          r
-        }, r.ok);
-        return json({
-          resultado: "ok",
-          accion: "estado"
-        }, 200);
-      }
-    }
-    if (input === "SOPORTE") {
-      if (ORQ_SOPORTE) {
-        const r = await callOrq(ORQ_SOPORTE, {
-          whatsapp,
-          motivo: "menu_soporte"
-        });
-        await registrarLog("orq_soporte_called", {
-          id_suscriptor: suscriptor.id,
-          r
-        }, r.ok);
-        return json({
-          resultado: "ok",
-          accion: "soporte"
-        }, 200);
-      }
-      // fallback simple (encola plantilla help)
-      const enq = await enqueuePlantilla({
         id_suscriptor: suscriptor.id,
-        whatsapp,
-        nombre_plantilla: "soporte_std",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
-      });
-      if (enq.ok) await dispararSender(enq.id_mensaje);
-      return json({
-        resultado: "ok",
-        accion: "soporte_fallback"
-      }, 200);
+        input,
+        desde_state: suscriptor.menu_state ?? "null"
+      }, true);
+      return json({ resultado: "ok", accion: "menu_principal" }, 200);
     }
-    // 3) Si no está en menú, no es responsabilidad de esta función
-    const menuState = suscriptor?.menu_state ?? null;
-    if (!menuState) {
+
+    // ==========================================================================
+    // 3) SIN menu_state: no es responsabilidad de este orquestador
+    // ==========================================================================
+    // Si el inbound llamó aquí sin trigger de menú y sin menu_state activo,
+    // es una situación inesperada. Devolvemos sin_accion para no interferir.
+    // ==========================================================================
+    if (!suscriptor.menu_state) {
       await registrarLog("sin_menu_state", {
         id_suscriptor: suscriptor.id,
         input
       }, true);
-      return json({
-        resultado: "sin_accion",
-        motivo: "no_menu_state"
-      }, 200);
+      return json({ resultado: "sin_accion", motivo: "no_menu_state" }, 200);
     }
-    // 4) Manejo global de “0 volver/salir”
+
+    // ==========================================================================
+    // 4) OPCIÓN "0" — SALIR DEL MENÚ
+    // ==========================================================================
+    // Limpia el estado del menú y envía confirmación de salida.
+    // Funciona desde cualquier nivel (Sprint 1 solo tiene un nivel).
+    // ==========================================================================
     if (input === "0") {
-      const next = parentMenu(menuState);
       await supabase.from("suscriptores").update({
-        menu_state: next,
+        menu_state: null,
         menu_state_updated_at: nowISO(),
         actualizado_en: nowISO()
       }).eq("id", suscriptor.id);
-      if (!next) {
-        // salir
-        const enq = await enqueuePlantilla({
-          id_suscriptor: suscriptor.id,
-          whatsapp,
-          nombre_plantilla: "menu_salir",
-          variables: {
-            nombre: suscriptor?.nombre ?? ""
-          }
-        });
-        if (enq.ok) await dispararSender(enq.id_mensaje);
-        await registrarLog("menu_salir", {
-          id_suscriptor: suscriptor.id
-        }, true);
-        return json({
-          resultado: "ok",
-          accion: "salir"
-        }, 200);
-      }
-      // volver al menú padre -> enviar template del padre
+
       const enq = await enqueuePlantilla({
         id_suscriptor: suscriptor.id,
         whatsapp,
-        nombre_plantilla: next,
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
+        nombre_plantilla: PLANTILLA_MENU_SALIR,
+        variables: { nombre: suscriptor.nombre ?? "" }
       });
       if (enq.ok) await dispararSender(enq.id_mensaje);
-      await registrarLog("menu_volver", {
+
+      await registrarLog("menu_salir", {
         id_suscriptor: suscriptor.id,
-        from: menuState,
-        to: next
+        desde_state: suscriptor.menu_state
       }, true);
-      return json({
-        resultado: "ok",
-        accion: "volver",
-        to: next
-      }, 200);
+      return json({ resultado: "ok", accion: "salir" }, 200);
     }
-    // 5) Switch principal por estado
-    // NOTA: mantenemos el “router” acá, no en inbound.
-    let plantillaAEnviar = null;
-    if (menuState === "menu_principal") {
-      if (input === "1") plantillaAEnviar = "menu_enfoque";
-      else if (input === "2") plantillaAEnviar = "menu_horario";
-      else if (input === "3") plantillaAEnviar = "menu_pausa";
-      else if (input === "4") plantillaAEnviar = "menu_estado"; // o llamar ORQ_ESTADO
-      else if (input === "5") plantillaAEnviar = "menu_ayuda";
-      else plantillaAEnviar = "menu_principal_invalido"; // “Respondé con un número válido”
-      // actualizar estado si corresponde
-      if ([
-        "menu_enfoque",
-        "menu_horario",
-        "menu_pausa",
-        "menu_ayuda"
-      ].includes(plantillaAEnviar)) {
-        await supabase.from("suscriptores").update({
-          menu_state: plantillaAEnviar,
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-      } else {
+
+    // ==========================================================================
+    // 5) OPCIONES DEL MENÚ PRINCIPAL (Sprint 1)
+    // ==========================================================================
+    if (suscriptor.menu_state === "menu_principal") {
+      if (["1", "2", "3", "4"].includes(input)) {
+        // Sprint 1: todas las opciones responden "próximamente".
+        // El usuario queda en menu_principal para poder usar 0 (salir).
+        // El timestamp se actualiza para reiniciar el timeout.
         await supabase.from("suscriptores").update({
           menu_state_updated_at: nowISO(),
           actualizado_en: nowISO()
         }).eq("id", suscriptor.id);
+
+        const enq = await enqueuePlantilla({
+          id_suscriptor: suscriptor.id,
+          whatsapp,
+          nombre_plantilla: PLANTILLA_MENU_PROXIMAMENTE,
+          variables: { nombre: suscriptor.nombre ?? "" }
+        });
+        if (enq.ok) await dispararSender(enq.id_mensaje);
+
+        await registrarLog("menu_opcion_proximamente", {
+          id_suscriptor: suscriptor.id,
+          input,
+          // Documentar qué opción eligió para analytics futuras
+          opcion_label: {
+            "1": "cambiar_enfoque",
+            "2": "estado_suscripcion",
+            "3": "pausar_reactivar",
+            "4": "ayuda"
+          }[input] ?? input
+        }, true);
+        return json({ resultado: "ok", accion: "proximamente", opcion: input }, 200);
       }
+
+      // Input inválido (no es 0-4 ni trigger de menú)
+      await supabase.from("suscriptores").update({
+        menu_state_updated_at: nowISO(),
+        actualizado_en: nowISO()
+      }).eq("id", suscriptor.id);
+
       const enq = await enqueuePlantilla({
         id_suscriptor: suscriptor.id,
         whatsapp,
-        nombre_plantilla: plantillaAEnviar,
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
+        nombre_plantilla: PLANTILLA_MENU_INVALIDO,
+        variables: { nombre: suscriptor.nombre ?? "" }
       });
       if (enq.ok) await dispararSender(enq.id_mensaje);
-      await registrarLog("menu_principal_resuelto", {
+
+      await registrarLog("menu_opcion_invalida", {
         id_suscriptor: suscriptor.id,
-        input,
-        plantilla: plantillaAEnviar
+        input
       }, true);
-      return json({
-        resultado: "ok",
-        accion: "menu_principal",
-        plantilla: plantillaAEnviar
-      }, 200);
+      return json({ resultado: "ok", accion: "opcion_invalida" }, 200);
     }
-    // --- MENÚ ENFOQUE
-    if (menuState === "menu_enfoque") {
-      const map = {
-        "1": "bienestar",
-        "2": "trabajo_dinero",
-        "3": "amor_relaciones",
-        "4": "salud_energia"
-      };
-      if (map[input]) {
-        const enfoque = map[input];
-        await supabase.from("suscriptores").update({
-          contenido_preferido: enfoque,
-          menu_state: null,
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        const enq = await enqueuePlantilla({
-          id_suscriptor: suscriptor.id,
-          whatsapp,
-          nombre_plantilla: "menu_confirmacion_enfoque",
-          variables: {
-            nombre: suscriptor?.nombre ?? "",
-            enfoque
-          }
-        });
-        if (enq.ok) await dispararSender(enq.id_mensaje);
-        await registrarLog("enfoque_actualizado", {
-          id_suscriptor: suscriptor.id,
-          enfoque
-        }, true);
-        return json({
-          resultado: "ok",
-          accion: "enfoque_actualizado",
-          enfoque
-        }, 200);
-      }
-      // input inválido -> re-enviar menú enfoque
-      await supabase.from("suscriptores").update({
-        menu_state_updated_at: nowISO(),
-        actualizado_en: nowISO()
-      }).eq("id", suscriptor.id);
-      const enq = await enqueuePlantilla({
-        id_suscriptor: suscriptor.id,
-        whatsapp,
-        nombre_plantilla: "menu_enfoque_invalido",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
-      });
-      if (enq.ok) await dispararSender(enq.id_mensaje);
-      return json({
-        resultado: "ok",
-        accion: "enfoque_invalido"
-      }, 200);
-    }
-    // --- MENÚ HORARIO
-    if (menuState === "menu_horario") {
-      const map = {
-        "1": "07_09",
-        "2": "09_12",
-        "3": "12_15",
-        "4": "15_18"
-      };
-      if (map[input]) {
-        const send_window = map[input];
-        await supabase.from("suscriptores").update({
-          send_window,
-          menu_state: null,
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        const enq = await enqueuePlantilla({
-          id_suscriptor: suscriptor.id,
-          whatsapp,
-          nombre_plantilla: "menu_confirmacion_horario",
-          variables: {
-            nombre: suscriptor?.nombre ?? "",
-            horario: send_window
-          }
-        });
-        if (enq.ok) await dispararSender(enq.id_mensaje);
-        await registrarLog("horario_actualizado", {
-          id_suscriptor: suscriptor.id,
-          send_window
-        }, true);
-        return json({
-          resultado: "ok",
-          accion: "horario_actualizado",
-          send_window
-        }, 200);
-      }
-      await supabase.from("suscriptores").update({
-        menu_state_updated_at: nowISO(),
-        actualizado_en: nowISO()
-      }).eq("id", suscriptor.id);
-      const enq = await enqueuePlantilla({
-        id_suscriptor: suscriptor.id,
-        whatsapp,
-        nombre_plantilla: "menu_horario_invalido",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
-      });
-      if (enq.ok) await dispararSender(enq.id_mensaje);
-      return json({
-        resultado: "ok",
-        accion: "horario_invalido"
-      }, 200);
-    }
-    // --- MENÚ PAUSA / REACTIVAR
-    if (menuState === "menu_pausa") {
-      if (input === "1") {
-        // Pausar = BAJA (misma lógica)
-        await supabase.from("suscriptores").update({
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        if (ORQ_BAJA) await callOrq(ORQ_BAJA, {
-          whatsapp
-        });
-        // Además salimos del menú (opcional)
-        await supabase.from("suscriptores").update({
-          menu_state: null,
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        return json({
-          resultado: "ok",
-          accion: "pausar_baja"
-        }, 200);
-      }
-      if (input === "2") {
-        // Reactivar = ALTA (misma lógica)
-        await supabase.from("suscriptores").update({
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        if (ORQ_ALTA) await callOrq(ORQ_ALTA, {
-          whatsapp
-        });
-        await supabase.from("suscriptores").update({
-          menu_state: null,
-          menu_state_updated_at: nowISO(),
-          actualizado_en: nowISO()
-        }).eq("id", suscriptor.id);
-        return json({
-          resultado: "ok",
-          accion: "reactivar_alta"
-        }, 200);
-      }
-      const enq = await enqueuePlantilla({
-        id_suscriptor: suscriptor.id,
-        whatsapp,
-        nombre_plantilla: "menu_pausa_invalido",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
-      });
-      if (enq.ok) await dispararSender(enq.id_mensaje);
-      return json({
-        resultado: "ok",
-        accion: "pausa_invalido"
-      }, 200);
-    }
-    // --- MENÚ AYUDA
-    if (menuState === "menu_ayuda") {
-      // si el usuario escribe SOPORTE ya lo manejamos arriba global
-      // acá cualquier cosa -> re-enviar ayuda y mantener estado
-      await supabase.from("suscriptores").update({
-        menu_state_updated_at: nowISO(),
-        actualizado_en: nowISO()
-      }).eq("id", suscriptor.id);
-      const enq = await enqueuePlantilla({
-        id_suscriptor: suscriptor.id,
-        whatsapp,
-        nombre_plantilla: "menu_ayuda",
-        variables: {
-          nombre: suscriptor?.nombre ?? ""
-        }
-      });
-      if (enq.ok) await dispararSender(enq.id_mensaje);
-      return json({
-        resultado: "ok",
-        accion: "ayuda_reenviada"
-      }, 200);
-    }
-    // Estado desconocido -> reset
+
+    // ==========================================================================
+    // 6) ESTADO DE MENÚ DESCONOCIDO — RESET DEFENSIVO
+    // ==========================================================================
+    // Si menu_state tiene un valor que no reconocemos (migración parcial,
+    // datos corruptos, sprint futuro sin deploy completo), reseteamos.
+    // No enviamos mensaje al usuario para evitar confusión.
+    // ==========================================================================
     await supabase.from("suscriptores").update({
       menu_state: null,
       menu_state_updated_at: nowISO(),
       actualizado_en: nowISO()
     }).eq("id", suscriptor.id);
-    const enq = await enqueuePlantilla({
-      id_suscriptor: suscriptor.id,
-      whatsapp,
-      nombre_plantilla: "menu_reset_desconocido",
-      variables: {
-        nombre: suscriptor?.nombre ?? ""
-      }
-    });
-    if (enq.ok) await dispararSender(enq.id_mensaje);
+
     await registrarLog("menu_state_desconocido_reset", {
       id_suscriptor: suscriptor.id,
-      menuState
+      menu_state: suscriptor.menu_state,
+      input
     }, true);
-    return json({
-      resultado: "ok",
-      accion: "reset"
-    }, 200);
+    return json({ resultado: "ok", accion: "reset" }, 200);
+
   } catch (e) {
     await registrarLog("fatal_exception", {
-      error: String(e)
+      error: String(e),
+      whatsapp,
+      input
     }, false);
-    return json({
-      resultado: "error",
-      mensaje: "fatal_exception"
-    }, 200);
-  } finally{
+    return json({ resultado: "error", mensaje: "fatal_exception" }, 200);
+  } finally {
     await releaseLock(suscriptor.id);
   }
 });
