@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 
@@ -50,6 +52,82 @@ interface Suscripcion {
   created_at: string | null;
   updated_at: string | null;
   diagnostico_admin: DiagnosticoAdmin | null;
+}
+
+interface AlertaConciliacion {
+  codigo: string;
+  descripcion: string;
+  nivel: "error" | "warning" | "info";
+}
+
+interface PagoReciente {
+  id_pago: number;
+  fecha_pago: string | null;
+  status: string;
+  amount: number | null;
+  currency: string | null;
+  medio_pago: string | null;
+  tipo_pago: string | null;
+  preapproval_id: string | null;
+  procesado: boolean | null;
+  created_at: string | null;
+}
+
+interface SuscriptorDetallePerfil {
+  id: number;
+  nombre: string | null;
+  whatsapp: string | null;
+  signo: string | null;
+  tipo_suscripcion: string | null;
+  estado_suscripcion: string | null;
+  premium_activo: boolean;
+  fecha_vencimiento_premium: string | null;
+  fecha_inicio_premium: string | null;
+  whatsapp_confirmado: boolean;
+  fecha_confirmacion_whatsapp: string | null;
+  estado_mensaje: string | null;
+  preapproval_id: string | null;
+  preapproval_status: string | null;
+  auto_renovacion_activa: boolean | null;
+  bienvenida_enviada: boolean | null;
+  primer_envio_premium_enviado: boolean | null;
+  creado_en: string | null;
+  actualizado_en: string | null;
+}
+
+interface DetalleFetch {
+  ok: boolean;
+  suscriptor: SuscriptorDetallePerfil | null;
+  suscripcion_actual: {
+    id: string;
+    estado: string | null;
+    provisional: boolean | null;
+    preapproval_status_mp: string | null;
+    fecha_vencimiento_actual: string | null;
+    fecha_activacion_definitiva: string | null;
+    amount: number | null;
+    currency_id: string | null;
+    codigo_descuento: string | null;
+    descuento_estado: string | null;
+  } | null;
+  pagos_recientes: PagoReciente[];
+  descuentos_usados: Array<{
+    id: number;
+    codigo: string | null;
+    estado_uso: string | null;
+    moneda: string | null;
+    precio_original: number | null;
+    precio_aplicado: number | null;
+    valor_descuento_aplicado: number | null;
+    dias_gratis_aplicados: number | null;
+    meses_gratis_aplicados: number | null;
+    fecha_aplicacion: string | null;
+    creado_en: string | null;
+  }>;
+  alertas_conciliacion: AlertaConciliacion[];
+  diagnostico: Record<string, unknown> | null;
+  warnings: string[];
+  motivo?: string;
 }
 
 interface Paginacion {
@@ -119,6 +197,14 @@ const DIAGNOSTICO_BOX_CLS: Record<string, string> = {
   provisional: "border-amber-800/50 bg-amber-950/40 text-amber-300",
   local_no_activa: "border-amber-800/50 bg-amber-950/40 text-amber-300",
   descuento_fallido: "border-amber-800/50 bg-amber-950/40 text-amber-300",
+};
+
+const PAGO_STATUS_CLS: Record<string, string> = {
+  approved: "text-green-400",
+  pending: "text-amber-400",
+  rejected: "text-red-400",
+  cancelled: "text-red-400",
+  refunded: "text-sky-400",
 };
 
 const DEFAULT_FILTROS: Filtros = {
@@ -197,7 +283,7 @@ function buildQueryString(f: Filtros): string {
 }
 
 // ===========================================================================
-// Detail panel (inline)
+// Shared UI primitives
 // ===========================================================================
 
 function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -209,18 +295,170 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function BoolIcon({ val }: { val: boolean | null }) {
-  if (val === null) return <span className="text-gray-600 text-xs">—</span>;
+function BoolIcon({ val }: { val: boolean | null | undefined }) {
+  if (val == null) return <span className="text-gray-600 text-xs">—</span>;
   return val
     ? <Check size={13} className="text-green-400" />
     : <X size={13} className="text-red-400" />;
 }
 
-function SuscripcionDetalle({ item, onClose }: { item: Suscripcion; onClose: () => void }) {
+// ===========================================================================
+// AccionesRenovarPremium
+// ===========================================================================
+
+function AccionesRenovarPremium({
+  idSuscriptor,
+  onAccionOk,
+}: {
+  idSuscriptor: number;
+  onAccionOk?: () => void;
+}) {
+  const [confirmar, setConfirmar] = useState(false);
+  const [meses, setMeses] = useState(1);
+  const [motivo, setMotivo] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function ejecutar() {
+    if (motivo.trim().length < 5) return;
+    setCargando(true);
+    setResultado(null);
+    try {
+      const res = await fetch("/api/admin/suscripcion-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_suscriptor: idSuscriptor, accion: "renovar_premium", meses, motivo: motivo.trim() }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setResultado({ ok: true, msg: json.mensaje ?? "Premium renovado correctamente." });
+        setConfirmar(false);
+        setMotivo("");
+        setMeses(1);
+        onAccionOk?.();
+      } else {
+        setResultado({ ok: false, msg: json.detalle ?? json.motivo ?? "Error al renovar premium." });
+      }
+    } catch {
+      setResultado({ ok: false, msg: "Error de red al ejecutar la acción." });
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  return (
+    <div className="border border-gray-700/60 rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-gray-300">Renovar premium manual</span>
+        {!confirmar && !resultado && (
+          <button
+            onClick={() => setConfirmar(true)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/30 text-violet-300 hover:bg-violet-700/50 transition-colors"
+          >
+            Renovar
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 mb-2">
+        Extiende la fecha de vencimiento premium N meses desde el vencimiento actual. Solo disponible si el suscriptor tiene premium activo y suscripción activa.
+      </p>
+
+      {resultado && (
+        <div className={`mb-2 rounded-lg px-3 py-2 text-xs border ${resultado.ok ? "border-green-800/50 bg-green-950/40 text-green-300" : "border-red-800/50 bg-red-950/40 text-red-300"}`}>
+          {resultado.msg}
+        </div>
+      )}
+
+      {confirmar && (
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-400 shrink-0">Meses a agregar:</label>
+            <select
+              value={meses}
+              onChange={(e) => setMeses(parseInt(e.target.value, 10))}
+              className="border border-gray-700 rounded bg-gray-800 text-sm text-white px-2 py-1 focus:outline-none focus:border-violet-500"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>{m} {m === 1 ? "mes" : "meses"}</option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Motivo (mínimo 5 caracteres)…"
+            rows={2}
+            className="w-full border border-gray-700 rounded-lg bg-gray-800 text-xs text-white px-3 py-2 focus:outline-none focus:border-violet-500 resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={ejecutar}
+              disabled={cargando || motivo.trim().length < 5}
+              className="flex-1 text-xs px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 text-violet-300 hover:bg-violet-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {cargando ? "Ejecutando…" : `Confirmar — +${meses} ${meses === 1 ? "mes" : "meses"}`}
+            </button>
+            <button
+              onClick={() => { setConfirmar(false); setMotivo(""); setMeses(1); setResultado(null); }}
+              disabled={cargando}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// Detail panel (fetch-based)
+// ===========================================================================
+
+function SuscripcionDetalle({
+  item,
+  onClose,
+  onAccionOk,
+}: {
+  item: Suscripcion;
+  onClose: () => void;
+  onAccionOk?: () => void;
+}) {
   const [showDescMetadata, setShowDescMetadata] = useState(false);
+  const [detalle, setDetalle] = useState<DetalleFetch | null>(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
+
   const diag = item.diagnostico_admin;
   const diagCls = DIAGNOSTICO_BOX_CLS[diag?.estado_resumen ?? ""] ?? DIAGNOSTICO_BOX_CLS["ok"];
   const hasDescuento = !!item.codigo_descuento;
+
+  useEffect(() => {
+    if (!item.suscriptor_id) return;
+    setCargandoDetalle(true);
+    setErrorDetalle(null);
+    fetch(`/api/admin/suscripcion-detalle?id_suscriptor=${item.suscriptor_id}`)
+      .then((r) => r.json())
+      .then((json: DetalleFetch) => {
+        if (json.ok) {
+          setDetalle(json);
+        } else {
+          setErrorDetalle(json.motivo ?? "Error al cargar detalle");
+        }
+      })
+      .catch(() => setErrorDetalle("Error de red al cargar detalle"))
+      .finally(() => setCargandoDetalle(false));
+  }, [item.suscriptor_id]);
+
+  const puedeRenovar =
+    detalle?.suscriptor?.premium_activo === true &&
+    detalle?.suscriptor?.estado_suscripcion === "activa";
+
+  const alertasError = detalle?.alertas_conciliacion.filter((a) => a.nivel === "error") ?? [];
+  const alertasWarning = detalle?.alertas_conciliacion.filter((a) => a.nivel === "warning") ?? [];
+  const alertasInfo = detalle?.alertas_conciliacion.filter((a) => a.nivel === "info") ?? [];
+  const totalAlertas = detalle?.alertas_conciliacion.length ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -240,6 +478,11 @@ function SuscripcionDetalle({ item, onClose }: { item: Suscripcion; onClose: () 
             {item.suscriptor_id && (
               <span className="text-gray-500 text-xs">· Suscriptor #{item.suscriptor_id}</span>
             )}
+            {totalAlertas > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-900/60 text-red-300 border border-red-700/50">
+                {totalAlertas} alerta{totalAlertas !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -250,128 +493,273 @@ function SuscripcionDetalle({ item, onClose }: { item: Suscripcion; onClose: () 
           </button>
         </div>
 
-      <div className="px-5 py-4 space-y-5">
-        {/* Diagnóstico */}
-        {diag && (
-          <div className={`rounded-lg border px-4 py-3 ${diagCls}`}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold uppercase tracking-wide">
-                {diag.estado_resumen || "ok"}
-              </span>
-              {!diag.healthy && (
-                <AlertTriangle size={13} className="shrink-0" />
-              )}
-            </div>
-            {diag.accion_sugerida && diag.accion_sugerida !== "sin_accion" && (
-              <p className="text-xs opacity-80">Acción: {diag.accion_sugerida}</p>
-            )}
-            {diag.warnings.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {diag.warnings.map((w) => (
-                  <span
-                    key={w}
-                    className="text-xs bg-black/20 rounded px-1.5 py-0.5 font-mono"
-                  >
-                    {w}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Datos principales */}
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Datos de suscripción
-          </p>
-          <DataRow label="Provider" value={item.provider} />
-          <DataRow label="Estado local" value={estadoLocalBadge(item.estado)} />
-          <DataRow label="Preapproval ID" value={
-            <span className="font-mono">{item.preapproval_id_masked ?? "—"}</span>
-          } />
-          <DataRow label="External reference" value={
-            <span className="font-mono text-xs">{item.external_reference ?? "—"}</span>
-          } />
-          <DataRow label="MP Status" value={mpStatusBadge(item.preapproval_status_mp)} />
-          <DataRow label="Provisional" value={<BoolIcon val={item.provisional} />} />
-          <DataRow label="Auto renovación" value={<BoolIcon val={item.auto_renovacion_activa} />} />
-          {item.reason && <DataRow label="Plan (reason)" value={item.reason} />}
-          {item.amount !== null && (
-            <DataRow
-              label="Monto"
-              value={`${item.currency_id ?? ""} ${item.amount} / ${item.frequency} ${item.frequency_type ?? ""}`}
-            />
-          )}
-        </div>
-
-        {/* Fechas */}
-        <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Fechas
-          </p>
-          <DataRow label="Creación (tabla)" value={fmtDate(item.fecha_creacion)} />
-          <DataRow label="Activación provisional" value={fmtDate(item.fecha_activacion_provisional)} />
-          <DataRow label="Activación definitiva" value={fmtDate(item.fecha_activacion_definitiva)} />
-          <DataRow
-            label="Vencimiento actual"
-            value={
-              <span className={
-                item.fecha_vencimiento_actual &&
-                new Date(item.fecha_vencimiento_actual) < new Date()
-                  ? "text-red-400"
-                  : ""
-              }>
-                {fmtDate(item.fecha_vencimiento_actual)}
-              </span>
-            }
-          />
-          <DataRow label="Cancelación" value={fmtDate(item.fecha_cancelacion)} />
-          <DataRow label="created_at" value={fmtDateShort(item.created_at)} />
-          <DataRow label="updated_at" value={fmtDateShort(item.updated_at)} />
-        </div>
-
-        {/* Descuento */}
-        {hasDescuento && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Descuento
-            </p>
-            <DataRow label="Código" value={
-              <span className="font-mono text-violet-300">{item.codigo_descuento}</span>
-            } />
-            {item.codigo_descuento_id !== null && (
-              <DataRow label="ID descuento" value={item.codigo_descuento_id} />
-            )}
-            <DataRow label="Estado descuento" value={
-              item.descuento_estado
-                ? <span className={
-                    item.descuento_estado === "fallido"
-                      ? "text-red-400 font-mono text-xs"
-                      : item.descuento_estado === "aplicado"
-                      ? "text-green-400 font-mono text-xs"
-                      : "font-mono text-xs text-gray-300"
-                  }>{item.descuento_estado}</span>
-                : "—"
-            } />
-            {item.descuento_metadata && (
-              <div className="mt-1">
-                <button
-                  onClick={() => setShowDescMetadata((v) => !v)}
-                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showDescMetadata ? "▲ Ocultar metadata" : "▼ Ver metadata descuento"}
-                </button>
-                {showDescMetadata && (
-                  <pre className="mt-2 text-xs bg-gray-950 border border-gray-700 rounded p-3 overflow-x-auto text-gray-300 max-h-40">
-                    {JSON.stringify(item.descuento_metadata, null, 2)}
-                  </pre>
+        <div className="px-5 py-4 space-y-5">
+          {/* Diagnóstico local (de la lista) */}
+          {diag && (
+            <div className={`rounded-lg border px-4 py-3 ${diagCls}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold uppercase tracking-wide">
+                  {diag.estado_resumen || "ok"}
+                </span>
+                {!diag.healthy && (
+                  <AlertTriangle size={13} className="shrink-0" />
                 )}
               </div>
+              {diag.accion_sugerida && diag.accion_sugerida !== "sin_accion" && (
+                <p className="text-xs opacity-80">Acción: {diag.accion_sugerida}</p>
+              )}
+              {diag.warnings.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {diag.warnings.map((w) => (
+                    <span
+                      key={w}
+                      className="text-xs bg-black/20 rounded px-1.5 py-0.5 font-mono"
+                    >
+                      {w}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Alertas de conciliación (fetch-based) */}
+          {cargandoDetalle && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 py-2">
+              <RefreshCw size={12} className="animate-spin" />
+              Cargando datos del suscriptor…
+            </div>
+          )}
+          {errorDetalle && (
+            <div className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2.5 text-xs text-amber-300">
+              No se pudo cargar el detalle: {errorDetalle}
+            </div>
+          )}
+          {detalle && totalAlertas > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Alertas de conciliación
+              </p>
+              <div className="space-y-1.5">
+                {alertasError.map((a) => (
+                  <div key={a.codigo} className="flex gap-2 items-start px-3 py-2 rounded-lg border border-red-800/50 bg-red-950/30">
+                    <AlertCircle size={13} className="text-red-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-mono text-xs text-red-300">{a.codigo}</span>
+                      <p className="text-xs text-red-200/80 mt-0.5">{a.descripcion}</p>
+                    </div>
+                  </div>
+                ))}
+                {alertasWarning.map((a) => (
+                  <div key={a.codigo} className="flex gap-2 items-start px-3 py-2 rounded-lg border border-amber-800/50 bg-amber-950/30">
+                    <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-mono text-xs text-amber-300">{a.codigo}</span>
+                      <p className="text-xs text-amber-200/80 mt-0.5">{a.descripcion}</p>
+                    </div>
+                  </div>
+                ))}
+                {alertasInfo.map((a) => (
+                  <div key={a.codigo} className="flex gap-2 items-start px-3 py-2 rounded-lg border border-sky-800/50 bg-sky-950/30">
+                    <Info size={13} className="text-sky-400 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-mono text-xs text-sky-300">{a.codigo}</span>
+                      <p className="text-xs text-sky-200/80 mt-0.5">{a.descripcion}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {detalle && totalAlertas === 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-green-800/50 bg-green-950/30 text-xs text-green-300">
+              <Check size={13} />
+              Sin alertas de conciliación detectadas
+            </div>
+          )}
+
+          {/* Estado del suscriptor (fetch-based) */}
+          {detalle?.suscriptor && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Estado del suscriptor (perfil)
+              </p>
+              <DataRow label="Nombre" value={detalle.suscriptor.nombre} />
+              <DataRow label="WhatsApp" value={<span className="font-mono">{detalle.suscriptor.whatsapp ?? "—"}</span>} />
+              <DataRow label="Signo" value={detalle.suscriptor.signo} />
+              <DataRow label="Tipo suscripción" value={<span className="font-mono text-xs">{detalle.suscriptor.tipo_suscripcion}</span>} />
+              <DataRow label="Estado suscripción" value={estadoLocalBadge(detalle.suscriptor.estado_suscripcion ?? "")} />
+              <DataRow label="Premium activo" value={<BoolIcon val={detalle.suscriptor.premium_activo} />} />
+              <DataRow label="Venc. premium (perfil)" value={
+                <span className={detalle.suscriptor.fecha_vencimiento_premium && new Date(detalle.suscriptor.fecha_vencimiento_premium) < new Date() ? "text-red-400" : ""}>
+                  {fmtDate(detalle.suscriptor.fecha_vencimiento_premium)}
+                </span>
+              } />
+              <DataRow label="Inicio premium" value={fmtDate(detalle.suscriptor.fecha_inicio_premium)} />
+              <DataRow label="WhatsApp confirmado" value={<BoolIcon val={detalle.suscriptor.whatsapp_confirmado} />} />
+              <DataRow label="Estado mensaje" value={<span className="font-mono text-xs">{detalle.suscriptor.estado_mensaje ?? "—"}</span>} />
+              <DataRow label="Auto renovación" value={<BoolIcon val={detalle.suscriptor.auto_renovacion_activa} />} />
+              <DataRow label="Bienvenida enviada" value={<BoolIcon val={detalle.suscriptor.bienvenida_enviada} />} />
+              <DataRow label="1er envío premium" value={<BoolIcon val={detalle.suscriptor.primer_envio_premium_enviado} />} />
+            </div>
+          )}
+
+          {/* Datos principales de suscripción (de la lista) */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Datos de suscripción
+            </p>
+            <DataRow label="Provider" value={item.provider} />
+            <DataRow label="Estado local" value={estadoLocalBadge(item.estado)} />
+            <DataRow label="Preapproval ID" value={
+              <span className="font-mono">{item.preapproval_id_masked ?? "—"}</span>
+            } />
+            <DataRow label="External reference" value={
+              <span className="font-mono text-xs">{item.external_reference ?? "—"}</span>
+            } />
+            <DataRow label="MP Status" value={mpStatusBadge(item.preapproval_status_mp)} />
+            <DataRow label="Provisional" value={<BoolIcon val={item.provisional} />} />
+            <DataRow label="Auto renovación" value={<BoolIcon val={item.auto_renovacion_activa} />} />
+            {item.reason && <DataRow label="Plan (reason)" value={item.reason} />}
+            {item.amount !== null && (
+              <DataRow
+                label="Monto"
+                value={`${item.currency_id ?? ""} ${item.amount} / ${item.frequency} ${item.frequency_type ?? ""}`}
+              />
             )}
           </div>
-        )}
-      </div>
+
+          {/* Fechas */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Fechas
+            </p>
+            <DataRow label="Creación (tabla)" value={fmtDate(item.fecha_creacion)} />
+            <DataRow label="Activación provisional" value={fmtDate(item.fecha_activacion_provisional)} />
+            <DataRow label="Activación definitiva" value={fmtDate(item.fecha_activacion_definitiva)} />
+            <DataRow
+              label="Vencimiento actual"
+              value={
+                <span className={
+                  item.fecha_vencimiento_actual &&
+                  new Date(item.fecha_vencimiento_actual) < new Date()
+                    ? "text-red-400"
+                    : ""
+                }>
+                  {fmtDate(item.fecha_vencimiento_actual)}
+                </span>
+              }
+            />
+            <DataRow label="Cancelación" value={fmtDate(item.fecha_cancelacion)} />
+            <DataRow label="created_at" value={fmtDateShort(item.created_at)} />
+            <DataRow label="updated_at" value={fmtDateShort(item.updated_at)} />
+          </div>
+
+          {/* Pagos recientes (fetch-based) */}
+          {detalle && detalle.pagos_recientes.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Pagos recientes ({detalle.pagos_recientes.length})
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-gray-800">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-800 bg-gray-900/60">
+                      <th className="text-left px-3 py-2 text-gray-500">ID</th>
+                      <th className="text-left px-3 py-2 text-gray-500">Fecha</th>
+                      <th className="text-left px-3 py-2 text-gray-500">Status</th>
+                      <th className="text-left px-3 py-2 text-gray-500">Monto</th>
+                      <th className="text-left px-3 py-2 text-gray-500">Medio</th>
+                      <th className="text-left px-3 py-2 text-gray-500">Proc.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalle.pagos_recientes.map((p) => (
+                      <tr key={p.id_pago} className="border-b border-gray-800/50 last:border-0">
+                        <td className="px-3 py-2 font-mono text-gray-400">{p.id_pago}</td>
+                        <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{fmtDateShort(p.fecha_pago ?? p.created_at)}</td>
+                        <td className={`px-3 py-2 font-mono ${PAGO_STATUS_CLS[p.status] ?? "text-gray-400"}`}>{p.status}</td>
+                        <td className="px-3 py-2 text-gray-300 whitespace-nowrap">
+                          {p.amount != null ? `${p.currency ?? ""} ${p.amount}` : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-500">{p.medio_pago ?? "—"}</td>
+                        <td className="px-3 py-2"><BoolIcon val={p.procesado} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {detalle && detalle.pagos_recientes.length === 0 && (
+            <div className="text-xs text-gray-600 py-1">Sin pagos recientes registrados.</div>
+          )}
+
+          {/* Descuento (de la lista) */}
+          {hasDescuento && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Descuento
+              </p>
+              <DataRow label="Código" value={
+                <span className="font-mono text-violet-300">{item.codigo_descuento}</span>
+              } />
+              {item.codigo_descuento_id !== null && (
+                <DataRow label="ID descuento" value={item.codigo_descuento_id} />
+              )}
+              <DataRow label="Estado descuento" value={
+                item.descuento_estado
+                  ? <span className={
+                      item.descuento_estado === "fallido"
+                        ? "text-red-400 font-mono text-xs"
+                        : item.descuento_estado === "aplicado"
+                        ? "text-green-400 font-mono text-xs"
+                        : "font-mono text-xs text-gray-300"
+                    }>{item.descuento_estado}</span>
+                  : "—"
+              } />
+              {item.descuento_metadata && (
+                <div className="mt-1">
+                  <button
+                    onClick={() => setShowDescMetadata((v) => !v)}
+                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showDescMetadata ? "▲ Ocultar metadata" : "▼ Ver metadata descuento"}
+                  </button>
+                  {showDescMetadata && (
+                    <pre className="mt-2 text-xs bg-gray-950 border border-gray-700 rounded p-3 overflow-x-auto text-gray-300 max-h-40">
+                      {JSON.stringify(item.descuento_metadata, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Acciones */}
+          {item.suscriptor_id && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Acciones
+              </p>
+              {!detalle && !cargandoDetalle && (
+                <p className="text-xs text-gray-600">Cargando estado para determinar acciones disponibles…</p>
+              )}
+              {detalle && !puedeRenovar && (
+                <p className="text-xs text-gray-600">
+                  Renovar premium no disponible: requiere premium activo y suscripción activa.
+                  Estado actual: premium_activo={String(detalle.suscriptor?.premium_activo)}, estado_suscripcion={detalle.suscriptor?.estado_suscripcion ?? "—"}.
+                </p>
+              )}
+              {detalle && puedeRenovar && (
+                <AccionesRenovarPremium
+                  idSuscriptor={item.suscriptor_id}
+                  onAccionOk={onAccionOk}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -389,6 +777,7 @@ export default function SuscripcionesPage() {
   const [filtros, setFiltros] = useState<Filtros>(DEFAULT_FILTROS);
   const [pendiente, setPendiente] = useState<Filtros>(DEFAULT_FILTROS);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [alertaFiltro, setAlertaFiltro] = useState<"todas" | "con_alertas">("todas");
 
   const cargar = useCallback(async (f: Filtros) => {
     setCargando(true);
@@ -458,6 +847,14 @@ export default function SuscripcionesPage() {
 
   const diagConteos = conteos.diagnostico ?? {};
   const diagKeys = Object.entries(diagConteos).filter(([, v]) => v > 0);
+
+  // Client-side filter: "Con alertas" filters by diagnostico_admin.healthy === false
+  const displayedSuscripciones =
+    alertaFiltro === "con_alertas"
+      ? suscripciones.filter((s) => s.diagnostico_admin?.healthy === false)
+      : suscripciones;
+
+  const conAlertasCount = suscripciones.filter((s) => s.diagnostico_admin?.healthy === false).length;
 
   const selectedItem = suscripciones.find((s) => s.id === selectedId) ?? null;
 
@@ -566,6 +963,18 @@ export default function SuscripcionesPage() {
             Solo con descuento
           </button>
 
+          {/* Con alertas (client-side) */}
+          <button
+            onClick={() => setAlertaFiltro((v) => (v === "con_alertas" ? "todas" : "con_alertas"))}
+            className={`text-sm px-3 py-2 rounded-lg border transition-colors ${
+              alertaFiltro === "con_alertas"
+                ? "border-red-700 bg-red-900/40 text-red-300"
+                : "border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Con alertas {conAlertasCount > 0 && `(${conAlertasCount})`}
+          </button>
+
           {/* Limpiar fechas */}
           {(filtros.fecha_desde || filtros.fecha_hasta) && (
             <button
@@ -629,6 +1038,13 @@ export default function SuscripcionesPage() {
           </div>
         )}
 
+        {/* Active filter note */}
+        {alertaFiltro === "con_alertas" && !cargando && (
+          <div className="mb-3 text-xs text-gray-500">
+            Mostrando {displayedSuscripciones.length} de {suscripciones.length} con diagnóstico no saludable (filtro local).
+          </div>
+        )}
+
         {/* Table */}
         {!cargando && !errorMsg && (
           <>
@@ -648,14 +1064,14 @@ export default function SuscripcionesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {suscripciones.length === 0 && (
+                  {displayedSuscripciones.length === 0 && (
                     <tr>
                       <td colSpan={9} className="text-center py-12 text-gray-600 text-sm">
                         Sin resultados para los filtros actuales
                       </td>
                     </tr>
                   )}
-                  {suscripciones.map((s) => {
+                  {displayedSuscripciones.map((s) => {
                     const isSelected = s.id === selectedId;
                     const bg = rowBg(s, isSelected);
                     const hasWarnings = (s.diagnostico_admin?.warnings?.length ?? 0) > 0;
@@ -711,6 +1127,7 @@ export default function SuscripcionesPage() {
               <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
                 <span>
                   {paginacion.offset + 1}–{Math.min(paginacion.offset + paginacion.limit, paginacion.total)} de {paginacion.total}
+                  {alertaFiltro === "con_alertas" && ` · mostrando ${displayedSuscripciones.length} con alertas`}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -735,7 +1152,11 @@ export default function SuscripcionesPage() {
         )}
       </main>
       {selectedItem && (
-        <SuscripcionDetalle item={selectedItem} onClose={() => setSelectedId(null)} />
+        <SuscripcionDetalle
+          item={selectedItem}
+          onClose={() => setSelectedId(null)}
+          onAccionOk={() => cargar(filtros)}
+        />
       )}
     </div>
   );
