@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
 type RawLog = {
@@ -112,8 +113,6 @@ export async function GET(req: NextRequest) {
 
   const data = await res.json();
 
-  // log_funciones contains only system/operational data — no user PII.
-  // Pass all fields through. detalle is JSONB from internal function calls.
   const logs = Array.isArray(data.logs)
     ? (data.logs as RawLog[]).map((l) => ({
         id: l.id ?? 0,
@@ -126,6 +125,43 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
+  // Lightweight global summary — parallel queries, non-fatal
+  let resumen_global: {
+    total_global: number | null;
+    errores_global: number | null;
+    ultimo_error: { nombre_funcion: string; resultado: string; fecha_ejecucion: string | null } | null;
+  } = { total_global: null, errores_global: null, ultimo_error: null };
+
+  try {
+    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const [totRes, errRes, lastErrRes] = await Promise.all([
+      supabase.from("log_funciones").select("id", { count: "exact", head: true }),
+      supabase.from("log_funciones").select("id", { count: "exact", head: true }).eq("exito", false),
+      supabase
+        .from("log_funciones")
+        .select("nombre_funcion, resultado, fecha_ejecucion")
+        .eq("exito", false)
+        .order("fecha_ejecucion", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    resumen_global = {
+      total_global: totRes.count ?? null,
+      errores_global: errRes.count ?? null,
+      ultimo_error: lastErrRes.data
+        ? {
+            nombre_funcion: String(lastErrRes.data.nombre_funcion ?? ""),
+            resultado: String(lastErrRes.data.resultado ?? ""),
+            fecha_ejecucion: lastErrRes.data.fecha_ejecucion
+              ? String(lastErrRes.data.fecha_ejecucion)
+              : null,
+          }
+        : null,
+    };
+  } catch {
+    // non-fatal: resumen_global stays null
+  }
+
   return NextResponse.json({
     ok: data.ok ?? false,
     healthy: data.healthy ?? true,
@@ -133,5 +169,6 @@ export async function GET(req: NextRequest) {
     conteos_pagina: data.conteos_pagina ?? {},
     logs,
     warnings: data.warnings ?? [],
+    resumen_global,
   });
 }
