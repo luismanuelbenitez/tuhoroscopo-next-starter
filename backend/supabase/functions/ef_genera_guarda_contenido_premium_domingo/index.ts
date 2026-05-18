@@ -383,7 +383,9 @@ serve(async (req)=>{
   //
   // ==========================================================================
   const body = await readBodySafe(req);
-  const fechaObjetivo = normalizarFechaObjetivo(body.fecha_objetivo ?? body.fecha);
+  const fechaRaw = normalizarTexto(body.fecha_objetivo ?? body.fecha);
+  const fechaExplicita = fechaRaw !== null && isDateOnly(fechaRaw);
+  const fechaObjetivo = fechaExplicita ? fechaRaw! : todayUTC();
   const cicloSemana = String(getISOWeekNumber(fechaObjetivo));
   // ==========================================================================
   // HORA PROGRAMADA DE ENVÍO DOMINGO — leída desde tabla config
@@ -419,24 +421,30 @@ serve(async (req)=>{
   const idSuscriptorFiltro = normalizarInteger(body.id_suscriptor);
   const runId = `domingo_${Date.now()}`;
   // ==========================================================================
-  // 5b) GUARD — solo ejecutar en domingo (UTC)
+  // 5b) GUARD — validar que la fecha objetivo corresponde a un domingo
   // ----------------------------------------------------------------------------
-  // Si hoy no es domingo y no viene force=true, se rechaza la ejecución.
-  // Evita generar contenido domingo en días incorrectos por error o cron mal configurado.
+  // - Si se pasó fecha explícita: verifica que ESA fecha sea domingo.
+  // - Si no se pasó fecha: verifica que HOY (UTC) sea domingo.
+  // - force=true saltea el control (solo para pruebas controladas).
   // ==========================================================================
   if (!force) {
-    const diaSemanaUTC = new Date().getUTCDay(); // 0 = domingo
-    if (diaSemanaUTC !== 0) {
+    const fechaAEvaluar = fechaObjetivo;
+    const diaSemana = new Date(`${fechaAEvaluar}T12:00:00Z`).getUTCDay(); // 0 = domingo
+    if (diaSemana !== 0) {
       await registrarLog("SKIP_NO_ES_DOMINGO", {
         run_id: runId,
-        dia_utc: diaSemanaUTC,
-        msg: "La función solo corre en domingo. Enviá force=true para forzar."
+        fecha_evaluada: fechaAEvaluar,
+        fecha_explicita: fechaExplicita,
+        dia_utc: diaSemana,
+        msg: "La fecha evaluada no es domingo. Enviá force=true para forzar."
       }, true);
       return jsonResponse({
         resultado: "skip",
         motivo: "no_es_domingo",
-        dia_utc: diaSemanaUTC,
-        msg: "La función solo corre en domingo. Enviá force=true para forzar en otro día."
+        fecha_evaluada: fechaAEvaluar,
+        fecha_explicita: fechaExplicita,
+        dia_utc: diaSemana,
+        msg: "La fecha evaluada no es domingo. Enviá force=true para forzar."
       });
     }
   }
