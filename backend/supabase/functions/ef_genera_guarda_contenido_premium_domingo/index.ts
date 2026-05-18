@@ -384,8 +384,33 @@ serve(async (req)=>{
   // ==========================================================================
   const body = await readBodySafe(req);
   const fechaObjetivo = normalizarFechaObjetivo(body.fecha_objetivo ?? body.fecha);
-  const fechaEnvioProgramada = `${fechaObjetivo}T00:00:00.000Z`;
   const cicloSemana = String(getISOWeekNumber(fechaObjetivo));
+  // ==========================================================================
+  // HORA PROGRAMADA DE ENVÍO DOMINGO — leída desde tabla config
+  // ----------------------------------------------------------------------------
+  // Clave: contenido_premium_domingo_hora_programada
+  // Formato: "HH:MM" en UTC
+  // Fallback: "13:00" (= 10:00 Uruguay, UTC-3 sin DST)
+  //
+  // Uruguay no tiene DST desde 2015 → siempre UTC-3.
+  // ==========================================================================
+  async function leerHoraConfigDomingo() {
+    try {
+      const { data, error } = await supabase
+        .from("config")
+        .select("valor")
+        .eq("nombre", "contenido_premium_domingo_hora_programada")
+        .maybeSingle();
+      if (error || !data?.valor) return "13:00";
+      const v = data.valor.trim();
+      if (/^\d{2}:\d{2}$/.test(v)) return v;
+      return "13:00";
+    } catch (_) {
+      return "13:00";
+    }
+  }
+  const horaProgDomingo = await leerHoraConfigDomingo();
+  const fechaEnvioProgramada = `${fechaObjetivo}T${horaProgDomingo}:00.000Z`;
   const fechaCreacion = nowUTCISO();
   const dryRun = normalizarBoolean(body.dry_run, false);
   const force = normalizarBoolean(body.force, false);

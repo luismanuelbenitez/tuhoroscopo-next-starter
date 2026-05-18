@@ -273,13 +273,40 @@ serve(async (req)=>{
   // Calcular número de semana ISO
   const cicloSemana = getISOWeekNumber(fechaObjetivo).toString();
   // ========================================================================
+  // HORA PROGRAMADA DE ENVÍO — leída desde tabla config
+  // ----------------------------------------------------------------------------
+  // Clave: contenido_premium_hora_programada
+  // Formato esperado: "HH:MM" en UTC
+  // Fallback: "11:30" (= 08:30 Uruguay, UTC-3 sin DST)
+  //
+  // Uruguay no tiene DST desde 2015 → siempre UTC-3 → sin casos borde.
+  // ========================================================================
+  async function leerHoraProgramadaConfig() {
+    try {
+      const { data, error } = await supabase
+        .from("config")
+        .select("valor")
+        .eq("nombre", "contenido_premium_hora_programada")
+        .maybeSingle();
+      if (error || !data?.valor) return "11:30";
+      const v = data.valor.trim();
+      // Validar formato HH:MM
+      if (/^\d{2}:\d{2}$/.test(v)) return v;
+      return "11:30";
+    } catch (_) {
+      return "11:30";
+    }
+  }
+  // ========================================================================
   // FECHA DE ENVÍO PROGRAMADA
   // ----------------------------------------------------------------------------
   // REGLA CANÓNICA:
   //
   // 1) MODO CRON
   //    - Se usa para la generación diaria habitual.
-  //    - El contenido queda programado a medianoche UTC del día objetivo.
+  //    - El contenido queda programado para la hora configurada en UTC.
+  //    - Hora leída de config[contenido_premium_hora_programada].
+  //    - Fallback: 11:30 UTC (= 08:30 Uruguay).
   //
   // 2) MODO ON-DEMAND
   //    - Se usa para el primer contenido premium luego de la confirmación del
@@ -289,9 +316,13 @@ serve(async (req)=>{
   //
   // BENEFICIO:
   // - El inbound solo dispara la generación.
-  // - El sniper + sender respetan el tiempo real de salida.
+  // - El encolador solo encola cuando fecha_envio_programada <= now().
+  // - El sender no envía antes de fecha_envio_programada.
   // ========================================================================
-  const fechaEnvioProgramada = idSuscriptorTarget ? new Date(Date.now() + 2 * 60 * 1000).toISOString() : `${fechaObjetivo}T00:00:00.000Z`;
+  const horaProgramada = idSuscriptorTarget ? null : await leerHoraProgramadaConfig();
+  const fechaEnvioProgramada = idSuscriptorTarget
+    ? new Date(Date.now() + 2 * 60 * 1000).toISOString()
+    : `${fechaObjetivo}T${horaProgramada}:00.000Z`;
   // ========================================================================
   // META GENERACIÓN (v1)
   // ========================================================================
