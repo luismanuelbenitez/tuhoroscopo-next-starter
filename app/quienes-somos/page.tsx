@@ -40,14 +40,14 @@ export default function QuienesSomos() {
         <h2 className="text-base font-semibold text-violet-400 mb-4">¿Qué recibís cada mañana?</h2>
         <div className="space-y-3">
           {[
-            { label: 'Horóscopo del día', desc: 'Personalizado para tu signo. Una lectura breve sobre la energía del día y cómo usarla a tu favor.' },
-            { label: 'Foco del día', desc: 'Un consejo práctico según lo que elegiste trabajar: amor, trabajo, bienestar o un enfoque general.' },
-            { label: 'Número de la suerte', desc: 'Un número con una idea concreta para aplicar durante el día.' },
-            { label: 'Color del día', desc: 'Una referencia breve sobre qué puede aportar ese color a tu jornada.' },
-            { label: 'Pausa', desc: 'Un momento de respiración para empezar con calma antes de abrir el resto del teléfono.' },
+            { emoji: '🌐', label: 'Horóscopo del día', desc: 'Personalizado para tu signo. Una lectura breve sobre la energía del día y cómo usarla a tu favor.' },
+            { emoji: '💙', label: 'Foco del día', desc: 'Un consejo práctico según lo que elegiste trabajar: amor, trabajo, bienestar o un enfoque general.' },
+            { emoji: '🔢', label: 'Número de la suerte', desc: 'Un número con una idea concreta para aplicar durante el día.' },
+            { emoji: '🎨', label: 'Color del día', desc: 'Una referencia breve sobre qué puede aportar ese color a tu jornada.' },
+            { emoji: '🧘', label: 'Pausa', desc: 'Un momento de respiración para empezar con calma antes de abrir el resto del teléfono.' },
           ].map(item => (
             <div key={item.label} className="flex gap-3 items-start">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
+              <span className="text-base leading-none mt-0.5 shrink-0">{item.emoji}</span>
               <div>
                 <span className="text-white/90 text-sm font-semibold">{item.label}</span>
                 <span className="text-white/60 text-sm"> — {item.desc}</span>

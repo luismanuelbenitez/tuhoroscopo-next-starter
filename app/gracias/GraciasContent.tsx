@@ -269,125 +269,177 @@ export default function GraciasContent() {
 
   // --- Renderizado de UI ---
   return (
-    <div className="mx-auto max-w-2xl p-4 py-16 sm:py-24 text-center text-white">
+    <>
+      <style jsx global>{`
+        body {
+          background-image: none !important;
+          background-color: #0e0b22 !important;
+        }
+        body::before {
+          display: none !important;
+        }
+      `}</style>
 
-      {/* Estado Idle: Muestra loader mientras se procesa el pago */}
-       {uiStatus === "idle" && (
-         <div className="space-y-6 flex flex-col items-center">
-             <Loader2 className="w-16 h-16 text-slate-400 animate-spin" />
-             <h1 className="text-2xl sm:text-3xl font-bold text-slate-300">
-                Procesando información del pago...
-             </h1>
-         </div>
-       )}
+      <div
+        className="min-h-screen text-white relative z-[1]"
+        style={{ background: 'linear-gradient(180deg, #110927 0%, #0d0820 55%, #0e0b22 100%)' }}
+      >
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-72"
+          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(88,28,180,0.13), transparent)', zIndex: 0 }}
+        />
 
-      {/* ===== DISEÑO 1: EL CAMINO FELIZ (ACTUALIZADO) ===== */}
-      {uiStatus === "ok" && (
-        <div className="space-y-6 flex flex-col items-center">
-          <CheckIcon />
-          {/* Saludo personalizado con nombre */}
-          <h1 className="text-3xl sm:text-4xl font-bold text-white">
-            ¡Felicitaciones{nombre ? `, ${nombre}` : ""}!
-          </h1>
-          {/* Mensaje personalizado con signo */}
-          <p className="text-lg text-slate-300 -mt-2">
-            Tu suscripción premium
-            {signo ? ` para ${signo}` : ""} está activa.
-          </p>
-          <p className="text-lg text-slate-300">
-            Acabamos de enviarte tu primer mensaje de bienvenida.
-            Estás a punto de recibir la mejor energía del universo.
-          </p>
+        <div className="relative mx-auto max-w-xl px-4 py-16 sm:py-24 text-center" style={{ zIndex: 1 }}>
 
-          {/* ONBOARDING (ACTUALIZADO PASO 1) */}
-          <div className="w-full rounded-lg border border-slate-700 bg-slate-900/40 p-6 text-left space-y-5">
-            <h2 className="text-xl font-semibold text-white">
-              Pasos siguientes:
-            </h2>
-            {/* *** PASO 1 MODIFICADO para incluir WhatsApp PARCIAL *** */}
-            <div className="flex items-start gap-3">
-              <div className="font-bold text-2xl text-indigo-400 pt-0.5">1.</div>
-              <p className="text-base">
-                <strong>Revisá tu WhatsApp.</strong> Ya deberías tener nuestro
-                mensaje en el número que registraste
-                {/* Mostramos solo los últimos 3 dígitos si tenemos el número */}
-                {whatsapp ? ` (terminado en ...${whatsapp.slice(-3)})` : ""}.
-              </p>
+          {/* Estado Idle */}
+          {uiStatus === "idle" && (
+            <div className="space-y-6 flex flex-col items-center">
+              <Loader2 className="w-12 h-12 text-violet-400 animate-spin" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-white/80">
+                Procesando tu pago…
+              </h1>
             </div>
-            {/* ****************************************************** */}
-            {/* Paso 2 (sin cambios) */}
-            <div className="flex items-start gap-3">
-              <div className="font-bold text-2xl text-indigo-400 pt-0.5">2.</div>
-              <p className="text-base">
-                <strong>¡Agréganos a tus contactos!</strong> Este es el paso más
-                importante para asegurar que siempre recibas nuestros mensajes
-                y audios.
+          )}
+
+          {/* Camino feliz */}
+          {uiStatus === "ok" && (
+            <div className="space-y-6 flex flex-col items-center">
+
+              {/* Ícono con glow */}
+              <div className="relative flex items-center justify-center">
+                <div
+                  className="absolute w-28 h-28 rounded-full blur-2xl"
+                  style={{ background: 'rgba(52,211,153,0.15)' }}
+                />
+                <CheckIcon />
+              </div>
+
+              {/* Badge */}
+              <div className="inline-block px-3 py-1 rounded-full border border-violet-500/25 bg-violet-900/30 text-violet-300 text-xs tracking-widest uppercase -mt-2">
+                ✦ Suscripción activa
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white -mt-2">
+                ¡Todo listo{nombre ? `, ${nombre}` : ""}!
+              </h1>
+
+              <p className="text-white/70 text-base -mt-2 leading-relaxed">
+                Tu guía{signo ? ` de ${signo}` : ""} ya está activa.
+                En minutos vas a recibir tu primer mensaje.
               </p>
+
+              {/* Próximos pasos */}
+              <div
+                className="w-full rounded-2xl border border-white/8 p-6 text-left space-y-5"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
+              >
+                <h2 className="text-base font-semibold text-white/90">Próximos pasos</h2>
+                <div className="flex items-start gap-3">
+                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">1.</div>
+                  <p className="text-sm text-white/75 leading-relaxed">
+                    <strong className="text-white/90">Revisá tu WhatsApp.</strong>{" "}
+                    Ya deberías tener nuestro mensaje en el número que registraste
+                    {whatsapp ? ` (terminado en …${whatsapp.slice(-3)})` : ""}.
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">2.</div>
+                  <p className="text-sm text-white/75 leading-relaxed">
+                    <strong className="text-white/90">Guardá el número.</strong>{" "}
+                    Agreganos a tus contactos para que el mensaje siempre llegue sin problemas.
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">3.</div>
+                  <p className="text-sm text-white/75 leading-relaxed">
+                    <strong className="text-white/90">¿No llegó nada en 5 minutos?</strong>{" "}
+                    Escribinos a{" "}
+                    <a
+                      href="mailto:soporte@tuhoroscopocosmico.com"
+                      className="text-violet-300 underline hover:text-violet-200"
+                    >
+                      soporte@tuhoroscopocosmico.com
+                    </a>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Preview del producto */}
+              <div
+                className="w-full rounded-2xl border border-violet-500/15 p-5 text-left"
+                style={{ background: 'rgba(88,28,180,0.07)' }}
+              >
+                <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+                  Cada mañana vas a recibir
+                </p>
+                <ul className="space-y-2">
+                  {[
+                    "🌐  Horóscopo personalizado por tu signo",
+                    "💙  Foco del día según tu preferencia",
+                    "🔢  Tu número de la suerte",
+                    "🎨  Tu color del día",
+                    "🧘  Una pausa cósmica",
+                  ].map((item) => (
+                    <li key={item} className="text-sm text-white/65 leading-relaxed">{item}</li>
+                  ))}
+                </ul>
+              </div>
+
             </div>
-            {/* Paso 3 (sin cambios) */}
-            <div className="flex items-start gap-3">
-              <div className="font-bold text-2xl text-indigo-400 pt-0.5">3.</div>
-              <p className="text-base">
-                <strong>¿No recibiste nada?</strong> Si en 5 minutos no ves nuestro
-                mensaje, escríbenos a{" "}
+          )}
+
+          {/* Pago pendiente */}
+          {uiStatus === "warn" && (
+            <div className="space-y-6 flex flex-col items-center">
+              <ClockIcon />
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-amber-400">
+                Tu pago está en proceso.
+              </h1>
+              <p className="text-white/70 text-base leading-relaxed">
+                Esto es normal. Mercado Pago puede tardar unos minutos en confirmar la suscripción.
+              </p>
+              <div
+                className="w-full rounded-2xl border border-white/8 p-6"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
+              >
+                <p className="text-sm text-white/65 leading-relaxed">
+                  Te avisaremos por WhatsApp en cuanto se confirme. No necesitás hacer nada más.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error en el pago */}
+          {uiStatus === "error" && (
+            <div className="space-y-6 flex flex-col items-center">
+              <ErrorIcon />
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+                Algo salió mal.
+              </h1>
+              <p className="text-white/70 text-base leading-relaxed">
+                No se realizó ningún cargo en tu tarjeta.
+              </p>
+              <div
+                className="w-full rounded-2xl border border-white/8 p-6 space-y-5"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
+              >
+                <p className="text-sm text-white/65 leading-relaxed">
+                  El pago pudo ser rechazado o faltaron datos. Podés volver a intentarlo sin problema.
+                </p>
                 <a
-                  href="mailto:soporte@tuhoroscopocosmico.com" // Email de soporte
-                  className="font-bold underline hover:text-indigo-300"
+                  href="/checkout"
+                  className="inline-block w-full rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 py-4 text-base font-bold text-white text-center transition-all hover:from-violet-600 hover:to-violet-400 active:scale-[0.98]"
+                  style={{ boxShadow: '0 4px 24px rgba(109,40,217,0.35)' }}
                 >
-                  soporte@tuhoroscopocosmico.com
-                </a>.
-              </p>
+                  Intentar de nuevo →
+                </a>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Pago Pendiente (sin cambios) */}
-      {uiStatus === "warn" && (
-        <div className="space-y-6 flex flex-col items-center">
-          <ClockIcon />
-          <h1 className="text-3xl sm:text-4xl font-bold text-amber-400">
-            Tu pago está pendiente.
-          </h1>
-          <p className="text-lg text-slate-300">
-            No te preocupes, esto es normal. A veces Mercado Pago (o la
-            tarjeta) demora unos minutos en procesar la suscripción.
-          </p>
-          <div className="w-full rounded-lg border border-slate-700 bg-slate-900/40 p-6 text-slate-300">
-            <p>
-              Te avisaremos por WhatsApp (al número que registraste)
-              apenas se confirme el pago. No necesitas hacer nada más.
-            </p>
-          </div>
         </div>
-      )}
-
-      {/* Error en el Pago (sin cambios) */}
-      {uiStatus === "error" && (
-        <div className="space-y-6 flex flex-col items-center">
-          <ErrorIcon />
-          <h1 className="text-3xl sm:text-4xl font-bold text-rose-500">
-            Ups, ocurrió un error.
-          </h1>
-          <p className="text-lg text-slate-300">
-            No te preocupes, no se realizó ningún cargo en tu tarjeta.
-          </p>
-          <div className="w-full rounded-lg border border-slate-700 bg-slate-900/40 p-6 space-y-5">
-            <p>
-              Parece que hubo un problema al procesar tu suscripción
-              (el pago pudo ser rechazado o faltaron datos).
-              Por favor, vuelve a intentarlo.
-            </p>
-            <a
-              href="/checkout" // Enlace a tu página de checkout unificada
-              className="inline-block rounded-lg px-8 py-3 font-bold text-violet-900 bg-gradient-to-r from-amber-400 to-pink-400 shadow-lg hover:from-amber-300 hover:to-pink-300 hover:scale-[1.03]"
-            >
-              Intentar pagar de nuevo
-            </a>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 

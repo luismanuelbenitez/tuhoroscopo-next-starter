@@ -28,15 +28,15 @@ export default function Logo({ className }: LogoProps) {
         height={120}
         priority // Mantenido si es importante para LCP
         // className interno para la imagen si necesitas estilos específicos en ella
-        className="w-12 h-12 md:w-16 md:h-16" // Ejemplo de tamaño adaptable
+        className="w-8 h-8 md:w-10 md:h-10"
       />
 
       {/* Nombre del sitio */}
       <div className="text-center leading-tight">
-        <h1 className="text-2xl md:text-3xl font-extrabold drop-shadow-sm text-white">
+        <span className="block text-lg md:text-xl font-extrabold drop-shadow-sm text-white">
           TU HORÓSCOPO
-        </h1>
-        <span className="block text-xl md:text-2xl font-bold text-fuchsia-300 drop-shadow-sm">
+        </span>
+        <span className="block text-base md:text-lg font-bold text-violet-300 drop-shadow-sm">
           CÓSMICO
         </span>
       </div>

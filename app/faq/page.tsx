@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
 
@@ -69,17 +70,27 @@ export default function FAQ() {
         </p>
       </div>
 
-      {/* Q&A cards */}
-      <div className="space-y-3 mb-10">
+      {/* Accordion */}
+      <div className="space-y-2 mb-10">
         {FAQS.map((faq, i) => (
-          <div
+          <details
             key={i}
-            className="rounded-2xl border border-white/8 px-5 py-4"
+            className="group rounded-2xl border border-white/8 overflow-hidden"
             style={{ background: 'rgba(255,255,255,0.03)' }}
           >
-            <p className="text-white/95 text-sm font-semibold mb-2">{faq.q}</p>
-            <p className="text-white/60 text-sm leading-relaxed">{faq.a}</p>
-          </div>
+            <summary className="px-5 py-4 flex items-center justify-between gap-3 cursor-pointer select-none">
+              <span className="text-white/95 text-sm font-semibold">{faq.q}</span>
+              <ChevronDown
+                size={15}
+                className="text-violet-400 shrink-0 transition-transform duration-200 group-open:rotate-180"
+              />
+            </summary>
+            <div className="px-5 pb-5">
+              <div className="border-t border-white/6 pt-3">
+                <p className="text-white/60 text-sm leading-relaxed">{faq.a}</p>
+              </div>
+            </div>
+          </details>
         ))}
       </div>
 

@@ -1,10 +1,21 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Sparkles, CheckCircle2, MessageCircle } from 'lucide-react';
 import WAPreview from '@/components/WAPreview';
+import Testimonios from '@/components/Testimonios';
+import StickyCTA from '@/components/StickyCTA';
 
 export default function HomeContent() {
+  const [showSticky, setShowSticky] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowSticky(window.scrollY > 480);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <>
       {/*
@@ -20,10 +31,12 @@ export default function HomeContent() {
         body::before {
           display: none !important;
         }
-        header {
-          padding-top: 0 !important;
-          padding-bottom: 0 !important;
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
+        .hero-in   { animation: fadeUp 0.6s ease both; }
+        .hero-in-2 { animation: fadeUp 0.6s 0.2s ease both; }
       `}</style>
 
       <div
@@ -37,11 +50,11 @@ export default function HomeContent() {
         />
 
         {/* ── Hero ─────────────────────────────────────────────────── */}
-        <div className="relative mx-auto max-w-5xl px-4 pt-10 md:pt-14 pb-6" style={{ zIndex: 1 }}>
+        <div className="relative mx-auto max-w-5xl px-4 pt-6 md:pt-10 pb-6" style={{ zIndex: 1 }}>
           <div className="flex flex-col md:flex-row gap-8 md:gap-14 md:items-center">
 
             {/* Texto + CTA */}
-            <div className="flex-1 text-center md:text-left">
+            <div className="hero-in flex-1 text-center md:text-left">
               <div className="inline-block mb-5 px-3 py-1 rounded-full border border-violet-500/25 bg-violet-900/30 text-violet-300 text-xs tracking-widest uppercase">
                 Mensajes diarios personalizados
               </div>
@@ -53,9 +66,15 @@ export default function HomeContent() {
                 </span>
               </h1>
 
-              <p className="text-white/70 text-base md:text-lg max-w-lg mx-auto md:mx-0 mb-6 leading-relaxed">
+              <p className="text-white/70 text-base md:text-lg max-w-lg mx-auto md:mx-0 mb-4 leading-relaxed">
                 Recibí tu horóscopo, tu foco del día, tu número de la suerte y tu color — personalizados por signo, directo a WhatsApp. Sin apps.
               </p>
+
+              {/* Social proof */}
+              <div className="flex items-center justify-center md:justify-start gap-2 mb-6 text-[12px] text-white/45">
+                <span style={{ color: 'rgba(251,191,36,0.80)', letterSpacing: '1px' }}>★★★★★</span>
+                <span>Suscriptoras activas en Uruguay y LATAM</span>
+              </div>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm mb-8">
                 <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
@@ -97,7 +116,7 @@ export default function HomeContent() {
             </div>
 
             {/* WAPreview — oculto en mobile (se muestra abajo), visible en desktop */}
-            <div className="hidden md:block w-[340px] shrink-0">
+            <div className="hero-in-2 hidden md:block w-[340px] shrink-0">
               <WAPreview />
             </div>
 
@@ -119,18 +138,18 @@ export default function HomeContent() {
               {[
                 {
                   n: '1',
-                  title: 'Completás tus datos',
-                  desc: 'Nombre, signo zodiacal, qué querés trabajar y tu WhatsApp. Un minuto.',
+                  title: 'Contanos sobre vos',
+                  desc: 'Tu nombre, tu signo y en qué querés enfocarte. Solo toma un minuto.',
                 },
                 {
                   n: '2',
-                  title: 'Confirmás tu WhatsApp',
-                  desc: 'Te enviamos un mensaje. Lo respondés una vez para activar tu cuenta.',
+                  title: 'Activás en un clic',
+                  desc: 'Te mandamos un primer mensaje. Lo respondés una vez y tu cuenta queda activa.',
                 },
                 {
                   n: '3',
-                  title: 'Recibís tu guía cada mañana',
-                  desc: 'Tu mensaje personalizado, directo a WhatsApp. Sin apps. Sin spam.',
+                  title: 'Tu guía llega cada mañana',
+                  desc: 'Personalizada para tu signo, a la hora que más la necesitás. Sin apps, sin spam.',
                 },
               ].map(step => (
                 <div key={step.n} className="flex md:flex-col gap-4 md:gap-3 md:items-center md:text-center">
@@ -144,6 +163,13 @@ export default function HomeContent() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* ── Testimonios ───────────────────────────────────────────── */}
+        <div className="relative mx-auto max-w-4xl px-4 pb-14 md:pb-20" style={{ zIndex: 1 }}>
+          <div className="border-t border-white/8 pt-10">
+            <Testimonios />
           </div>
         </div>
 
@@ -167,6 +193,8 @@ export default function HomeContent() {
         </div>
 
       </div>
+
+      {showSticky && <StickyCTA />}
     </>
   );
 }

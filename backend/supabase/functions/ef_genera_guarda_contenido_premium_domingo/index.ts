@@ -419,6 +419,28 @@ serve(async (req)=>{
   const idSuscriptorFiltro = normalizarInteger(body.id_suscriptor);
   const runId = `domingo_${Date.now()}`;
   // ==========================================================================
+  // 5b) GUARD — solo ejecutar en domingo (UTC)
+  // ----------------------------------------------------------------------------
+  // Si hoy no es domingo y no viene force=true, se rechaza la ejecución.
+  // Evita generar contenido domingo en días incorrectos por error o cron mal configurado.
+  // ==========================================================================
+  if (!force) {
+    const diaSemanaUTC = new Date().getUTCDay(); // 0 = domingo
+    if (diaSemanaUTC !== 0) {
+      await registrarLog("SKIP_NO_ES_DOMINGO", {
+        run_id: runId,
+        dia_utc: diaSemanaUTC,
+        msg: "La función solo corre en domingo. Enviá force=true para forzar."
+      }, true);
+      return jsonResponse({
+        resultado: "skip",
+        motivo: "no_es_domingo",
+        dia_utc: diaSemanaUTC,
+        msg: "La función solo corre en domingo. Enviá force=true para forzar en otro día."
+      });
+    }
+  }
+  // ==========================================================================
   // 6) LOG DE START
   // ==========================================================================
   if (!silent) {

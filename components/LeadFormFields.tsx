@@ -33,7 +33,7 @@ interface LeadFormFieldsProps {
 const signos = [
   { value: 'Aries', label: '🐏 Aries' },
   { value: 'Tauro', label: '🐂 Tauro' },
-  { value: 'Géminis', label: '👯‍♂️ Géminis' },
+  { value: 'Géminis', label: '♊ Géminis' },
   { value: 'Cáncer', label: '🦀 Cáncer' },
   { value: 'Leo', label: '🦁 Leo' },
   { value: 'Virgo', label: '🌸 Virgo' },
@@ -61,7 +61,7 @@ export default function LeadFormFields({
 }: LeadFormFieldsProps) {
 
   // Clases base para inputs y selects
-  const inputBaseClasses = "w-full py-3 bg-white/8 border border-transparent rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-pink-300 ring-1 ring-white/15 disabled:opacity-60";
+  const inputBaseClasses = "w-full py-3 bg-white/8 border border-transparent rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-violet-500/60 ring-1 ring-white/15 disabled:opacity-60";
   const selectBaseClasses = `${inputBaseClasses} appearance-none`;
 
   return (
@@ -119,7 +119,7 @@ export default function LeadFormFields({
             disabled={isLoading}
             required
             >
-             <option value="" disabled>Selecciona una opción...</option>
+             <option value="" disabled>Seleccioná una opción...</option>
              {preferencias.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
            </select>
            {/* Indicador visual de select (se mantiene) */}
@@ -128,7 +128,7 @@ export default function LeadFormFields({
 
        {/* WhatsApp (sin cambios en esta parte) */}
        <div>
-           <label htmlFor="whatsapp" className="block text-sm text-white/80 mb-1">Número de WhatsApp (celular) </label>
+           <label htmlFor="whatsapp" className="block text-sm text-white/80 mb-1">Tu número de WhatsApp</label>
            <div className="flex gap-2 items-center">
              <div className="flex items-center gap-2 rounded-xl bg-white/8 px-3 ring-1 ring-white/15 h-[52px]">
                 <ReactCountryFlag countryCode="UY" svg style={{ width: "24px", height: "18px", borderRadius: "2px" }} title="Uruguay" className="shadow-sm" />
@@ -137,7 +137,7 @@ export default function LeadFormFields({
              <input
                id="whatsapp"
                name="whatsapp"
-               className="flex-1 rounded-xl bg-white/8 px-4 py-3 h-[52px] ring-1 ring-white/15 focus:outline-none focus:ring-2 focus:ring-pink-300 placeholder:text-white/40 disabled:opacity-60"
+               className="flex-1 rounded-xl bg-white/8 px-4 py-3 h-[52px] ring-1 ring-white/15 focus:outline-none focus:ring-2 focus:ring-violet-500/60 placeholder:text-white/40 disabled:opacity-60"
                placeholder="099123456"
                inputMode="numeric"
                value={formData.whatsapp}
@@ -159,12 +159,12 @@ export default function LeadFormFields({
                 onChange={handleCheckboxChange}
                 disabled={isLoading}
                 required
-                className="mt-1 accent-pink-400"
+                className="mt-1 accent-violet-500"
             />
             <span>
                 {' '}
                 <a
-                 className="underline hover:text-pink-300"
+                 className="underline hover:text-violet-300"
                  href="/politica-de-privacidad"
                  target="_blank"
                  rel="noreferrer"

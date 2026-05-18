@@ -1,3 +1,4 @@
+import { Mail } from 'lucide-react';
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
 
@@ -29,8 +30,10 @@ export default function Contacto() {
         </p>
         <a
           href="mailto:hola@tuhoroscopocosmico.com"
-          className="inline-block text-white font-semibold text-sm bg-violet-900/50 border border-violet-500/25 rounded-xl px-4 py-2.5 hover:bg-violet-900/80 transition-colors"
+          className="inline-flex items-center gap-2 text-white font-semibold text-sm rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-5 py-3 hover:from-violet-600 hover:to-violet-400 transition-all"
+          style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.28)' }}
         >
+          <Mail size={14} />
           hola@tuhoroscopocosmico.com
         </a>
       </div>

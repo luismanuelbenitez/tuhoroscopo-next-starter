@@ -1,67 +1,49 @@
-// ============================================================
-// === Archivo: components/Testimonios.tsx
-// === Descripción: Sección de "Prueba Social" con testimonios
-// ===              de usuarios (placeholders).
-// ============================================================
 'use client';
 
-// Ícono opcional para citas
-import { Quote } from 'lucide-react';
-
-// Estructura de datos para un testimonio (puedes expandirla)
-interface TestimonioData {
-  cita: string;
-  autor: string;
-  contexto?: string; // Ej. Signo zodiacal
-}
-
-// Datos de ejemplo (placeholders)
-const testimoniosEjemplo: TestimonioData[] = [
+const testimonios = [
   {
-    cita: "Me encanta recibir el audio corto cada mañana. Es mucho más profundo que cualquier horóscopo que haya leído antes. ¡Gracias!",
+    cita: "El mensaje de cada mañana me ayuda a arrancar el día con foco. Desde que lo recibo soy más consciente de cómo uso mi energía.",
     autor: "Lucía M.",
-    contexto: "(Aries)"
+    contexto: "Aries",
   },
   {
-    cita: "Al principio dudé, pero ahora no puedo empezar mi día sin él. Los consejos sobre trabajo han sido súper acertados.",
-    autor: "Martín R.",
-    contexto: "(Capricornio)"
+    cita: "Dudé mucho al principio, pero el primer mensaje me convenció. Los consejos de bienestar son muy acertados para mi signo.",
+    autor: "Valentina S.",
+    contexto: "Capricornio",
   },
   {
-    cita: "La combinación del mensaje escrito y el audio es perfecta. Me ayuda a centrarme y entender mejor la energía del día. ¡Muy recomendado!",
+    cita: "Perfecto para leer en el desayuno. Corto, claro y siempre dice algo que siento que necesitaba escuchar ese día.",
     autor: "Sofía L.",
-    contexto: "(Libra)"
-  }
+    contexto: "Libra",
+  },
 ];
 
-// Componente para una tarjeta de testimonio individual
-function TestimonioCard({ testimonio }: { testimonio: TestimonioData }) {
-  return (
-    <div className="bg-white/10 border border-white/15 rounded-xl p-6 shadow-lg backdrop-blur-sm relative overflow-hidden">
-        {/* Ícono de cita decorativo (opcional) */}
-        <Quote className="absolute top-4 right-4 h-12 w-12 text-white/10 transform rotate-12" strokeWidth={1} />
-        {/* SOLUCIÓN (Línea 32) */}
-        <blockquote className="text-white/80 italic mb-4 relative z-10">
-          &ldquo;{testimonio.cita}&rdquo;
-        </blockquote>
-        <footer className="text-sm text-white relative z-10">
-            <span className="font-semibold">{testimonio.autor}</span>
-            {testimonio.contexto && <span className="text-white/60 ml-1">{testimonio.contexto}</span>}
-        </footer>
-    </div>
-  );
-}
-
-// Componente principal de la sección de testimonios
 export default function Testimonios() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-10 md:mb-12">
-        Lo que dicen nuestros suscriptores
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-        {testimoniosEjemplo.map((testimonio, index) => (
-          <TestimonioCard key={index} testimonio={testimonio} />
+    <div>
+      <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest text-center mb-8">
+        Lo que dicen nuestras suscriptoras
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {testimonios.map((t, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-white/8 p-5 overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+          >
+            <div className="flex gap-0.5 mb-3">
+              {[...Array(5)].map((_, s) => (
+                <span key={s} style={{ color: 'rgba(251,191,36,0.85)', fontSize: '13px' }}>★</span>
+              ))}
+            </div>
+            <blockquote className="text-white/70 text-sm leading-relaxed mb-4 italic">
+              &ldquo;{t.cita}&rdquo;
+            </blockquote>
+            <footer className="text-xs">
+              <span className="font-semibold text-white/70">{t.autor}</span>
+              <span className="text-white/40 ml-1">· {t.contexto}</span>
+            </footer>
+          </div>
         ))}
       </div>
     </div>

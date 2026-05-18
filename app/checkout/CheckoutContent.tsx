@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent, ChangeEvent } from 'react';
-import { Loader2, Shield, Sparkles, CheckCircle2, MessageCircle, Tag, X } from 'lucide-react';
+import { Loader2, Lock, Shield, Sparkles, CheckCircle2, MessageCircle, Tag, X } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
 import WAPreview from '@/components/WAPreview';
 
@@ -181,10 +181,6 @@ export default function CheckoutContent() {
         body::before {
           display: none !important;
         }
-        header {
-          padding-top: 0 !important;
-          padding-bottom: 0 !important;
-        }
         #checkout-fields input,
         #checkout-fields select {
           background-color: rgba(88, 40, 180, 0.07) !important;
@@ -213,7 +209,7 @@ export default function CheckoutContent() {
           </h1>
 
           <p className="text-white/70 text-sm md:text-base max-w-md mx-auto mb-4 leading-relaxed">
-            Tu horóscopo, tu número de la suerte y tu consejo del día — personalizados y directo a WhatsApp.
+            Tu horóscopo, tu número de la suerte y tu consejo del día — personalizado y directo a WhatsApp.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
@@ -346,11 +342,16 @@ export default function CheckoutContent() {
                       )}
                     </button>
 
-                    <p className="mt-3 text-center text-[12px] text-white/50">
-                      {descuento
-                        ? `Pago seguro · $U ${descuento.precio_aplicado}/mes · Cancelás cuando quieras`
-                        : 'Pago seguro · $U 390/mes · Cancelás cuando quieras'}
-                    </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12px] text-white/45">
+                      <span className="flex items-center gap-1">
+                        <Lock size={10} className="text-violet-400 shrink-0" />
+                        <span>Procesado por <strong className="text-white/65 font-semibold">Mercado Pago</strong></span>
+                      </span>
+                      <span className="text-white/20">·</span>
+                      <span>{descuento ? `$U ${descuento.precio_aplicado}/mes` : '$U 390/mes'}</span>
+                      <span className="text-white/20">·</span>
+                      <span>Cancelás cuando quieras</span>
+                    </div>
 
                     <div className="mt-5 pt-5 border-t border-white/8 grid grid-cols-2 gap-2.5">
                       {[
@@ -386,9 +387,9 @@ export default function CheckoutContent() {
                 </p>
                 <div className="space-y-3">
                   {[
-                    { n: '1', title: 'Completás el formulario', desc: 'Nombre, signo, foco y WhatsApp. Un minuto.' },
-                    { n: '2', title: 'Confirmás tu WhatsApp', desc: 'Te enviamos un mensaje. Respondés una vez para activar.' },
-                    { n: '3', title: 'Tu guía llega cada mañana', desc: 'Directo a WhatsApp. Sin apps. Sin spam.' },
+                    { n: '1', title: 'Contanos sobre vos', desc: 'Nombre, signo y foco. Solo toma un minuto.' },
+                    { n: '2', title: 'Activás en un clic', desc: 'Respondés nuestro primer mensaje y quedás activa.' },
+                    { n: '3', title: 'Tu guía llega cada mañana', desc: 'Directo a WhatsApp. Sin apps, sin spam.' },
                   ].map(step => (
                     <div key={step.n} className="flex gap-3 items-start">
                       <div className="text-lg font-extrabold text-violet-500/80 leading-none w-5 shrink-0 mt-0.5">
