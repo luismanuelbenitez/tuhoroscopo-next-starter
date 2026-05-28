@@ -1,0 +1,720 @@
+{
+  "version": "1.2",
+  "deck": "rws-classic",
+  "mazo_id": "a1000000-0000-0000-0000-000000000001",
+  "deck_info": {
+    "autor": "Pamela Colman Smith",
+    "publicador": "Rider Company",
+    "anio": 1909,
+    "licencia": "public_domain",
+    "fuente": "Wikimedia Commons",
+    "atribucion": "Rider-Waite-Smith Tarot, publicado en 1909. Arte de Pamela Colman Smith. Obra en dominio público.",
+    "wikimedia_categoria": "https://commons.wikimedia.org/wiki/Category:Rider-Waite_tarot_deck"
+  },
+  "nota_tecnica": "Arcanos mayores: JPEG (RWS Tarot NN Name.jpg), storage_path .jpg. Arcanos menores: PNG ({Number} of {Suit} (Rider-Waite Smith tarot deck).png), storage_path .png. El script detecta el formato por magic bytes y sube con content-type correcto.",
+  "bucket": "tarot-assets",
+  "cards": [
+    {
+      "slug": "major-00-el-loco",
+      "storage_path": "decks/rws-classic/major/00-el-loco.jpg",
+      "nombre_es": "El Loco",
+      "nombre_en": "The Fool",
+      "match": { "arcano": "mayor", "numero": 0 },
+      "wikimedia_file": "RWS Tarot 00 Fool.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_00_Fool.jpg"
+    },
+    {
+      "slug": "major-01-el-mago",
+      "storage_path": "decks/rws-classic/major/01-el-mago.jpg",
+      "nombre_es": "El Mago",
+      "nombre_en": "The Magician",
+      "match": { "arcano": "mayor", "numero": 1 },
+      "wikimedia_file": "RWS Tarot 01 Magician.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_01_Magician.jpg"
+    },
+    {
+      "slug": "major-02-la-sacerdotisa",
+      "storage_path": "decks/rws-classic/major/02-la-sacerdotisa.jpg",
+      "nombre_es": "La Sacerdotisa",
+      "nombre_en": "The High Priestess",
+      "match": { "arcano": "mayor", "numero": 2 },
+      "wikimedia_file": "RWS Tarot 02 High Priestess.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_02_High_Priestess.jpg"
+    },
+    {
+      "slug": "major-03-la-emperatriz",
+      "storage_path": "decks/rws-classic/major/03-la-emperatriz.jpg",
+      "nombre_es": "La Emperatriz",
+      "nombre_en": "The Empress",
+      "match": { "arcano": "mayor", "numero": 3 },
+      "wikimedia_file": "RWS Tarot 03 Empress.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_03_Empress.jpg"
+    },
+    {
+      "slug": "major-04-el-emperador",
+      "storage_path": "decks/rws-classic/major/04-el-emperador.jpg",
+      "nombre_es": "El Emperador",
+      "nombre_en": "The Emperor",
+      "match": { "arcano": "mayor", "numero": 4 },
+      "wikimedia_file": "RWS Tarot 04 Emperor.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_04_Emperor.jpg"
+    },
+    {
+      "slug": "major-05-el-sumo-sacerdote",
+      "storage_path": "decks/rws-classic/major/05-el-sumo-sacerdote.jpg",
+      "nombre_es": "El Sumo Sacerdote",
+      "nombre_en": "The Hierophant",
+      "match": { "arcano": "mayor", "numero": 5 },
+      "wikimedia_file": "RWS Tarot 05 Hierophant.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_05_Hierophant.jpg"
+    },
+    {
+      "slug": "major-06-los-enamorados",
+      "storage_path": "decks/rws-classic/major/06-los-enamorados.jpg",
+      "nombre_es": "Los Enamorados",
+      "nombre_en": "The Lovers",
+      "match": { "arcano": "mayor", "numero": 6 },
+      "wikimedia_file": "RWS Tarot 06 Lovers.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_06_Lovers.jpg"
+    },
+    {
+      "slug": "major-07-el-carro",
+      "storage_path": "decks/rws-classic/major/07-el-carro.jpg",
+      "nombre_es": "El Carro",
+      "nombre_en": "The Chariot",
+      "match": { "arcano": "mayor", "numero": 7 },
+      "wikimedia_file": "RWS Tarot 07 Chariot.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_07_Chariot.jpg"
+    },
+    {
+      "slug": "major-08-la-fuerza",
+      "storage_path": "decks/rws-classic/major/08-la-fuerza.jpg",
+      "nombre_es": "La Fuerza",
+      "nombre_en": "Strength",
+      "match": { "arcano": "mayor", "numero": 8 },
+      "wikimedia_file": "RWS Tarot 08 Strength.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_08_Strength.jpg"
+    },
+    {
+      "slug": "major-09-el-ermitano",
+      "storage_path": "decks/rws-classic/major/09-el-ermitano.jpg",
+      "nombre_es": "El Ermitaño",
+      "nombre_en": "The Hermit",
+      "match": { "arcano": "mayor", "numero": 9 },
+      "wikimedia_file": "RWS Tarot 09 Hermit.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_09_Hermit.jpg"
+    },
+    {
+      "slug": "major-10-la-rueda-de-la-fortuna",
+      "storage_path": "decks/rws-classic/major/10-la-rueda-de-la-fortuna.jpg",
+      "nombre_es": "La Rueda de la Fortuna",
+      "nombre_en": "Wheel of Fortune",
+      "match": { "arcano": "mayor", "numero": 10 },
+      "wikimedia_file": "RWS Tarot 10 Wheel of Fortune.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_10_Wheel_of_Fortune.jpg"
+    },
+    {
+      "slug": "major-11-la-justicia",
+      "storage_path": "decks/rws-classic/major/11-la-justicia.jpg",
+      "nombre_es": "La Justicia",
+      "nombre_en": "Justice",
+      "match": { "arcano": "mayor", "numero": 11 },
+      "wikimedia_file": "RWS Tarot 11 Justice.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_11_Justice.jpg"
+    },
+    {
+      "slug": "major-12-el-colgado",
+      "storage_path": "decks/rws-classic/major/12-el-colgado.jpg",
+      "nombre_es": "El Colgado",
+      "nombre_en": "The Hanged Man",
+      "match": { "arcano": "mayor", "numero": 12 },
+      "wikimedia_file": "RWS Tarot 12 Hanged Man.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_12_Hanged_Man.jpg"
+    },
+    {
+      "slug": "major-13-la-muerte",
+      "storage_path": "decks/rws-classic/major/13-la-muerte.jpg",
+      "nombre_es": "La Muerte",
+      "nombre_en": "Death",
+      "match": { "arcano": "mayor", "numero": 13 },
+      "wikimedia_file": "RWS Tarot 13 Death.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_13_Death.jpg"
+    },
+    {
+      "slug": "major-14-la-templanza",
+      "storage_path": "decks/rws-classic/major/14-la-templanza.jpg",
+      "nombre_es": "La Templanza",
+      "nombre_en": "Temperance",
+      "match": { "arcano": "mayor", "numero": 14 },
+      "wikimedia_file": "RWS Tarot 14 Temperance.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_14_Temperance.jpg"
+    },
+    {
+      "slug": "major-15-el-diablo",
+      "storage_path": "decks/rws-classic/major/15-el-diablo.jpg",
+      "nombre_es": "El Diablo",
+      "nombre_en": "The Devil",
+      "match": { "arcano": "mayor", "numero": 15 },
+      "wikimedia_file": "RWS Tarot 15 Devil.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_15_Devil.jpg"
+    },
+    {
+      "slug": "major-16-la-torre",
+      "storage_path": "decks/rws-classic/major/16-la-torre.jpg",
+      "nombre_es": "La Torre",
+      "nombre_en": "The Tower",
+      "match": { "arcano": "mayor", "numero": 16 },
+      "wikimedia_file": "RWS Tarot 16 Tower.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_16_Tower.jpg"
+    },
+    {
+      "slug": "major-17-la-estrella",
+      "storage_path": "decks/rws-classic/major/17-la-estrella.jpg",
+      "nombre_es": "La Estrella",
+      "nombre_en": "The Star",
+      "match": { "arcano": "mayor", "numero": 17 },
+      "wikimedia_file": "RWS Tarot 17 Star.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_17_Star.jpg"
+    },
+    {
+      "slug": "major-18-la-luna",
+      "storage_path": "decks/rws-classic/major/18-la-luna.jpg",
+      "nombre_es": "La Luna",
+      "nombre_en": "The Moon",
+      "match": { "arcano": "mayor", "numero": 18 },
+      "wikimedia_file": "RWS Tarot 18 Moon.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_18_Moon.jpg"
+    },
+    {
+      "slug": "major-19-el-sol",
+      "storage_path": "decks/rws-classic/major/19-el-sol.jpg",
+      "nombre_es": "El Sol",
+      "nombre_en": "The Sun",
+      "match": { "arcano": "mayor", "numero": 19 },
+      "wikimedia_file": "RWS Tarot 19 Sun.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_19_Sun.jpg"
+    },
+    {
+      "slug": "major-20-el-juicio",
+      "storage_path": "decks/rws-classic/major/20-el-juicio.jpg",
+      "nombre_es": "El Juicio",
+      "nombre_en": "Judgement",
+      "match": { "arcano": "mayor", "numero": 20 },
+      "wikimedia_file": "RWS Tarot 20 Judgement.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_20_Judgement.jpg"
+    },
+    {
+      "slug": "major-21-el-mundo",
+      "storage_path": "decks/rws-classic/major/21-el-mundo.jpg",
+      "nombre_es": "El Mundo",
+      "nombre_en": "The World",
+      "match": { "arcano": "mayor", "numero": 21 },
+      "wikimedia_file": "RWS Tarot 21 World.jpg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS_Tarot_21_World.jpg"
+    },
+    {
+      "slug": "bastos-01-as",
+      "storage_path": "decks/rws-classic/minor/bastos/01-as-de-bastos.png",
+      "nombre_es": "As de Bastos",
+      "nombre_en": "Ace of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 1 },
+      "wikimedia_file": "Ace of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ace_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-02",
+      "storage_path": "decks/rws-classic/minor/bastos/02-dos-de-bastos.png",
+      "nombre_es": "Dos de Bastos",
+      "nombre_en": "Two of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 2 },
+      "wikimedia_file": "Two of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Two_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-03",
+      "storage_path": "decks/rws-classic/minor/bastos/03-tres-de-bastos.png",
+      "nombre_es": "Tres de Bastos",
+      "nombre_en": "Three of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 3 },
+      "wikimedia_file": "Three of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Three_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-04",
+      "storage_path": "decks/rws-classic/minor/bastos/04-cuatro-de-bastos.png",
+      "nombre_es": "Cuatro de Bastos",
+      "nombre_en": "Four of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 4 },
+      "wikimedia_file": "Four of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Four_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-05",
+      "storage_path": "decks/rws-classic/minor/bastos/05-cinco-de-bastos.png",
+      "nombre_es": "Cinco de Bastos",
+      "nombre_en": "Five of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 5 },
+      "wikimedia_file": "Five of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Five_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-06",
+      "storage_path": "decks/rws-classic/minor/bastos/06-seis-de-bastos.png",
+      "nombre_es": "Seis de Bastos",
+      "nombre_en": "Six of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 6 },
+      "wikimedia_file": "Six of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Six_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-07",
+      "storage_path": "decks/rws-classic/minor/bastos/07-siete-de-bastos.png",
+      "nombre_es": "Siete de Bastos",
+      "nombre_en": "Seven of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 7 },
+      "wikimedia_file": "Seven of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Seven_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-08",
+      "storage_path": "decks/rws-classic/minor/bastos/08-ocho-de-bastos.png",
+      "nombre_es": "Ocho de Bastos",
+      "nombre_en": "Eight of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 8 },
+      "wikimedia_file": "Eight of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Eight_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-09",
+      "storage_path": "decks/rws-classic/minor/bastos/09-nueve-de-bastos.png",
+      "nombre_es": "Nueve de Bastos",
+      "nombre_en": "Nine of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 9 },
+      "wikimedia_file": "Nine of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Nine_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-10",
+      "storage_path": "decks/rws-classic/minor/bastos/10-diez-de-bastos.png",
+      "nombre_es": "Diez de Bastos",
+      "nombre_en": "Ten of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "numero": 10 },
+      "wikimedia_file": "Ten of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ten_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-11-paje",
+      "storage_path": "decks/rws-classic/minor/bastos/11-paje-de-bastos.png",
+      "nombre_es": "Paje de Bastos",
+      "nombre_en": "Page of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "carta_corte": "paje" },
+      "wikimedia_file": "Page of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Page_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-12-caballero",
+      "storage_path": "decks/rws-classic/minor/bastos/12-caballero-de-bastos.png",
+      "nombre_es": "Caballero de Bastos",
+      "nombre_en": "Knight of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "carta_corte": "caballero" },
+      "wikimedia_file": "Knight of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Knight_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-13-reina",
+      "storage_path": "decks/rws-classic/minor/bastos/13-reina-de-bastos.png",
+      "nombre_es": "Reina de Bastos",
+      "nombre_en": "Queen of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "carta_corte": "reina" },
+      "wikimedia_file": "Queen of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Queen_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "bastos-14-rey",
+      "storage_path": "decks/rws-classic/minor/bastos/14-rey-de-bastos.png",
+      "nombre_es": "Rey de Bastos",
+      "nombre_en": "King of Wands",
+      "match": { "arcano": "menor", "palo": "bastos", "carta_corte": "rey" },
+      "wikimedia_file": "King of Wands (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:King_of_Wands_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-01-as",
+      "storage_path": "decks/rws-classic/minor/copas/01-as-de-copas.png",
+      "nombre_es": "As de Copas",
+      "nombre_en": "Ace of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 1 },
+      "wikimedia_file": "Ace of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ace_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-02",
+      "storage_path": "decks/rws-classic/minor/copas/02-dos-de-copas.png",
+      "nombre_es": "Dos de Copas",
+      "nombre_en": "Two of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 2 },
+      "wikimedia_file": "Two of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Two_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-03",
+      "storage_path": "decks/rws-classic/minor/copas/03-tres-de-copas.png",
+      "nombre_es": "Tres de Copas",
+      "nombre_en": "Three of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 3 },
+      "wikimedia_file": "Three of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Three_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-04",
+      "storage_path": "decks/rws-classic/minor/copas/04-cuatro-de-copas.png",
+      "nombre_es": "Cuatro de Copas",
+      "nombre_en": "Four of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 4 },
+      "wikimedia_file": "Four of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Four_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-05",
+      "storage_path": "decks/rws-classic/minor/copas/05-cinco-de-copas.png",
+      "nombre_es": "Cinco de Copas",
+      "nombre_en": "Five of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 5 },
+      "wikimedia_file": "Five of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Five_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-06",
+      "storage_path": "decks/rws-classic/minor/copas/06-seis-de-copas.png",
+      "nombre_es": "Seis de Copas",
+      "nombre_en": "Six of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 6 },
+      "wikimedia_file": "Six of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Six_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-07",
+      "storage_path": "decks/rws-classic/minor/copas/07-siete-de-copas.png",
+      "nombre_es": "Siete de Copas",
+      "nombre_en": "Seven of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 7 },
+      "wikimedia_file": "Seven of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Seven_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-08",
+      "storage_path": "decks/rws-classic/minor/copas/08-ocho-de-copas.png",
+      "nombre_es": "Ocho de Copas",
+      "nombre_en": "Eight of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 8 },
+      "wikimedia_file": "Eight of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Eight_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-09",
+      "storage_path": "decks/rws-classic/minor/copas/09-nueve-de-copas.png",
+      "nombre_es": "Nueve de Copas",
+      "nombre_en": "Nine of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 9 },
+      "wikimedia_file": "Nine of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Nine_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-10",
+      "storage_path": "decks/rws-classic/minor/copas/10-diez-de-copas.png",
+      "nombre_es": "Diez de Copas",
+      "nombre_en": "Ten of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "numero": 10 },
+      "wikimedia_file": "Ten of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ten_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-11-paje",
+      "storage_path": "decks/rws-classic/minor/copas/11-paje-de-copas.png",
+      "nombre_es": "Paje de Copas",
+      "nombre_en": "Page of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "carta_corte": "paje" },
+      "wikimedia_file": "Page of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Page_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-12-caballero",
+      "storage_path": "decks/rws-classic/minor/copas/12-caballero-de-copas.png",
+      "nombre_es": "Caballero de Copas",
+      "nombre_en": "Knight of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "carta_corte": "caballero" },
+      "wikimedia_file": "Knight of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Knight_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-13-reina",
+      "storage_path": "decks/rws-classic/minor/copas/13-reina-de-copas.png",
+      "nombre_es": "Reina de Copas",
+      "nombre_en": "Queen of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "carta_corte": "reina" },
+      "wikimedia_file": "Queen of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Queen_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "copas-14-rey",
+      "storage_path": "decks/rws-classic/minor/copas/14-rey-de-copas.png",
+      "nombre_es": "Rey de Copas",
+      "nombre_en": "King of Cups",
+      "match": { "arcano": "menor", "palo": "copas", "carta_corte": "rey" },
+      "wikimedia_file": "King of Cups (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:King_of_Cups_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-01-as",
+      "storage_path": "decks/rws-classic/minor/espadas/01-as-de-espadas.png",
+      "nombre_es": "As de Espadas",
+      "nombre_en": "Ace of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 1 },
+      "wikimedia_file": "RWS1909 - Swords 01.jpeg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS1909_-_Swords_01.jpeg"
+    },
+    {
+      "slug": "espadas-02",
+      "storage_path": "decks/rws-classic/minor/espadas/02-dos-de-espadas.png",
+      "nombre_es": "Dos de Espadas",
+      "nombre_en": "Two of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 2 },
+      "wikimedia_file": "Two of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Two_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-03",
+      "storage_path": "decks/rws-classic/minor/espadas/03-tres-de-espadas.png",
+      "nombre_es": "Tres de Espadas",
+      "nombre_en": "Three of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 3 },
+      "wikimedia_file": "Three of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Three_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-04",
+      "storage_path": "decks/rws-classic/minor/espadas/04-cuatro-de-espadas.png",
+      "nombre_es": "Cuatro de Espadas",
+      "nombre_en": "Four of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 4 },
+      "wikimedia_file": "Four of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Four_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-05",
+      "storage_path": "decks/rws-classic/minor/espadas/05-cinco-de-espadas.png",
+      "nombre_es": "Cinco de Espadas",
+      "nombre_en": "Five of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 5 },
+      "wikimedia_file": "Five of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Five_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-06",
+      "storage_path": "decks/rws-classic/minor/espadas/06-seis-de-espadas.png",
+      "nombre_es": "Seis de Espadas",
+      "nombre_en": "Six of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 6 },
+      "wikimedia_file": "Six of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Six_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-07",
+      "storage_path": "decks/rws-classic/minor/espadas/07-siete-de-espadas.png",
+      "nombre_es": "Siete de Espadas",
+      "nombre_en": "Seven of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 7 },
+      "wikimedia_file": "Seven of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Seven_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-08",
+      "storage_path": "decks/rws-classic/minor/espadas/08-ocho-de-espadas.png",
+      "nombre_es": "Ocho de Espadas",
+      "nombre_en": "Eight of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 8 },
+      "wikimedia_file": "Eight of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Eight_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-09",
+      "storage_path": "decks/rws-classic/minor/espadas/09-nueve-de-espadas.png",
+      "nombre_es": "Nueve de Espadas",
+      "nombre_en": "Nine of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 9 },
+      "wikimedia_file": "Nine of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Nine_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-10",
+      "storage_path": "decks/rws-classic/minor/espadas/10-diez-de-espadas.png",
+      "nombre_es": "Diez de Espadas",
+      "nombre_en": "Ten of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "numero": 10 },
+      "wikimedia_file": "Ten of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ten_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-11-paje",
+      "storage_path": "decks/rws-classic/minor/espadas/11-paje-de-espadas.png",
+      "nombre_es": "Paje de Espadas",
+      "nombre_en": "Page of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "carta_corte": "paje" },
+      "wikimedia_file": "Page of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Page_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-12-caballero",
+      "storage_path": "decks/rws-classic/minor/espadas/12-caballero-de-espadas.png",
+      "nombre_es": "Caballero de Espadas",
+      "nombre_en": "Knight of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "carta_corte": "caballero" },
+      "wikimedia_file": "Knight of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Knight_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-13-reina",
+      "storage_path": "decks/rws-classic/minor/espadas/13-reina-de-espadas.png",
+      "nombre_es": "Reina de Espadas",
+      "nombre_en": "Queen of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "carta_corte": "reina" },
+      "wikimedia_file": "Queen of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Queen_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "espadas-14-rey",
+      "storage_path": "decks/rws-classic/minor/espadas/14-rey-de-espadas.png",
+      "nombre_es": "Rey de Espadas",
+      "nombre_en": "King of Swords",
+      "match": { "arcano": "menor", "palo": "espadas", "carta_corte": "rey" },
+      "wikimedia_file": "King of Swords (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:King_of_Swords_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-01-as",
+      "storage_path": "decks/rws-classic/minor/oros/01-as-de-oros.png",
+      "nombre_es": "As de Oros",
+      "nombre_en": "Ace of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 1 },
+      "wikimedia_file": "RWS1909 - Pentacles 01.jpeg",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:RWS1909_-_Pentacles_01.jpeg"
+    },
+    {
+      "slug": "oros-02",
+      "storage_path": "decks/rws-classic/minor/oros/02-dos-de-oros.png",
+      "nombre_es": "Dos de Oros",
+      "nombre_en": "Two of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 2 },
+      "wikimedia_file": "Two of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Two_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-03",
+      "storage_path": "decks/rws-classic/minor/oros/03-tres-de-oros.png",
+      "nombre_es": "Tres de Oros",
+      "nombre_en": "Three of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 3 },
+      "wikimedia_file": "Three of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Three_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-04",
+      "storage_path": "decks/rws-classic/minor/oros/04-cuatro-de-oros.png",
+      "nombre_es": "Cuatro de Oros",
+      "nombre_en": "Four of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 4 },
+      "wikimedia_file": "Four of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Four_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-05",
+      "storage_path": "decks/rws-classic/minor/oros/05-cinco-de-oros.png",
+      "nombre_es": "Cinco de Oros",
+      "nombre_en": "Five of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 5 },
+      "wikimedia_file": "Five of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Five_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-06",
+      "storage_path": "decks/rws-classic/minor/oros/06-seis-de-oros.png",
+      "nombre_es": "Seis de Oros",
+      "nombre_en": "Six of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 6 },
+      "wikimedia_file": "Six of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Six_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-07",
+      "storage_path": "decks/rws-classic/minor/oros/07-siete-de-oros.png",
+      "nombre_es": "Siete de Oros",
+      "nombre_en": "Seven of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 7 },
+      "wikimedia_file": "Seven of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Seven_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-08",
+      "storage_path": "decks/rws-classic/minor/oros/08-ocho-de-oros.png",
+      "nombre_es": "Ocho de Oros",
+      "nombre_en": "Eight of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 8 },
+      "wikimedia_file": "Eight of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Eight_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-09",
+      "storage_path": "decks/rws-classic/minor/oros/09-nueve-de-oros.png",
+      "nombre_es": "Nueve de Oros",
+      "nombre_en": "Nine of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 9 },
+      "wikimedia_file": "Nine of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Nine_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-10",
+      "storage_path": "decks/rws-classic/minor/oros/10-diez-de-oros.png",
+      "nombre_es": "Diez de Oros",
+      "nombre_en": "Ten of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "numero": 10 },
+      "wikimedia_file": "Ten of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Ten_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-11-paje",
+      "storage_path": "decks/rws-classic/minor/oros/11-paje-de-oros.png",
+      "nombre_es": "Paje de Oros",
+      "nombre_en": "Page of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "carta_corte": "paje" },
+      "wikimedia_file": "Page of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Page_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-12-caballero",
+      "storage_path": "decks/rws-classic/minor/oros/12-caballero-de-oros.png",
+      "nombre_es": "Caballero de Oros",
+      "nombre_en": "Knight of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "carta_corte": "caballero" },
+      "wikimedia_file": "Knight of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Knight_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-13-reina",
+      "storage_path": "decks/rws-classic/minor/oros/13-reina-de-oros.png",
+      "nombre_es": "Reina de Oros",
+      "nombre_en": "Queen of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "carta_corte": "reina" },
+      "wikimedia_file": "Queen of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:Queen_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    },
+    {
+      "slug": "oros-14-rey",
+      "storage_path": "decks/rws-classic/minor/oros/14-rey-de-oros.png",
+      "nombre_es": "Rey de Oros",
+      "nombre_en": "King of Pentacles",
+      "match": { "arcano": "menor", "palo": "oros", "carta_corte": "rey" },
+      "wikimedia_file": "King of Pentacles (Rider-Waite Smith tarot deck).png",
+      "wikimedia_page": "https://commons.wikimedia.org/wiki/File:King_of_Pentacles_(Rider-Waite_Smith_tarot_deck).png"
+    }
+  ]
+}

@@ -30,3 +30,12 @@ yarn-error.log*
 pnpm-debug.log*
 backend/supabase/functions/ef_debug_env/
 tsconfig.tsbuildinfo
+
+
+# Local/generated tarot assets
+backend/scripts/downloads/
+backend/scripts/**/*.pdf
+
+# Local utility scripts for tarot import/download
+backend/scripts/node_modules/
+backend/scripts/.env

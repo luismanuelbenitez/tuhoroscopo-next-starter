@@ -88,7 +88,7 @@ export default function QuienesSomos() {
         >
           Activar mi guía diaria →
         </Link>
-        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · IVA incluido · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>

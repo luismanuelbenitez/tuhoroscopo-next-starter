@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: '¿Cuánto cuesta?',
-    a: 'La suscripción cuesta $U 390 por mes. Sin cargos ocultos ni costos adicionales.',
+    a: 'La suscripción cuesta $U 390 por mes, IVA incluido. Sin cargos ocultos ni costos adicionales.',
   },
   {
     q: '¿Cómo se paga?',
@@ -114,7 +114,7 @@ export default function FAQ() {
         >
           Activar mi guía diaria →
         </Link>
-        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · Sin apps · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · IVA incluido · Sin apps · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>
