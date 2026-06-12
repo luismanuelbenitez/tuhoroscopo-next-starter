@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotClienteDetalle } from "@/components/admin/TarotClienteDetalle";
 
 interface Cliente {
   id: string;
@@ -45,6 +46,7 @@ export default function TarotClientesPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<string | null>(null);
 
   useEffect(() => {
     async function doFetch() {
@@ -167,7 +169,11 @@ export default function TarotClientesPage() {
                   </tr>
                 )}
                 {!cargando && clientes.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors">
+                  <tr
+                    key={c.id}
+                    onClick={() => setClienteSeleccionado(c.id)}
+                    className="border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-3 font-medium text-white">{c.nombre_completo || "—"}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-300">{c.telefono || "—"}</td>
                     <td className="px-4 py-3 text-xs text-gray-400">{c.email || "—"}</td>
@@ -206,6 +212,13 @@ export default function TarotClientesPage() {
           </div>
         )}
       </main>
+
+      {clienteSeleccionado && (
+        <TarotClienteDetalle
+          id={clienteSeleccionado}
+          onClose={() => setClienteSeleccionado(null)}
+        />
+      )}
     </div>
   );
 }
