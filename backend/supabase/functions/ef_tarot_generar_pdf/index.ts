@@ -65,13 +65,10 @@ interface BodyZone   { x: Px; yStart: Px; width: Px; minY: Px; fontSize: Px }
 interface InlineZone { x: Px; y: Px; width: Px; fontSize: Px }
 interface StepZone   { x: Px; y: Px; width: Px; minY: Px }
 interface P3Layout {
-  title:         TitleZone;
-  subtitle:      InlineZone;
   resumen:       BodyZone;
   mensajeFinal:  BodyZone;
   proximosPasos: StepZone[];
   recordatorio:  InlineZone;
-  disclaimer:    InlineZone;
 }
 
 // ── Colores ──────────────────────────────────────────────────
@@ -92,32 +89,32 @@ const C_WHITE      = rgb(1, 1, 1);
 // Scroll superior: área del título dinámico.
 // x,y = top-left en px. fontSize = tamaño máximo en px (se achica automáticamente).
 const P1_TITLE: TitleZone = {
-  x: 563, y: 258,
-  width: 1667,
+  x: 580, y: 280,
+  width: 1330,
   fontSize: 108,  // px → ~26pt en PDF
   minFontSize: 58, // px → ~14pt en PDF
 };
 
 // Fecha de nacimiento (valor solo; label "Fecha de nacimiento:" quemado en template).
 const P1_BIRTH: BirthZone = {
-  x: 375, y: 550,
-  width: 250,
+  x: 940, y: 550,
+  width: 700,
   fontSize: 50, // px → 12pt en PDF
 };
 
 // Slots de las 5 cartas.
 // x,y = esquina top-left en px. w,h = dimensiones en px.
-const P1_CARDS: CardSlot[] = [
+const P1_CARDS = [
   // Carta 1 — Situación Actual (centro alto)
-  { x: 1042, y:  625, w: 500, h: 725 },
+  { x: 1022, y:  730, w: 425, h: 716 },
   // Carta 2 — Base Inconsciente (izquierda)
-  { x:  342, y:  866, w: 521, h: 929 },
+  { x:  238, y:  1250, w: 460, h: 800 },
   // Carta 3 — Obstáculo / Desafío (derecha)
-  { x: 1733, y: 1200, w: 500, h: 654 },
+  { x: 1785, y: 1250, w: 440, h: 800 },
   // Carta 4 — Consejo Práctico (centro medio)
-  { x:  875, y: 1758, w: 500, h: 654 },
+  { x:  1025, y: 1758, w: 420, h: 630 },
   // Carta 5 — Tendencia Próxima (centro bajo)
-  { x:  875, y: 2504, w: 500, h: 650 },
+  { x:  1025, y: 2680, w: 420, h: 600 }, // reduzco y a ver si subo
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -130,25 +127,25 @@ const P1_CARDS: CardSlot[] = [
 // ─────────────────────────────────────────────────────────────
 const P2_BLOCKS: P2Block[] = [
   // Bloque 1 — Situación Actual (arriba izq)
-  { outer: { x:   21, y: 341, w: 1196, h: 592 },
-    card:  { x:   46, y: 375, w:  433, h: 546 },
-    text:  { x:  500, yStart: 475, w: 700, minY:  925 } },
+  { outer: { x:   95, y: 640, w: 1120, h: 885 },
+    card:  { x:   170, y: 775, w: 430, h: 700 },
+    text:  { x:  630, yStart: 800, w: 550, minY:  1450 } },
   // Bloque 2 — Obstáculo / Desafío (arriba der)
-  { outer: { x: 1233, y: 341, w: 1208, h: 592 },
-    card:  { x: 1258, y: 375, w:  433, h: 546 },
-    text:  { x: 1708, yStart: 475, w: 721, minY:  925 } },
-  // Bloque 3 — Base Inconsciente (medio izq)
-  { outer: { x:   21, y: 943, w: 1196, h: 592 },
-    card:  { x:   46, y: 975, w:  433, h: 546 },
-    text:  { x:  500, yStart: 1079, w: 700, minY: 1529 } },
-  // Bloque 4 — Consejo Práctico (medio der)
-  { outer: { x: 1233, y: 943, w: 1208, h: 592 },
-    card:  { x: 1258, y: 975, w:  433, h: 546 },
-    text:  { x: 1708, yStart: 1079, w: 721, minY: 1529 } },
-  // Bloque 5 — Tendencia Próxima (ancho completo, abajo)
-  { outer: { x:   21, y: 1549, w: 2429, h: 925 },
-    card:  { x:   46, y: 1621, w:  433, h: 883 },
-    text:  { x:  500, yStart: 1625, w: 1925, minY: 2466 } },
+  { outer: { x: 1275, y: 640, w: 1120, h: 890 },
+    card:  { x: 1335, y: 775, w:  430, h: 700 },
+    text:  { x: 1800, yStart: 800, w: 550, minY:  1450 } },
+  // Bloque 3 — Base Inconsciente (medio izq) — bloque: x-10 y-80; txt además: x+40 y+100 w-20
+  { outer: { x:   95, y: 1560, w: 1120, h: 890 },
+    card:  { x:   175, y: 1700, w:  435, h: 680 },
+    text:  { x:  650, yStart: 1725, w: 550, minY: 2350, } },
+  // Bloque 4 — Consejo Práctico (medio der) — todo: x-10 y-80
+  { outer: { x: 1275, y: 1560, w: 1120, h: 890 },
+    card:  { x: 1340, y: 1700, w:  430, h: 685 },
+    text:  { x: 1800, yStart:  1725, w: 560, minY: 2350 } },
+  // Bloque 5 — Tendencia Próxima (ancho completo, abajo) — card: x-25 y+10 w+70; txt: x+40 y+80 w-100
+  { outer: { x:   95, y: 2500, w: 2295, h: 610 },
+    card:  { x:   200, y: 2530, w:  450, h: 530 },
+    text:  { x:  720, yStart: 2680, w: 1600, minY: 3050 } },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -158,30 +155,21 @@ const P2_BLOCKS: P2Block[] = [
 // minY = límite inferior del texto (máximo y desde arriba).
 // ─────────────────────────────────────────────────────────────
 const P3: P3Layout = {
-  // Scroll superior: "Mensaje final para [Nombre]"
-  title:    { x: 208, y: 250, width: 2063, fontSize: 100, minFontSize: 58 },
-
-  // Subtítulo (tipo_tirada)
-  subtitle: { x: 417, y: 475, width: 1646, fontSize: 42 },
-
   // Box 1 — Resumen de tu Tirada
-  resumen:      { x: 146, yStart:  516, width: 2188, minY:  966, fontSize: 40 },
+  resumen:      { x: 280, yStart:  780, width: 1900, minY: 1200, fontSize: 40 },
 
   // Box 2 — Mensaje personal para [Nombre]
-  mensajeFinal: { x: 146, yStart: 1080, width: 2188, minY: 1508, fontSize: 40 },
+  mensajeFinal: { x: 280, yStart: 1550, width: 1950, minY: 1850, fontSize: 40 },
 
   // Box 3 — Claves prácticas (3 ítems, íconos quemados a la izq)
   proximosPasos: [
-    { x: 375, y: 1620, width: 1992, minY: 1874 },
-    { x: 375, y: 1895, width: 1992, minY: 2121 },
-    { x: 375, y: 2129, width: 1992, minY: 2321 },
+    { x: 420, y: 2150, width: 1900, minY: 2300 },
+    { x: 420, y: 2350, width: 1900, minY: 2450 },
+    { x: 420, y: 2550, width: 1900, minY: 2650 },
   ],
 
   // Recordatorio cósmico — caja oscura, texto itálica
-  recordatorio: { x: 208, y: 2474, width: 2063, fontSize: 35 },
-
-  // Disclaimer al pie
-  disclaimer:   { x: 271, y: 3333, width: 1938, fontSize: 29 },
+  recordatorio: { x: 540, y: 2940, width: 1410, fontSize: 40 },
 };
 
 // ── Interfaces ───────────────────────────────────────────────
@@ -196,6 +184,13 @@ async function log(
   nivel: "debug" | "info" | "warning" | "error" | "critical",
   mensaje: string, payload: unknown = {}, duracion_ms?: number,
 ) {
+  if (nivel === "debug") {
+    try {
+      const { data: dbgCfg } = await supabase
+        .from("tarot_configuracion").select("valor").eq("clave", "debug_mode").maybeSingle();
+      if (dbgCfg?.valor !== "true") return;
+    } catch { return; }
+  }
   try {
     await supabase.from("tarot_logs").insert({
       orden_id: ordenId, evento, nivel, mensaje,
@@ -216,11 +211,6 @@ function sanitize(text: string): string {
     .replace(/•/g,  "-")
     .replace(/\u{FFFD}/gu, "")
     .replace(/[^\x00-\xFF]/g, "");
-}
-
-function truncate(text: string, maxChars: number): string {
-  const t = sanitize(text ?? "");
-  return t.length <= maxChars ? t : t.slice(0, maxChars).trimEnd() + "...";
 }
 
 function formatDateISO(dateStr: string): string {
@@ -287,6 +277,27 @@ function fitFontSize(
     size -= 0.5;
   }
   return size;
+}
+
+function fitTextToBox(
+  text: string,
+  font: PDFFont,
+  maxW: number,
+  maxH: number,
+  maxSize: number,
+  minSize: number,
+  lineHeightRatio = 1.45,
+): number {
+  const s = sanitize(text);
+  let size = maxSize;
+  while (size > minSize) {
+    const lh    = size * lineHeightRatio;
+    const lines = wrapText(s, font, size, maxW);
+    const totalH = lines.length * lh;
+    if (totalH <= maxH) return size;
+    size -= 0.5;
+  }
+  return minSize;
 }
 
 // ── Helpers de imagen ────────────────────────────────────────
@@ -478,25 +489,10 @@ function addDebugOverlayP2(page: PDFPage, f: Fonts) {
 
 function addDebugOverlayP3(page: PDFPage, f: Fonts) {
   drawDebugGrid(page, f);
-  const C_BLUE   = rgb(0.0, 0.2, 0.9);
-  const C_CYAN   = rgb(0.0, 0.7, 0.7);
   const C_RED    = rgb(0.9, 0.1, 0.1);
   const C_ORANGE = rgb(0.9, 0.5, 0.0);
   const C_GREEN  = rgb(0.0, 0.7, 0.2);
   const C_PURP   = rgb(0.6, 0.0, 0.8);
-  const C_GRAY   = rgb(0.4, 0.4, 0.4);
-
-  const titlePdfY = pY(P3.title.y);
-  drawDebugBox(page, f, {
-    x: pX(P3.title.x), y: titlePdfY - pX(P3.title.fontSize),
-    w: pX(P3.title.width), h: pX(P3.title.fontSize) * 1.6,
-  }, "P3_TITLE", C_BLUE);
-
-  const subPdfY = pY(P3.subtitle.y);
-  drawDebugBox(page, f, {
-    x: pX(P3.subtitle.x), y: subPdfY - pX(P3.subtitle.fontSize),
-    w: pX(P3.subtitle.width), h: pX(P3.subtitle.fontSize) * 1.6,
-  }, "P3_SUBTITLE", C_CYAN);
 
   const resYStart = pY(P3.resumen.yStart);
   const resMinY   = pY(P3.resumen.minY);
@@ -531,11 +527,6 @@ function addDebugOverlayP3(page: PDFPage, f: Fonts) {
     w: pX(P3.recordatorio.width), h: pX(P3.recordatorio.fontSize) * 4,
   }, "RECORDATORIO", C_PURP);
 
-  const discPdfY = pY(P3.disclaimer.y);
-  drawDebugBox(page, f, {
-    x: pX(P3.disclaimer.x), y: discPdfY - pX(P3.disclaimer.fontSize) * 3,
-    w: pX(P3.disclaimer.width), h: pX(P3.disclaimer.fontSize) * 4,
-  }, "DISCLAIMER", C_GRAY);
 }
 
 // ── Página 1: Tirada visual ───────────────────────────────────
@@ -556,19 +547,22 @@ function addPage1(
     p.drawRectangle({ x: 0, y: 0, width: PW, height: PH, color: rgb(0.10, 0.05, 0.20) });
   }
 
-  // Título dinámico en el scroll — auto-shrink si el nombre es largo
+  // Título dinámico — centrado horizontal y vertical en el scroll
   const T = P1_TITLE;
   const titleText = "Tirada para " + sanitize(c.nombre ?? "");
   const titleSize = fitFontSize(titleText, f.bold, pX(T.width), pX(T.fontSize), pX(T.minFontSize));
-  drawCentered(p, titleText, pX(T.x), pY(T.y), pX(T.width), f.bold, titleSize, C_DARK_BROWN);
+  const titleY    = pY(T.y) - pX(T.fontSize) * 0.2;
+  drawCentered(p, titleText, pX(T.x), titleY, pX(T.width), f.bold, titleSize, C_DARK_BROWN);
 
-  // Fecha de nacimiento (valor solo; el label "Fecha de nacimiento:" está quemado)
+  // Fecha de nacimiento — centrada h+v, negrita, prefijo "Fecha de nacimiento"
   const B = P1_BIRTH;
-  const fechaVal = c.fecha_nacimiento
+  const fechaRaw  = c.fecha_nacimiento
     ? formatDateISO(sanitize(c.fecha_nacimiento))
     : sanitize(c.fecha_lectura ?? "");
-  if (fechaVal) {
-    drawCentered(p, fechaVal, pX(B.x), pY(B.y), pX(B.width), f.ita, pX(B.fontSize), C_GOLD);
+  const birthText = fechaRaw ? `Fecha de nacimiento ${fechaRaw}` : "";
+  if (birthText) {
+    const birthY = pY(B.y) - pX(B.fontSize) * 0.2;
+    drawCentered(p, birthText, pX(B.x), birthY, pX(B.width), f.bold, pX(B.fontSize), C_GOLD);
   }
 
   // 5 cartas — fill 100% del slot
@@ -625,7 +619,7 @@ function addPage2(
       height: pX(bl.card.h),
     };
     if (img) {
-      drawImageContain(p, img, cardBox);
+      p.drawImage(img, { x: cardBox.x, y: cardBox.y, width: cardBox.width, height: cardBox.height });
     } else {
       drawCardPlaceholder(p, cardBox, f);
     }
@@ -635,22 +629,33 @@ function addPage2(
     const textStartY = pY(bl.text.yStart);
     const textMinY   = pY(bl.text.minY);
 
-    // Nombre de carta
+    // Nombre de carta (tamaño fijo, siempre entra)
     const isInv    = carta.orientacion === "invertida" || carta.invertida === true;
     const cardLine = sanitize(carta.nombre_carta ?? "") + (isInv ? " (Inv.)" : "");
+    const nameSize  = 9;
+    const nameLH    = 12;
+    // Baja la baseline para que los ascendentes queden dentro del box
+    const nameDrawY = textStartY - nameSize * 0.75;
     const afterName = drawWrapped(p, cardLine,
-      textX, textStartY, f.bita, 9, C_DARK_BROWN, textMaxW, 12, textStartY - 14);
+      textX, nameDrawY, f.bita, nameSize, C_DARK_BROWN, textMaxW, nameLH, nameDrawY - 14);
 
-    // Interpretación
-    const maxInterp   = i === 4 ? 400 : 220;
-    const interp      = truncate(carta.interpretacion ?? "", maxInterp);
+    // Interpretación — auto-fit: calcula el font size que hace
+    // entrar el texto completo en el espacio disponible del bloque.
+    const interp      = sanitize(carta.interpretacion ?? "");
+    const boxH        = afterName - textMinY - 4;
+    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 8.5, 6.5);
+    const interpLH    = interpSize * 1.45;
     const afterInterp = drawWrapped(p, interp,
-      textX, afterName - 3, f.reg, 8.5, C_DARK_BROWN, textMaxW, 12, textMinY);
+      textX, afterName - 3, f.reg, interpSize, C_DARK_BROWN, textMaxW, interpLH, textMinY);
 
-    // Consejo breve solo en bloque 5 si queda espacio
+    // Consejo solo en bloque 5 si queda espacio (también auto-fit)
     if (i === 4 && carta.consejo && afterInterp > textMinY + 14) {
-      drawWrapped(p, truncate(carta.consejo, 150),
-        textX, afterInterp - 5, f.ita, 8, C_TEXT_MED, textMaxW, 11.5, textMinY);
+      const consejo     = sanitize(carta.consejo);
+      const consejoH    = afterInterp - textMinY - 5;
+      const consejoSize = fitTextToBox(consejo, f.ita, textMaxW, consejoH, 8.0, 6.5);
+      const consejoLH   = consejoSize * 1.45;
+      drawWrapped(p, consejo,
+        textX, afterInterp - 5, f.ita, consejoSize, C_TEXT_MED, textMaxW, consejoLH, textMinY);
     }
   }
 
@@ -676,59 +681,96 @@ function addPage3(
   const L  = P3;
   const CT = C_DARK_BROWN;
 
-  // Título en el scroll — auto-shrink si el nombre es largo
-  const p3TitleText = "Mensaje final para " + sanitize(c.nombre ?? "");
-  const p3TitleSize = fitFontSize(p3TitleText, f.bold, pX(L.title.width), pX(L.title.fontSize), pX(L.title.minFontSize));
-  drawCentered(p, p3TitleText,
-    pX(L.title.x), pY(L.title.y), pX(L.title.width), f.bold, p3TitleSize, CT);
+  // Box 1 — Resumen (auto-fit, baseline desplazada para contener ascendentes)
+  const resumenText  = sanitize(c.resumen_lectura ?? "");
+  const resumenMaxW  = pX(L.resumen.width);
+  const resumenTopY  = pY(L.resumen.yStart);
+  const resumenBotY  = pY(L.resumen.minY);
+  const resumenMaxS  = pX(L.resumen.fontSize);
+  const resumenSize  = fitTextToBox(resumenText, f.reg,
+    resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0);
+  const resumenDrawY = resumenTopY - resumenSize * 0.75;
+  drawWrapped(p, resumenText,
+    pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, CT,
+    resumenMaxW, resumenSize * 1.45, resumenBotY);
 
-  // Subtítulo
-  drawCentered(p, sanitize(c.tipo_tirada ?? "Tirada Cosmica de 5 Cartas"),
-    pX(L.subtitle.x), pY(L.subtitle.y), pX(L.subtitle.width), f.ita, pX(L.subtitle.fontSize), C_TEXT_MED);
+  // Box 2 — Mensaje personal (auto-fit, baseline desplazada para contener ascendentes)
+  const mensajeText  = sanitize(c.mensaje_final ?? "");
+  const mensajeMaxW  = pX(L.mensajeFinal.width);
+  const mensajeTopY  = pY(L.mensajeFinal.yStart);
+  const mensajeBotY  = pY(L.mensajeFinal.minY);
+  const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
+  const mensajeSize  = fitTextToBox(mensajeText, f.ita,
+    mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0);
+  const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;
+  drawWrapped(p, mensajeText,
+    pX(L.mensajeFinal.x), mensajeDrawY, f.ita, mensajeSize, CT,
+    mensajeMaxW, mensajeSize * 1.45, mensajeBotY);
 
-  // Box 1 — Resumen
-  drawWrapped(p, truncate(c.resumen_lectura ?? "", 480),
-    pX(L.resumen.x), pY(L.resumen.yStart), f.reg, pX(L.resumen.fontSize), CT,
-    pX(L.resumen.width), pX(L.resumen.fontSize) * 1.5, pY(L.resumen.minY));
-
-  // Box 2 — Mensaje personal
-  drawWrapped(p, truncate(c.mensaje_final ?? "", 480),
-    pX(L.mensajeFinal.x), pY(L.mensajeFinal.yStart), f.ita, pX(L.mensajeFinal.fontSize), CT,
-    pX(L.mensajeFinal.width), pX(L.mensajeFinal.fontSize) * 1.5, pY(L.mensajeFinal.minY));
-
-  // Box 3 — Próximos pasos (máx 3 ítems, íconos ya quemados en el template)
+  // Box 3 — Próximos pasos (auto-fit por ítem, baseline desplazada)
   const pasos: string[] = Array.isArray(c.proximos_pasos) ? c.proximos_pasos : [];
   for (let i = 0; i < 3; i++) {
     const paso = pasos[i];
     if (!paso) continue;
-    const pp = L.proximosPasos[i];
-    drawWrapped(p, truncate(paso, 200),
-      pX(pp.x), pY(pp.y), f.reg, 9, CT, pX(pp.width), 13, pY(pp.minY));
+    const pp        = L.proximosPasos[i];
+    const pasoTxt   = sanitize(paso);
+    const pasoMaxW  = pX(pp.width);
+    const pasoTopY  = pY(pp.y);
+    const pasoBotY  = pY(pp.minY);
+    const pasoSize  = fitTextToBox(pasoTxt, f.reg,
+      pasoMaxW, pasoTopY - pasoBotY - 9 * 0.75, 9, 7.0);
+    const pasoDrawY = pasoTopY - pasoSize * 0.75;
+    drawWrapped(p, pasoTxt,
+      pX(pp.x), pasoDrawY, f.reg, pasoSize, CT,
+      pasoMaxW, pasoSize * 1.45, pasoBotY);
   }
 
   // Recordatorio cósmico
   const recStr = sanitize(c.recordatorio_cosmico ?? c.mensaje_final ?? "");
   const recPdfY = pY(L.recordatorio.y);
   if (recStr) {
-    drawWrapped(p, truncate(recStr, 180),
+    drawWrapped(p, recStr,
       pX(L.recordatorio.x), recPdfY, f.ita, pX(L.recordatorio.fontSize), C_CREAM,
-      pX(L.recordatorio.width), pX(L.recordatorio.fontSize) * 1.5, recPdfY - 40);
-  }
-
-  // Disclaimer al pie
-  const disc = sanitize(c.disclaimer ?? "");
-  if (disc) {
-    drawWrapped(p, disc,
-      pX(L.disclaimer.x), pY(L.disclaimer.y), f.ita, pX(L.disclaimer.fontSize), C_TEXT_MED,
-      pX(L.disclaimer.width), pX(L.disclaimer.fontSize) * 1.4, 15);
+      pX(L.recordatorio.width), pX(L.recordatorio.fontSize) * 1.5, recPdfY - 40 - pX(20));
   }
 
   if (debug) addDebugOverlayP3(p, f);
 }
 
+// ── Mazo por defecto ─────────────────────────────────────────
+const DEFAULT_DECK_SLUG  = "rws-classic";
+const DEFAULT_MAZO_ID    = "a1000000-0000-0000-0000-000000000001";
+
+// Resuelve el slug del deck a un mazo_id válido.
+// Si el slug no existe o no está activo → fallback a rws-classic + warning.
+async function resolveDeck(slug: string | null): Promise<{
+  mazoId: string; deckUsado: string; warning?: string;
+}> {
+  const fallback = { mazoId: DEFAULT_MAZO_ID, deckUsado: DEFAULT_DECK_SLUG };
+
+  if (!slug || slug === DEFAULT_DECK_SLUG) return fallback;
+
+  const { data } = await supabase
+    .from("tarot_mazos")
+    .select("id, slug")
+    .eq("slug", slug)
+    .eq("activo", true)
+    .maybeSingle();
+
+  if (!data?.id) {
+    return {
+      ...fallback,
+      warning: `El mazo "${slug}" no existe o no está activo — se generó con el mazo "${DEFAULT_DECK_SLUG}".`,
+    };
+  }
+
+  return { mazoId: data.id, deckUsado: slug };
+}
+
 // ── Lógica principal ─────────────────────────────────────────
 async function generarPDF(
   ordenId: string, lecturaIdParam?: string, force = false, debug = false,
+  mazoId: string = DEFAULT_MAZO_ID,
 ): Promise<void> {
   const t0 = Date.now();
 
@@ -830,8 +872,8 @@ async function generarPDF(
   const pdfId = pdfRow.id;
 
   await log(ordenId, "pdf_iniciado", "info",
-    `Iniciando generación PDF v7 ${PLANTILLA}${debug ? " [DEBUG]" : ""} (intento ${intento}/${maxR})`,
-    { pdf_id: pdfId, lectura_id: lecturaId, force, debug });
+    `Iniciando generación PDF v7 ${PLANTILLA}${debug ? " [DEBUG]" : ""} (intento ${intento}/${maxR}) deck=${mazoId}`,
+    { pdf_id: pdfId, lectura_id: lecturaId, force, debug, mazo_id: mazoId });
 
   try {
     // ── Resolver imagen_storage_path por nombre_es ────────────
@@ -842,12 +884,56 @@ async function generarPDF(
     const { data: cartasDB } = await supabase
       .from("tarot_cartas")
       .select("nombre_es, imagen_storage_path, imagen_url")
-      .in("nombre_es", nombresCartas);
+      .in("nombre_es", nombresCartas)
+      .eq("mazo_id", mazoId);
 
     const cartaImageMap = new Map<string, string>();
     for (const cc of cartasDB ?? []) {
       const path = cc.imagen_storage_path ?? cc.imagen_url ?? "";
       if (path) cartaImageMap.set(cc.nombre_es, path);
+    }
+
+    // Fallback para nombres no encontrados en el deck solicitado:
+    // busca el equivalente por posición estructural (arcano/palo/numero/carta_corte).
+    // Cubre diferencias de nomenclatura entre mazos (ej: "Paje" ↔ "Sota",
+    // "El Sumo Sacerdote" ↔ "El Hierofante").
+    const missingNames = nombresCartas.filter(n => !cartaImageMap.has(n));
+    if (missingNames.length > 0) {
+      const { data: refCards } = await supabase
+        .from("tarot_cartas")
+        .select("nombre_es, arcano, palo, numero, carta_corte")
+        .in("nombre_es", missingNames);
+
+      for (const ref of (refCards ?? []) as Array<{
+        nombre_es: string; arcano: string; palo: string | null;
+        numero: number | null; carta_corte: string | null;
+      }>) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let q: any = supabase
+          .from("tarot_cartas")
+          .select("nombre_es, imagen_storage_path, imagen_url")
+          .eq("mazo_id", mazoId)
+          .eq("arcano", ref.arcano);
+
+        if (ref.arcano === "mayor") {
+          q = q.eq("numero", ref.numero);
+        } else if (ref.carta_corte) {
+          q = q.eq("palo", ref.palo).eq("carta_corte", ref.carta_corte);
+        } else {
+          q = q.eq("palo", ref.palo).eq("numero", ref.numero);
+        }
+
+        const { data: equiv } = await q.maybeSingle() as {
+          data: { nombre_es: string; imagen_storage_path: string | null; imagen_url: string | null } | null
+        };
+        const path = equiv?.imagen_storage_path ?? equiv?.imagen_url ?? "";
+        if (path) {
+          cartaImageMap.set(ref.nombre_es, path);
+          await log(ordenId, "carta_imagen_fallback", "info",
+            `Imagen resuelta por posición estructural: "${ref.nombre_es}" → "${equiv?.nombre_es}"`,
+            { original: ref.nombre_es, equivalente: equiv?.nombre_es, path });
+        }
+      }
     }
 
     // ── Descargar templates v2 en paralelo ───────────────────
@@ -911,12 +997,17 @@ async function generarPDF(
     const bytes = await pdfDoc.save();
 
     // ── Subir a Storage ───────────────────────────────────────
-    const now = new Date();
-    const storageSuffix = debug ? "/lectura-tarot-debug.pdf" : "/lectura-tarot.pdf";
-    const storagePath =
-      now.getFullYear() + "/" +
-      String(now.getMonth() + 1).padStart(2, "0") + "/" +
-      ordenId + storageSuffix;
+    const now        = new Date();
+    const yyyy       = now.getFullYear();
+    const mm         = String(now.getMonth() + 1).padStart(2, "0");
+    const dd         = String(now.getDate()).padStart(2, "0");
+    const hh         = String(now.getHours()).padStart(2, "0");
+    const min        = String(now.getMinutes()).padStart(2, "0");
+    const nombreSafe = sanitize(contenido.nombre ?? "usuario")
+      .replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
+    const fileSuffix = debug ? "_debug" : "";
+    const fileName   = `${yyyy}${mm}${dd}:${hh}:${min}_${nombreSafe}${fileSuffix}.pdf`;
+    const storagePath = `${yyyy}/${mm}/${dd}/${fileName}`;
 
     const { error: uploadErr } = await supabase.storage
       .from(bucket)
@@ -1012,12 +1103,22 @@ serve(async (req) => {
   const lecturaId = body?.lectura_id ? String(body.lectura_id) : undefined;
   const force     = body?.force === true;
   const debug     = body?.debug === true;
+  const deckSlug  = body?.deck ? String(body.deck).trim().toLowerCase() : null;
 
-  generarPDF(ordenId, lecturaId, force, debug).catch((err) => {
+  const { mazoId, deckUsado, warning: deckWarning } = await resolveDeck(deckSlug);
+
+  generarPDF(ordenId, lecturaId, force, debug, mazoId).catch((err) => {
     console.error(FN + " fatal para orden " + ordenId + ":", err);
   });
 
+  const respuesta: Record<string, unknown> = {
+    ok:     true,
+    mensaje: debug ? "Generando PDF (modo debug)" : "Generando PDF",
+    deck:   deckUsado,
+  };
+  if (deckWarning) respuesta.deck_warning = deckWarning;
+
   return new Response(
-    JSON.stringify({ ok: true, mensaje: debug ? "Generando PDF (modo debug)" : "Generando PDF" }),
+    JSON.stringify(respuesta),
     { status: 202, headers: { "Content-Type": "application/json" } });
 });

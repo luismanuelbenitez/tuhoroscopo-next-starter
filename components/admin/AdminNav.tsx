@@ -10,15 +10,13 @@ const NAV_ITEMS = [
   { href: "/admin/logs",                   label: "Logs" },
   { href: "/admin/cron",                   label: "Cron" },
   { href: "/admin/config",                 label: "Config" },
-  { href: "/admin/tarot",                  label: "🃏 Tarot" },
 ] as const;
 
 export function AdminNav({ current }: { current: string }) {
   return (
     <>
       {NAV_ITEMS.map(({ href, label }) =>
-        // Tarot uses prefix match so sub-pages (/admin/tarot/logs etc.) stay highlighted
-        (href === "/admin/tarot" ? current.startsWith("/admin/tarot") : href === current) ? (
+        href === current ? (
           <span
             key={href}
             className="text-sm text-white border-b-2 border-violet-500 py-2.5 px-3 whitespace-nowrap"

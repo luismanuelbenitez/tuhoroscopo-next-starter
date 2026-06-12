@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  MessageCircle,
   LogOut,
   Search,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { TarotNav } from "@/components/admin/TarotNav";
 
 // ============================================================================
 // Types
@@ -182,13 +182,7 @@ export default function TarotLogsPage() {
       {/* Header */}
       <header className="border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <MessageCircle size={22} className="text-violet-400" />
-            <div>
-              <h1 className="text-lg font-semibold leading-tight">Panel THC</h1>
-              <p className="text-xs text-gray-500 leading-tight">Administración operativa</p>
-            </div>
-          </div>
+          <AdminPanelSwitcher current="ttc" />
           <button
             onClick={handleLogout}
             disabled={cerrandoSesion}
@@ -199,7 +193,7 @@ export default function TarotLogsPage() {
           </button>
         </div>
         <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/tarot" />
+          <TarotNav current="/admin/tarot/logs" />
         </div>
       </header>
 
@@ -209,7 +203,7 @@ export default function TarotLogsPage() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-white">🪵 Logs de Tarot</h2>
           <a
-            href="/admin/tarot"
+            href="/admin/tarot/ordenes"
             className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-3 py-1.5 transition-colors"
           >
             ← Órdenes

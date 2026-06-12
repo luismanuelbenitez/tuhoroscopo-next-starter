@@ -122,8 +122,15 @@ async function readBodySafe(req: Request): Promise<Record<string, unknown>> {
 async function registrarLog(
   evento: string,
   payload: Record<string, unknown> = {},
-  nivel = "info",
+  nivel: "debug" | "info" | "warning" | "error" | "critical" = "info",
 ) {
+  if (nivel === "debug") {
+    try {
+      const { data: dbgCfg } = await supabase
+        .from("tarot_configuracion").select("valor").eq("clave", "debug_mode").maybeSingle();
+      if (dbgCfg?.valor !== "true") return;
+    } catch { return; }
+  }
   try {
     await supabase.from("tarot_logs").insert([{
       evento,

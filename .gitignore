@@ -38,4 +38,7 @@ backend/scripts/**/*.pdf
 
 # Local utility scripts for tarot import/download
 backend/scripts/node_modules/
-backend/scripts/.env
+backend/scripts/.envãs<10<
+.vercel
+claude/TTC_CONTEXT_INDEX.md
+backend/scripts/

@@ -13,6 +13,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 
 // ===========================================================================
 // Types
@@ -659,13 +660,7 @@ export default function ContenidoPage() {
       {/* Header */}
       <header className="border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <MessageCircle size={22} className="text-violet-400" />
-            <div>
-              <h1 className="text-lg font-semibold leading-tight">Panel THC</h1>
-              <p className="text-xs text-gray-500 leading-tight">Administración operativa</p>
-            </div>
-          </div>
+          <AdminPanelSwitcher current="thc" />
           <button
             onClick={handleLogout}
             disabled={cerrandoSesion}

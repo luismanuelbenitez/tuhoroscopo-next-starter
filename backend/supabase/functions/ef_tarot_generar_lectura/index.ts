@@ -1,5 +1,5 @@
 // ============================================================
-// ef_tarot_generar_lectura — Sprint 3 v3
+// ef_tarot_generar_lectura — Sprint 3 v4
 // Recibe { orden_id } desde ef_tarot_webhook_mp tras pago aprobado.
 // Selecciona 5 cartas al azar, llama a Claude via Anthropic API
 // con tool_use para garantizar JSON estructurado, valida, guarda
@@ -11,6 +11,7 @@
 //   3. Registra cada intento en tarot_lecturas con numero_intento.
 //   4. Si agota max_reintentos → error_critico (requiere intervención).
 //   5. No toca tablas del SaaS THC.
+//   6. Prompts y límites se leen de tarot_producto_config (fallback hardcodeado).
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
@@ -23,24 +24,83 @@ const FN = "ef_tarot_generar_lectura";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Costo aproximado por millón de tokens (claude-sonnet-4-6, mayo 2026)
+// Costo aproximado por millón de tokens (claude-sonnet-4-6, junio 2026)
 const PRECIO_INPUT_POR_MTOKEN = 3.0;
 const PRECIO_OUTPUT_POR_MTOKEN = 15.0;
 
-// Estados que indican que la lectura ya está completa — no procesar
 const ESTADOS_YA_COMPLETOS = new Set([
-  "lectura_lista",
-  "generando_pdf",
-  "pdf_listo",
-  "enviando_whatsapp",
-  "entregado",
+  "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
 ]);
 
-// Estados desde los cuales se puede (re)intentar generar lectura
 const ESTADOS_REINTENTABLES = new Set([
-  "pago_confirmado",
-  "error_lectura",
+  "pago_confirmado", "error_lectura",
 ]);
+
+// ── Tipos ────────────────────────────────────────────────────
+
+type ProductoConfig = {
+  id: string;
+  prompt_sistema: string;
+  prompt_usuario_template: string;
+  max_words_interpretacion: number;
+  max_words_consejo: number;
+  max_words_resumen: number;
+  max_words_mensaje_final: number;
+  max_words_proximo_paso: number;
+  ia_modelo: string | null;
+  ia_max_tokens: number | null;
+  ia_temperatura: number | null;
+};
+
+type CartaConPosicion = {
+  id: string;
+  nombre_es: string;
+  invertida: boolean;
+  significado_normal: string;
+  significado_invertido: string;
+  keywords: string[];
+  posicion: { id: string; numero: number; nombre: string; descripcion: string };
+};
+
+// ── Fallbacks hardcodeados (si tarot_producto_config no responde) ─
+
+const FALLBACK_PROMPT_SISTEMA =
+`Sos un tarotista experto con décadas de experiencia en el sistema Rider-Waite-Smith.
+Tu estilo es cálido, empático, profundo y esperanzador — nunca alarmista ni fatalista.
+Usás el voseo rioplatense (vos, tu, tus) de forma natural y cercana.
+Tus lecturas son profundamente personalizadas: conectás cada carta con la situación real del consultante.
+Cuando una carta aparece invertida, su energía es más interna, bloqueada o en proceso de transformación — nunca "mala".
+Sos honesto pero siempre constructivo: si hay un desafío, también señalás el camino.
+El disclaimer estándar que siempre usás es: "Lectura simbólica generada con inteligencia artificial con fines reflexivos y de entretenimiento. No sustituye asesoramiento profesional."`;
+
+const FALLBACK_PROMPT_TEMPLATE =
+`Realizá una lectura de tarot personalizada para el siguiente consultante:
+
+DATOS DEL CONSULTANTE:
+Nombre: {{nombre}}
+Fecha de nacimiento: {{fecha_nacimiento}}
+Hora de nacimiento: {{hora_nacimiento}}
+Lugar de nacimiento: {{lugar_nacimiento}}
+
+PREGUNTA / INTENCIÓN:
+"{{pregunta}}"
+
+TEMA PRINCIPAL: {{tema}}
+
+TIRADA: {{tipo_tirada}}
+
+CARTAS QUE SALIERON:
+{{cartas_texto}}
+
+INSTRUCCIONES:
+- Comenzá con una descripción general de la tirada (campo descripcion_general_tirada) que enmarque la energía global.
+- Interpretá cada carta en el contexto de su posición Y de la pregunta/tema del consultante.
+- Usá el voseo rioplatense de forma natural.
+- Sé específico: mencioná detalles del consultante (nombre, tema) en la interpretación.
+- Las cartas invertidas no son "malas" — representan energías internas o en proceso.
+- El resumen final debe integrar cómo las 5 cartas cuentan una historia coherente.
+- Incluí el disclaimer estándar en el campo correspondiente.
+- LÍMITE ESTRICTO DE LARGO (se imprime en un PDF con espacio reducido): interpretacion máx {{max_interpretacion}} palabras, consejo máx {{max_consejo}} palabras, resumen_lectura máx {{max_resumen}} palabras, mensaje_final máx {{max_mensaje_final}} palabras, cada próximo_paso máx {{max_proximo_paso}} palabras. Contá las palabras antes de responder.`;
 
 // ── Logging ──────────────────────────────────────────────────
 
@@ -52,6 +112,13 @@ async function registrarLog(
   payload: unknown = {},
   duracion_ms?: number,
 ) {
+  if (nivel === "debug") {
+    try {
+      const { data: dbgCfg } = await supabase
+        .from("tarot_configuracion").select("valor").eq("clave", "debug_mode").maybeSingle();
+      if (dbgCfg?.valor !== "true") return;
+    } catch { return; }
+  }
   try {
     await supabase.from("tarot_logs").insert({
       orden_id: ordenId,
@@ -78,98 +145,70 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// ── Tool schema para Anthropic (garantiza JSON estructurado) ──
+// ── Tool schema dinámico (límites desde productoConfig) ──────
 
-const LECTURA_TOOL = {
-  name: "entregar_lectura_tarot",
-  description: "Entrega la lectura de tarot personalizada en formato estructurado.",
-  input_schema: {
-    type: "object",
-    properties: {
-      descripcion_general_tirada: {
-        type: "string",
-        description: "Descripción introductoria de la tirada completa. Presentá el contexto general antes de entrar carta por carta. 2 a 3 oraciones que enmarquen la energía global de la consulta.",
-      },
-      cartas: {
-        type: "array",
-        description: "Interpretación de cada una de las 5 cartas en su posición",
-        minItems: 5,
-        maxItems: 5,
-        items: {
-          type: "object",
-          properties: {
-            posicion: { type: "integer", description: "Número de posición (1 a 5)" },
-            interpretacion: {
-              type: "string",
-              description: "Interpretación profunda y personal de esta carta en esta posición. Mínimo 3 oraciones. Conectá la carta con el tema/pregunta del consultante.",
+// deno-lint-ignore no-explicit-any
+function buildLecturaTool(cfg: ProductoConfig): Record<string, any> {
+  return {
+    name: "entregar_lectura_tarot",
+    description: "Entrega la lectura de tarot personalizada en formato estructurado.",
+    input_schema: {
+      type: "object",
+      properties: {
+        descripcion_general_tirada: {
+          type: "string",
+          description: "Descripción introductoria de la tirada completa. 2 a 3 oraciones que enmarquen la energía global de la consulta.",
+        },
+        cartas: {
+          type: "array",
+          description: "Interpretación de cada una de las 5 cartas en su posición",
+          minItems: 5,
+          maxItems: 5,
+          items: {
+            type: "object",
+            properties: {
+              posicion: { type: "integer", description: "Número de posición (1 a 5)" },
+              interpretacion: {
+                type: "string",
+                description: `Interpretación de esta carta en su posición. Máximo ${cfg.max_words_interpretacion} palabras. Conectá la carta con el tema/pregunta del consultante.`,
+              },
+              consejo: {
+                type: "string",
+                description: `Consejo accionable y empático. 1 oración directa, máximo ${cfg.max_words_consejo} palabras.`,
+              },
             },
-            consejo: {
-              type: "string",
-              description: "Consejo accionable y empático basado en esta carta. 1 a 2 oraciones directas.",
-            },
+            required: ["posicion", "interpretacion", "consejo"],
           },
-          required: ["posicion", "interpretacion", "consejo"],
+        },
+        resumen_lectura: {
+          type: "string",
+          description: `Síntesis de la tirada completa. Cómo las 5 cartas dialogan entre sí. Máximo ${cfg.max_words_resumen} palabras.`,
+        },
+        mensaje_final: {
+          type: "string",
+          description: `Mensaje final cálido y motivador para el consultante. Máximo ${cfg.max_words_mensaje_final} palabras.`,
+        },
+        proximos_pasos: {
+          type: "array",
+          description: `3 acciones concretas o reflexiones para los próximos días. Máximo ${cfg.max_words_proximo_paso} palabras por ítem.`,
+          minItems: 3,
+          maxItems: 3,
+          items: { type: "string" },
+        },
+        disclaimer: {
+          type: "string",
+          description: "Nota al pie de carácter legal/espiritual. Usar el texto estándar.",
         },
       },
-      resumen_lectura: {
-        type: "string",
-        description: "Síntesis de la tirada completa. Cómo las 5 cartas dialogan entre sí. 3 a 4 oraciones.",
-      },
-      mensaje_final: {
-        type: "string",
-        description: "Mensaje final cálido y motivador para el consultante. 2 a 3 oraciones.",
-      },
-      proximos_pasos: {
-        type: "array",
-        description: "2 a 4 acciones concretas o reflexiones para los próximos días",
-        minItems: 2,
-        maxItems: 4,
-        items: { type: "string" },
-      },
-      disclaimer: {
-        type: "string",
-        description: "Nota al pie de carácter legal/espiritual. Usar el texto estándar.",
-      },
+      required: ["descripcion_general_tirada", "cartas", "resumen_lectura", "mensaje_final", "proximos_pasos", "disclaimer"],
     },
-    required: ["descripcion_general_tirada", "cartas", "resumen_lectura", "mensaje_final", "proximos_pasos", "disclaimer"],
-  },
-};
-
-// ── Construcción de prompts ──────────────────────────────────
-
-function buildSystemPrompt(): string {
-  return `Sos un tarotista experto con décadas de experiencia en el sistema Rider-Waite-Smith.
-Tu estilo es cálido, empático, profundo y esperanzador — nunca alarmista ni fatalista.
-Usás el voseo rioplatense (vos, tu, tus) de forma natural y cercana.
-Tus lecturas son profundamente personalizadas: conectás cada carta con la situación real del consultante.
-Cuando una carta aparece invertida, su energía es más interna, bloqueada o en proceso de transformación — nunca "mala".
-Sos honesto pero siempre constructivo: si hay un desafío, también señalás el camino.
-El disclaimer estándar que siempre usás es: "Lectura simbólica generada con inteligencia artificial con fines reflexivos y de entretenimiento. No sustituye asesoramiento profesional."`;
+  };
 }
 
-function buildUserPrompt(
-  cliente: { nombre_completo: string; fecha_nacimiento: string; hora_nacimiento?: string | null; lugar_nacimiento?: string | null },
-  orden: { pregunta_usuario?: string | null; tema: string },
-  cartasConPosicion: Array<{
-    nombre_es: string;
-    invertida: boolean;
-    significado_normal: string;
-    significado_invertido: string;
-    keywords: string[];
-    posicion: { numero: number; nombre: string; descripcion: string };
-  }>,
-): string {
-  const datosCliente = [
-    `Nombre: ${cliente.nombre_completo}`,
-    `Fecha de nacimiento: ${cliente.fecha_nacimiento}`,
-    cliente.hora_nacimiento ? `Hora de nacimiento: ${cliente.hora_nacimiento}` : null,
-    cliente.lugar_nacimiento ? `Lugar de nacimiento: ${cliente.lugar_nacimiento}` : null,
-  ].filter(Boolean).join("\n");
+// ── Renderizado de cartas para el prompt ─────────────────────
 
-  const pregunta = orden.pregunta_usuario?.trim() || "Claridad sobre mi momento actual";
-  const tema = orden.tema;
-
-  const cartasTexto = cartasConPosicion.map((c) => {
+function renderCartasTexto(cartas: CartaConPosicion[]): string {
+  return cartas.map((c) => {
     const orientacion = c.invertida ? "INVERTIDA" : "derecha";
     const significado = c.invertida ? c.significado_invertido : c.significado_normal;
     const keywords = c.keywords?.join(", ") ?? "";
@@ -179,30 +218,24 @@ function buildUserPrompt(
     - Significado de la carta: ${significado}
     - Keywords: ${keywords}`;
   }).join("\n\n");
+}
 
-  return `Realizá una lectura de tarot personalizada para el siguiente consultante:
+// ── Interpolación de template ────────────────────────────────
+// Reemplaza {{key}} con el valor. Si value es null/vacío, elimina la línea completa.
 
-DATOS DEL CONSULTANTE:
-${datosCliente}
-
-PREGUNTA / INTENCIÓN:
-"${pregunta}"
-
-TEMA PRINCIPAL: ${tema}
-
-TIRADA: Tirada Cósmica de 5 Cartas
-
-CARTAS QUE SALIERON:
-${cartasTexto}
-
-INSTRUCCIONES:
-- Comenzá con una descripción general de la tirada (campo descripcion_general_tirada) que enmarque la energía global.
-- Interpretá cada carta en el contexto de su posición Y de la pregunta/tema del consultante.
-- Usá el voseo rioplatense de forma natural.
-- Sé específico: mencioná detalles del consultante (nombre, tema) en la interpretación.
-- Las cartas invertidas no son "malas" — representan energías internas o en proceso.
-- El resumen final debe integrar cómo las 5 cartas cuentan una historia coherente.
-- Incluí el disclaimer estándar en el campo correspondiente.`;
+function interpolarTemplate(
+  template: string,
+  vars: Record<string, string | null | undefined>,
+): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    if (value === null || value === undefined || String(value).trim() === "") {
+      result = result.replace(new RegExp(`^[^\n]*\\{\\{${key}\\}\\}[^\n]*\n?`, "gm"), "");
+    } else {
+      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
+    }
+  }
+  return result.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // ── Procesamiento principal ──────────────────────────────────
@@ -251,7 +284,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     .select("*", { count: "exact", head: true })
     .eq("orden_id", ordenId);
 
-  // 4. Leer configuración IA
+  // 4. Leer configuración operacional
   const { data: configRows } = await supabase
     .from("tarot_configuracion")
     .select("clave, valor")
@@ -261,9 +294,6 @@ async function generarLectura(ordenId: string): Promise<void> {
   const cfg: Record<string, string> = {};
   for (const row of configRows ?? []) cfg[row.clave] = row.valor;
 
-  const iaModelo = cfg.ia_modelo || "claude-sonnet-4-6";
-  const iaMaxTokens = Number(cfg.ia_max_tokens) || 4000;
-  const iaTemperatura = Number(cfg.ia_temperatura) || 0.8;
   const maxReintentos = Number(cfg.max_reintentos_lectura) || 3;
   const numeroIntento = (intentosPrevios ?? 0) + 1;
 
@@ -290,7 +320,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     return;
   }
 
-  // 6. Fetch posiciones de la tirada (ordenadas por numero)
+  // 6. Fetch posiciones de la tirada
   const { data: posiciones } = await supabase
     .from("tarot_posiciones_tirada")
     .select("id, numero, nombre, descripcion")
@@ -303,7 +333,15 @@ async function generarLectura(ordenId: string): Promise<void> {
     return;
   }
 
-  // 7. Selección aleatoria de 5 cartas (sin repetición, con chance de invertida)
+  // 7. Fetch nombre de la tirada
+  const { data: tiradaRow } = await supabase
+    .from("tarot_tipos_tirada")
+    .select("nombre")
+    .eq("id", orden.tipo_tirada_id)
+    .maybeSingle();
+  const tiradaNombre = tiradaRow?.nombre ?? "Tirada Cósmica de 5 Cartas";
+
+  // 8. Selección aleatoria de 5 cartas (sin repetición, 25% chance de invertida)
   const { data: todasLasCartas } = await supabase
     .from("tarot_cartas")
     .select("id, nombre_es, arcano, palo, significado_normal, significado_invertido, keywords")
@@ -319,11 +357,64 @@ async function generarLectura(ordenId: string): Promise<void> {
   const barajadas = shuffle(todasLasCartas);
   const cartasSeleccionadas = barajadas.slice(0, 5).map((carta, i) => ({
     ...carta,
-    invertida: Math.random() < 0.25, // 25% probabilidad de carta invertida
+    invertida: Math.random() < 0.25,
     posicion: posiciones[i],
-  }));
+  })) as CartaConPosicion[];
 
-  // 8. Marcar lecturas anteriores como no vigentes y crear nuevo registro
+  // 9. Leer producto_config activo para esta tirada/idioma
+  const { data: productoConfigRow } = await supabase
+    .from("tarot_producto_config")
+    .select(`id, prompt_sistema, prompt_usuario_template,
+             max_words_interpretacion, max_words_consejo, max_words_resumen,
+             max_words_mensaje_final, max_words_proximo_paso,
+             ia_modelo, ia_max_tokens, ia_temperatura`)
+    .eq("tipo_tirada_id", orden.tipo_tirada_id)
+    .eq("idioma", "es")
+    .eq("activa", true)
+    .maybeSingle();
+
+  const productoConfig: ProductoConfig = productoConfigRow
+    ? {
+        id: productoConfigRow.id,
+        prompt_sistema: productoConfigRow.prompt_sistema,
+        prompt_usuario_template: productoConfigRow.prompt_usuario_template,
+        max_words_interpretacion: productoConfigRow.max_words_interpretacion ?? 70,
+        max_words_consejo: productoConfigRow.max_words_consejo ?? 25,
+        max_words_resumen: productoConfigRow.max_words_resumen ?? 90,
+        max_words_mensaje_final: productoConfigRow.max_words_mensaje_final ?? 55,
+        max_words_proximo_paso: productoConfigRow.max_words_proximo_paso ?? 30,
+        ia_modelo: productoConfigRow.ia_modelo ?? null,
+        ia_max_tokens: productoConfigRow.ia_max_tokens ?? null,
+        ia_temperatura: productoConfigRow.ia_temperatura ?? null,
+      }
+    : {
+        id: "fallback",
+        prompt_sistema: FALLBACK_PROMPT_SISTEMA,
+        prompt_usuario_template: FALLBACK_PROMPT_TEMPLATE,
+        max_words_interpretacion: 70,
+        max_words_consejo: 25,
+        max_words_resumen: 90,
+        max_words_mensaje_final: 55,
+        max_words_proximo_paso: 30,
+        ia_modelo: null,
+        ia_max_tokens: null,
+        ia_temperatura: null,
+      };
+
+  if (!productoConfigRow) {
+    await registrarLog(ordenId, "producto_config_fallback", "warning",
+      "No se encontró tarot_producto_config activo — usando prompts hardcodeados",
+      { tipo_tirada_id: orden.tipo_tirada_id });
+  }
+
+  // IA config: producto_config overrides tarot_configuracion
+  const iaModelo = productoConfig.ia_modelo || cfg.ia_modelo || "claude-sonnet-4-6";
+  const iaMaxTokens = (productoConfig.ia_max_tokens ?? Number(cfg.ia_max_tokens)) || 4000;
+  const iaTemperatura = (productoConfig.ia_temperatura !== null && productoConfig.ia_temperatura !== undefined)
+    ? Number(productoConfig.ia_temperatura)
+    : (Number(cfg.ia_temperatura) || 0.8);
+
+  // 10. Marcar lecturas anteriores como no vigentes
   const ahora = new Date().toISOString();
 
   await supabase.from("tarot_lecturas")
@@ -334,17 +425,39 @@ async function generarLectura(ordenId: string): Promise<void> {
     .update({ estado: "generando_lectura", updated_at: ahora })
     .eq("id", ordenId);
 
-  const promptSistema = buildSystemPrompt();
-  const promptUsuario = buildUserPrompt(cliente, orden, cartasSeleccionadas);
+  // 11. Construir prompts desde template
+  const cartasTexto = renderCartasTexto(cartasSeleccionadas);
+  const preguntaFinal = orden.pregunta_usuario?.trim() || "Tirada abierta, claridad general sobre mi momento de vida";
 
+  const promptSistema = productoConfig.prompt_sistema;
+  const promptUsuario = interpolarTemplate(productoConfig.prompt_usuario_template, {
+    nombre:             cliente.nombre_completo,
+    fecha_nacimiento:   cliente.fecha_nacimiento,
+    hora_nacimiento:    cliente.hora_nacimiento ?? null,
+    lugar_nacimiento:   cliente.lugar_nacimiento ?? null,
+    tema:               orden.tema,
+    pregunta:           preguntaFinal,
+    tipo_tirada:        tiradaNombre,
+    cartas_texto:       cartasTexto,
+    max_interpretacion: String(productoConfig.max_words_interpretacion),
+    max_consejo:        String(productoConfig.max_words_consejo),
+    max_resumen:        String(productoConfig.max_words_resumen),
+    max_mensaje_final:  String(productoConfig.max_words_mensaje_final),
+    max_proximo_paso:   String(productoConfig.max_words_proximo_paso),
+  });
+
+  const lecturaTool = buildLecturaTool(productoConfig);
+
+  // 12. Crear registro de lectura
   const { data: lecturaRow, error: errLectura } = await supabase
     .from("tarot_lecturas")
     .insert({
-      orden_id: ordenId,
-      estado: "generando",
-      numero_intento: numeroIntento,
-      es_vigente: false, // se pone true solo al completar con éxito
-      ia_modelo: iaModelo,
+      orden_id:           ordenId,
+      estado:             "generando",
+      numero_intento:     numeroIntento,
+      es_vigente:         false,
+      ia_modelo:          iaModelo,
+      producto_config_id: productoConfigRow?.id ?? null,
     })
     .select("id")
     .single();
@@ -359,25 +472,30 @@ async function generarLectura(ordenId: string): Promise<void> {
 
   await registrarLog(ordenId, "lectura_iniciada", "info",
     `Iniciando generación de lectura (intento ${numeroIntento}/${maxReintentos})`,
-    { lectura_id: lecturaId, modelo: iaModelo, cartas: cartasSeleccionadas.map((c) => ({ nombre: c.nombre_es, invertida: c.invertida })) });
+    {
+      lectura_id:         lecturaId,
+      modelo:             iaModelo,
+      producto_config_id: productoConfig.id,
+      cartas: cartasSeleccionadas.map((c) => ({ nombre: c.nombre_es, invertida: c.invertida })),
+    });
 
-  // 9. Llamada a Anthropic API
+  // 13. Llamada a Anthropic API
   try {
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        "x-api-key":           ANTHROPIC_API_KEY,
+        "anthropic-version":   "2023-06-01",
+        "content-type":        "application/json",
       },
       body: JSON.stringify({
-        model: iaModelo,
-        max_tokens: iaMaxTokens,
-        temperature: iaTemperatura,
-        system: promptSistema,
-        tools: [LECTURA_TOOL],
-        tool_choice: { type: "tool", name: "entregar_lectura_tarot" },
-        messages: [{ role: "user", content: promptUsuario }],
+        model:        iaModelo,
+        max_tokens:   iaMaxTokens,
+        temperature:  iaTemperatura,
+        system:       promptSistema,
+        tools:        [lecturaTool],
+        tool_choice:  { type: "tool", name: "entregar_lectura_tarot" },
+        messages:     [{ role: "user", content: promptUsuario }],
       }),
     });
 
@@ -388,15 +506,13 @@ async function generarLectura(ordenId: string): Promise<void> {
 
     const anthropicData = await anthropicRes.json();
 
-    // Tokens y costo
     const tokensEntrada = anthropicData.usage?.input_tokens ?? 0;
-    const tokensSalida = anthropicData.usage?.output_tokens ?? 0;
+    const tokensSalida  = anthropicData.usage?.output_tokens ?? 0;
     const costoUsd = Number(
       ((tokensEntrada / 1_000_000) * PRECIO_INPUT_POR_MTOKEN +
-       (tokensSalida / 1_000_000) * PRECIO_OUTPUT_POR_MTOKEN).toFixed(6)
+       (tokensSalida  / 1_000_000) * PRECIO_OUTPUT_POR_MTOKEN).toFixed(6)
     );
 
-    // Extraer respuesta del tool_use block
     const toolBlock = (anthropicData.content ?? [])
       .find((b: { type: string }) => b.type === "tool_use");
 
@@ -413,7 +529,6 @@ async function generarLectura(ordenId: string): Promise<void> {
       disclaimer: string;
     };
 
-    // Validación básica del schema
     if (!Array.isArray(iaOutput.cartas) || iaOutput.cartas.length !== 5) {
       throw new Error(`Schema inválido: se esperaban 5 cartas, llegaron ${iaOutput.cartas?.length ?? 0}`);
     }
@@ -421,71 +536,70 @@ async function generarLectura(ordenId: string): Promise<void> {
       throw new Error("Schema inválido: faltan campos obligatorios en la respuesta IA");
     }
 
-    // Ordenar la respuesta de la IA por número de posición (por si viene desordenada)
     const cartasIA = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
 
-    // 10. Construir contenido_json final (combina datos BD + texto IA)
+    // 14. Construir contenido_json final
     const fechaLectura = new Date().toLocaleDateString("es-UY", {
       day: "2-digit", month: "2-digit", year: "numeric",
     });
 
     const contenidoJson = {
-      producto: "Tu Tirada Cósmica",
-      nombre: cliente.nombre_completo,
-      fecha_nacimiento: cliente.fecha_nacimiento,
-      fecha_lectura: fechaLectura,
-      tipo_tirada: "Tirada Cósmica de 5 Cartas",
-      tema: orden.tema,
-      pregunta: orden.pregunta_usuario?.trim() || "Claridad sobre mi momento actual",
+      producto:                   "Tu Tirada Cósmica",
+      nombre:                     cliente.nombre_completo,
+      fecha_nacimiento:           cliente.fecha_nacimiento,
+      fecha_lectura:              fechaLectura,
+      tipo_tirada:                tiradaNombre,
+      tema:                       orden.tema,
+      pregunta:                   preguntaFinal,
       descripcion_general_tirada: iaOutput.descripcion_general_tirada,
       cartas: cartasSeleccionadas.map((carta, i) => ({
-        posicion: carta.posicion.numero,
+        posicion:       carta.posicion.numero,
         nombre_posicion: carta.posicion.nombre,
-        carta_id: carta.id,
-        nombre_carta: carta.nombre_es,
-        orientacion: carta.invertida ? "invertida" : "derecha",
+        carta_id:       carta.id,
+        nombre_carta:   carta.nombre_es,
+        orientacion:    carta.invertida ? "invertida" : "derecha",
         interpretacion: cartasIA[i]?.interpretacion ?? "",
-        consejo: cartasIA[i]?.consejo ?? "",
+        consejo:        cartasIA[i]?.consejo ?? "",
       })),
       resumen_lectura: iaOutput.resumen_lectura,
-      mensaje_final: iaOutput.mensaje_final,
-      proximos_pasos: iaOutput.proximos_pasos,
+      mensaje_final:   iaOutput.mensaje_final,
+      proximos_pasos:  iaOutput.proximos_pasos,
       disclaimer: iaOutput.disclaimer ||
         "Lectura simbólica generada con inteligencia artificial con fines reflexivos y de entretenimiento. No sustituye asesoramiento profesional.",
     };
 
     const ahoraNow = new Date().toISOString();
 
-    // 11. Actualizar lectura como completada
+    // 15. Actualizar lectura como completada
     await supabase.from("tarot_lecturas").update({
-      estado: "completada",
-      es_vigente: true,
-      prompt_sistema: promptSistema,
-      prompt_usuario: promptUsuario,
+      estado:           "completada",
+      es_vigente:       true,
+      prompt_sistema:   promptSistema,
+      prompt_usuario:   promptUsuario,
       ia_tokens_entrada: tokensEntrada,
-      ia_tokens_salida: tokensSalida,
-      ia_costo_usd: costoUsd,
-      contenido_json: contenidoJson,
-      resumen_lectura: contenidoJson.resumen_lectura,
-      mensaje_final: contenidoJson.mensaje_final,
-      generado_at: ahoraNow,
-      updated_at: ahoraNow,
+      ia_tokens_salida:  tokensSalida,
+      ia_costo_usd:      costoUsd,
+      contenido_json:    contenidoJson,
+      resumen_lectura:   contenidoJson.resumen_lectura,
+      mensaje_final:     contenidoJson.mensaje_final,
+      generado_at:       ahoraNow,
+      updated_at:        ahoraNow,
     }).eq("id", lecturaId);
 
-    // 12. Insertar tarot_lecturas_cartas (descomposición relacional)
+    // 16. Insertar tarot_lecturas_cartas (descomposición relacional)
     const registrosCartas = cartasSeleccionadas.map((carta, i) => ({
-      lectura_id: lecturaId,
-      carta_id: carta.id,
-      posicion_id: carta.posicion.id,
-      numero_posicion: carta.posicion.numero,
-      invertida: carta.invertida,
-      interpretacion: cartasIA[i]?.interpretacion ?? "",
-      consejo: cartasIA[i]?.consejo ?? "",
+      lectura_id:       lecturaId,
+      carta_id:         carta.id,
+      posicion_id:      carta.posicion.id,
+      numero_posicion:  carta.posicion.numero,
+      invertida:        carta.invertida,
+      interpretacion:   cartasIA[i]?.interpretacion ?? "",
+      consejo:          cartasIA[i]?.consejo ?? "",
     }));
 
     await supabase.from("tarot_lecturas_cartas").insert(registrosCartas);
 
-    // 13. Actualizar orden
+    // 17. Actualizar orden
     await supabase.from("tarot_ordenes")
       .update({ estado: "lectura_lista", updated_at: ahoraNow })
       .eq("id", ordenId);
@@ -494,45 +608,45 @@ async function generarLectura(ordenId: string): Promise<void> {
     await registrarLog(ordenId, "lectura_completada", "info",
       "Lectura generada correctamente con IA",
       {
-        lectura_id: lecturaId,
-        modelo: iaModelo,
-        tokens_entrada: tokensEntrada,
-        tokens_salida: tokensSalida,
-        costo_usd: costoUsd,
-        duracion_ms: duracionMs,
+        lectura_id:         lecturaId,
+        modelo:             iaModelo,
+        producto_config_id: productoConfig.id,
+        tokens_entrada:     tokensEntrada,
+        tokens_salida:      tokensSalida,
+        costo_usd:          costoUsd,
+        duracion_ms:        duracionMs,
       },
       duracionMs,
     );
 
-    // 14. Disparar ef_tarot_generar_pdf (fire-and-forget)
+    // 18. Disparar ef_tarot_generar_pdf (fire-and-forget)
     const pdfUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_pdf`;
     fetch(pdfUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type":   "application/json",
+        Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       },
       body: JSON.stringify({ orden_id: ordenId, lectura_id: lecturaId }),
     }).catch(async (err) => {
       await registrarLog(ordenId, "pdf_dispatch_error", "warning",
-        "No se pudo disparar ef_tarot_generar_pdf (puede no existir aún)",
+        "No se pudo disparar ef_tarot_generar_pdf",
         { error: String(err), lectura_id: lecturaId });
     });
 
   } catch (err) {
-    // Error durante la generación IA
-    const errMsg = String(err);
+    const errMsg   = String(err);
     const ahoraNow = new Date().toISOString();
 
     await supabase.from("tarot_lecturas").update({
-      estado: "error",
-      error_codigo: "IA_ERROR",
-      error_mensaje: errMsg.substring(0, 500),
-      error_detalle: { raw: errMsg },
+      estado:         "error",
+      error_codigo:   "IA_ERROR",
+      error_mensaje:  errMsg.substring(0, 500),
+      error_detalle:  { raw: errMsg },
       prompt_sistema: promptSistema,
       prompt_usuario: promptUsuario,
-      updated_at: ahoraNow,
+      updated_at:     ahoraNow,
     }).eq("id", lecturaId);
 
     const estadoOrden = numeroIntento >= maxReintentos ? "error_critico" : "error_lectura";
@@ -544,12 +658,12 @@ async function generarLectura(ordenId: string): Promise<void> {
     await registrarLog(ordenId, "lectura_error", "error",
       `Error en generación IA (intento ${numeroIntento}/${maxReintentos})`,
       {
-        error: errMsg,
-        lectura_id: lecturaId,
-        intento: numeroIntento,
+        error:          errMsg,
+        lectura_id:     lecturaId,
+        intento:        numeroIntento,
         max_reintentos: maxReintentos,
-        estado_orden: estadoOrden,
-        duracion_ms: duracionMs,
+        estado_orden:   estadoOrden,
+        duracion_ms:    duracionMs,
       },
       duracionMs,
     );
@@ -559,7 +673,6 @@ async function generarLectura(ordenId: string): Promise<void> {
 // ── Router principal ─────────────────────────────────────────
 
 serve(async (req) => {
-  // Validación de clave interna — solo ef_tarot_webhook_mp puede invocar esta función
   const internalKey = req.headers.get("x-internal-key");
   if (!TAROT_INTERNAL_KEY || internalKey !== TAROT_INTERNAL_KEY) {
     return new Response(JSON.stringify({ ok: false, error: "UNAUTHORIZED" }), {
@@ -593,7 +706,6 @@ serve(async (req) => {
     });
   }
 
-  // Procesar de forma asíncrona para no bloquear la respuesta HTTP
   generarLectura(ordenId).catch((err) => {
     console.error(`${FN} fatal para orden ${ordenId}:`, err);
   });

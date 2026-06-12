@@ -114,6 +114,7 @@ serve(async (req) => {
     moneda,
     acepto_terminos,
     acepto_privacidad,
+    codigo_descuento_uso_id,
     utm_source,
     utm_medium,
     utm_campaign,
@@ -127,9 +128,6 @@ serve(async (req) => {
   }
   if (!telefonoRaw || typeof telefonoRaw !== "string") {
     return json({ ok: false, error: "TELEFONO_REQUERIDO" }, 400);
-  }
-  if (!fecha_nacimiento || typeof fecha_nacimiento !== "string") {
-    return json({ ok: false, error: "FECHA_NACIMIENTO_REQUERIDA" }, 400);
   }
   if (!acepto_terminos) {
     return json({ ok: false, error: "TERMINOS_NO_ACEPTADOS" }, 400);
@@ -148,9 +146,9 @@ serve(async (req) => {
   }
 
   // Normalizar tema y moneda con fallback
-  const TEMAS_VALIDOS = ["general", "amor", "trabajo", "salud", "dinero"];
+  const TEMAS_VALIDOS   = ["general", "amor", "trabajo", "salud", "dinero", "decision"];
   const MONEDAS_VALIDAS = ["UYU", "ARS", "USD"];
-  const temaNorm = TEMAS_VALIDOS.includes(tema as string) ? (tema as string) : "general";
+  const temaNorm   = TEMAS_VALIDOS.includes(tema as string) ? (tema as string) : "general";
   const monedaNorm = MONEDAS_VALIDAS.includes((moneda as string)?.toUpperCase()) ? (moneda as string).toUpperCase() : "UYU";
 
   // ── 3. Leer configuración del módulo ─────────────────────
@@ -174,7 +172,7 @@ serve(async (req) => {
     ARS: Number(cfg.precio_base_ars) || 4900,
     USD: 15,
   };
-  const precio = precioSegunMoneda[monedaNorm];
+  let precio = precioSegunMoneda[monedaNorm];
   const mazoId = cfg.mazo_default;
   const tiradaId = cfg.tipo_tirada_default;
   // sandbox_init_point si estamos en sandbox
@@ -186,8 +184,35 @@ serve(async (req) => {
     return json({ ok: false, error: "CONFIGURACION_INCOMPLETA" }, 500);
   }
 
+  // ── 3b. Validar y aplicar código de descuento (si se envió) ──
+  const usoIdNorm = typeof codigo_descuento_uso_id === "string"
+    ? codigo_descuento_uso_id.trim().toLowerCase()
+    : null;
+
+  if (usoIdNorm) {
+    const { data: uso, error: errUso } = await supabase
+      .from("tarot_codigos_descuento_usos")
+      .select("id, estado_uso, precio_aplicado, fecha_expiracion, moneda")
+      .eq("id", usoIdNorm)
+      .single();
+
+    if (errUso || !uso) {
+      return json({ ok: false, error: "CODIGO_DESCUENTO_NO_ENCONTRADO" }, 400);
+    }
+    if (uso.estado_uso !== "reservado") {
+      return json({ ok: false, error: "CODIGO_DESCUENTO_NO_RESERVADO" }, 409);
+    }
+    if (new Date(uso.fecha_expiracion).getTime() < Date.now()) {
+      return json({ ok: false, error: "CODIGO_DESCUENTO_EXPIRADO" }, 409);
+    }
+    // Usar el precio descontado
+    if (uso.precio_aplicado !== null && uso.precio_aplicado >= 0) {
+      precio = Number(uso.precio_aplicado);
+    }
+  }
+
   // ── 4. Crear o recuperar cliente ─────────────────────────
-  const hash = await hashCliente(nombre_completo as string, telefono, fecha_nacimiento as string);
+  const hash = await hashCliente(nombre_completo as string, telefono, (fecha_nacimiento as string) ?? "");
   const ahora = new Date().toISOString();
 
   const { data: clienteExistente } = await supabase
@@ -210,7 +235,7 @@ serve(async (req) => {
         nombre_completo: (nombre_completo as string).trim(),
         telefono,
         email: email ?? null,
-        fecha_nacimiento,
+        fecha_nacimiento: fecha_nacimiento ?? null,
         hora_nacimiento: hora_nacimiento ?? null,
         lugar_nacimiento: lugar_nacimiento ?? null,
         ip_registro: ip ?? null,
@@ -270,6 +295,14 @@ serve(async (req) => {
   const ordenId: string = orden.id;
   await registrarLog(ordenId, clienteId, "orden_creada", "info",
     "Orden creada", { external_reference: externalReference, precio, moneda: monedaNorm }, ip);
+
+  // ── 5b. Vincular uso de código de descuento a la orden ───
+  if (usoIdNorm) {
+    await supabase
+      .from("tarot_codigos_descuento_usos")
+      .update({ orden_id: ordenId })
+      .eq("id", usoIdNorm);
+  }
 
   // ── 6. Crear registro de pago skeleton ───────────────────
   await supabase.from("tarot_pagos").insert({

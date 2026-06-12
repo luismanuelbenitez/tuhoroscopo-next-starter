@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
+const PRECIO_BASE = 590;
 
 const TEMAS = [
   { value: 'general',   label: '🧿 Situación general' },
@@ -23,6 +24,13 @@ interface FormState {
   fecha_nacimiento: string;
   tema: string;
   pregunta: string;
+}
+
+interface DescuentoAplicado {
+  uso_id: string;
+  precio_aplicado: number;
+  descuento_aplicado: number;
+  tipo_descuento: string;
 }
 
 const EMPTY: FormState = {
@@ -43,10 +51,69 @@ export default function TarotCheckoutContent() {
   const [isLoading, setIsLoading]           = useState(false);
   const [error, setError]                   = useState<string | null>(null);
 
+  // Descuento
+  const [codigoCampo, setCodigoCampo]         = useState('');
+  const [codigoValidando, setCodigoValidando] = useState(false);
+  const [codigoError, setCodigoError]         = useState<string | null>(null);
+  const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
+
+  const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  async function handleValidarCodigo() {
+    const codigo = codigoCampo.trim().toUpperCase();
+    if (!codigo) return;
+
+    setCodigoValidando(true);
+    setCodigoError(null);
+    setDescuento(null);
+
+    try {
+      const res = await fetch('/api/tarot/validar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo,
+          moneda:      'UYU',
+          precio_base: PRECIO_BASE,
+          telefono:    form.telefono || undefined,
+          email:       form.email    || undefined,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        setCodigoError(data?.error ?? 'Error al validar el código.');
+        return;
+      }
+
+      if (!data.valido) {
+        setCodigoError(data.error ?? 'Código inválido o expirado.');
+        return;
+      }
+
+      setDescuento({
+        uso_id:             data.uso_id,
+        precio_aplicado:    data.precio_aplicado,
+        descuento_aplicado: data.descuento_aplicado,
+        tipo_descuento:     data.tipo_descuento,
+      });
+    } catch {
+      setCodigoError('No se pudo verificar el código. Intentá de nuevo.');
+    } finally {
+      setCodigoValidando(false);
+    }
+  }
+
+  function handleQuitarCodigo() {
+    setDescuento(null);
+    setCodigoCampo('');
+    setCodigoError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -72,17 +139,20 @@ export default function TarotCheckoutContent() {
       fecha_nacimiento: form.fecha_nacimiento || null,
       tema:             form.tema,
       pregunta_usuario: form.pregunta.trim(),
+      // Descuento (si se aplicó)
+      codigo_descuento_uso_id: descuento?.uso_id ?? null,
+      precio_final:            precioFinal,
+      moneda:                  'UYU',
     };
 
     try {
-      // TODO: conectar a EF ef_tarot_crear_orden
       const res = await fetch('/api/tarot/crear-orden', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.message ?? 'Error al crear la orden.');
+      if (!res.ok) throw new Error(data?.message ?? data?.error ?? 'Error al crear la orden.');
       if (data?.init_point) {
         window.location.href = data.init_point;
       } else {
@@ -270,6 +340,80 @@ export default function TarotCheckoutContent() {
                   <p className="mt-1 text-xs text-white/35 text-right">{form.pregunta.length}/500</p>
                 </div>
 
+                {/* ── Código de descuento ──────────────────────────── */}
+                <div
+                  className="rounded-xl p-4"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: GOLD_DIM }}>
+                    <Tag size={12} />
+                    Código de descuento
+                    <span className="text-white/25 font-normal normal-case tracking-normal">(opcional)</span>
+                  </p>
+
+                  {descuento ? (
+                    /* Código aplicado */
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-sm text-emerald-400">
+                        <CheckCircle size={16} className="shrink-0" />
+                        <span>
+                          <span className="font-semibold">{codigoCampo}</span>
+                          {' — '}
+                          <span>
+                            {descuento.tipo_descuento === 'porcentaje'
+                              ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% de descuento`
+                              : `$U ${descuento.descuento_aplicado} de descuento`}
+                          </span>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleQuitarCodigo}
+                        disabled={isLoading}
+                        className="text-white/40 hover:text-white/70 transition-colors shrink-0"
+                        aria-label="Quitar código"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    /* Input para ingresar código */
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 rounded-xl bg-white/8 px-4 py-2.5 ring-1 ring-white/15 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60 text-sm uppercase tracking-widest"
+                        placeholder="TU-CODIGO"
+                        value={codigoCampo}
+                        onChange={e => {
+                          setCodigoCampo(e.target.value.toUpperCase());
+                          setCodigoError(null);
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleValidarCodigo())}
+                        disabled={isLoading || codigoValidando}
+                        maxLength={50}
+                        spellCheck={false}
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleValidarCodigo}
+                        disabled={!codigoCampo.trim() || isLoading || codigoValidando}
+                        className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        style={{ background: 'rgba(251,191,36,0.15)', color: GOLD, border: '1px solid rgba(251,191,36,0.3)' }}
+                      >
+                        {codigoValidando ? '...' : 'Aplicar'}
+                      </button>
+                    </div>
+                  )}
+
+                  {codigoError && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle size={12} className="shrink-0" />
+                      {codigoError}
+                    </div>
+                  )}
+                </div>
+
                 {/* Checkbox */}
                 <div className="pt-1">
                   <label className="flex items-start gap-2 text-sm text-white/70 cursor-pointer">
@@ -323,7 +467,17 @@ export default function TarotCheckoutContent() {
                       <span>Procesado por <strong className="text-white/60 font-semibold">Mercado Pago</strong></span>
                     </span>
                     <span className="text-white/20">·</span>
-                    <span>$U 590 · IVA incluido</span>
+                    <span>
+                      {descuento ? (
+                        <>
+                          <span className="line-through text-white/25 mr-1">${PRECIO_BASE}</span>
+                          <span className="text-emerald-400 font-semibold">$U {precioFinal}</span>
+                        </>
+                      ) : (
+                        `$U ${PRECIO_BASE}`
+                      )}{' '}
+                      · IVA incluido
+                    </span>
                     <span className="text-white/20">·</span>
                     <span>Pago único</span>
                   </div>
@@ -358,12 +512,27 @@ export default function TarotCheckoutContent() {
                   ))}
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-white/8 flex items-end justify-between">
-                  <span className="text-white/50 text-sm">Total</span>
-                  <div className="text-right">
-                    <span className="text-2xl font-extrabold text-white">$U 590</span>
-                    <p className="text-[11px] text-white/40">IVA incluido</p>
+                <div className="mt-5 pt-4 border-t border-white/8">
+                  <div className="flex items-end justify-between">
+                    <span className="text-white/50 text-sm">Total</span>
+                    <div className="text-right">
+                      {descuento ? (
+                        <>
+                          <span className="text-sm line-through text-white/30 mr-2">$U {PRECIO_BASE}</span>
+                          <span className="text-2xl font-extrabold text-emerald-400">$U {precioFinal}</span>
+                        </>
+                      ) : (
+                        <span className="text-2xl font-extrabold text-white">$U {PRECIO_BASE}</span>
+                      )}
+                      <p className="text-[11px] text-white/40">IVA incluido</p>
+                    </div>
                   </div>
+                  {descuento && (
+                    <div className="mt-2 rounded-lg px-3 py-1.5 text-xs text-emerald-400 bg-emerald-400/8 border border-emerald-400/20 flex items-center gap-1.5">
+                      <Tag size={11} className="shrink-0" />
+                      Ahorrás $U {descuento.descuento_aplicado}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -43,6 +43,13 @@ async function registrarLog(
   ip?: string,
   duracion_ms?: number,
 ) {
+  if (nivel === "debug") {
+    try {
+      const { data: dbgCfg } = await supabase
+        .from("tarot_configuracion").select("valor").eq("clave", "debug_mode").maybeSingle();
+      if (dbgCfg?.valor !== "true") return;
+    } catch { return; }
+  }
   try {
     await supabase.from("tarot_logs").insert({
       orden_id: ordenId,
@@ -162,8 +169,6 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       ip, Date.now() - t0);
 
     // ── Disparar ef_tarot_generar_lectura (fire-and-forget) ──
-    // Esta función se implementa en Sprint 3.
-    // El dispatch ya está cableado para que al existir funcione sin cambios aquí.
     const lecturaUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_lectura`;
     fetch(lecturaUrl, {
       method: "POST",
@@ -179,6 +184,30 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
         { error: String(err) });
     });
 
+    // ── Aplicar código de descuento reservado si existe (fire-and-forget) ──
+    const { data: usoReservado } = await supabase
+      .from("tarot_codigos_descuento_usos")
+      .select("id")
+      .eq("orden_id", ordenId)
+      .eq("estado_uso", "reservado")
+      .maybeSingle();
+
+    if (usoReservado?.id) {
+      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_aplicar_codigo`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({ uso_id: usoReservado.id, mp_payment_id: String(paymentId) }),
+      }).catch(async (err) => {
+        await registrarLog(ordenId, "aplicar_codigo_dispatch_error", "warning",
+          "No se pudo disparar ef_tarot_aplicar_codigo",
+          { error: String(err) });
+      });
+    }
+
   } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
     // ── Pago rechazado o cancelado ───────────────────────────
     await supabase
@@ -189,6 +218,33 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
     await registrarLog(ordenId, "pago_rechazado", "warning",
       "Pago rechazado o cancelado",
       { payment_id: paymentId, mp_status: mpStatus, mp_status_detail: mpStatusDetail }, ip);
+
+    // ── Liberar código de descuento reservado si existe (fire-and-forget) ──
+    const { data: usoReservadoRej } = await supabase
+      .from("tarot_codigos_descuento_usos")
+      .select("id")
+      .eq("orden_id", ordenId)
+      .eq("estado_uso", "reservado")
+      .maybeSingle();
+
+    if (usoReservadoRej?.id) {
+      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_liberar_codigo`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({
+          uso_id: usoReservadoRej.id,
+          motivo: mpStatus === "rejected" ? "pago_rechazado" : "orden_cancelada",
+        }),
+      }).catch(async (err) => {
+        await registrarLog(ordenId, "liberar_codigo_dispatch_error", "warning",
+          "No se pudo disparar ef_tarot_liberar_codigo",
+          { error: String(err) });
+      });
+    }
 
   } else {
     // ── Estado intermedio (pending, in_process, etc.) ────────

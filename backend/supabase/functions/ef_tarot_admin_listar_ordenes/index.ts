@@ -57,7 +57,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================================================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
+const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FUNCION = "ef_tarot_admin_listar_ordenes";
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -127,8 +127,15 @@ async function readBodySafe(req: Request): Promise<Record<string, unknown>> {
 async function registrarLog(
   evento: string,
   payload: Record<string, unknown> = {},
-  nivel = "info",
+  nivel: "debug" | "info" | "warning" | "error" | "critical" = "info",
 ) {
+  if (nivel === "debug") {
+    try {
+      const { data: dbgCfg } = await supabase
+        .from("tarot_configuracion").select("valor").eq("clave", "debug_mode").maybeSingle();
+      if (dbgCfg?.valor !== "true") return;
+    } catch { return; }
+  }
   try {
     await supabase.from("tarot_logs").insert([{
       evento,
@@ -210,7 +217,7 @@ serve(async (req) => {
 
   // 1) Seguridad
   const internalKey = req.headers.get("x-internal-key");
-  if (internalKey !== WHATSAPP_INTERNAL_KEY) {
+  if (internalKey !== TAROT_INTERNAL_KEY) {
     return jsonResponse({ ok: false, motivo: "unauthorized" }, 401);
   }
 
