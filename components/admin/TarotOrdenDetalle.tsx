@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ExternalLink, AlertCircle } from "lucide-react";
+import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2 } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -154,12 +154,24 @@ const ESTADO_PAGO: Record<string, { label: string; cls: string }> = {
 // Component
 // ============================================================================
 
+type AccionEstado = "idle" | "enviando" | "ok" | "error";
+
+const ACCIONES_POR_ESTADO: Record<string, { accion: "reintentar_lectura" | "reintentar_pdf"; label: string }[]> = {
+  pago_confirmado:  [{ accion: "reintentar_lectura", label: "Iniciar lectura" }],
+  error_lectura:    [{ accion: "reintentar_lectura", label: "Reintentar lectura" }],
+  lectura_lista:    [{ accion: "reintentar_pdf",     label: "Generar PDF" }],
+  error_pdf:        [{ accion: "reintentar_pdf",     label: "Reintentar PDF" }],
+};
+
 export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: () => void }) {
   const [lecturas, setLecturas] = useState<Lectura[]>([]);
   const [pdfs, setPdfs] = useState<Pdf[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(true);
   const [errorRelated, setErrorRelated] = useState<string | null>(null);
+
+  const [accionEstado, setAccionEstado] = useState<AccionEstado>("idle");
+  const [accionMsg, setAccionMsg] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchRelated() {
@@ -187,6 +199,29 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
     }
     fetchRelated();
   }, [orden.id]);
+
+  async function ejecutarAccion(accion: "reintentar_lectura" | "reintentar_pdf") {
+    setAccionEstado("enviando");
+    setAccionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/tarot/ordenes/${orden.id}/accion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setAccionEstado("ok");
+        setAccionMsg(data.mensaje ?? "Acción iniciada");
+      } else {
+        setAccionEstado("error");
+        setAccionMsg(data.detalle ?? data.motivo ?? "Error al ejecutar la acción");
+      }
+    } catch {
+      setAccionEstado("error");
+      setAccionMsg("Error de red");
+    }
+  }
 
   const estadoOrden = ESTADO_ORDEN[orden.estado] ?? { label: orden.estado, cls: "bg-gray-800 text-gray-400" };
   const lectura = lecturas.find((l) => l.es_vigente) ?? lecturas[0];
@@ -356,6 +391,63 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               {errorRelated}
             </div>
           )}
+
+          {/* Acciones admin */}
+          {(() => {
+            const acciones = ACCIONES_POR_ESTADO[orden.estado];
+            const esCritico = orden.estado === "error_critico";
+            if (!acciones && !esCritico) return null;
+            return (
+              <div className="rounded-xl border border-gray-700/60 bg-gray-900/80 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Acciones</p>
+
+                {acciones && accionEstado !== "ok" && (
+                  <div className="flex flex-wrap gap-2">
+                    {acciones.map(({ accion, label }) => (
+                      <button
+                        key={accion}
+                        onClick={() => ejecutarAccion(accion)}
+                        disabled={accionEstado === "enviando"}
+                        className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {accionEstado === "enviando" ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <RotateCcw size={13} />
+                        )}
+                        {accionEstado === "enviando" ? "Enviando…" : label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {esCritico && accionEstado === "idle" && (
+                  <p className="text-xs text-gray-500">
+                    Estado de error crítico. Requiere intervención manual en la base de datos para poder reintentar.
+                  </p>
+                )}
+
+                {accionEstado === "ok" && accionMsg && (
+                  <div className="flex items-start gap-2 rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">
+                    <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                    <span>
+                      {accionMsg}
+                      <span className="block text-xs text-emerald-500 mt-0.5">
+                        Recargá la lista en unos momentos para ver el estado actualizado.
+                      </span>
+                    </span>
+                  </div>
+                )}
+
+                {accionEstado === "error" && accionMsg && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    {accionMsg}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
         </div>
       </div>

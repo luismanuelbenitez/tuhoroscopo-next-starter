@@ -1021,6 +1021,269 @@ function EditarDatosForm({
 }
 
 // ===========================================================================
+// AccionRenovarPremium
+// ===========================================================================
+
+function AccionRenovarPremium({
+  suscriptor,
+  onAccionOk,
+}: {
+  suscriptor: SuscriptorData;
+  onAccionOk: () => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [meses, setMeses] = useState(1);
+  const [motivo, setMotivo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const puedeRenovar =
+    suscriptor.premium_activo && suscriptor.estado_suscripcion === "activa";
+
+  if (!puedeRenovar) return null;
+
+  function abrir() {
+    setMeses(1);
+    setMotivo("");
+    setResultado(null);
+    setAbierto(true);
+  }
+
+  function cancelar() {
+    if (submitting) return;
+    setAbierto(false);
+    setResultado(null);
+  }
+
+  async function ejecutar() {
+    if (submitting || motivo.trim().length < 5) return;
+    setSubmitting(true);
+    setResultado(null);
+
+    try {
+      const res = await fetch("/api/admin/suscripcion-accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_suscriptor: suscriptor.id,
+          accion: "renovar_premium",
+          motivo: motivo.trim(),
+          meses,
+        }),
+      });
+
+      let json: Record<string, unknown>;
+      try { json = await res.json(); } catch { json = {}; }
+
+      if (!res.ok || !json.ok) {
+        setResultado({
+          ok: false,
+          texto:
+            (json.detalle as string) ??
+            (json.motivo as string) ??
+            `Error HTTP ${res.status}`,
+        });
+      } else {
+        const nuevaFecha = json.nueva_fecha_vencimiento
+          ? fmtDate(json.nueva_fecha_vencimiento as string)
+          : "—";
+        setResultado({
+          ok: true,
+          texto: `Premium extendido ${meses} mes${meses > 1 ? "es" : ""}. Nuevo vencimiento: ${nuevaFecha}`,
+        });
+        setTimeout(() => {
+          cancelar();
+          onAccionOk();
+        }, 2500);
+      }
+    } catch (e: unknown) {
+      setResultado({ ok: false, texto: e instanceof Error ? e.message : "Error de red" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canSubmit = motivo.trim().length >= 5;
+
+  if (!abierto) {
+    return (
+      <button
+        onClick={abrir}
+        className="mt-2 text-xs px-3 py-1.5 rounded-lg border border-violet-700/60 bg-violet-950/30 text-violet-300 hover:bg-violet-900/40 transition-colors"
+      >
+        Renovar Premium
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-violet-800/40 bg-violet-950/15 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-white">Renovar Premium</span>
+        <button
+          onClick={cancelar}
+          disabled={submitting}
+          className="text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+          aria-label="Cancelar"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="mb-4 space-y-1 text-xs">
+        <p className="text-gray-400">
+          Suscriptor:{" "}
+          <span className="text-white font-semibold">{suscriptor.nombre}</span>{" "}
+          <span className="text-gray-500">(#{suscriptor.id})</span>
+        </p>
+        <p className="text-gray-400">
+          Extiende el vencimiento del premium sumando meses al vencimiento actual.
+        </p>
+        {suscriptor.fecha_vencimiento_premium && (
+          <p className="text-violet-300">
+            Vence actualmente: {fmtDate(suscriptor.fecha_vencimiento_premium)}
+          </p>
+        )}
+      </div>
+
+      <div className="mb-3">
+        <label className="block text-xs text-gray-400 mb-1">
+          Meses a agregar <span className="text-red-400">*</span>
+        </label>
+        <select
+          value={meses}
+          onChange={(e) => setMeses(Number(e.target.value))}
+          disabled={submitting}
+          className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>
+              {n} {n === 1 ? "mes" : "meses"}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-3">
+        <label className="block text-xs text-gray-400 mb-1">
+          Motivo <span className="text-red-400">*</span>{" "}
+          <span className="text-gray-600">(mínimo 5 caracteres)</span>
+        </label>
+        <textarea
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          disabled={submitting}
+          rows={2}
+          placeholder="Describir el motivo de esta renovación…"
+          className="w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-violet-500 resize-none placeholder-gray-600 disabled:opacity-50"
+        />
+        <p className="text-right text-xs text-gray-600 mt-0.5">
+          {motivo.trim().length} car.
+        </p>
+      </div>
+
+      {resultado && (
+        <div
+          className={`mb-3 text-xs rounded px-3 py-2 flex items-start gap-2 ${
+            resultado.ok
+              ? "bg-emerald-950/50 text-emerald-300 border border-emerald-800/40"
+              : "bg-red-950/50 text-red-300 border border-red-800/40"
+          }`}
+        >
+          {resultado.ok ? (
+            <Check size={12} className="shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+          )}
+          <span>{resultado.texto}</span>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={cancelar}
+          disabled={submitting}
+          className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg text-gray-400 hover:text-gray-200 hover:border-gray-500 disabled:opacity-40 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={ejecutar}
+          disabled={!canSubmit || submitting}
+          className="text-xs px-4 py-1.5 rounded-lg border border-violet-700 bg-violet-900/50 text-violet-200 hover:bg-violet-800/60 font-medium transition-colors disabled:opacity-40"
+        >
+          {submitting ? "Ejecutando…" : `Renovar ${meses} mes${meses > 1 ? "es" : ""}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// AccionGenerarContenido
+// ===========================================================================
+
+function AccionGenerarContenido({
+  suscriptor,
+}: {
+  suscriptor: SuscriptorData;
+}) {
+  const [estado, setEstado] = useState<"idle" | "iniciando" | "ok" | "error">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  if (!suscriptor.premium_activo) return null;
+
+  async function generar() {
+    if (estado === "iniciando") return;
+    setEstado("iniciando");
+    setMsg(null);
+
+    try {
+      const res = await fetch("/api/admin/suscriptor-contenido", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_suscriptor: suscriptor.id }),
+      });
+      let json: Record<string, unknown>;
+      try { json = await res.json(); } catch { json = {}; }
+
+      if (!res.ok || !json.ok) {
+        setEstado("error");
+        setMsg((json.detalle as string) ?? (json.motivo as string) ?? `Error HTTP ${res.status}`);
+      } else {
+        setEstado("ok");
+        setMsg((json.mensaje as string) ?? "Generación iniciada.");
+      }
+    } catch (e: unknown) {
+      setEstado("error");
+      setMsg(e instanceof Error ? e.message : "Error de red");
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={generar}
+        disabled={estado === "iniciando" || estado === "ok"}
+        className="text-xs px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-950/30 text-sky-300 hover:bg-sky-900/40 transition-colors disabled:opacity-50"
+      >
+        {estado === "iniciando" ? "Iniciando…" : "Generar contenido para hoy"}
+      </button>
+
+      {msg && (
+        <p
+          className={`mt-1.5 text-xs ${
+            estado === "ok" ? "text-emerald-400" : "text-red-400"
+          }`}
+        >
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Main component
 // ===========================================================================
 
@@ -1523,6 +1786,11 @@ export function SuscriptorDetalle({ id, onClose }: SuscriptorDetalleProps) {
                 suscriptor={data.suscriptor}
                 onAccionOk={() => setRefreshKey((k) => k + 1)}
               />
+              <AccionRenovarPremium
+                suscriptor={data.suscriptor}
+                onAccionOk={() => setRefreshKey((k) => k + 1)}
+              />
+              <AccionGenerarContenido suscriptor={data.suscriptor} />
             </Sect>
           </>
         )}
