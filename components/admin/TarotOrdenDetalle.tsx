@@ -156,11 +156,13 @@ const ESTADO_PAGO: Record<string, { label: string; cls: string }> = {
 
 type AccionEstado = "idle" | "enviando" | "ok" | "error";
 
-const ACCIONES_POR_ESTADO: Record<string, { accion: "reintentar_lectura" | "reintentar_pdf"; label: string }[]> = {
-  pago_confirmado:  [{ accion: "reintentar_lectura", label: "Iniciar lectura" }],
-  error_lectura:    [{ accion: "reintentar_lectura", label: "Reintentar lectura" }],
-  lectura_lista:    [{ accion: "reintentar_pdf",     label: "Generar PDF" }],
-  error_pdf:        [{ accion: "reintentar_pdf",     label: "Reintentar PDF" }],
+const ACCIONES_POR_ESTADO: Record<string, { accion: "reintentar_lectura" | "reintentar_pdf" | "reintentar_whatsapp"; label: string }[]> = {
+  pago_confirmado:  [{ accion: "reintentar_lectura",  label: "Iniciar lectura" }],
+  error_lectura:    [{ accion: "reintentar_lectura",  label: "Reintentar lectura" }],
+  lectura_lista:    [{ accion: "reintentar_pdf",      label: "Generar PDF" }],
+  error_pdf:        [{ accion: "reintentar_pdf",      label: "Reintentar PDF" }],
+  pdf_listo:        [{ accion: "reintentar_whatsapp", label: "Enviar WhatsApp" }],
+  error_whatsapp:   [{ accion: "reintentar_whatsapp", label: "Reintentar WhatsApp" }],
 };
 
 export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: () => void }) {
@@ -200,7 +202,7 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
     fetchRelated();
   }, [orden.id]);
 
-  async function ejecutarAccion(accion: "reintentar_lectura" | "reintentar_pdf") {
+  async function ejecutarAccion(accion: "reintentar_lectura" | "reintentar_pdf" | "reintentar_whatsapp") {
     setAccionEstado("enviando");
     setAccionMsg(null);
     try {

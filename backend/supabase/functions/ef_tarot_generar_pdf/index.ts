@@ -1052,8 +1052,19 @@ async function generarPDF(
       { pdf_id: pdfId, storage_path: storagePath, url: urlFirmada,
         tamano_bytes: bytes.length, debug, duracion_ms: durMs }, durMs);
 
-    // TODO: Sprint 5 — Enviar PDF por WhatsApp
-    // if (!debug) { ... }
+    // Sprint 5 — Disparar envío WhatsApp (fire-and-forget, solo en modo normal)
+    if (!debug) {
+      const waUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`;
+      fetch(waUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({ orden_id: ordenId }),
+      }).catch(() => { /* fire-and-forget */ });
+    }
 
   } catch (err) {
     const errMsg   = String(err);

@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 
-type Accion = "reintentar_lectura" | "reintentar_pdf";
+type Accion = "reintentar_lectura" | "reintentar_pdf" | "reintentar_whatsapp";
 
 const ESTADOS_VALIDOS: Record<Accion, string[]> = {
-  reintentar_lectura: ["pago_confirmado", "error_lectura"],
-  reintentar_pdf: ["lectura_lista", "error_pdf"],
+  reintentar_lectura:  ["pago_confirmado", "error_lectura"],
+  reintentar_pdf:      ["lectura_lista", "error_pdf"],
+  reintentar_whatsapp: ["pdf_listo", "error_whatsapp"],
 };
 
 const EF_MAP: Record<Accion, string> = {
-  reintentar_lectura: "ef_tarot_generar_lectura",
-  reintentar_pdf: "ef_tarot_generar_pdf",
+  reintentar_lectura:  "ef_tarot_generar_lectura",
+  reintentar_pdf:      "ef_tarot_generar_pdf",
+  reintentar_whatsapp: "ef_tarot_enviar_whatsapp",
 };
 
 const MENSAJE_OK: Record<Accion, string> = {
-  reintentar_lectura: "Generación de lectura iniciada en segundo plano",
-  reintentar_pdf: "Generación de PDF iniciada en segundo plano",
+  reintentar_lectura:  "Generación de lectura iniciada en segundo plano",
+  reintentar_pdf:      "Generación de PDF iniciada en segundo plano",
+  reintentar_whatsapp: "Envío WhatsApp iniciado en segundo plano",
 };
 
 function getEnv(): { supabaseUrl: string; internalKey: string; serviceRoleKey: string } | null {
@@ -44,8 +47,8 @@ export async function POST(
   try { body = await req.json(); } catch { /* body vacío */ }
 
   const accion = body.accion as Accion | undefined;
-  if (!accion || !["reintentar_lectura", "reintentar_pdf"].includes(accion)) {
-    return NextResponse.json({ ok: false, motivo: "accion_invalida", detalle: 'accion debe ser "reintentar_lectura" o "reintentar_pdf"' }, { status: 400 });
+  if (!accion || !["reintentar_lectura", "reintentar_pdf", "reintentar_whatsapp"].includes(accion)) {
+    return NextResponse.json({ ok: false, motivo: "accion_invalida", detalle: 'accion debe ser "reintentar_lectura", "reintentar_pdf" o "reintentar_whatsapp"' }, { status: 400 });
   }
 
   // Verificar estado actual de la orden
