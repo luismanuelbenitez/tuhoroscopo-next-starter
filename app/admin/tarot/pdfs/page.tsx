@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotPdfDetalle } from "@/components/admin/TarotPdfDetalle";
 
 interface Pdf {
   id: string;
@@ -59,6 +60,7 @@ export default function TarotPdfsPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function doFetch() {
@@ -189,7 +191,8 @@ export default function TarotPdfsPage() {
                   return (
                     <tr
                       key={p.id}
-                      className={`border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors ${
+                      onClick={() => setSelectedId(p.id)}
+                      className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
                         isError ? "bg-red-950/10" : ""
                       }`}
                     >
@@ -217,7 +220,7 @@ export default function TarotPdfsPage() {
                             onClick={(e) => e.stopPropagation()}
                             className="text-xs text-amber-400 hover:text-amber-300 underline"
                           >
-                            Ver PDF →
+                            Ver →
                           </a>
                         ) : (
                           <span className="text-xs text-gray-600">—</span>
@@ -253,6 +256,13 @@ export default function TarotPdfsPage() {
           </div>
         )}
       </main>
+
+      {selectedId && (
+        <TarotPdfDetalle
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }

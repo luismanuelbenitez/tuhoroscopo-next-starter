@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotLecturaDetalle } from "@/components/admin/TarotLecturaDetalle";
 
 interface Lectura {
   id: string;
@@ -60,7 +61,7 @@ export default function TarotLecturasPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function doFetch() {
@@ -185,12 +186,11 @@ export default function TarotLecturasPage() {
                 )}
                 {!cargando && lecturas.map((l) => {
                   const badge = ESTADO_LECTURA[l.estado] ?? { label: l.estado, cls: "bg-gray-800 text-gray-400" };
-                  const isExpanded = expandedId === l.id;
                   const isError = l.estado === "error_generacion";
                   return (
                     <tr
                       key={l.id}
-                      onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                      onClick={() => setSelectedId(l.id)}
                       className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
                         isError ? "bg-red-950/10" : ""
                       }`}
@@ -209,9 +209,7 @@ export default function TarotLecturasPage() {
                         ${Number(l.ia_costo_usd).toFixed(4)}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400 max-w-[240px] truncate">
-                        {isExpanded
-                          ? (l.resumen_lectura ?? l.error_mensaje ?? "—")
-                          : (l.resumen_lectura?.slice(0, 60) ?? l.error_mensaje?.slice(0, 60) ?? "—")}
+                        {l.resumen_lectura?.slice(0, 60) ?? l.error_mensaje?.slice(0, 60) ?? "—"}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
                         {l.generado_at ? new Date(l.generado_at).toLocaleDateString("es-UY") : "—"}
@@ -246,6 +244,13 @@ export default function TarotLecturasPage() {
           </div>
         )}
       </main>
+
+      {selectedId && (
+        <TarotLecturaDetalle
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }

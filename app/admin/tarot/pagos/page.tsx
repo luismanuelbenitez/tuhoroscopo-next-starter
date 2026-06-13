@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotPagoDetalle } from "@/components/admin/TarotPagoDetalle";
 
 interface Pago {
   id: string;
@@ -61,6 +62,7 @@ export default function TarotPagosPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [selectedPago, setSelectedPago] = useState<Pago | null>(null);
 
   useEffect(() => {
     async function doFetch() {
@@ -190,7 +192,8 @@ export default function TarotPagosPage() {
                   return (
                     <tr
                       key={p.id}
-                      className={`border-b border-gray-800/60 hover:bg-gray-800/30 transition-colors ${
+                      onClick={() => setSelectedPago(p)}
+                      className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
                         isRejected ? "bg-red-950/10" : ""
                       }`}
                     >
@@ -245,6 +248,13 @@ export default function TarotPagosPage() {
           </div>
         )}
       </main>
+
+      {selectedPago && (
+        <TarotPagoDetalle
+          pago={selectedPago}
+          onClose={() => setSelectedPago(null)}
+        />
+      )}
     </div>
   );
 }
