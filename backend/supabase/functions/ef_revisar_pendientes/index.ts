@@ -1,119 +1,158 @@
 // ============================================================
-// === Archivo: ef_procesar_vencimientos/index.ts
-// === Descripción: Tarea programada (Cron Job) para
-// === desactivar el premium a usuarios que cancelaron
-// === y cuya fecha de vencimiento ya ha pasado.
-// === (Versión Optimizada con 1 sola query)
+// ef_revisar_pendientes — Tarea CRON diaria
+//
+// Hace dos barridos:
+//
+// 1. VENCIMIENTOS: desactiva premium de suscriptores con
+//    auto_renovacion_activa=false y fecha_vencimiento_premium < now.
+//
+// 2. PROVISIONALES EXPIRADOS: suscriptores que llevan más de
+//    PROVISIONAL_TTL_HOURS en estado "activa_provisional" sin
+//    recibir confirmación por webhook. Consulta MP para resolver:
+//    - Si MP confirma "authorized" → pasa a "activa"
+//    - Si MP dice otra cosa       → revierte a "pendiente_autorizacion"
+//      con premium_activo=false
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// 🔹 Helper para logging (sin cambios)
-async function registrarLog(supabase, nombreFuncion, resultado, detalle = {}, exito = true, creadoPor = "system_cron") {
+
+const PROVISIONAL_TTL_HOURS = 24;
+const FN = "ef_revisar_pendientes";
+
+async function registrarLog(
+  supabase: ReturnType<typeof createClient>,
+  resultado: string,
+  detalle: Record<string, unknown> = {},
+  exito = true,
+) {
   try {
-    const { error } = await supabase.from("log_funciones").insert([
-      {
-        nombre_funcion: nombreFuncion,
-        resultado,
-        detalle,
-        exito,
-        creado_por: creadoPor
-      }
-    ]);
-    if (error) {
-      console.error("Error al guardar el log:", error);
-    }
-  } catch (err) {
-    console.error("Excepción al intentar guardar log:", err);
-  }
+    await supabase.from("log_funciones").insert([{
+      nombre_funcion: FN,
+      resultado,
+      detalle,
+      exito,
+      creado_por: "system_cron",
+    }]);
+  } catch { /* non-blocking */ }
 }
-serve(async (req)=>{
-  const funcion = "ef_procesar_vencimientos";
-  let supabase;
-  try {
-    // ===========================================
-    // === INICIALIZACIÓN Y VALIDACIÓN DE ENV ===
-    // ===========================================
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
-      return new Response(JSON.stringify({
-        resultado: "error",
-        mensaje: "Configuración interna del servidor (EF)"
-      }), {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-    }
-    supabase = createClient(supabaseUrl, supabaseKey);
-    await registrarLog(supabase, funcion, "START", {
-      message: "Iniciando barrido de vencimientos..."
-    });
-    // ===========================================
-    // === LÓGICA OPTIMIZADA (1 SOLA QUERY) ===
-    // ===========================================
-    //
-    // En lugar de SELECT y luego UPDATE, combinamos todo en una sola
-    // operación atómica de UPDATE...WHERE que también devuelve los datos.
-    //
-    const { data: updatedData, error: updateError } = await supabase.from("suscriptores").update({
-      premium_activo: false,
-      estado_suscripcion: "vencida" // O 'expirada'
-    })// Los filtros del SELECT van directo al UPDATE:
-    .eq("premium_activo", true).eq("auto_renovacion_activa", false) // <-- Clave: Solo los que cancelaron
-    .lt("fecha_vencimiento_premium", new Date().toISOString()) // <-- Vencimiento es menor que AHORA
-    .select("id"); // Devuelve los IDs actualizados
-    if (updateError) {
-      throw new Error(`Error al actualizar vencidos: ${updateError.message}`);
-    }
-    // Verificamos si la operación afectó a alguna fila
-    if (!updatedData || updatedData.length === 0) {
-      await registrarLog(supabase, funcion, "OK_NO_VENCIDOS", {
-        message: "No se encontraron suscriptores para expirar."
-      });
-      return new Response(JSON.stringify({
-        resultado: "ok",
-        mensaje: "No hay vencimientos para procesar."
-      }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-    }
-    // Si llegamos aquí, es que sí se actualizaron filas
-    await registrarLog(supabase, funcion, "OK_PROCESADOS", {
-      count: updatedData.length,
-      ids_actualizados: updatedData.map((s)=>s.id)
-    });
-    return new Response(JSON.stringify({
-      resultado: "ok",
-      mensaje: `Procesados ${updatedData.length} vencimientos.`,
-      actualizados: updatedData.map((s)=>s.id)
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
-  } catch (err) {
-    console.error("Error inesperado en ef_procesar_vencimientos:", err);
-    if (supabase) {
-      await registrarLog(supabase, funcion, "EXCEPTION", {
-        error: err.message
-      }, false);
-    }
-    return new Response(JSON.stringify({
-      resultado: "error",
-      mensaje: "Error inesperado en la función",
-      detalle: err.message
-    }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
+
+serve(async () => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const mpToken    = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+
+  if (!supabaseUrl || !supabaseKey) {
+    return json({ resultado: "error", mensaje: "Faltan variables de entorno Supabase" }, 500);
   }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  await registrarLog(supabase, "START", { mensaje: "Iniciando ef_revisar_pendientes" });
+
+  const resumen: Record<string, unknown> = {};
+
+  // ── 1. VENCIMIENTOS ──────────────────────────────────────────
+  try {
+    const { data: vencidos, error } = await supabase
+      .from("suscriptores")
+      .update({ premium_activo: false, estado_suscripcion: "vencida" })
+      .eq("premium_activo", true)
+      .eq("auto_renovacion_activa", false)
+      .lt("fecha_vencimiento_premium", new Date().toISOString())
+      .select("id");
+
+    if (error) throw new Error(error.message);
+
+    resumen.vencimientos = { procesados: vencidos?.length ?? 0, ids: vencidos?.map((s) => s.id) ?? [] };
+    await registrarLog(supabase, "VENCIMIENTOS_OK", resumen.vencimientos as Record<string, unknown>);
+  } catch (err) {
+    resumen.vencimientos_error = String(err);
+    await registrarLog(supabase, "VENCIMIENTOS_ERROR", { error: String(err) }, false);
+  }
+
+  // ── 2. PROVISIONALES EXPIRADOS ───────────────────────────────
+  try {
+    const cutoff = new Date(Date.now() - PROVISIONAL_TTL_HOURS * 3_600_000).toISOString();
+
+    const { data: provisionales, error } = await supabase
+      .from("suscriptores")
+      .select("id, preapproval_id")
+      .eq("estado_suscripcion", "activa_provisional")
+      .lt("fecha_inicio_premium", cutoff);
+
+    if (error) throw new Error(error.message);
+
+    const lista = provisionales ?? [];
+    let confirmados = 0;
+    let revertidos  = 0;
+    let sinToken    = 0;
+
+    for (const s of lista) {
+      // Sin preapproval_id: no se puede verificar → revertir
+      if (!s.preapproval_id || !mpToken) {
+        await supabase.from("suscriptores")
+          .update({
+            estado_suscripcion: "pendiente_autorizacion",
+            premium_activo: false,
+            premium_pendiente_confirmacion: false,
+          })
+          .eq("id", s.id);
+        sinToken++;
+        continue;
+      }
+
+      try {
+        const mpRes = await fetch(
+          `https://api.mercadopago.com/preapproval/${encodeURIComponent(s.preapproval_id)}`,
+          { headers: { Authorization: `Bearer ${mpToken}` } },
+        );
+        const mpData = mpRes.ok ? await mpRes.json() : null;
+        const mpStatus = mpData?.status ?? "unknown";
+
+        if (mpStatus === "authorized") {
+          await supabase.from("suscriptores")
+            .update({
+              estado_suscripcion: "activa",
+              premium_pendiente_confirmacion: false,
+              preapproval_status: "authorized",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", s.id);
+          confirmados++;
+        } else {
+          await supabase.from("suscriptores")
+            .update({
+              estado_suscripcion: "pendiente_autorizacion",
+              premium_activo: false,
+              premium_pendiente_confirmacion: false,
+              preapproval_status: mpStatus,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", s.id);
+          revertidos++;
+        }
+      } catch {
+        // Error de red consultando MP — dejamos la fila para el próximo ciclo
+      }
+    }
+
+    resumen.provisionales = {
+      evaluados: lista.length,
+      confirmados,
+      revertidos,
+      sin_token: sinToken,
+    };
+    await registrarLog(supabase, "PROVISIONALES_OK", resumen.provisionales as Record<string, unknown>);
+  } catch (err) {
+    resumen.provisionales_error = String(err);
+    await registrarLog(supabase, "PROVISIONALES_ERROR", { error: String(err) }, false);
+  }
+
+  return json({ resultado: "ok", resumen });
 });
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
