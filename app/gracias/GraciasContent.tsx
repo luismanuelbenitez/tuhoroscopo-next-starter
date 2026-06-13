@@ -159,17 +159,9 @@ export default function GraciasContent() {
         if (data.whatsapp) {
           setWhatsapp(data.whatsapp); // Guardamos el número local (ej: 099...)
         }
-        console.log("Datos recuperados de sessionStorage:", data);
-        // Limpiamos el item para no reutilizarlo si el usuario navega
         sessionStorage.removeItem('checkoutData');
-        console.log("Datos de sessionStorage eliminados después de leer.");
-      } else {
-        // No se encontró el item, puede ser navegación directa o un error previo
-        console.warn("No se encontraron datos en sessionStorage ('checkoutData').");
       }
-    } catch (e) {
-      console.error("Error al leer o parsear datos de sessionStorage:", e);
-    }
+    } catch { /* non-blocking */ }
   }, []); // El array vacío asegura ejecución única al montar
 
 
@@ -190,64 +182,38 @@ export default function GraciasContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tipo: "BACKURL_MP_USUARIO", ...report }),
         });
-      } catch (e) {
-        console.warn("Fallo al enviar log de backurl:", e);
-      }
+      } catch { /* fire-and-forget */ }
 
-      // 3) Normalizar el status recibido de Mercado Pago (minúsculas, sin espacios)
       const statusNorm = String(status || "").toLowerCase().trim();
-      console.log("Status normalizado:", statusNorm);
-
-      // Lista de estados considerados exitosos (incluye vacío por si MP no lo envía)
       const positivos = ["authorized", "approved", "success", "active", ""];
       const esPositivo = positivos.includes(statusNorm);
 
-      // --- Rama: Pago Exitoso o Indeterminado ---
       if (esPositivo) {
-        console.log("Status considerado POSITIVO. Intentando activar provisorio...");
-        // Intentamos activar el estado premium provisorio llamando a otra API
         try {
           const r = await fetch("/api/activar-premium-provisorio", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id_suscriptor: id,
-              preapproval_id,
-              backParams: { ...allParams, ...envSnapshot }, // Enviamos todos los params por si acaso
-            }),
+            body: JSON.stringify({ id_suscriptor: id, preapproval_id }),
           });
-          // Intentamos parsear la respuesta, default a {} si falla
           const j = await r.json().catch(() => ({}));
-          console.log("Respuesta de /activar-premium-provisorio:", { status: r.status, body: j });
-
-          // Si la API respondió OK y el cuerpo tiene { ok: true }
           if (r.ok && j?.ok) {
-            setUiStatus("ok"); // Mostramos UI de éxito
-            lanzarConfeti(); // Lanzamos confeti
+            setUiStatus("ok");
+            lanzarConfeti();
           } else {
-            // Si la activación falló (ej. ID no encontrado en DB)
-            console.warn("Activación provisoria falló:", j);
-            setUiStatus("warn"); // Mostrar como pendiente/advertencia
+            setUiStatus("warn");
           }
-        } catch (e: any) {
-          // Si falló el fetch a la API de activación
-          console.error("Error en fetch a /activar-premium-provisorio:", e);
-          setUiStatus("error"); // Mostramos UI de error
+        } catch {
+          setUiStatus("error");
         }
-        return; // Salimos de la función
+        return;
       }
 
-      // --- Rama: Pago Pendiente ---
       if (statusNorm === "pending" || statusNorm === "in_process") {
-        console.log("Status PENDIENTE.");
-        setUiStatus("warn"); // Mostramos UI de pendiente/advertencia
-        return; // Salimos de la función
+        setUiStatus("warn");
+        return;
       }
 
-      // --- Rama: Pago Rechazado o Fallido ---
-      // Cualquier otro status se considera error
-      console.log("Status considerado ERROR/RECHAZADO:", statusNorm);
-      setUiStatus("error"); // Mostramos UI de error
+      setUiStatus("error");
     }
 
     // Ejecutamos la función asíncrona definida arriba

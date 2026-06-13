@@ -20,6 +20,7 @@ const MP_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
 const MP_ENV = (Deno.env.get("MP_ENV") || "sandbox").toLowerCase();
 const MP_TEST_EMAIL = Deno.env.get("MP_TEST_PLAYER_EMAIL");
 const BASE_URL_GRACIAS = Deno.env.get("BASE_URL_GRACIAS") || "https://tuhoroscopo-next-starter.vercel.app/gracias";
+const MP_NOTIFICATION_URL = Deno.env.get("MP_NOTIFICATION_URL") || `${SUPABASE_URL}/functions/v1/ef_webhook_mp`;
 // ============================================================================
 // CONSTANTES DE NEGOCIO / MODELO DE ESTADOS
 // ----------------------------------------------------------------------------
@@ -308,7 +309,8 @@ serve(async (req)=>{
         transaction_amount: transactionAmount,
         currency_id: MP_CURRENCY_ID
       },
-      back_url
+      back_url,
+      notification_url: MP_NOTIFICATION_URL,
     };
     await logFunc("payload_mp_enviado", mpPayload);
     const mpRes = await fetch("https://api.mercadopago.com/preapproval", {

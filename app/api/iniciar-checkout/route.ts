@@ -26,7 +26,7 @@ const REQUIRED_FIELDS = [
 ] as const;
 
 // Flag para logs detallados en Vercel. Útil para dev y debugging.
-const DEBUG_LOGS = true;
+const DEBUG_LOGS = process.env.NODE_ENV !== "production";
 
 // ===========================================
 // === HANDLER PRINCIPAL (POST) ===

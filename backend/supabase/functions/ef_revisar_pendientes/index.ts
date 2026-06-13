@@ -54,7 +54,7 @@ serve(async () => {
   try {
     const { data: vencidos, error } = await supabase
       .from("suscriptores")
-      .update({ premium_activo: false, estado_suscripcion: "vencida" })
+      .update({ premium_activo: false, estado_suscripcion: "finalizada" })
       .eq("premium_activo", true)
       .eq("auto_renovacion_activa", false)
       .lt("fecha_vencimiento_premium", new Date().toISOString())
