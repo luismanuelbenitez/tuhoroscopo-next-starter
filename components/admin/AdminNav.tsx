@@ -2,6 +2,7 @@
 
 const NAV_ITEMS = [
   { href: "/admin",                        label: "Dashboard" },
+  { href: "/admin/ingresos",               label: "Ingresos" },
   { href: "/admin/suscriptores",           label: "Suscriptores" },
   { href: "/admin/mensajes-problematicos", label: "Mensajes" },
   { href: "/admin/contenido",              label: "Contenido" },
