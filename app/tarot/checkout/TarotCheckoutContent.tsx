@@ -152,7 +152,14 @@ export default function TarotCheckoutContent() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.message ?? data?.error ?? 'Error al crear la orden.');
+      if (!res.ok) {
+        // Si el cupón expiró o ya no está reservado, limpiar el estado para que el usuario pueda re-aplicarlo
+        if (data?.error === 'CODIGO_DESCUENTO_EXPIRADO' || data?.error === 'CODIGO_DESCUENTO_NO_RESERVADO') {
+          setDescuento(null);
+          setCodigoError('El código expiró. Volvé a aplicarlo antes de continuar.');
+        }
+        throw new Error(data?.message ?? data?.error ?? 'Error al crear la orden.');
+      }
       if (data?.init_point) {
         window.location.href = data.init_point;
       } else {
