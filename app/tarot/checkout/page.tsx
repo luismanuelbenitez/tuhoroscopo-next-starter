@@ -5,6 +5,10 @@ export const metadata = {
   description: 'Completá tu consulta de tarot. Entrega por WhatsApp en minutos.',
 };
 
-export default function TarotCheckoutPage() {
-  return <TarotCheckoutContent />;
+export default function TarotCheckoutPage({
+  searchParams,
+}: {
+  searchParams: { tema?: string };
+}) {
+  return <TarotCheckoutContent temaInicial={searchParams.tema} />;
 }

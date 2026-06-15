@@ -80,12 +80,13 @@ serve(async (req) => {
     const { data: cfgRows } = await supabase
       .from("tarot_configuracion")
       .select("clave, valor")
-      .in("clave", ["mp_modo", "max_reintentos_wa"]);
+      .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa"]);
 
     const cfg: ConfigMap = Object.fromEntries(
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
     );
-    const esSandbox    = cfg.mp_modo !== "production";
+    // whatsapp_modo is the authoritative control for WA sandbox/prod; falls back to mp_modo
+    const esSandbox    = (cfg.whatsapp_modo ?? cfg.mp_modo) !== "production";
     const maxReintentos = Number(cfg.max_reintentos_wa ?? 3);
 
     // ── 2. Orden ─────────────────────────────────────────────────

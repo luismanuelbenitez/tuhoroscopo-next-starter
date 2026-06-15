@@ -14,13 +14,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Error de configuración del servidor' }, { status: 500 });
   }
 
+  // Captura evidencia de consentimiento: IP real del usuario y navegador
+  const forwardedFor = req.headers.get('x-forwarded-for') ?? '';
+  const userAgent    = req.headers.get('user-agent') ?? '';
+
   let efRes: Response;
   try {
     efRes = await fetch(`${supabaseUrl}/functions/v1/ef_tarot_crear_orden`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type':    'application/json',
+        Authorization:     `Bearer ${serviceRoleKey}`,
+        // Reenviar headers del usuario real para que el EF capture IP y User-Agent correctos
+        ...(forwardedFor && { 'x-forwarded-for': forwardedFor }),
+        ...(userAgent    && { 'user-agent':       userAgent    }),
       },
       body: JSON.stringify({
         ...body,
@@ -28,6 +35,7 @@ export async function POST(req: Request) {
         acepto_terminos:   true,
         acepto_privacidad: true,
         pagina_origen:     '/tarot/checkout',
+        version_terminos:  'v1.0',
       }),
       cache: 'no-store',
     });

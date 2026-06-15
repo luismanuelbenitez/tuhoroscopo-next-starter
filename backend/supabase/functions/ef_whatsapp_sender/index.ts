@@ -1818,7 +1818,7 @@ function buildTemplateComponents(params) {
 //   El sender NO decide qué header usar.
 //   Solo lee `plantillaConfig`, que fue resuelta desde la tabla `plantillas`.
 // ============================================================================
-async function enviarWhatsAppReal(msg, templateName, plantillaConfig, tsNow) {
+async function enviarWhatsAppReal(msg, templateName, plantillaConfig, tsNow, appDebugMode = false) {
   const url = `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
   // --------------------------------------------------------------------------
   // Construimos components dinámicamente.
@@ -1865,23 +1865,25 @@ async function enviarWhatsAppReal(msg, templateName, plantillaConfig, tsNow) {
   // CUÁNDO SACARLO:
   //   Cuando confirmemos que los mensajes vuelven a llegar al teléfono.
   // ==========================================================================
-  await registrarLog(tsNow, "debug_payload_whatsapp_real", {
-    id_mensaje: msg.id,
-    id_contenido: msg.id_contenido ?? null,
-    whatsapp_destino: msg.whatsapp_destino,
-    templateName,
-    language: body.template.language,
-    plantilla_config: plantillaConfig ? {
-      nombre: plantillaConfig.nombre,
-      contenido: plantillaConfig.contenido,
-      header_activo: plantillaConfig.header_activo,
-      header_tipo: plantillaConfig.header_tipo,
-      header_nombre: plantillaConfig.header_nombre,
-      header_url: plantillaConfig.header_url,
-      header_media_id: plantillaConfig.header_media_id ? "[MEDIA_ID_PRESENTE]" : null
-    } : null,
-    components: body.template.components
-  }, true);
+  if (appDebugMode) {
+    await registrarLog(tsNow, "debug_payload_whatsapp_real", {
+      id_mensaje: msg.id,
+      id_contenido: msg.id_contenido ?? null,
+      whatsapp_destino: msg.whatsapp_destino,
+      templateName,
+      language: body.template.language,
+      plantilla_config: plantillaConfig ? {
+        nombre: plantillaConfig.nombre,
+        contenido: plantillaConfig.contenido,
+        header_activo: plantillaConfig.header_activo,
+        header_tipo: plantillaConfig.header_tipo,
+        header_nombre: plantillaConfig.header_nombre,
+        header_url: plantillaConfig.header_url,
+        header_media_id: plantillaConfig.header_media_id ? "[MEDIA_ID_PRESENTE]" : null
+      } : null,
+      components: body.template.components
+    }, true);
+  }
   const r = await fetch(url, {
     method: "POST",
     headers: {
@@ -2019,6 +2021,23 @@ async function actualizarContenidoPremiumConWamid(params) {
 // 🚀 HANDLER PRINCIPAL
 // ============================================================================
 serve(async (req)=>{
+  // ── Config desde DB: WHATSAPP_MODO + APP_DEBUG_MODE ────────────
+  let waMode = APP_ENV;
+  let appDebugMode = false;
+  try {
+    const { data: cfgRows } = await supabase
+      .from("config").select("nombre, valor").in("nombre", ["WHATSAPP_MODO", "APP_DEBUG_MODE"]);
+    const cfgMap: Record<string, string> = Object.fromEntries(
+      (cfgRows ?? []).map((r: { nombre: string; valor: string }) => [r.nombre, r.valor])
+    );
+    const waModoVal = cfgMap["WHATSAPP_MODO"];
+    if (waModoVal === "production" || waModoVal === "sandbox") waMode = waModoVal;
+    appDebugMode = String(cfgMap["APP_DEBUG_MODE"] ?? "").trim().toUpperCase() === "TRUE";
+  } catch { /* fallback: APP_ENV del entorno, debug off */ }
+  const waIsProduction = waMode === "production";
+  const waIsSandbox    = waMode === "sandbox";
+  const waEnvValido    = waIsProduction || waIsSandbox;
+  // ────────────────────────────────────────────────────────────────
   const tsNow = nowUTCISO();
   // ==========================================================================
   // 0) VALIDACIÓN ESTRICTA DE ENTORNO
@@ -2038,9 +2057,9 @@ serve(async (req)=>{
   //
   // Esto protege producción.
   // ==========================================================================
-  if (!APP_ENV_VALIDO) {
+  if (!waEnvValido) {
     await registrarLog(tsNow, "sender_app_env_invalido", {
-      app_env: APP_ENV || null,
+      app_env: waMode || null,
       esperado: [
         "production",
         "sandbox"
@@ -2381,10 +2400,10 @@ serve(async (req)=>{
   // Si falta alguno, NO intentamos Meta y NO caemos a sandbox.
   // Marcamos el mensaje como fallido con error claro.
   // ==========================================================================
-  if (IS_PRODUCTION && (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID)) {
+  if (waIsProduction && (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID)) {
     const errorBody = {
       error: "config_whatsapp_incompleta",
-      app_env: APP_ENV,
+      app_env: waMode,
       whatsapp_token_configurado: Boolean(WHATSAPP_TOKEN),
       whatsapp_phone_number_id_configurado: Boolean(WHATSAPP_PHONE_NUMBER_ID)
     };
@@ -2398,7 +2417,7 @@ serve(async (req)=>{
     }, false);
     return new Response("OK");
   }
-  if (IS_SANDBOX) {
+  if (waIsSandbox) {
     // ==========================================================================
     // 8.A) ENVÍO SIMULADO / SANDBOX
     // --------------------------------------------------------------------------
@@ -2413,9 +2432,9 @@ serve(async (req)=>{
     await registrarLog(tsNow, "sandbox_envio_simulado", {
       id_mensaje,
       // Ambiente usado en esta ejecución.
-      app_env: APP_ENV,
-      is_production: IS_PRODUCTION,
-      is_sandbox: IS_SANDBOX,
+      app_env: waMode,
+      is_production: waIsProduction,
+      is_sandbox: waIsSandbox,
       whatsapp: msgProcesado.whatsapp_destino,
       plantilla: templateFinal,
       template_key: tplRes.templateKey,
@@ -2431,7 +2450,7 @@ serve(async (req)=>{
       fecha_envio_programada: ventana.fechaProgramada
     }, true);
   }
-  if (IS_PRODUCTION) {
+  if (waIsProduction) {
     // ==========================================================================
     // 8.B) ENVÍO REAL / PRODUCTION
     // --------------------------------------------------------------------------
@@ -2441,7 +2460,7 @@ serve(async (req)=>{
     // ==========================================================================
     try {
       const plantillaConfig = tplRes.plantillaConfig ?? null;
-      result = await enviarWhatsAppReal(msgProcesado, templateFinal, plantillaConfig, tsNow);
+      result = await enviarWhatsAppReal(msgProcesado, templateFinal, plantillaConfig, tsNow, appDebugMode);
     } catch (e) {
       const errorBody = {
         error: "error_construyendo_payload_whatsapp",
@@ -2467,9 +2486,9 @@ serve(async (req)=>{
   if (!result) {
     const errorBody = {
       error: "result_indefinido",
-      app_env: APP_ENV,
-      is_production: IS_PRODUCTION,
-      is_sandbox: IS_SANDBOX
+      app_env: waMode,
+      is_production: waIsProduction,
+      is_sandbox: waIsSandbox
     };
     await marcarMensajeFallido({
       id_mensaje,
@@ -2561,10 +2580,10 @@ serve(async (req)=>{
     await registrarLog(tsNow, "mensaje_enviado_ok", {
       id_mensaje,
       // Ambiente real usado por esta ejecución.
-      app_env: APP_ENV,
-      is_production: IS_PRODUCTION,
-      is_sandbox: IS_SANDBOX,
-      sandbox: IS_SANDBOX,
+      app_env: waMode,
+      is_production: waIsProduction,
+      is_sandbox: waIsSandbox,
+      sandbox: waIsSandbox,
       wamid,
       plantilla: templateFinal,
       esReintentoManual,
@@ -2594,10 +2613,10 @@ serve(async (req)=>{
     await registrarLog(tsNow, "mensaje_envio_error", {
       id_mensaje,
       // Ambiente real usado por esta ejecución.
-      app_env: APP_ENV,
-      is_production: IS_PRODUCTION,
-      is_sandbox: IS_SANDBOX,
-      sandbox: IS_SANDBOX,
+      app_env: waMode,
+      is_production: waIsProduction,
+      is_sandbox: waIsSandbox,
+      sandbox: waIsSandbox,
       status: result.status,
       esReintentoManual,
       intento_actual: intentoActual,

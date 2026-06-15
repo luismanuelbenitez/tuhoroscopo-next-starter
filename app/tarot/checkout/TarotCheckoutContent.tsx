@@ -9,6 +9,13 @@ const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
 const PRECIO_BASE = 590;
 
+const PAISES = [
+  { codigo: 'UY', bandera: '🇺🇾', prefijo: '+598', placeholder: '091234567',
+    hint: 'Acá recibís la lectura. Ej: 091234567', maxDigits: 9 },
+  { codigo: 'AR', bandera: '🇦🇷', prefijo: '+54',  placeholder: '1112345678',
+    hint: 'Sin el 0 inicial ni el 15. Ej: 1112345678', maxDigits: 11 },
+];
+
 const TEMAS = [
   { value: 'general',   label: '🧿 Situación general' },
   { value: 'amor',      label: '❤️  Amor y vínculos' },
@@ -16,6 +23,15 @@ const TEMAS = [
   { value: 'dinero',    label: '💰 Dinero y recursos' },
   { value: 'decision',  label: '🔮 Decisión personal' },
 ];
+
+const EJEMPLOS_POR_TEMA: Record<string, string> = {
+  '':        '¿Debo aceptar esta propuesta de trabajo? · ¿Tiene futuro esta relación?',
+  general:   '¿Qué energía me acompaña en este momento de mi vida?',
+  amor:      '¿Tiene futuro esta relación? · ¿Es el momento de dar el siguiente paso?',
+  trabajo:   '¿Debo aceptar esta propuesta? · ¿Qué me frena en mi carrera?',
+  dinero:    '¿Qué bloquea mi prosperidad? · ¿Es buen momento para esta inversión?',
+  decision:  '¿Cuál es el camino correcto para mí ahora? · ¿Estoy listo para este cambio?',
+};
 
 interface FormState {
   nombre: string;
@@ -42,11 +58,33 @@ const EMPTY: FormState = {
   pregunta: '',
 };
 
+function telefonoValido(raw: string, pais: string): boolean {
+  const digits = raw.replace(/\D/g, '');
+  if (pais === 'UY') return /^09\d{7}$/.test(digits);
+  if (pais === 'AR') return /^\d{10,11}$/.test(digits);
+  return false;
+}
+
+function formatearTelefono(raw: string, pais: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (pais === 'UY' && digits.length === 9 && digits.startsWith('09')) {
+    const sin0 = digits.slice(1);
+    return `+598 ${sin0.slice(0, 2)} ${sin0.slice(2, 5)} ${sin0.slice(5)}`;
+  }
+  if (pais === 'AR' && digits.length >= 10) {
+    return `+549 ${digits.slice(0, 2)} ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return '';
+}
+
 const inputBase =
   'w-full rounded-xl bg-white/8 px-4 py-3 ring-1 ring-white/15 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60';
 
-export default function TarotCheckoutContent() {
-  const [form, setForm]           = useState<FormState>(EMPTY);
+export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: string }) {
+  const temaValido = TEMAS.some(t => t.value === temaInicial) ? temaInicial! : '';
+  const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido });
+  const [pais, setPais]           = useState('UY');
+  const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
   const [error, setError]                   = useState<string | null>(null);
@@ -125,12 +163,15 @@ export default function TarotCheckoutContent() {
     setError(null);
     setIsLoading(true);
 
-    // Normalizar teléfono UY: 09XXXXXXX → +598XXXXXXXXX
+    // Normalizar teléfono al formato internacional para WhatsApp
     const phoneRaw = form.telefono.replace(/\D/g, '');
-    const phone =
-      phoneRaw.startsWith('0')
-        ? `+598${phoneRaw.slice(1)}`
-        : `+598${phoneRaw}`;
+    let phone: string;
+    if (pais === 'UY') {
+      phone = phoneRaw.startsWith('0') ? `+598${phoneRaw.slice(1)}` : `+598${phoneRaw}`;
+    } else {
+      // Argentina: +549 + número (el 9 es requerido por WhatsApp para móviles AR)
+      phone = `+549${phoneRaw}`;
+    }
 
     const payload = {
       nombre_completo:  form.nombre.trim(),
@@ -161,6 +202,11 @@ export default function TarotCheckoutContent() {
         throw new Error(data?.message ?? data?.error ?? 'Error al crear la orden.');
       }
       if (data?.init_point) {
+        try {
+          sessionStorage.setItem('tarotCheckoutData', JSON.stringify({
+            nombre: form.nombre.trim(),
+          }));
+        } catch { /* non-blocking */ }
         window.location.href = data.init_point;
       } else {
         throw new Error('No se recibió la URL de pago.');
@@ -245,31 +291,63 @@ export default function TarotCheckoutContent() {
                     Tu WhatsApp <span className="text-white/35">(requerido)</span>
                   </label>
                   <div className="flex gap-2 items-center">
-                    <div className="flex items-center gap-2 rounded-xl bg-white/8 px-3 ring-1 ring-white/15 h-[52px] shrink-0">
-                      <ReactCountryFlag
-                        countryCode="UY"
-                        svg
-                        style={{ width: '24px', height: '18px', borderRadius: '2px' }}
-                        title="Uruguay"
-                        className="shadow-sm"
-                      />
-                      <span className="text-white/70 font-medium tracking-wide">+598</span>
+                    {/* Selector de país */}
+                    <div className="relative shrink-0">
+                      <select
+                        value={pais}
+                        onChange={e => {
+                          setPais(e.target.value);
+                          setForm(prev => ({ ...prev, telefono: '' }));
+                        }}
+                        disabled={isLoading}
+                        className="appearance-none rounded-xl bg-white/8 pl-3 pr-8 ring-1 ring-white/15 h-[52px] text-white/70 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60 cursor-pointer text-sm"
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                      >
+                        {PAISES.map(p => (
+                          <option key={p.codigo} value={p.codigo} style={{ background: '#1a0a3a', color: 'white' }}>
+                            {p.bandera} {p.prefijo}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
                     </div>
                     <input
                       id="telefono"
                       name="telefono"
-                      className="flex-1 rounded-xl bg-white/8 px-4 py-3 h-[52px] ring-1 ring-white/15 focus:outline-none focus:ring-2 focus:ring-amber-400/60 placeholder:text-white/40 disabled:opacity-60 text-white"
-                      placeholder="099123456"
+                      className={`flex-1 rounded-xl bg-white/8 px-4 py-3 h-[52px] ring-1 focus:outline-none focus:ring-2 placeholder:text-white/40 disabled:opacity-60 text-white transition-shadow ${
+                        telefonoValido(form.telefono, pais)
+                          ? 'ring-emerald-500/50 focus:ring-emerald-400/60'
+                          : 'ring-white/15 focus:ring-amber-400/60'
+                      }`}
+                      placeholder={paisInfo.placeholder}
                       inputMode="numeric"
                       value={form.telefono}
-                      onChange={handleChange}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, paisInfo.maxDigits);
+                        setForm(prev => ({ ...prev, telefono: digits }));
+                      }}
                       disabled={isLoading}
                       required
-                      pattern="09\d{7}"
-                      title="Ingresá tu celular uruguayo sin el +598 (ej: 091234567)"
                     />
                   </div>
-                  <p className="mt-1 text-xs text-white/45">Acá recibís la lectura.</p>
+                  {telefonoValido(form.telefono, pais) ? (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
+                      <CheckCircle size={12} className="shrink-0" />
+                      <span>Número confirmado: <span className="font-semibold font-mono">{formatearTelefono(form.telefono, pais)}</span></span>
+                    </div>
+                  ) : form.telefono.length >= 3 ? (
+                    <p className="mt-1.5 text-xs text-amber-400/70">
+                      {pais === 'UY'
+                        ? (form.telefono.length < 9
+                            ? `Faltan ${9 - form.telefono.length} dígito${9 - form.telefono.length !== 1 ? 's' : ''}`
+                            : 'El número debe comenzar con 09')
+                        : (form.telefono.length < 10
+                            ? `Faltan ${10 - form.telefono.length} dígito${10 - form.telefono.length !== 1 ? 's' : ''}`
+                            : 'Ingresá el número sin el 0 inicial ni el 15')}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-white/45">{paisInfo.hint}</p>
+                  )}
                 </div>
 
                 {/* Email (opcional) */}
@@ -337,7 +415,7 @@ export default function TarotCheckoutContent() {
                     name="pregunta"
                     rows={4}
                     className={`${inputBase} resize-none`}
-                    placeholder="Escribí lo que querés consultar. Cuanto más específica, mejor la lectura. Ej: ¿Debo aceptar esta propuesta de trabajo?"
+                    placeholder={`Escribí lo que querés consultar. Cuanto más específica, mejor la lectura.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
                     value={form.pregunta}
                     onChange={handleChange}
                     disabled={isLoading}
@@ -444,6 +522,18 @@ export default function TarotCheckoutContent() {
                       , incluyendo que la lectura es generada por IA con fines simbólicos.
                     </span>
                   </label>
+                </div>
+
+                {/* Reassurance pre-pago */}
+                <div
+                  className="rounded-xl px-4 py-3 text-center text-sm"
+                  style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.12)' }}
+                >
+                  <span className="text-white/60">
+                    Tu lectura llega a tu WhatsApp{' '}
+                    <span className="font-semibold" style={{ color: GOLD_DIM }}>en menos de 15 minutos</span>
+                    . Pago único · Sin renovaciones.
+                  </span>
                 </div>
 
                 {/* Error */}

@@ -216,6 +216,154 @@ function DebugModeToggle({
 }
 
 // ===========================================================================
+// Toggle panel for WHATSAPP_MODO (sandbox / production)
+// ===========================================================================
+
+function WaModoToggle({
+  row,
+  onOk,
+}: {
+  row: ConfigRow;
+  onOk: () => void;
+}) {
+  const isProduction = row.valor === "production";
+  const [confirmando, setConfirmando] = useState(false);
+  const [pendingValor, setPendingValor] = useState<"sandbox" | "production">("sandbox");
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarCambio(nuevoValor: "sandbox" | "production") {
+    setPendingValor(nuevoValor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setConfirmando(true);
+  }
+
+  function cancelar() {
+    setConfirmando(false);
+    setMotivo("");
+    setErrorMsg(null);
+  }
+
+  async function confirmar() {
+    if (motivo.trim().length < 5) {
+      setErrorMsg("El motivo debe tener al menos 5 caracteres");
+      return;
+    }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: "WHATSAPP_MODO", valor: pendingValor, motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setConfirmando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => !isProduction && iniciarCambio("production")}
+          disabled={isProduction}
+          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+            isProduction
+              ? "border-amber-700/60 bg-amber-950/40 text-amber-300 cursor-default"
+              : "border-gray-700/60 bg-gray-800/60 text-gray-500 hover:text-amber-300 hover:border-amber-700/60"
+          }`}
+        >
+          PRODUCCIÓN
+        </button>
+        <button
+          onClick={() => isProduction && iniciarCambio("sandbox")}
+          disabled={!isProduction}
+          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+            !isProduction
+              ? "border-violet-700/60 bg-violet-950/40 text-violet-300 cursor-default"
+              : "border-gray-700/60 bg-gray-800/60 text-gray-500 hover:text-violet-300 hover:border-violet-700/60"
+          }`}
+        >
+          SANDBOX
+        </button>
+        <span className="text-xs text-gray-500">
+          Actualmente:{" "}
+          <span className={isProduction ? "text-amber-400 font-semibold" : "text-violet-400 font-semibold"}>
+            {row.valor}
+          </span>
+        </span>
+      </div>
+
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+
+      {confirmando && (
+        <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
+          <p className="text-xs text-amber-300 font-semibold">
+            Confirmar cambio: WHATSAPP_MODO → <span className="font-mono">{pendingValor}</span>
+            {pendingValor === "production" && (
+              <span className="ml-2 text-amber-500">⚠ Los mensajes se enviarán a usuarios reales</span>
+            )}
+          </p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={2}
+              placeholder={
+                pendingValor === "production"
+                  ? "ej: activar envíos reales para lanzamiento"
+                  : "ej: volver a sandbox para pruebas"
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+            />
+          </div>
+          {errorMsg && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle size={12} /> {errorMsg}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={confirmar}
+              disabled={guardando || motivo.trim().length < 5}
+              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+            >
+              {guardando ? "Guardando…" : "Confirmar"}
+            </button>
+            <button
+              onClick={cancelar}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Configuracion section (read-only structured)
 // ===========================================================================
 
@@ -380,7 +528,7 @@ export default function ConfigPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-100">Configuración del sistema</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Solo <span className="font-mono text-gray-400">APP_DEBUG_MODE</span> es editable desde el panel. Todo lo demás es solo lectura.
+              <span className="font-mono text-gray-400">APP_DEBUG_MODE</span> y <span className="font-mono text-gray-400">WHATSAPP_MODO</span> son editables desde el panel. Todo lo demás es solo lectura.
             </p>
           </div>
           <button
@@ -426,27 +574,36 @@ export default function ConfigPage() {
                   Controles editables
                 </p>
                 <div className="space-y-3">
-                  {editableRows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="rounded-xl border border-violet-800/30 bg-violet-950/10 px-5 py-4"
-                    >
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-100 font-mono">{row.nombre}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            Activa o desactiva el modo debug de la aplicación. Afecta a Edge Functions que verifican este valor.
-                          </p>
-                          {row.created_at && (
-                            <p className="text-xs text-gray-700 mt-1">
-                              Creado: {fmtDate(row.created_at)}
+                  {editableRows.map((row) => {
+                    const isWaModo = row.nombre.toUpperCase() === "WHATSAPP_MODO";
+                    return (
+                      <div
+                        key={row.id}
+                        className="rounded-xl border border-violet-800/30 bg-violet-950/10 px-5 py-4"
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-100 font-mono">{row.nombre}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {isWaModo
+                                ? "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request."
+                                : "Activa o desactiva el modo debug de la aplicación. Afecta a Edge Functions que verifican este valor."}
                             </p>
-                          )}
+                            {row.created_at && (
+                              <p className="text-xs text-gray-700 mt-1">
+                                Creado: {fmtDate(row.created_at)}
+                              </p>
+                            )}
+                          </div>
                         </div>
+                        {isWaModo ? (
+                          <WaModoToggle row={row} onOk={cargar} />
+                        ) : (
+                          <DebugModeToggle row={row} onOk={cargar} />
+                        )}
                       </div>
-                      <DebugModeToggle row={row} onOk={cargar} />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -517,7 +674,7 @@ export default function ConfigPage() {
                 Limitaciones
               </p>
               <ul className="space-y-1.5 text-xs text-gray-600">
-                <li>• Solo <span className="font-mono text-gray-500">APP_DEBUG_MODE</span> es editable desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
+                <li>• <span className="font-mono text-gray-500">APP_DEBUG_MODE</span> y <span className="font-mono text-gray-500">WHATSAPP_MODO</span> son editables desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
                 <li>• Campos sensibles (tokens, claves) se muestran como <span className="font-mono">***redacted***</span>.</li>
                 <li>• No se implementó: editar <span className="font-mono">configuracion</span>, cambiar credenciales WhatsApp, cambiar precio, cambiar versión de flujo.</li>
                 <li>• Los cambios en <span className="font-mono">APP_DEBUG_MODE</span> se aplican en la próxima llamada a Edge Functions que verifican ese valor. No afectan instancias en ejecución.</li>

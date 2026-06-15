@@ -87,6 +87,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
   {
     titulo: "WhatsApp",
     campos: [
+      { clave: "whatsapp_modo",     label: "Modo WA",        tipo: "select", opciones: ["sandbox", "production"],
+        helpText: 'Cambiá a "production" para envíos reales por WhatsApp.' },
       { clave: "wa_proveedor",      label: "Proveedor",      tipo: "text" },
       { clave: "max_reintentos_wa", label: "Reintentos WA",  tipo: "number", min: 1, max: 10 },
     ],

@@ -73,8 +73,8 @@ export async function GET() {
     valor: redactConfigValue(String(row.nombre ?? ""), String(row.valor ?? "")),
     es_sensible: isSensitiveConfigKey(String(row.nombre ?? "")),
     created_at: row.created_at ?? null,
-    // Safe to edit: only APP_DEBUG_MODE
-    editable: String(row.nombre).toUpperCase() === "APP_DEBUG_MODE",
+    // Safe to edit from panel: APP_DEBUG_MODE and WHATSAPP_MODO
+    editable: ["APP_DEBUG_MODE", "WHATSAPP_MODO"].includes(String(row.nombre).toUpperCase()),
   }));
 
   // Sanitize public.configuracion
@@ -102,6 +102,6 @@ export async function GET() {
     config,
     configuracion,
     warnings,
-    nota: "Campos sensibles aparecen como ***redacted***. Solo APP_DEBUG_MODE es editable desde el panel.",
+    nota: "Campos sensibles aparecen como ***redacted***. APP_DEBUG_MODE y WHATSAPP_MODO son editables desde el panel.",
   });
 }

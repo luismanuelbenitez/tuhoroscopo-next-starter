@@ -58,6 +58,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 const ANON_KEY_SUPABASE = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Seguridad entre funciones internas (recomendado)
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
+// WA Cloud API — para responder a clientes TTC dentro de ventana 24h
+const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TOKEN") ?? "";
+const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 // Worker/outbox (CAPA 4)
 const SENDER_FUNCTION_NAME = "ef_whatsapp_sender";
 // Menú interactivo WhatsApp
@@ -393,6 +396,95 @@ async function bienvenidaYaFueEnviada(params) {
     motivo: permitido ? "bienvenida_ya_delivered_o_read" : "bienvenida_aun_no_delivered",
     last
   };
+}
+// ============================================================================
+// Logger: tarot_logs (para clientes TTC)
+// ============================================================================
+async function registrarLogTarot(clienteId, evento, nivel, mensaje, payload = {}) {
+  try {
+    await supabase.from("tarot_logs").insert({
+      cliente_id: clienteId ?? null,
+      evento,
+      nivel,
+      mensaje,
+      payload: payload ?? {},
+      funcion_origen: FUNCION,
+    });
+  } catch (e) {
+    console.error(`[${FUNCION}] Error al registrar tarot_log`, e);
+  }
+}
+// ============================================================================
+// Rate-limit auto-respuesta TTC: máximo 1 respuesta cada 24h por cliente
+// ============================================================================
+async function tarotAutoRespuestaRateLimited(clienteId) {
+  try {
+    const { data } = await supabase
+      .from("tarot_logs")
+      .select("created_at")
+      .eq("cliente_id", clienteId)
+      .eq("evento", "wa_inbound_auto_reply")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (!data || data.length === 0) return false;
+    return diffHours(new Date(nowUTCISO()), new Date(data[0].created_at)) < 24;
+  } catch {
+    return false; // ante la duda, no bloqueamos
+  }
+}
+// ============================================================================
+// Envío de texto libre a cliente TTC (ventana de servicio 24h activa)
+// ============================================================================
+async function enviarMensajeTextoWA(to, cuerpo) {
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    return { ok: false, error: "credenciales_wa_no_configuradas" };
+  }
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "text",
+          text: { body: cuerpo },
+        }),
+      }
+    );
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, http_status: res.status, data };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+// ============================================================================
+// Registro unificado de mensajes entrantes en wa_conversaciones
+// ============================================================================
+async function upsertConversacion(params) {
+  try {
+    await supabase.from("wa_conversaciones").upsert({
+      wamid:            params.wamid ?? null,
+      numero_wa:        params.numero_wa,
+      nombre_remitente: params.nombre_remitente ?? null,
+      tipo_mensaje:     params.tipo_mensaje ?? "text",
+      cuerpo:           params.cuerpo ?? null,
+      timestamp_wa:     params.timestamp_wa ?? null,
+      producto:         params.producto ?? "desconocido",
+      suscriptor_id:    params.suscriptor_id ?? null,
+      tarot_cliente_id: params.tarot_cliente_id ?? null,
+      estado:           params.estado ?? "pendiente",
+      respuesta_texto:  params.respuesta_texto ?? null,
+      respondido_at:    params.respuesta_texto ? nowUTCISO() : null,
+      respondido_por:   params.respuesta_texto ? "auto" : null,
+    }, { onConflict: "wamid" });
+  } catch (e) {
+    console.error(`[${FUNCION}] upsertConversacion error`, e);
+  }
 }
 // ============================================================================
 // Logger: log_funciones
@@ -813,17 +905,105 @@ serve(async (req)=>{
     }, 500);
   }
   if (!suscriptor) {
-    await registrarLog("numero_no_registrado", {
+    // ── Buscar en tarot_clientes (producto TTC) ──────────────────────────
+    const { data: tarotCliente } = await supabase
+      .from("tarot_clientes")
+      .select("id, nombre_completo")
+      .eq("telefono", numeroE164)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!tarotCliente) {
+      // Número desconocido para ambos productos
+      await registrarLog("numero_no_registrado", {
+        numeroE164,
+        msgId: parsed.msgId,
+        tipo: parsed.tipo,
+        textBody: texto,
+        reactionEmoji: parsed.reactionEmoji,
+        id_evento
+      }, true);
+      await upsertConversacion({
+        wamid:        parsed.msgId,
+        numero_wa:    numeroE164,
+        tipo_mensaje: parsed.tipo,
+        cuerpo:       texto.slice(0, 1000) || null,
+        timestamp_wa: parsed.timestampUTC,
+        producto:     "desconocido",
+        estado:       "ignorado",
+      });
+      return jsonResponse({ resultado: "sin_accion", motivo: "numero_no_registrado" }, 200);
+    }
+
+    // ── Cliente TTC identificado — auto-respuesta con rate-limit 24h ─────
+    const primerNombre = (tarotCliente.nombre_completo ?? "").split(" ")[0].trim() || "ahí";
+    const rateLimited  = await tarotAutoRespuestaRateLimited(tarotCliente.id);
+
+    let estadoConv     = "pendiente";
+    let respuestaEnv   = null;
+
+    if (!rateLimited) {
+      const msgCuerpo =
+        `Hola ${primerNombre}, gracias por escribirnos 🔮\n\n` +
+        `Para consultas sobre tu tirada de tarot escribinos a ` +
+        `*hola@tuhoroscopocosmico.com* y te ayudamos enseguida.`;
+
+      const waResult = await enviarMensajeTextoWA(numeroE164, msgCuerpo);
+
+      if (waResult.ok) {
+        estadoConv   = "auto_respondido";
+        respuestaEnv = msgCuerpo;
+      }
+
+      await registrarLogTarot(
+        tarotCliente.id,
+        "wa_inbound_auto_reply",
+        waResult.ok ? "info" : "error",
+        waResult.ok
+          ? "Auto-respuesta enviada a cliente TTC"
+          : "Error al enviar auto-respuesta a cliente TTC",
+        { numeroE164, msgId: parsed.msgId, texto_inbound: texto.slice(0, 200), waResult, id_evento }
+      );
+    } else {
+      await registrarLogTarot(
+        tarotCliente.id,
+        "wa_inbound_rate_limited",
+        "info",
+        "Mensaje de cliente TTC recibido — auto-respuesta omitida por rate-limit 24h",
+        { numeroE164, msgId: parsed.msgId, id_evento }
+      );
+    }
+
+    // Registro en wa_conversaciones (visible en panel admin)
+    await upsertConversacion({
+      wamid:            parsed.msgId,
+      numero_wa:        numeroE164,
+      nombre_remitente: tarotCliente.nombre_completo ?? null,
+      tipo_mensaje:     parsed.tipo,
+      cuerpo:           texto.slice(0, 1000) || null,
+      timestamp_wa:     parsed.timestampUTC,
+      producto:         "ttc",
+      tarot_cliente_id: tarotCliente.id,
+      estado:           estadoConv,
+      respuesta_texto:  respuestaEnv,
+    });
+
+    // Trazabilidad cruzada en log_funciones
+    await registrarLog("tarot_cliente_inbound", {
+      tarot_cliente_id: tarotCliente.id,
       numeroE164,
       msgId: parsed.msgId,
       tipo: parsed.tipo,
-      textBody: texto,
-      reactionEmoji: parsed.reactionEmoji,
+      textBody: texto.slice(0, 200),
+      rateLimited,
+      estadoConv,
       id_evento
     }, true);
+
     return jsonResponse({
-      resultado: "sin_accion",
-      motivo: "numero_no_registrado"
+      resultado: "ok",
+      accion: rateLimited ? "tarot_cliente_rate_limited" : "tarot_cliente_auto_reply",
+      tarot_cliente_id: tarotCliente.id,
     }, 200);
   }
   // =========================================================================
@@ -1363,6 +1543,21 @@ serve(async (req)=>{
       id_evento,
       fechaEventoUTC: parsed.timestampUTC
     }, true);
+    // Solo registrar mensajes de texto (no reactions) — el suscriptor está
+    // escribiendo algo que el bot no sabe manejar: puede necesitar atención humana
+    if (parsed.tipo === "text" && texto.trim()) {
+      await upsertConversacion({
+        wamid:            parsed.msgId,
+        numero_wa:        numeroE164,
+        nombre_remitente: suscriptor.nombre ?? null,
+        tipo_mensaje:     "text",
+        cuerpo:           texto.slice(0, 1000),
+        timestamp_wa:     parsed.timestampUTC,
+        producto:         "thc",
+        suscriptor_id:    suscriptor.id,
+        estado:           "pendiente",
+      });
+    }
     return jsonResponse({
       resultado: "ya_confirmado",
       mensaje: "El número ya estaba confirmado"

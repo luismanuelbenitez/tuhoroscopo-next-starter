@@ -165,61 +165,30 @@ export default function GraciasContent() {
   }, []); // El array vacío asegura ejecución única al montar
 
 
-  // --- Efecto principal para procesar el estado del pago (sin cambios) ---
+  // --- Efecto principal: detecta estado del pago y registra la llegada ---
   useEffect(() => {
-    async function procesarBackUrl() {
-      // 1) Validación: Si no tenemos ID de suscriptor o preapproval, es un error
-      if (!id || !preapproval_id) {
-        console.error("Error: Faltan id_suscriptor o preapproval_id en URL");
-        setUiStatus("error"); // Mostramos UI de error
-        return; // Salimos de la función
-      }
+    // Log fire-and-forget — evidencia de que el usuario completó el flujo MP
+    try {
+      fetch("/api/log-backurl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "BACKURL_MP_USUARIO", ...report }),
+      });
+    } catch { /* fire-and-forget */ }
 
-      // 2) Enviar log al backend (sin esperar respuesta, "fire and forget")
-      try {
-        fetch("/api/log-backurl", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tipo: "BACKURL_MP_USUARIO", ...report }),
-        });
-      } catch { /* fire-and-forget */ }
+    const statusNorm = String(status || "").toLowerCase().trim();
+    const positivos = ["authorized", "approved", "success", "active", ""];
 
-      const statusNorm = String(status || "").toLowerCase().trim();
-      const positivos = ["authorized", "approved", "success", "active", ""];
-      const esPositivo = positivos.includes(statusNorm);
-
-      if (esPositivo) {
-        try {
-          const r = await fetch("/api/activar-premium-provisorio", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id_suscriptor: id, preapproval_id }),
-          });
-          const j = await r.json().catch(() => ({}));
-          if (r.ok && j?.ok) {
-            setUiStatus("ok");
-            lanzarConfeti();
-          } else {
-            setUiStatus("warn");
-          }
-        } catch {
-          setUiStatus("error");
-        }
-        return;
-      }
-
-      if (statusNorm === "pending" || statusNorm === "in_process") {
-        setUiStatus("warn");
-        return;
-      }
-
+    if (positivos.includes(statusNorm)) {
+      setUiStatus("ok");
+      lanzarConfeti();
+    } else if (statusNorm === "pending" || statusNorm === "in_process") {
+      setUiStatus("warn");
+    } else {
       setUiStatus("error");
     }
-
-    // Ejecutamos la función asíncrona definida arriba
-    procesarBackUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Dependencias vacías para ejecutar solo una vez al montar
+  }, []); // Ejecutar solo una vez al montar
 
   // --- Función de Confeti (sin cambios) ---
   function lanzarConfeti() {

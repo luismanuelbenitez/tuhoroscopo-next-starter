@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { href: "/admin/ingresos",               label: "Ingresos" },
   { href: "/admin/suscriptores",           label: "Suscriptores" },
   { href: "/admin/mensajes-problematicos", label: "Mensajes" },
+  { href: "/admin/wa",                     label: "WA Inbox" },
   { href: "/admin/contenido",              label: "Contenido" },
   { href: "/admin/suscripciones",          label: "Suscripciones" },
   { href: "/admin/cupones",                label: "Cupones" },

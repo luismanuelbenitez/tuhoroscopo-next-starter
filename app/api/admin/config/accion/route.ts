@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
-// Only APP_DEBUG_MODE can be toggled from the panel.
+// APP_DEBUG_MODE and WHATSAPP_MODO can be toggled from the panel.
 // All other config keys are read-only.
-const CLAVES_EDITABLES = ["APP_DEBUG_MODE"] as const;
+const CLAVES_EDITABLES = ["APP_DEBUG_MODE", "WHATSAPP_MODO"] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
 const VALORES_PERMITIDOS: Record<ClaveEditable, string[]> = {
   APP_DEBUG_MODE: ["true", "false"],
+  WHATSAPP_MODO:  ["sandbox", "production"],
 };
 
 export async function POST(req: NextRequest) {

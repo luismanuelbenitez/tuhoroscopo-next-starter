@@ -1054,14 +1054,20 @@ async function generarPDF(
 
     // Sprint 5 — Disparar envío WhatsApp (fire-and-forget, solo en modo normal)
     if (!debug) {
-      const waUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`;
-      fetch(waUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-internal-key": TAROT_INTERNAL_KEY,
-        },
+      const internalHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "x-internal-key": TAROT_INTERNAL_KEY,
+      };
+
+      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
+        method: "POST", headers: internalHeaders,
+        body: JSON.stringify({ orden_id: ordenId }),
+      }).catch(() => { /* fire-and-forget */ });
+
+      // Email con PDF — solo actúa si el cliente tiene email y RESEND_API_KEY está configurada
+      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+        method: "POST", headers: internalHeaders,
         body: JSON.stringify({ orden_id: ordenId }),
       }).catch(() => { /* fire-and-forget */ });
     }
