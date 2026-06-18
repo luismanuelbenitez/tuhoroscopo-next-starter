@@ -154,7 +154,18 @@ function Row({ label, valor }: { label: string; valor: string | number }) {
 
 function fechaHora(iso: string | null): string {
   if (!iso) return "—";
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}`;
+  try {
+    return new Date(iso).toLocaleString("es-UY", {
+      timeZone: "America/Montevideo",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return iso.slice(0, 16);
+  }
 }
 
 function truncar(s: string | null, max = 55): string {
@@ -552,7 +563,7 @@ export function AdminDashboard() {
         </div>
         {/* Nav */}
         <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin" />
+          <AdminNav current="/admin/horoscopo" />
         </div>
       </header>
 
