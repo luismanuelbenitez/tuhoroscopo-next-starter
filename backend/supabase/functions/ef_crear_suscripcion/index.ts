@@ -19,7 +19,6 @@ const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const MP_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
 const MP_ENV = (Deno.env.get("MP_ENV") || "sandbox").toLowerCase();
 const MP_TEST_EMAIL = Deno.env.get("MP_TEST_PLAYER_EMAIL");
-const BASE_URL_GRACIAS = Deno.env.get("BASE_URL_GRACIAS") || "https://tuhoroscopo-next-starter.vercel.app/gracias";
 const MP_NOTIFICATION_URL = Deno.env.get("MP_NOTIFICATION_URL") || `${SUPABASE_URL}/functions/v1/ef_webhook_mp`;
 // ============================================================================
 // CONSTANTES DE NEGOCIO / MODELO DE ESTADOS
@@ -66,6 +65,14 @@ const PENDING_TTL_HOURS = 24;
 const ESTADO_PENDIENTE = "pendiente";
 const ESTADO_EXPIRADA_TTL = "expirada_ttl";
 const supabase = createClient(SUPABASE_URL, SRK);
+async function getConfigValue(clave: string, fallback: string): Promise<string> {
+  try {
+    const { data } = await supabase.from("config").select("valor").eq("nombre", clave).maybeSingle();
+    return data?.valor ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -298,7 +305,8 @@ serve(async (req)=>{
     // 3) CREAR PREAPPROVAL EN MP (FLUJO MODERNO)
     // ------------------------------------------------------------------------
     const external_reference = String(id_suscriptor);
-    const back_url = `${BASE_URL_GRACIAS}?id_suscriptor=${id_suscriptor}`;
+    const thcBackUrl = await getConfigValue("THC_BACK_URL", "https://tuhoroscopo-next-starter.vercel.app/horoscopo/gracias");
+    const back_url = `${thcBackUrl.replace(/\/$/, "")}?id_suscriptor=${id_suscriptor}`;
     const mpPayload = {
       reason: MP_REASON,
       external_reference,
