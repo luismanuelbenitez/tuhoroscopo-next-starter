@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "En mantenimiento — Tu Oráculo",
+  title: "Volvemos pronto — Tu Oráculo",
   robots: "noindex,nofollow",
 };
 
@@ -7,19 +7,19 @@ export default function MantenimientoPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;600&display=swap');
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html,body{height:100%;background:#07051a;font-family:'Inter',sans-serif;color:#e8e0f0;overflow:hidden}
-        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-        @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 8px rgba(139,92,246,.35))}50%{filter:drop-shadow(0 0 20px rgba(139,92,246,.65))}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.6}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+        @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 10px rgba(139,92,246,.3))}50%{filter:drop-shadow(0 0 24px rgba(139,92,246,.6))}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes twinkle{0%,100%{opacity:.12}50%{opacity:.55}}
         .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) var(--delay,0s) infinite ease-in-out}
       `}</style>
 
       <div style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem" }}>
 
-        {/* Stars background */}
+        {/* Stars */}
         {[
           { w:2,h:2,top:"8%",left:"12%",d:"4s",delay:"0s" },
           { w:1,h:1,top:"15%",left:"75%",d:"3s",delay:"1s" },
@@ -31,6 +31,8 @@ export default function MantenimientoPage() {
           { w:1,h:1,top:"88%",left:"82%",d:"5s",delay:"1.2s" },
           { w:2,h:2,top:"50%",left:"93%",d:"3.5s",delay:"2.5s" },
           { w:1,h:1,top:"42%",left:"3%",d:"4s",delay:"0.7s" },
+          { w:1,h:1,top:"28%",left:"20%",d:"3.2s",delay:"1.8s" },
+          { w:1,h:1,top:"58%",left:"52%",d:"4.2s",delay:"0.9s" },
         ].map((s, i) => (
           <div
             key={i}
@@ -39,50 +41,77 @@ export default function MantenimientoPage() {
           />
         ))}
 
-        {/* Logo + content */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2rem", maxWidth: 480, textAlign: "center", animation: "fadeUp .6s ease both" }}>
+        {/* Ambient glow — da profundidad sin recargar */}
+        <div style={{
+          position: "absolute",
+          width: 640,
+          height: 640,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 65%)",
+          pointerEvents: "none",
+        }} />
 
-          {/* Hexagram SVG */}
-          <div style={{ animation: "float 4s ease-in-out infinite, pulse-glow 4s ease-in-out infinite" }}>
-            <svg width="72" height="72" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+        {/* Contenido central */}
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "2rem", maxWidth: 480, textAlign: "center", animation: "fadeUp .65s ease both" }}>
+
+          {/* Isotipo */}
+          <div style={{ animation: "float 4.5s ease-in-out infinite, pulse-glow 4.5s ease-in-out infinite" }}>
+            <svg width="88" height="88" viewBox="0 0 48 48" fill="none" aria-hidden="true">
               <polygon
-                points="26,4 32.4,15 45,15 38.7,26 45,37 32.4,37 26,48 19.6,37 7,37 13.3,26 7,15 19.6,15"
+                points="24,3 45,24 24,45 3,24"
+                stroke="rgba(139,92,246,0.5)"
+                strokeWidth="2"
                 fill="none"
-                stroke="rgba(139,92,246,0.55)"
-                strokeWidth="1.4"
               />
               <path
-                d="M23 18 A6 6 0 0 0 29 18 A5 5 0 0 1 23 18Z"
-                fill="rgba(196,181,253,0.5)"
+                d="M 10 24 C 16 15, 32 15, 38 24 C 32 33, 16 33, 10 24 Z"
+                fill="rgba(139,92,246,0.07)"
+                stroke="rgba(196,181,253,0.92)"
+                strokeWidth="2"
+                strokeLinejoin="round"
               />
-              <ellipse cx="26" cy="27" rx="4.5" ry="3" fill="none" stroke="rgba(196,181,253,0.6)" strokeWidth="1.2" />
-              <circle cx="26" cy="27" r="1.4" fill="rgba(196,181,253,0.8)" />
+              <circle cx="24" cy="24" r="5.5" stroke="rgba(167,139,250,0.6)" strokeWidth="1.5" fill="none" />
+              <circle cx="24" cy="24" r="3" fill="rgba(139,92,246,1)" />
+              <circle cx="22.5" cy="22.5" r="1.1" fill="rgba(255,255,255,0.7)" />
+              <circle cx="24" cy="3" r="2.2" fill="rgba(212,175,55,0.9)" />
             </svg>
           </div>
 
-          {/* Brand */}
-          <div style={{ animation: "fadeUp .6s .1s ease both" }}>
-            <p style={{ fontSize: 11, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(196,181,253,.5)", marginBottom: 8 }}>
+          {/* Marca + títulos */}
+          <div style={{ animation: "fadeUp .65s .1s ease both" }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(196,181,253,0.45)", marginBottom: 16 }}>
               Tu Oráculo
             </p>
-            <h1 style={{ fontSize: "clamp(1.6rem,5vw,2.4rem)", fontWeight: 800, color: "#fff", lineHeight: 1.1, marginBottom: 12 }}>
-              Estamos en<br />mantenimiento
+            <h1 style={{
+              fontFamily: "'Cormorant Garamond', Georgia, serif",
+              fontSize: "clamp(2rem,6vw,2.8rem)",
+              fontWeight: 700,
+              color: "#ffffff",
+              lineHeight: 1.15,
+              marginBottom: 16,
+              letterSpacing: "0.01em",
+            }}>
+              Estamos preparando<br />algo nuevo
             </h1>
-            <p style={{ fontSize: "0.95rem", color: "rgba(232,224,240,.55)", lineHeight: 1.65 }}>
-              Estamos configurando algo nuevo.<br />
-              Volvemos en breve.
+            <p style={{ fontSize: "0.92rem", color: "rgba(196,181,253,0.55)", lineHeight: 1.7 }}>
+              Volvemos en breve con una experiencia renovada.
             </p>
           </div>
 
-          {/* Divider */}
-          <div style={{ width: 40, height: 1, background: "rgba(139,92,246,.3)", animation: "fadeUp .6s .2s ease both" }} />
+          {/* Separador */}
+          <div style={{
+            width: 56,
+            height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.45), transparent)",
+            animation: "fadeUp .65s .2s ease both",
+          }} />
 
-          {/* Contact */}
-          <p style={{ fontSize: "0.8rem", color: "rgba(232,224,240,.3)", animation: "fadeUp .6s .3s ease both" }}>
+          {/* Contacto */}
+          <p style={{ fontSize: "0.82rem", color: "rgba(196,181,253,0.45)", animation: "fadeUp .65s .3s ease both", letterSpacing: "0.02em" }}>
             Consultas:{" "}
             <a
               href="mailto:hola@tuoraculo.uy"
-              style={{ color: "rgba(196,181,253,.55)", textDecoration: "none" }}
+              style={{ color: "rgba(196,181,253,0.85)", textDecoration: "none", borderBottom: "1px solid rgba(196,181,253,0.2)" }}
             >
               hola@tuoraculo.uy
             </a>
