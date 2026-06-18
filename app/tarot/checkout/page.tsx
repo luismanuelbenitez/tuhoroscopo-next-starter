@@ -1,7 +1,7 @@
 import TarotCheckoutContent from './TarotCheckoutContent';
 
 export const metadata = {
-  title: 'Consulta de Tarot — Tu Horóscopo Cósmico',
+  title: 'Consulta de Tarot — Tu Oráculo',
   description: 'Completá tu consulta de tarot. Entrega por WhatsApp en minutos.',
 };
 

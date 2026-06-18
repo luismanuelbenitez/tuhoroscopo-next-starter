@@ -2,15 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
-// APP_DEBUG_MODE and WHATSAPP_MODO can be toggled from the panel.
-// All other config keys are read-only.
-const CLAVES_EDITABLES = ["APP_DEBUG_MODE", "WHATSAPP_MODO"] as const;
+const CLAVES_EDITABLES = ["APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO"] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
-const VALORES_PERMITIDOS: Record<ClaveEditable, string[]> = {
-  APP_DEBUG_MODE: ["true", "false"],
-  WHATSAPP_MODO:  ["sandbox", "production"],
+const VALORES_ENUM: Partial<Record<ClaveEditable, string[]>> = {
+  APP_DEBUG_MODE:      ["true", "false"],
+  WHATSAPP_MODO:       ["sandbox", "production"],
+  MODO_MANTENIMIENTO:  ["true", "false"],
 };
+
+function validarValor(clave: ClaveEditable, valor: string): string | null {
+  if (VALORES_ENUM[clave]) {
+    if (!VALORES_ENUM[clave]!.includes(valor)) {
+      return `Valores permitidos para ${clave}: ${VALORES_ENUM[clave]!.join(", ")}`;
+    }
+    return null;
+  }
+  if (clave === "THC_BACK_URL" || clave === "TTC_BACK_URL") {
+    try {
+      const url = new URL(valor);
+      if (url.protocol !== "https:") return "Debe ser una URL HTTPS";
+    } catch {
+      return "URL inválida — debe comenzar con https://";
+    }
+    return null;
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   const session = await requireAdminSession();
@@ -45,18 +63,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate valor
-  const valorRaw = typeof body.valor === "string" ? body.valor.trim().toLowerCase() : "";
-  const valoresPermitidos = VALORES_PERMITIDOS[clave as ClaveEditable];
-  if (!valoresPermitidos.includes(valorRaw)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        motivo: "valor_invalido",
-        detalle: `Valores permitidos para ${clave}: ${valoresPermitidos.join(", ")}`,
-      },
-      { status: 400 }
-    );
+  // Validate valor — URL keys preserve case, enum keys are lowercased
+  const isUrl = clave === "THC_BACK_URL" || clave === "TTC_BACK_URL";
+  const valorRaw = typeof body.valor === "string"
+    ? (isUrl ? body.valor.trim() : body.valor.trim().toLowerCase())
+    : "";
+  const errorValor = validarValor(clave as ClaveEditable, valorRaw);
+  if (errorValor) {
+    return NextResponse.json({ ok: false, motivo: "valor_invalido", detalle: errorValor }, { status: 400 });
   }
 
   // Validate motivo

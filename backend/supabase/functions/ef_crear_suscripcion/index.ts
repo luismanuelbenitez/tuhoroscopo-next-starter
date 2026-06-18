@@ -41,7 +41,7 @@ const MP_NOTIFICATION_URL = Deno.env.get("MP_NOTIFICATION_URL") || `${SUPABASE_U
 // Significa:
 //   "para THC, esta suscripción ya no debe volver a usarse"
 // ============================================================================
-const MP_REASON = "Suscripción Premium Tu Horóscopo Cósmico";
+const MP_REASON = "Suscripción Premium Tu Oráculo";
 const MP_AMOUNT = 390;
 const MP_CURRENCY_ID = "UYU";
 const MP_FREQUENCY = 1;

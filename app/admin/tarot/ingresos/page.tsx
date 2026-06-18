@@ -316,7 +316,7 @@ export default function IngresosPage() {
         {thc && (
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">Tu Horóscopo Cósmico (THC)</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">Tu Oráculo · Horóscopo</span>
               <div className="flex-1 h-px bg-violet-900/40" />
               <span className="text-xs text-gray-600">MRR = suscripciones activas autorizadas. Período aplica a nuevas/canceladas.</span>
             </div>

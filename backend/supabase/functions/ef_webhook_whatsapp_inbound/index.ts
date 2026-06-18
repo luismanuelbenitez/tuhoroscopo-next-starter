@@ -946,7 +946,7 @@ serve(async (req)=>{
       const msgCuerpo =
         `Hola ${primerNombre}, gracias por escribirnos 🔮\n\n` +
         `Para consultas sobre tu tirada de tarot escribinos a ` +
-        `*hola@tuhoroscopocosmico.com* y te ayudamos enseguida.`;
+        `*hola@tuoraculo.uy* y te ayudamos enseguida.`;
 
       const waResult = await enviarMensajeTextoWA(numeroE164, msgCuerpo);
 

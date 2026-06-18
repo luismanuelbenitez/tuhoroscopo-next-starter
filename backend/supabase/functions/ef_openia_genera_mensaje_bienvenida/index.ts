@@ -208,7 +208,7 @@ function validarYNormalizar(raw) {
 // devolvemos este contenido "seguro" y neutro.
 function fallbackContenido() {
   return {
-    saludo_inicial: "¡Hola! ✨ Gracias por sumarte a Tu Horóscopo Cósmico Premium.",
+    saludo_inicial: "¡Hola! ✨ Gracias por sumarte a Tu Oráculo Premium.",
     cuerpo_bienvenida: "Desde hoy vas a recibir mensajes personalizados con tu horóscopo diario, número y color de la suerte y pequeñas pausas de bienestar para acompañarte de lunes a sábado, más un mensaje especial cada domingo para cerrar la semana con claridad y calma.",
     instruccion_confirmacion: "Para confirmar que este es realmente tu número y activar tu suscripción, respondé a este mensaje con cualquier palabra o emoji.",
     info_cancelacion: "Si en algún momento querés dejar de recibir el contenido, podés cancelar la suscripción desde tu cuenta de Mercado Pago.",

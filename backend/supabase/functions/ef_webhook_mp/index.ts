@@ -522,7 +522,7 @@ async function handlePayment(paymentId, { allowSandboxMock = false } = {}) {
         additional_info: null,
         statement_descriptor: "TUHOROSCOPO",
         installments: 1,
-        description: "Suscripción Premium Tu Horóscopo Cósmico",
+        description: "Suscripción Premium Tu Oráculo",
         mock: true,
         debug_note: "Pago generado internamente en SANDBOX usando preapproval REAL"
       };
@@ -1116,7 +1116,7 @@ async function handleAuthorizedPayment(paymentId, { allowSandboxMock = false } =
           email: "mockpayer@example.com"
         },
         installments: 1,
-        description: "Suscripción Premium Tu Horóscopo Cósmico",
+        description: "Suscripción Premium Tu Oráculo",
         statement_descriptor: "TUHOROSCOPO",
         additional_info: null,
         mock: true,

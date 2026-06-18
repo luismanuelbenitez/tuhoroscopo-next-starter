@@ -15,7 +15,7 @@ const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const RESEND_API_KEY            = Deno.env.get("RESEND_API_KEY") ?? "";
-const RESEND_FROM               = Deno.env.get("RESEND_FROM") ?? "Tu Horóscopo Cósmico <hola@tuhoroscopo.com>";
+const RESEND_FROM               = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";
 const FN                        = "ef_tarot_enviar_email";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -91,7 +91,7 @@ async function enviarEmail(ordenId: string): Promise<void> {
   const emailBody = {
     from:    RESEND_FROM,
     to:      [cliente.email],
-    subject: `Tu Tirada Cósmica está lista, ${nombreCorto} ✨`,
+    subject: `Tu lectura de tarot está lista, ${nombreCorto} ✨`,
     html: `
 <!DOCTYPE html>
 <html lang="es">
@@ -101,7 +101,7 @@ async function enviarEmail(ordenId: string): Promise<void> {
 
     <div style="text-align:center;margin-bottom:32px;">
       <p style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(251,191,36,0.60);margin:0 0 8px;">
-        Tu Horóscopo Cósmico
+        Tu Oráculo
       </p>
       <h1 style="font-size:24px;color:#fff;margin:0;font-weight:bold;">
         Tu lectura está lista, ${nombreCorto}.
@@ -127,7 +127,7 @@ async function enviarEmail(ordenId: string): Promise<void> {
     <p style="color:rgba(255,255,255,0.30);font-size:11px;text-align:center;line-height:1.6;margin:0;">
       Esta lectura es generada con inteligencia artificial aplicando simbología tarot tradicional.
       No es una predicción del futuro ni reemplaza consejo profesional.<br><br>
-      Tu Horóscopo Cósmico · <a href="https://tuhoroscopo.com" style="color:rgba(251,191,36,0.50);text-decoration:none;">tuhoroscopo.com</a>
+      Tu Oráculo · <a href="https://tuoraculo.uy" style="color:rgba(251,191,36,0.50);text-decoration:none;">tuoraculo.uy</a>
     </p>
 
   </div>

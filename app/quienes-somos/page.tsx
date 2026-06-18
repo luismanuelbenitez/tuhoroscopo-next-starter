@@ -14,7 +14,7 @@ export default function QuienesSomos() {
           ¿Quiénes somos?
         </h1>
         <p className="text-white/70 text-base md:text-lg leading-relaxed max-w-xl">
-          Tu Horóscopo Cósmico es una experiencia diaria de astrología práctica, enviada cada mañana directo a tu WhatsApp.
+          Tu Oráculo es una experiencia diaria de astrología práctica y lecturas de tarot, enviadas directo a tu WhatsApp.
         </p>
       </div>
 

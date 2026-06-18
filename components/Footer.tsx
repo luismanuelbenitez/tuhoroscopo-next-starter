@@ -31,7 +31,7 @@ export function Footer() {
           </div>
 
           <p className="text-white/30 text-xs">
-            © {new Date().getFullYear()} Tu Horóscopo Cósmico. Todos los derechos reservados.
+            © {new Date().getFullYear()} Tu Oráculo. Todos los derechos reservados.
           </p>
 
         </div>

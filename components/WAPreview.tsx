@@ -23,13 +23,13 @@ export default function WAPreview() {
         >
           <img
             src={LOGO_SRC}
-            alt="Tu Horóscopo Cósmico"
+            alt="Tu Oráculo"
             className="w-full h-full object-cover"
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white text-[13px] font-semibold leading-tight">Tu Horóscopo Cósmico</p>
+          <p className="text-white text-[13px] font-semibold leading-tight">Tu Oráculo</p>
           <p className="text-green-400 text-[11px]">en línea</p>
         </div>
         <span className="text-white/25 text-[11px] shrink-0">08:07</span>

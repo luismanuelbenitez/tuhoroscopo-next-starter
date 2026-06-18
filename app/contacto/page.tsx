@@ -29,12 +29,12 @@ export default function Contacto() {
           La forma más confiable de contactarnos. Respondemos en un plazo de 24 a 48 horas hábiles.
         </p>
         <a
-          href="mailto:hola@tuhoroscopocosmico.com"
+          href="mailto:hola@tuoraculo.uy"
           className="inline-flex items-center gap-2 text-white font-semibold text-sm rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-5 py-3 hover:from-violet-600 hover:to-violet-400 transition-all"
           style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.28)' }}
         >
           <Mail size={14} />
-          hola@tuhoroscopocosmico.com
+          hola@tuoraculo.uy
         </a>
       </div>
 

@@ -13,10 +13,22 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
 // URL base a donde redirigir al usuario tras el pago (back_urls de MP)
 // Ejemplo: https://tuhoroscopocosmico.com/tarot/estado/
-const TAROT_BACK_URL = Deno.env.get("TAROT_BACK_URL") ?? "https://tuhoroscopocosmico.com/tarot/estado/";
 const FN = "ef_tarot_crear_orden";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+async function getConfigValue(clave: string, fallback: string): Promise<string> {
+  try {
+    const { data } = await supabase
+      .from("config")
+      .select("valor")
+      .eq("nombre", clave)
+      .maybeSingle();
+    return data?.valor ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -322,7 +334,11 @@ serve(async (req) => {
 
   // ── 8. Crear preferencia en Mercado Pago ─────────────────
   const webhookUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_webhook_mp`;
-  const backBase = TAROT_BACK_URL.replace(/\/$/, "");
+  const tarotBackUrl = await getConfigValue(
+    "TTC_BACK_URL",
+    "https://tuhoroscopo-next-starter.vercel.app/tarot/gracias",
+  );
+  const backBase = tarotBackUrl.replace(/\/$/, "");
 
   const mpPayload = {
     items: [
@@ -344,7 +360,7 @@ serve(async (req) => {
     },
     auto_return: "approved",
     notification_url: webhookUrl,
-    statement_descriptor: "TAROT THC",
+    statement_descriptor: "TU ORACULO",
     expires: true,
     expiration_date_from: new Date().toISOString(),
     expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),

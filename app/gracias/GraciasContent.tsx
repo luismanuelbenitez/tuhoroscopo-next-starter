@@ -290,10 +290,10 @@ export default function GraciasContent() {
                     <strong className="text-white/90">¿No llegó nada en 5 minutos?</strong>{" "}
                     Escribinos a{" "}
                     <a
-                      href="mailto:soporte@tuhoroscopocosmico.com"
+                      href="mailto:hola@tuoraculo.uy"
                       className="text-violet-300 underline hover:text-violet-200"
                     >
-                      soporte@tuhoroscopocosmico.com
+                      hola@tuoraculo.uy
                     </a>.
                   </p>
                 </div>
@@ -362,7 +362,7 @@ export default function GraciasContent() {
                   El pago pudo ser rechazado o faltaron datos. Podés volver a intentarlo sin problema.
                 </p>
                 <a
-                  href="/checkout"
+                  href="/horoscopo/checkout"
                   className="inline-block w-full rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 py-4 text-base font-bold text-white text-center transition-all hover:from-violet-600 hover:to-violet-400 active:scale-[0.98]"
                   style={{ boxShadow: '0 4px 24px rgba(109,40,217,0.35)' }}
                 >

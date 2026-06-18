@@ -23,7 +23,7 @@ const SECTIONS = [
   },
   {
     title: '6. Tus derechos',
-    content: 'Podés solicitar en cualquier momento el acceso, la corrección o la eliminación de tus datos personales. Para hacerlo, escribinos a hola@tuhoroscopocosmico.com y lo gestionamos a la brevedad.',
+    content: 'Podés solicitar en cualquier momento el acceso, la corrección o la eliminación de tus datos personales. Para hacerlo, escribinos a hola@tuoraculo.uy y lo gestionamos a la brevedad.',
   },
   {
     title: '7. Cambios en esta política',
@@ -44,7 +44,7 @@ export default function PoliticaPrivacidad() {
           Política de privacidad
         </h1>
         <p className="text-white/70 text-sm leading-relaxed">
-          En Tu Horóscopo Cósmico valoramos tu confianza. Esta política explica qué datos recopilamos y cómo los usamos.
+          En Tu Oráculo valoramos tu confianza. Esta política explica qué datos recopilamos y cómo los usamos.
         </p>
         <p className="text-white/40 text-xs mt-2">Última actualización: 2025</p>
       </div>
@@ -71,10 +71,10 @@ export default function PoliticaPrivacidad() {
         <p className="text-white/60 text-sm">
           Consultas sobre privacidad:{' '}
           <a
-            href="mailto:hola@tuhoroscopocosmico.com"
+            href="mailto:hola@tuoraculo.uy"
             className="text-violet-400 hover:text-violet-300 transition-colors"
           >
-            hola@tuhoroscopocosmico.com
+            hola@tuoraculo.uy
           </a>
         </p>
       </div>

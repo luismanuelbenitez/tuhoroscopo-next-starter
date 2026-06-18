@@ -5,8 +5,8 @@ import { Footer } from "@/components/Footer";
 import { headers } from "next/headers";
 
 export const metadata: Metadata = {
-  title: "Tu Horóscopo Cósmico",
-  description: "Astrología práctica y personalizada en tu WhatsApp ✨",
+  title: "Tu Oráculo",
+  description: "Guía diaria personalizada y lecturas de tarot, directo a tu WhatsApp.",
 icons: {
   icon: [
     { url: "/icons/favicon.ico", type: "image/x-icon" },

@@ -112,7 +112,7 @@ export default function PlanCards2() {
           whatsapp: reg.whatsapp,
           signo: reg.signo,
           contenido_preferido: reg.contenido_preferido,
-          email: reg.email ?? `user_${reg.whatsapp}@tuhoroscopocosmico.com`,
+          email: reg.email ?? `user_${reg.whatsapp}@tuoraculo.uy`,
           monto: 390,
           moneda: "UYU",
           reason: `Premium mensual THC - ${reg.nombre}`

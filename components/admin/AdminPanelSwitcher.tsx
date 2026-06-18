@@ -20,7 +20,7 @@ export function AdminPanelSwitcher({ current }: Props) {
         />
         <div>
           <p className="text-sm font-semibold leading-tight">Panel THC</p>
-          <p className="text-xs text-gray-500 leading-tight">Tu Horóscopo Cósmico</p>
+          <p className="text-xs text-gray-500 leading-tight">Tu Oráculo · Horóscopo</p>
         </div>
       </a>
       <div className="w-px h-8 bg-gray-800 mx-1" />
@@ -36,7 +36,7 @@ export function AdminPanelSwitcher({ current }: Props) {
         />
         <div>
           <p className="text-sm font-semibold leading-tight">Panel TTC</p>
-          <p className="text-xs text-gray-500 leading-tight">Tu Tirada Cósmica</p>
+          <p className="text-xs text-gray-500 leading-tight">Tu Oráculo · Tarot</p>
         </div>
       </a>
     </div>

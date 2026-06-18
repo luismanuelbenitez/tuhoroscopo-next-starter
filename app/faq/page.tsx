@@ -25,7 +25,7 @@ const FAQS = [
   },
   {
     q: '¿Cómo cancelo?',
-    a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuhoroscopocosmico.com. Sin trámites complicados.',
+    a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuoraculo.uy. Sin trámites complicados.',
   },
   {
     q: '¿Qué pasa después de suscribirme?',
@@ -33,7 +33,7 @@ const FAQS = [
   },
   {
     q: '¿Qué hago si no me llega el mensaje?',
-    a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuhoroscopocosmico.com.',
+    a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuoraculo.uy.',
   },
   {
     q: '¿Cómo pauso o cancelo los mensajes?',
@@ -45,7 +45,7 @@ const FAQS = [
   },
   {
     q: '¿Puedo cambiar mi foco o preferencia más adelante?',
-    a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuhoroscopocosmico.com y lo actualizamos.',
+    a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuoraculo.uy y lo actualizamos.',
   },
   {
     q: '¿Por qué me piden mi signo y mi preferencia?',
@@ -107,13 +107,13 @@ export default function FAQ() {
 
       {/* CTA */}
       <div className="text-center">
-        <Link
-          href="/checkout"
+        <a
+          href="/horoscopo/checkout"
           className="inline-block rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-8 py-3.5 text-sm font-bold text-white transition-all hover:from-violet-600 hover:to-violet-400"
           style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.30)' }}
         >
           Activar mi guía diaria →
-        </Link>
+        </a>
         <p className="mt-2 text-[12px] text-white/40">$U 390/mes · IVA incluido · Sin apps · Cancelás cuando quieras</p>
       </div>
 

@@ -8,6 +8,9 @@ const FREE_PATHS = [
   "/api/admin/auth/logout",
 ];
 
+// These paths bypass maintenance mode (admin always accessible)
+const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/api/admin", "/mantenimiento"];
+
 async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   const cookieName = adminSessionOptions.cookieName as string;
   const cookieValue = req.cookies.get(cookieName)?.value;
@@ -22,6 +25,32 @@ async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   }
 }
 
+async function isMaintenanceModeOn(): Promise<boolean> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceKey) return false;
+
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/config?nombre=eq.MODO_MANTENIMIENTO&select=valor&limit=1`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          Accept: "application/json",
+        },
+        next: { revalidate: 30 },
+      }
+    );
+
+    if (!res.ok) return false;
+    const data: { valor: string }[] = await res.json();
+    return data?.[0]?.valor === "true";
+  } catch {
+    return false; // fail open — never block the site by a DB error
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -30,6 +59,18 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set("x-is-admin", "1");
   }
 
+  // Maintenance mode — check before anything else
+  const skipMaintenance = MAINTENANCE_BYPASS_PREFIXES.some((p) =>
+    pathname.startsWith(p)
+  );
+  if (!skipMaintenance) {
+    const onMaintenance = await isMaintenanceModeOn();
+    if (onMaintenance) {
+      return NextResponse.redirect(new URL("/mantenimiento", req.url));
+    }
+  }
+
+  // Admin auth (unchanged logic)
   if (FREE_PATHS.includes(pathname)) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
@@ -54,5 +95,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: [
+    // All routes except Next.js internals and static files
+    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|css|js|woff2?|ttf|otf|map)$).*)",
+  ],
 };

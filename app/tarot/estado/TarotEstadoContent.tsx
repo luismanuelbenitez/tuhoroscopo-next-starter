@@ -163,8 +163,8 @@ export default function TarotEstadoContent() {
                   <p className="text-sm text-white/75 leading-relaxed">
                     <strong className="text-white/90">¿No llegó nada en 10 minutos?</strong>{" "}
                     Escribinos a{" "}
-                    <a href="mailto:soporte@tuhoroscopocosmico.com" className="text-violet-300 underline hover:text-violet-200">
-                      soporte@tuhoroscopocosmico.com
+                    <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200">
+                      hola@tuoraculo.uy
                     </a>.
                   </p>
                 </div>

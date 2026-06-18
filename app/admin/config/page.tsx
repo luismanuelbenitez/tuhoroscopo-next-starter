@@ -11,6 +11,7 @@ import {
   Lock,
   ChevronDown,
   ChevronUp,
+  Pencil,
 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -80,6 +81,166 @@ function fmtDate(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
+}
+
+// ===========================================================================
+// Toggle for MODO_MANTENIMIENTO
+// ===========================================================================
+
+function MantenimientoToggle({
+  row,
+  onOk,
+}: {
+  row: ConfigRow;
+  onOk: () => void;
+}) {
+  const isOn = row.valor.toLowerCase() === "true";
+  const [confirmando, setConfirmando] = useState(false);
+  const [pendingValor, setPendingValor] = useState<"true" | "false">("false");
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarToggle(nuevoValor: "true" | "false") {
+    setPendingValor(nuevoValor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setConfirmando(true);
+  }
+
+  function cancelar() {
+    setConfirmando(false);
+    setMotivo("");
+    setErrorMsg(null);
+  }
+
+  async function confirmar() {
+    if (motivo.trim().length < 5) {
+      setErrorMsg("El motivo debe tener al menos 5 caracteres");
+      return;
+    }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: "MODO_MANTENIMIENTO", valor: pendingValor, motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setConfirmando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      {/* Estado actual — prominente */}
+      <div className="flex items-center gap-4 mb-3">
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-bold ${
+            isOn
+              ? "border-red-700/60 bg-red-950/40 text-red-300"
+              : "border-emerald-800/50 bg-emerald-950/30 text-emerald-400"
+          }`}
+        >
+          {isOn ? (
+            <>
+              <span className="inline-block w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+              ACTIVO — sitio en mantenimiento
+            </>
+          ) : (
+            <>
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+              DESACTIVADO — sitio accesible
+            </>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={() => iniciarToggle(isOn ? "false" : "true")}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+          isOn
+            ? "border-gray-700/60 bg-gray-800/60 text-gray-400 hover:bg-gray-800"
+            : "border-red-800/50 bg-red-950/20 text-red-400 hover:bg-red-950/40 hover:border-red-700/60"
+        }`}
+      >
+        {isOn ? "Desactivar mantenimiento" : "Activar mantenimiento"}
+      </button>
+
+      {successMsg && (
+        <p className="mt-2 text-xs text-emerald-400">{successMsg}</p>
+      )}
+
+      {confirmando && (
+        <div className={`mt-3 rounded-lg border px-4 py-3 space-y-3 ${
+          pendingValor === "true"
+            ? "border-red-800/50 bg-red-950/20"
+            : "border-amber-800/40 bg-amber-950/20"
+        }`}>
+          <p className={`text-xs font-semibold ${pendingValor === "true" ? "text-red-300" : "text-amber-300"}`}>
+            {pendingValor === "true"
+              ? "⚠ Confirmar: activar modo mantenimiento — el sitio dejará de ser accesible para todos los visitantes"
+              : "Confirmar: desactivar modo mantenimiento — el sitio volverá a estar accesible"}
+          </p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={2}
+              placeholder={
+                pendingValor === "true"
+                  ? "ej: configurando dominio tuoraculo.uy"
+                  : "ej: dominio configurado, volvemos al aire"
+              }
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+            />
+          </div>
+          {errorMsg && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle size={12} /> {errorMsg}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={confirmar}
+              disabled={guardando || motivo.trim().length < 5}
+              className={`px-3 py-1.5 rounded-lg disabled:opacity-40 text-xs text-white font-medium transition-colors ${
+                pendingValor === "true"
+                  ? "bg-red-700 hover:bg-red-600"
+                  : "bg-emerald-700 hover:bg-emerald-600"
+              }`}
+            >
+              {guardando ? "Guardando…" : "Confirmar"}
+            </button>
+            <button
+              onClick={cancelar}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ===========================================================================
@@ -364,6 +525,136 @@ function WaModoToggle({
 }
 
 // ===========================================================================
+// URL editor for THC_BACK_URL / TTC_BACK_URL
+// ===========================================================================
+
+function UrlEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [nuevoValor, setNuevoValor] = useState(row.valor);
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarEdicion() {
+    setNuevoValor(row.valor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setEditando(true);
+  }
+
+  function cancelar() {
+    setEditando(false);
+    setErrorMsg(null);
+  }
+
+  function validarUrl(v: string): string | null {
+    try {
+      const u = new URL(v.trim());
+      if (u.protocol !== "https:") return "Debe ser una URL HTTPS";
+      return null;
+    } catch {
+      return "URL inválida — debe comenzar con https://";
+    }
+  }
+
+  async function guardar() {
+    const urlError = validarUrl(nuevoValor);
+    if (urlError) { setErrorMsg(urlError); return; }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
+
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: row.nombre, valor: nuevoValor.trim(), motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setEditando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-xs text-gray-300 break-all">{row.valor || "—"}</span>
+        {!editando && (
+          <button
+            onClick={iniciarEdicion}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
+          >
+            <Pencil size={11} /> Editar
+          </button>
+        )}
+      </div>
+
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+
+      {editando && (
+        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
+          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Nueva URL <span className="text-gray-600">(https://)</span></label>
+            <input
+              type="url"
+              value={nuevoValor}
+              onChange={(e) => setNuevoValor(e.target.value)}
+              placeholder="https://tuoraculo.uy/horoscopo/gracias"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span></label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={2}
+              placeholder="ej: dominio tuoraculo.uy configurado y apuntando"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+            />
+          </div>
+          {errorMsg && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle size={12} /> {errorMsg}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={guardar}
+              disabled={guardando || !nuevoValor.trim() || motivo.trim().length < 5}
+              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+            >
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+            <button
+              onClick={cancelar}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Configuracion section (read-only structured)
 // ===========================================================================
 
@@ -528,7 +819,7 @@ export default function ConfigPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-100">Configuración del sistema</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              <span className="font-mono text-gray-400">APP_DEBUG_MODE</span> y <span className="font-mono text-gray-400">WHATSAPP_MODO</span> son editables desde el panel. Todo lo demás es solo lectura.
+              <span className="font-mono text-gray-400">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-400">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-400">WHATSAPP_MODO</span>, <span className="font-mono text-gray-400">THC_BACK_URL</span> y <span className="font-mono text-gray-400">TTC_BACK_URL</span> son editables desde el panel.
             </p>
           </div>
           <button
@@ -575,19 +866,33 @@ export default function ConfigPage() {
                 </p>
                 <div className="space-y-3">
                   {editableRows.map((row) => {
-                    const isWaModo = row.nombre.toUpperCase() === "WHATSAPP_MODO";
+                    const key = row.nombre.toUpperCase();
+                    const isWaModo = key === "WHATSAPP_MODO";
+                    const isUrl = key === "THC_BACK_URL" || key === "TTC_BACK_URL";
+                    const isMantenimiento = key === "MODO_MANTENIMIENTO";
+
+                    const descriptions: Record<string, string> = {
+                      WHATSAPP_MODO: "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request.",
+                      APP_DEBUG_MODE: "Activa o desactiva el modo debug de la aplicación. Afecta a Edge Functions que verifican este valor.",
+                      THC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la suscripción de horóscopo. Cambiar cuando el dominio tuoraculo.uy esté activo.",
+                      TTC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la tirada de tarot. Cambiar cuando el dominio tuoraculo.uy esté activo.",
+                      MODO_MANTENIMIENTO: "Cuando está activo, todos los visitantes son redirigidos a la página de mantenimiento. El panel admin sigue accesible. Cache de 30s en middleware.",
+                    };
+
                     return (
                       <div
                         key={row.id}
-                        className="rounded-xl border border-violet-800/30 bg-violet-950/10 px-5 py-4"
+                        className={`rounded-xl border px-5 py-4 ${
+                          isMantenimiento
+                            ? "border-red-900/40 bg-red-950/10"
+                            : "border-violet-800/30 bg-violet-950/10"
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div>
                             <p className="text-sm font-semibold text-gray-100 font-mono">{row.nombre}</p>
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {isWaModo
-                                ? "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request."
-                                : "Activa o desactiva el modo debug de la aplicación. Afecta a Edge Functions que verifican este valor."}
+                              {descriptions[key] ?? "Configurable desde el panel."}
                             </p>
                             {row.created_at && (
                               <p className="text-xs text-gray-700 mt-1">
@@ -596,7 +901,11 @@ export default function ConfigPage() {
                             )}
                           </div>
                         </div>
-                        {isWaModo ? (
+                        {isMantenimiento ? (
+                          <MantenimientoToggle row={row} onOk={cargar} />
+                        ) : isUrl ? (
+                          <UrlEditor row={row} onOk={cargar} />
+                        ) : isWaModo ? (
                           <WaModoToggle row={row} onOk={cargar} />
                         ) : (
                           <DebugModeToggle row={row} onOk={cargar} />
@@ -674,7 +983,8 @@ export default function ConfigPage() {
                 Limitaciones
               </p>
               <ul className="space-y-1.5 text-xs text-gray-600">
-                <li>• <span className="font-mono text-gray-500">APP_DEBUG_MODE</span> y <span className="font-mono text-gray-500">WHATSAPP_MODO</span> son editables desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
+                <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-500">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-500">WHATSAPP_MODO</span>, <span className="font-mono text-gray-500">THC_BACK_URL</span> y <span className="font-mono text-gray-500">TTC_BACK_URL</span> son editables desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
+                <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span> tiene un cache de 30 segundos en el middleware — puede haber hasta 30s de delay entre el toggle y el efecto real.</li>
                 <li>• Campos sensibles (tokens, claves) se muestran como <span className="font-mono">***redacted***</span>.</li>
                 <li>• No se implementó: editar <span className="font-mono">configuracion</span>, cambiar credenciales WhatsApp, cambiar precio, cambiar versión de flujo.</li>
                 <li>• Los cambios en <span className="font-mono">APP_DEBUG_MODE</span> se aplican en la próxima llamada a Edge Functions que verifican ese valor. No afectan instancias en ejecución.</li>
