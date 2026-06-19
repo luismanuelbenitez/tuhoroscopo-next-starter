@@ -91,7 +91,7 @@ export default function HomePage() {
                 background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 65%)",
                 pointerEvents: "none",
               }} />
-              <LogoIcon maskId="hero-moon" size={80} />
+              <LogoIcon size={80} />
             </div>
 
             <h1

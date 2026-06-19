@@ -58,7 +58,7 @@ export default function MantenimientoPage() {
 
           {/* Isotipo */}
           <div style={{ animation: "float 4.5s ease-in-out infinite, pulse-glow 4.5s ease-in-out infinite" }}>
-            <LogoIcon maskId="mant-moon" size={92} />
+            <LogoIcon size={92} />
           </div>
 
           {/* Marca + títulos */}

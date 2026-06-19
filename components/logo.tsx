@@ -8,7 +8,7 @@ interface LogoProps {
 export default function Logo({ className }: LogoProps) {
   return (
     <Link href="/" className={`flex items-center gap-3 hover:opacity-85 transition-opacity ${className ?? ""}`}>
-      <LogoIcon maskId="header-moon" size={40} />
+      <LogoIcon size={40} />
       <div className="leading-none">
         <span
           className="block font-extrabold text-white"
