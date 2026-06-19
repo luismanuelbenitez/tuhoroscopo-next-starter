@@ -1,5 +1,7 @@
 "use client";
 
+import { LogoIcon } from "@/components/logo-icon";
+
 const YEAR = new Date().getFullYear();
 
 function FeatureItem({ color, text }: { color: string; text: string }) {
@@ -83,31 +85,13 @@ export default function HomePage() {
             <div className="inline-flex items-center justify-center mb-6 relative">
               <div style={{
                 position: "absolute",
-                width: 130,
-                height: 130,
+                width: 150,
+                height: 150,
                 borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)",
+                background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 65%)",
                 pointerEvents: "none",
               }} />
-              <svg width="68" height="68" viewBox="0 0 48 48" fill="none" aria-label="Tu Oráculo">
-                <polygon
-                  points="24,3 45,24 24,45 3,24"
-                  stroke="rgba(139,92,246,0.5)"
-                  strokeWidth="2"
-                  fill="none"
-                />
-                <path
-                  d="M 10 24 C 16 15, 32 15, 38 24 C 32 33, 16 33, 10 24 Z"
-                  fill="rgba(139,92,246,0.08)"
-                  stroke="rgba(196,181,253,0.92)"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-                <circle cx="24" cy="24" r="5.5" stroke="rgba(167,139,250,0.6)" strokeWidth="1.5" fill="none" />
-                <circle cx="24" cy="24" r="3" fill="rgba(139,92,246,1)" />
-                <circle cx="22.5" cy="22.5" r="1.1" fill="rgba(255,255,255,0.7)" />
-                <circle cx="24" cy="3" r="2.2" fill="rgba(212,175,55,0.9)" />
-              </svg>
+              <LogoIcon maskId="hero-moon" size={80} />
             </div>
 
             <h1

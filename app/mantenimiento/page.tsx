@@ -1,3 +1,5 @@
+import { LogoIcon } from "@/components/logo-icon";
+
 export const metadata = {
   title: "Volvemos pronto — Tu Oráculo",
   robots: "noindex,nofollow",
@@ -56,25 +58,7 @@ export default function MantenimientoPage() {
 
           {/* Isotipo */}
           <div style={{ animation: "float 4.5s ease-in-out infinite, pulse-glow 4.5s ease-in-out infinite" }}>
-            <svg width="88" height="88" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-              <polygon
-                points="24,3 45,24 24,45 3,24"
-                stroke="rgba(139,92,246,0.5)"
-                strokeWidth="2"
-                fill="none"
-              />
-              <path
-                d="M 10 24 C 16 15, 32 15, 38 24 C 32 33, 16 33, 10 24 Z"
-                fill="rgba(139,92,246,0.07)"
-                stroke="rgba(196,181,253,0.92)"
-                strokeWidth="2"
-                strokeLinejoin="round"
-              />
-              <circle cx="24" cy="24" r="5.5" stroke="rgba(167,139,250,0.6)" strokeWidth="1.5" fill="none" />
-              <circle cx="24" cy="24" r="3" fill="rgba(139,92,246,1)" />
-              <circle cx="22.5" cy="22.5" r="1.1" fill="rgba(255,255,255,0.7)" />
-              <circle cx="24" cy="3" r="2.2" fill="rgba(212,175,55,0.9)" />
-            </svg>
+            <LogoIcon maskId="mant-moon" size={92} />
           </div>
 
           {/* Marca + títulos */}
