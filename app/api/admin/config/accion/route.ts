@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
-const CLAVES_EDITABLES = ["APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO"] as const;
+const CLAVES_EDITABLES = [
+  "APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO",
+  "ALERTAS_EMAIL_ACTIVO", "ALERTAS_EMAIL_DESTINO",
+  "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
+] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
 const VALORES_ENUM: Partial<Record<ClaveEditable, string[]>> = {
   APP_DEBUG_MODE:      ["true", "false"],
   WHATSAPP_MODO:       ["sandbox", "production"],
   MODO_MANTENIMIENTO:  ["true", "false"],
+  ALERTAS_EMAIL_ACTIVO: ["true", "false"],
 };
+
+const CLAVES_NUMERO: ClaveEditable[] = [
+  "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
+];
 
 function validarValor(clave: ClaveEditable, valor: string): string | null {
   if (VALORES_ENUM[clave]) {
@@ -25,6 +34,15 @@ function validarValor(clave: ClaveEditable, valor: string): string | null {
     } catch {
       return "URL inválida — debe comenzar con https://";
     }
+    return null;
+  }
+  if (clave === "ALERTAS_EMAIL_DESTINO") {
+    if (!valor || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) return "Email inválido";
+    return null;
+  }
+  if (CLAVES_NUMERO.includes(clave)) {
+    const n = parseInt(valor, 10);
+    if (isNaN(n) || n < 1 || n > 9999) return "Debe ser un número entero entre 1 y 9999";
     return null;
   }
   return null;
@@ -63,10 +81,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate valor — URL keys preserve case, enum keys are lowercased
-  const isUrl = clave === "THC_BACK_URL" || clave === "TTC_BACK_URL";
+  // URL, email, y número preservan case/formato; enum keys pasan a lowercase
+  const CLAVES_PRESERVAR_CASE: string[] = ["THC_BACK_URL", "TTC_BACK_URL", "ALERTAS_EMAIL_DESTINO", ...CLAVES_NUMERO];
   const valorRaw = typeof body.valor === "string"
-    ? (isUrl ? body.valor.trim() : body.valor.trim().toLowerCase())
+    ? (CLAVES_PRESERVAR_CASE.includes(clave) ? body.valor.trim() : body.valor.trim().toLowerCase())
     : "";
   const errorValor = validarValor(clave as ClaveEditable, valorRaw);
   if (errorValor) {

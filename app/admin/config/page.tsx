@@ -16,6 +16,7 @@ import {
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { MantenimientoToggle } from "@/components/admin/MantenimientoToggle";
+import { AlertasConfig } from "@/components/admin/AlertasConfig";
 
 // ===========================================================================
 // Types
@@ -759,6 +760,17 @@ export default function ConfigPage() {
               </div>
             )}
 
+            {/* === Alertas por email === */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                Alertas operacionales
+              </p>
+              <AlertasConfig
+                rows={configRows.filter((r) => r.nombre.startsWith("ALERTAS"))}
+                onOk={cargar}
+              />
+            </div>
+
             {/* === Read-only config rows === */}
             {readonlyRows.length > 0 && (
               <div>
@@ -828,7 +840,7 @@ export default function ConfigPage() {
                 <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-500">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-500">WHATSAPP_MODO</span>, <span className="font-mono text-gray-500">THC_BACK_URL</span> y <span className="font-mono text-gray-500">TTC_BACK_URL</span> son editables desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
                 <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span> tiene un cache de 30 segundos en el middleware — puede haber hasta 30s de delay entre el toggle y el efecto real.</li>
                 <li>• Campos sensibles (tokens, claves) se muestran como <span className="font-mono">***redacted***</span>.</li>
-                <li>• No se implementó: editar <span className="font-mono">configuracion</span>, cambiar credenciales WhatsApp, cambiar precio, cambiar versión de flujo.</li>
+                <li>• No se implementó: editar <span className="font-mono">configuracion</span>, cambiar credenciales WhatsApp, cambiar precio, cambiar versión de flujo. Los valores <span className="font-mono">ALERTAS_ULTIMO_EMAIL</span> son gestionados por la Edge Function.</li>
                 <li>• Los cambios en <span className="font-mono">APP_DEBUG_MODE</span> se aplican en la próxima llamada a Edge Functions que verifican ese valor. No afectan instancias en ejecución.</li>
               </ul>
             </div>
