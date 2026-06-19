@@ -1,16 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  MessageCircle,
   LogOut,
+  AlertCircle,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
+  Pencil,
+  Play,
+  ChevronDown,
+  ChevronUp,
   Check,
   X,
-  AlertCircle,
-  Clock,
-  RefreshCw,
-  ExternalLink,
-  AlertTriangle,
-  HelpCircle,
 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -19,59 +20,56 @@ import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 // Types
 // ===========================================================================
 
-interface ProcStats {
-  ultima_ejecucion: string | null;
-  ultimo_resultado: string | null;
-  ultimo_exito: boolean | null;
-  ultimo_error: { resultado: string; fecha: string } | null;
-  total_reciente: number;
-  errores_recientes: number;
-}
-
-interface Proceso {
-  id: string;
-  nombre: string;
-  funcion: string;
-  descripcion: string;
-  frecuencia: string;
-  tipo: string;
-  categoria: string;
-  stats: ProcStats | null;
-}
-
-interface Resumen {
-  total_procesos: number;
-  con_error_reciente: number;
-  sin_datos: number;
-}
-
-interface ApiResponse {
-  ok: boolean;
-  nota?: string;
-  resumen?: Resumen;
-  procesos?: Proceso[];
-  motivo?: string;
-  detalle?: string;
+interface CronJob {
+  jobid: number;
+  jobname: string;
+  schedule: string;
+  command: string;
+  active: boolean;
+  ultimo_inicio: string | null;
+  ultimo_fin: string | null;
+  ultimo_estado: string | null;
 }
 
 // ===========================================================================
 // Helpers
 // ===========================================================================
 
+const DOW_LABELS: Record<string, string> = {
+  "0": "Domingos", "1": "Lunes", "2": "Martes", "3": "Miércoles",
+  "4": "Jueves", "5": "Viernes", "6": "Sábados",
+  "0,6": "Fines de semana", "1-5": "Lun–Vie", "1-6": "Lun–Sáb",
+};
+
+function fmtCronDesc(expr: string): string {
+  const f = expr.trim().split(/\s+/);
+  if (f.length !== 5) return expr;
+  const [min, hour, dom, month, dow] = f;
+  if (expr === "* * * * *") return "Cada minuto";
+  if (min.startsWith("*/") && hour === "*" && dom === "*" && month === "*" && dow === "*")
+    return `Cada ${min.slice(2)} minutos`;
+  if (min === "0" && hour.startsWith("*/") && dom === "*" && month === "*" && dow === "*")
+    return `Cada ${hour.slice(2)} horas`;
+  if (!min.includes("*") && hour === "*" && dom === "*" && month === "*" && dow === "*")
+    return `Cada hora en :${min.padStart(2, "0")} UTC`;
+  if (!min.includes("*") && !hour.includes("*") && dom === "*" && month === "*" && dow === "*")
+    return `Diariamente a las ${hour.padStart(2, "0")}:${min.padStart(2, "0")} UTC`;
+  if (!min.includes("*") && !hour.includes("*") && dom === "*" && month === "*" && dow !== "*") {
+    const dowLabel = DOW_LABELS[dow] ?? `día ${dow}`;
+    return `${dowLabel} a las ${hour.padStart(2, "0")}:${min.padStart(2, "0")} UTC`;
+  }
+  return expr;
+}
+
 function fmtDatetime(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+    return new Date(iso).toLocaleString("es-UY", {
+      timeZone: "America/Montevideo",
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
     });
-  } catch {
-    return iso;
-  }
+  } catch { return iso; }
 }
 
 function fmtRelative(iso: string | null | undefined): string {
@@ -83,56 +81,282 @@ function fmtRelative(iso: string | null | undefined): string {
     if (mins < 60) return `hace ${mins} min`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `hace ${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    return `hace ${days}d`;
-  } catch {
-    return "";
-  }
+    return `hace ${Math.floor(hrs / 24)}d`;
+  } catch { return ""; }
 }
 
-const TIPO_CLS: Record<string, string> = {
-  diario: "border-violet-800/50 bg-violet-950/30 text-violet-300",
-  semanal: "border-sky-800/50 bg-sky-950/30 text-sky-300",
-  frecuente: "border-amber-800/50 bg-amber-950/30 text-amber-300",
-  "sub-proceso": "border-gray-700/50 bg-gray-800/50 text-gray-400",
-};
+function extraerEfName(command: string): string | null {
+  const match = command.match(/functions\/v1\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
 
-const CATEGORIA_LABEL: Record<string, string> = {
-  envio: "Envío",
-  generacion: "Generación",
-  reintentos: "Reintentos",
-  suscripciones: "Suscripciones",
-};
+// ===========================================================================
+// Job row component
+// ===========================================================================
 
-function StatusBadge({ stats }: { stats: ProcStats | null }) {
-  if (!stats || !stats.ultima_ejecucion) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 rounded-full bg-gray-600" />
-        <span className="text-xs text-gray-600">Sin datos</span>
-      </div>
-    );
+function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void }) {
+  const [editandoSchedule, setEditandoSchedule] = useState(false);
+  const [nuevoSchedule, setNuevoSchedule] = useState(job.schedule);
+  const [mostrandoCmd, setMostrandoCmd] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [feedbackToggle, setFeedbackToggle] = useState<string | null>(null);
+  const [feedbackSchedule, setFeedbackSchedule] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [feedbackTrigger, setFeedbackTrigger] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+
+  const efName = extraerEfName(job.command);
+
+  const PRESETS = [
+    { label: "Cada min", value: "* * * * *" },
+    { label: "Cada hora :00", value: "0 * * * *" },
+    { label: "Cada hora :30", value: "30 * * * *" },
+    { label: "Cada 2h", value: "0 */2 * * *" },
+    { label: "Diario 6am", value: "0 6 * * *" },
+    { label: "Diario 9am", value: "0 9 * * *" },
+  ];
+
+  async function handleToggle() {
+    setToggling(true);
+    setFeedbackToggle(null);
+    try {
+      const res = await fetch(`/api/admin/cron/${job.jobid}/accion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "toggle", activo: !job.active }),
+      });
+      const json = await res.json();
+      if (json.ok) { onRefresh(); }
+      else { setFeedbackToggle(json.detalle ?? json.motivo ?? "Error"); }
+    } catch { setFeedbackToggle("Error de red"); }
+    finally { setToggling(false); }
   }
-  if (stats.ultimo_exito === false) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 rounded-full bg-red-500" />
-        <span className="text-xs text-red-400">Error</span>
-      </div>
-    );
+
+  async function handleReschedule() {
+    setGuardando(true);
+    setFeedbackSchedule(null);
+    try {
+      const res = await fetch(`/api/admin/cron/${job.jobid}/accion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "reschedule", schedule: nuevoSchedule }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setFeedbackSchedule({ tipo: "ok", texto: `Schedule actualizado: ${json.schedule}` });
+        setEditandoSchedule(false);
+        onRefresh();
+      } else {
+        setFeedbackSchedule({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error" });
+      }
+    } catch { setFeedbackSchedule({ tipo: "error", texto: "Error de red" }); }
+    finally { setGuardando(false); }
   }
-  if (stats.ultimo_exito === true) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 rounded-full bg-green-500" />
-        <span className="text-xs text-green-400">OK</span>
-      </div>
-    );
+
+  async function handleTrigger() {
+    setTriggering(true);
+    setFeedbackTrigger(null);
+    try {
+      const res = await fetch(`/api/admin/cron/${job.jobid}/accion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "trigger" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setFeedbackTrigger({ tipo: "ok", texto: `${json.ef} ejecutado (HTTP ${json.http_status})` });
+      } else {
+        setFeedbackTrigger({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error" });
+      }
+    } catch { setFeedbackTrigger({ tipo: "error", texto: "Error de red" }); }
+    finally { setTriggering(false); }
   }
+
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-2 h-2 rounded-full bg-gray-500" />
-      <span className="text-xs text-gray-500">Desconocido</span>
+    <div className={`rounded-xl border px-5 py-4 ${job.active ? "border-gray-700/60 bg-gray-900/50" : "border-gray-800/40 bg-gray-900/20"}`}>
+      {/* Header row */}
+      <div className="flex items-start gap-4">
+        {/* Job info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="text-xs font-mono text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">#{job.jobid}</span>
+            <span className={`text-sm font-semibold ${job.active ? "text-gray-100" : "text-gray-500"}`}>
+              {job.jobname}
+            </span>
+            {!job.active && (
+              <span className="text-xs px-1.5 py-0.5 rounded border border-gray-700 bg-gray-800 text-gray-500">
+                inactivo
+              </span>
+            )}
+          </div>
+
+          {/* Schedule */}
+          <div className="flex items-center gap-2 mt-1">
+            <span className="font-mono text-xs text-violet-400">{job.schedule}</span>
+            <span className="text-xs text-gray-600">·</span>
+            <span className="text-xs text-gray-500">{fmtCronDesc(job.schedule)}</span>
+          </div>
+
+          {/* EF name */}
+          {efName && (
+            <p className="text-xs text-gray-600 mt-1 font-mono">{efName}</p>
+          )}
+        </div>
+
+        {/* Right: last run + controls */}
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          {/* Last run */}
+          <div className="text-right">
+            {job.ultimo_inicio ? (
+              <>
+                <p className="text-xs text-gray-400">{fmtDatetime(job.ultimo_inicio)}</p>
+                <div className="flex items-center justify-end gap-1 mt-0.5">
+                  {job.ultimo_estado === "succeeded" ? (
+                    <><Check size={11} className="text-green-400" /><span className="text-xs text-green-400">OK</span></>
+                  ) : job.ultimo_estado === "failed" ? (
+                    <><X size={11} className="text-red-400" /><span className="text-xs text-red-400">failed</span></>
+                  ) : (
+                    <span className="text-xs text-gray-600">{job.ultimo_estado ?? "—"}</span>
+                  )}
+                  <span className="text-xs text-gray-700">{fmtRelative(job.ultimo_inicio)}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-700 italic">sin ejecuciones</p>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            {/* Toggle */}
+            <button
+              onClick={handleToggle}
+              disabled={toggling}
+              title={job.active ? "Desactivar" : "Activar"}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-medium transition-colors disabled:opacity-40 ${
+                job.active
+                  ? "border-green-800/50 bg-green-950/20 text-green-400 hover:bg-green-950/40"
+                  : "border-gray-700/50 bg-gray-800/60 text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {job.active
+                ? <><ToggleRight size={13} /> Activo</>
+                : <><ToggleLeft size={13} /> Inactivo</>}
+            </button>
+
+            {/* Edit schedule */}
+            <button
+              onClick={() => { setNuevoSchedule(job.schedule); setEditandoSchedule(true); setFeedbackSchedule(null); }}
+              disabled={editandoSchedule}
+              title="Editar schedule"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/50 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors disabled:opacity-40"
+            >
+              <Pencil size={11} /> Schedule
+            </button>
+
+            {/* Trigger (only if EF detected) */}
+            {efName && (
+              <button
+                onClick={handleTrigger}
+                disabled={triggering}
+                title={`Ejecutar ${efName} ahora`}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-800/50 bg-amber-950/20 text-xs text-amber-400 hover:bg-amber-950/40 transition-colors disabled:opacity-40"
+              >
+                <Play size={11} /> {triggering ? "…" : "Trigger"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Toggle feedback */}
+      {feedbackToggle && (
+        <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
+          <AlertCircle size={11} /> {feedbackToggle}
+        </p>
+      )}
+
+      {/* Trigger feedback */}
+      {feedbackTrigger && (
+        <div className={`mt-2 flex items-center gap-1.5 text-xs rounded-lg px-3 py-2 border ${
+          feedbackTrigger.tipo === "ok"
+            ? "border-green-800/50 bg-green-950/20 text-green-300"
+            : "border-red-800/50 bg-red-950/20 text-red-300"
+        }`}>
+          {feedbackTrigger.tipo === "ok" ? <Check size={11} /> : <AlertCircle size={11} />}
+          {feedbackTrigger.texto}
+        </div>
+      )}
+
+      {/* Edit schedule form */}
+      {editandoSchedule && (
+        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
+          <p className="text-xs text-violet-300 font-semibold">Editar schedule — 5 campos: min hora dom mes dow</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {PRESETS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setNuevoSchedule(p.value)}
+                className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                  nuevoSchedule === p.value
+                    ? "border-violet-600 bg-violet-900/40 text-violet-300"
+                    : "border-gray-700 bg-gray-800/60 text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={nuevoSchedule}
+            onChange={(e) => setNuevoSchedule(e.target.value)}
+            placeholder="* * * * *"
+            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600"
+          />
+          {nuevoSchedule && (
+            <p className="text-xs text-gray-500">{fmtCronDesc(nuevoSchedule)}</p>
+          )}
+          {feedbackSchedule && (
+            <p className={`text-xs flex items-center gap-1 ${feedbackSchedule.tipo === "ok" ? "text-green-400" : "text-red-400"}`}>
+              {feedbackSchedule.tipo === "ok" ? <Check size={11} /> : <AlertCircle size={11} />}
+              {feedbackSchedule.texto}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={handleReschedule}
+              disabled={guardando || !nuevoSchedule.trim()}
+              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+            >
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+            <button
+              onClick={() => { setEditandoSchedule(false); setFeedbackSchedule(null); }}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Command toggle */}
+      <div className="mt-3 pt-3 border-t border-gray-800/50">
+        <button
+          onClick={() => setMostrandoCmd((v) => !v)}
+          className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-400 transition-colors"
+        >
+          {mostrandoCmd ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          {mostrandoCmd ? "Ocultar comando" : "Ver comando"}
+        </button>
+        {mostrandoCmd && (
+          <pre className="mt-2 px-3 py-2.5 rounded-lg bg-gray-950 border border-gray-800 text-xs text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap break-all">
+            {job.command}
+          </pre>
+        )}
+      </div>
     </div>
   );
 }
@@ -145,44 +369,40 @@ export default function CronPage() {
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [data, setData] = useState<ApiResponse | null>(null);
+  const [jobs, setJobs] = useState<CronJob[]>([]);
 
   async function cargar() {
     setCargando(true);
     setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/cron");
-      const json: ApiResponse = await res.json();
+      const json = await res.json();
       if (!json.ok) {
-        setErrorMsg(json.detalle ?? json.motivo ?? "Error al cargar procesos");
-        setData(null);
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al cargar jobs");
+        setJobs([]);
       } else {
-        setData(json);
+        setJobs(json.jobs ?? []);
       }
     } catch {
-      setErrorMsg("Error de red al cargar procesos");
-      setData(null);
+      setErrorMsg("Error de red al cargar jobs");
     } finally {
       setCargando(false);
     }
   }
 
-  useEffect(() => {
-    cargar();
-  }, []);
+  useEffect(() => { cargar(); }, []);
 
   async function cerrarSesion() {
     setCerrandoSesion(true);
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
       window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
+    } catch { setCerrandoSesion(false); }
   }
 
-  const procesos = data?.procesos ?? [];
-  const resumen = data?.resumen ?? null;
+  const activos = jobs.filter((j) => j.active).length;
+  const inactivos = jobs.filter((j) => !j.active).length;
+  const conError = jobs.filter((j) => j.ultimo_estado === "failed").length;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -204,12 +424,11 @@ export default function CronPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
-        {/* Título + refresh */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-base font-semibold text-gray-100">Procesos automáticos (CRON)</h2>
+            <h2 className="text-base font-semibold text-gray-100">Trabajos pg_cron</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Vista informativa. Los horarios reales están en pg_cron — no accesibles desde el panel.
+              Schedules reales de la DB · activar/desactivar · editar horario · trigger manual
             </p>
           </div>
           <button
@@ -222,47 +441,38 @@ export default function CronPage() {
           </button>
         </div>
 
-        {/* Aviso pg_cron */}
-        <div className="mb-5 flex items-start gap-2 rounded-lg border border-gray-700/50 bg-gray-900/60 px-4 py-3 text-xs text-gray-400">
-          <HelpCircle size={13} className="text-gray-500 shrink-0 mt-0.5" />
-          <span>
-            <strong className="text-gray-300">Nota:</strong> pg_cron está habilitado en este proyecto pero la tabla{" "}
-            <span className="font-mono text-gray-300">cron.job</span> no es accesible desde el panel (requiere acceso directo a la DB).
-            Esta vista muestra un manifest estático de procesos conocidos + datos reales de{" "}
-            <span className="font-mono text-gray-300">log_funciones</span>.
-          </span>
-        </div>
-
-        {/* Resumen */}
-        {resumen && (
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
-              <p className="text-xs text-gray-500 mb-1">Total procesos</p>
-              <p className="text-2xl font-bold text-gray-100">{resumen.total_procesos}</p>
+        {/* KPI chips */}
+        {jobs.length > 0 && (
+          <div className="flex gap-3 mb-5 flex-wrap">
+            <div className="rounded-lg border border-gray-800 bg-gray-900/60 px-4 py-2.5 flex items-center gap-2">
+              <span className="text-xs text-gray-500">Total</span>
+              <span className="text-sm font-bold text-gray-200">{jobs.length}</span>
             </div>
-            <div className={`rounded-xl border px-4 py-3 ${resumen.con_error_reciente > 0 ? "border-red-900/40 bg-red-950/20" : "border-gray-800 bg-gray-900/60"}`}>
-              <p className="text-xs text-gray-500 mb-1">Con error reciente</p>
-              <p className={`text-2xl font-bold ${resumen.con_error_reciente > 0 ? "text-red-300" : "text-gray-400"}`}>
-                {resumen.con_error_reciente}
-              </p>
+            <div className={`rounded-lg border px-4 py-2.5 flex items-center gap-2 ${activos > 0 ? "border-green-800/50 bg-green-950/20" : "border-gray-800 bg-gray-900/60"}`}>
+              <span className="text-xs text-gray-500">Activos</span>
+              <span className={`text-sm font-bold ${activos > 0 ? "text-green-300" : "text-gray-400"}`}>{activos}</span>
             </div>
-            <div className={`rounded-xl border px-4 py-3 ${resumen.sin_datos > 0 ? "border-amber-900/30 bg-amber-950/20" : "border-gray-800 bg-gray-900/60"}`}>
-              <p className="text-xs text-gray-500 mb-1">Sin datos de ejecución</p>
-              <p className={`text-2xl font-bold ${resumen.sin_datos > 0 ? "text-amber-300" : "text-gray-400"}`}>
-                {resumen.sin_datos}
-              </p>
-            </div>
+            {inactivos > 0 && (
+              <div className="rounded-lg border border-gray-800 bg-gray-900/60 px-4 py-2.5 flex items-center gap-2">
+                <span className="text-xs text-gray-500">Inactivos</span>
+                <span className="text-sm font-bold text-gray-500">{inactivos}</span>
+              </div>
+            )}
+            {conError > 0 && (
+              <div className="rounded-lg border border-red-800/50 bg-red-950/20 px-4 py-2.5 flex items-center gap-2">
+                <span className="text-xs text-gray-500">Con error</span>
+                <span className="text-sm font-bold text-red-300">{conError}</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Loading */}
         {cargando && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
-            <span className="animate-pulse">Cargando procesos…</span>
+            <span className="animate-pulse">Cargando jobs…</span>
           </div>
         )}
 
-        {/* Error */}
         {errorMsg && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
             <AlertCircle size={15} className="shrink-0" />
@@ -270,132 +480,16 @@ export default function CronPage() {
           </div>
         )}
 
-        {/* Process list */}
-        {!cargando && !errorMsg && procesos.length > 0 && (
+        {!cargando && !errorMsg && (
           <div className="space-y-3">
-            {procesos.map((proc) => {
-              const hasError = proc.stats?.ultimo_exito === false;
-              const noData = !proc.stats?.ultima_ejecucion;
-              const rowBorder = hasError
-                ? "border-red-800/40"
-                : noData
-                ? "border-gray-800/40"
-                : "border-gray-700/40";
-
-              const logHref = `/admin/logs?nombre_funcion=${encodeURIComponent(proc.funcion)}`;
-
-              return (
-                <div
-                  key={proc.id}
-                  className={`rounded-xl border bg-gray-900/60 px-5 py-4 ${rowBorder} ${hasError ? "bg-red-950/10" : ""}`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    {/* Left: name + description */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <StatusBadge stats={proc.stats} />
-                        <span className="text-sm font-semibold text-gray-100">{proc.nombre}</span>
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded border font-mono ${
-                            TIPO_CLS[proc.tipo] ?? "border-gray-700 bg-gray-800 text-gray-400"
-                          }`}
-                        >
-                          {proc.tipo}
-                        </span>
-                        {CATEGORIA_LABEL[proc.categoria] && (
-                          <span className="text-xs text-gray-600">
-                            {CATEGORIA_LABEL[proc.categoria]}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mb-2 max-w-2xl">{proc.descripcion}</p>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600 font-mono">
-                        <Clock size={11} />
-                        {proc.frecuencia}
-                      </div>
-                    </div>
-
-                    {/* Right: stats */}
-                    <div className="shrink-0 text-right space-y-1 min-w-[200px]">
-                      {proc.stats?.ultima_ejecucion ? (
-                        <>
-                          <div className="text-xs text-gray-400">
-                            {fmtDatetime(proc.stats.ultima_ejecucion)}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {fmtRelative(proc.stats.ultima_ejecucion)}
-                          </div>
-                          <div className="flex items-center justify-end gap-1">
-                            {proc.stats.ultimo_exito === true ? (
-                              <Check size={11} className="text-green-400" />
-                            ) : proc.stats.ultimo_exito === false ? (
-                              <X size={11} className="text-red-400" />
-                            ) : null}
-                            <span
-                              className={`font-mono text-xs ${
-                                proc.stats.ultimo_exito === false ? "text-red-300" : "text-gray-400"
-                              }`}
-                            >
-                              {proc.stats.ultimo_resultado || "—"}
-                            </span>
-                          </div>
-                          {proc.stats.errores_recientes > 0 && (
-                            <div className="flex items-center justify-end gap-1 text-xs text-amber-400">
-                              <AlertTriangle size={10} />
-                              {proc.stats.errores_recientes} errores recientes
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-700 italic">Sin ejecuciones recientes en log</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Footer: function name + link to logs */}
-                  <div className="mt-3 pt-3 border-t border-gray-800/60 flex items-center justify-between">
-                    <span className="font-mono text-xs text-violet-400/80">{proc.funcion}</span>
-                    <a
-                      href={logHref}
-                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                      <ExternalLink size={11} />
-                      Ver en logs
-                    </a>
-                  </div>
-
-                  {/* Error detail if last run was error */}
-                  {proc.stats?.ultimo_error && proc.stats.ultimo_exito === false && (
-                    <div className="mt-2 px-3 py-2 rounded-lg border border-red-800/40 bg-red-950/20 text-xs">
-                      <span className="text-red-400 font-semibold">Último error: </span>
-                      <span className="text-red-300/80 font-mono">{proc.stats.ultimo_error.resultado}</span>
-                      <span className="text-gray-600 ml-2">{fmtRelative(proc.stats.ultimo_error.fecha)}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {jobs.map((job) => (
+              <CronJobRow key={job.jobid} job={job} onRefresh={cargar} />
+            ))}
+            {jobs.length === 0 && (
+              <div className="text-center py-16 text-gray-600 text-sm">Sin jobs en pg_cron</div>
+            )}
           </div>
         )}
-
-        {!cargando && !errorMsg && procesos.length === 0 && (
-          <div className="text-center py-16 text-gray-600 text-sm">
-            Sin procesos definidos
-          </div>
-        )}
-
-        {/* Pending / known limitations */}
-        <div className="mt-8 rounded-xl border border-gray-800/50 bg-gray-900/40 px-5 py-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Pendientes / limitaciones conocidas
-          </p>
-          <ul className="space-y-1.5 text-xs text-gray-600">
-            <li>• Los horarios reales de pg_cron solo son visibles con acceso directo a la DB (<span className="font-mono">SELECT * FROM cron.job</span>).</li>
-            <li>• No se implementó: activar/desactivar cron real, editar horarios, crear o borrar jobs.</li>
-            <li>• <span className="font-mono">fn_sql_sniper_sender</span> es una función SQL interna; su log aparece en <span className="font-mono">log_funciones</span> con <span className="font-mono">creado_por=&apos;pg_cron&apos;</span>.</li>
-            <li>• Los sub-procesos (<span className="font-mono">ef_genera_guarda_contenido_premium</span>, <span className="font-mono">ef_run_encolador_premium</span>) son llamados desde el orquestador, no directamente desde pg_cron.</li>
-          </ul>
-        </div>
       </main>
     </div>
   );

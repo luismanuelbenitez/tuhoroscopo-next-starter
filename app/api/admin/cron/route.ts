@@ -96,13 +96,11 @@ const _CRON_MANIFEST_UNUSED = [
   },
 ];
 
-const KNOWN_FUNCTIONS = CRON_MANIFEST.map((c) => c.funcion);
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await requireAdminSession();
-  if (!session) {
-    return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
-  }
+  if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
 
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -113,86 +111,11 @@ export async function GET() {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-  // Fetch recent logs for all known functions in a single query
-  const { data: logsRaw, error } = await supabase
-    .from("log_funciones")
-    .select("nombre_funcion, fecha_ejecucion, resultado, exito, detalle")
-    .in("nombre_funcion", KNOWN_FUNCTIONS)
-    .order("fecha_ejecucion", { ascending: false, nullsFirst: false })
-    .limit(300);
+  const { data, error } = await supabase.rpc("admin_listar_cron_jobs");
 
   if (error) {
-    return NextResponse.json({ ok: false, motivo: "db_error", detalle: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, motivo: "db_error", detalle: error.message }, { status: 502 });
   }
 
-  // Group by function: last run, last error, run count
-  const byFuncion: Record<
-    string,
-    {
-      ultima_ejecucion: string | null;
-      ultimo_resultado: string | null;
-      ultimo_exito: boolean | null;
-      ultimo_error: { resultado: string; fecha: string } | null;
-      total_reciente: number;
-      errores_recientes: number;
-    }
-  > = {};
-
-  for (const fn of KNOWN_FUNCTIONS) {
-    byFuncion[fn] = {
-      ultima_ejecucion: null,
-      ultimo_resultado: null,
-      ultimo_exito: null,
-      ultimo_error: null,
-      total_reciente: 0,
-      errores_recientes: 0,
-    };
-  }
-
-  const logs = Array.isArray(logsRaw) ? logsRaw : [];
-
-  for (const log of logs) {
-    const fn = log.nombre_funcion as string;
-    if (!byFuncion[fn]) continue;
-    const entry = byFuncion[fn];
-
-    entry.total_reciente++;
-
-    if (log.exito === false) {
-      entry.errores_recientes++;
-      if (!entry.ultimo_error) {
-        entry.ultimo_error = {
-          resultado: String(log.resultado ?? ""),
-          fecha: String(log.fecha_ejecucion ?? ""),
-        };
-      }
-    }
-
-    if (!entry.ultima_ejecucion) {
-      entry.ultima_ejecucion = log.fecha_ejecucion ?? null;
-      entry.ultimo_resultado = log.resultado ?? null;
-      entry.ultimo_exito = log.exito ?? null;
-    }
-  }
-
-  const procesos = CRON_MANIFEST.map((proc) => ({
-    ...proc,
-    stats: byFuncion[proc.funcion] ?? null,
-  }));
-
-  const totalErrores = procesos.filter(
-    (p) => p.stats?.ultimo_exito === false
-  ).length;
-  const sinDatos = procesos.filter((p) => !p.stats?.ultima_ejecucion).length;
-
-  return NextResponse.json({
-    ok: true,
-    nota: "Los horarios reales de pg_cron no son accesibles desde el panel. Esta vista es informativa, basada en manifest estático + log_funciones.",
-    resumen: {
-      total_procesos: procesos.length,
-      con_error_reciente: totalErrores,
-      sin_datos: sinDatos,
-    },
-    procesos,
-  });
+  return NextResponse.json({ ok: true, jobs: data ?? [] });
 }
