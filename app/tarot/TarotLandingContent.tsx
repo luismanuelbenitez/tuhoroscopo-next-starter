@@ -1,8 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import CardCross from '@/components/tarot/CardCross';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -30,12 +30,10 @@ const VALUE_CARDS = [
   { title: 'Tono honesto', desc: 'Sin promesas mágicas. La lectura ofrece perspectiva, no certezas absolutas.' },
 ];
 
-const PDF_MOCK_POSITIONS = [
-  { n: '1', label: 'Tu momento actual',       col: 2, row: 1 },
-  { n: '2', label: 'El desafío',              col: 1, row: 2 },
-  { n: '4', label: 'Consejo para avanzar',    col: 2, row: 2 },
-  { n: '3', label: 'Lo que no estás viendo',  col: 3, row: 2 },
-  { n: '5', label: 'Lo que viene',            col: 2, row: 3 },
+const PDF_PAGES = [
+  { src: '/img/tarot/pdf-p1.jpg', label: 'Tirada de cartas' },
+  { src: '/img/tarot/pdf-p2.jpg', label: 'Interpretación' },
+  { src: '/img/tarot/pdf-p3.jpg', label: 'Mensaje final' },
 ];
 
 const TESTIMONIALS = [
@@ -73,6 +71,91 @@ const FAQ_ITEMS = [
     a: 'Sí. Cada tirada es independiente. Podés comprar nuevas consultas cuando quieras, sobre el mismo tema o uno diferente. No hay suscripción ni renovación automática.',
   },
 ];
+
+function PdfPageViewer({ width = 220 }: { width?: number }) {
+  const [active, setActive] = useState(0);
+  const height = Math.round(width * 1.414); // A4 ratio
+
+  const prev = () => setActive(i => (i - 1 + PDF_PAGES.length) % PDF_PAGES.length);
+  const next = () => setActive(i => (i + 1) % PDF_PAGES.length);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, userSelect: 'none' }}>
+
+      {/* Visor */}
+      <div style={{ position: 'relative', width, height }}>
+        {PDF_PAGES.map((page, i) => (
+          <div
+            key={page.src}
+            className="absolute rounded-xl overflow-hidden"
+            style={{
+              inset: 0,
+              border: '1px solid rgba(251,191,36,0.45)',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.65), 0 0 28px rgba(251,191,36,0.07)',
+              opacity: i === active ? 1 : 0,
+              transform: i === active ? 'scale(1)' : 'scale(0.97)',
+              transition: 'opacity 0.32s ease, transform 0.32s ease',
+              pointerEvents: i === active ? 'auto' : 'none',
+            }}
+          >
+            <Image
+              src={page.src}
+              alt={page.label}
+              width={width}
+              height={height}
+              priority={i === 0}
+              style={{ objectFit: 'cover', objectPosition: 'top', display: 'block', width: '100%', height: '100%' }}
+            />
+          </div>
+        ))}
+
+        {/* Flechas */}
+        {active > 0 && (
+          <button onClick={prev} style={{
+            position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)',
+            width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(251,191,36,0.30)',
+            background: 'rgba(13,8,32,0.80)', color: GOLD, fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
+          }}>‹</button>
+        )}
+        {active < PDF_PAGES.length - 1 && (
+          <button onClick={next} style={{
+            position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)',
+            width: 28, height: 28, borderRadius: '50%', border: '1px solid rgba(251,191,36,0.30)',
+            background: 'rgba(13,8,32,0.80)', color: GOLD, fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2,
+          }}>›</button>
+        )}
+      </div>
+
+      {/* Dots + label */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {PDF_PAGES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              style={{
+                width: i === active ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                background: i === active ? GOLD : 'rgba(251,191,36,0.22)',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'all 0.22s ease',
+              }}
+            />
+          ))}
+        </div>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', letterSpacing: '0.08em', margin: 0 }}>
+          {PDF_PAGES[active].label.toUpperCase()} · {active + 1} / {PDF_PAGES.length}
+        </p>
+      </div>
+
+    </div>
+  );
+}
 
 export default function TarotLandingContent() {
   return (
@@ -161,17 +244,17 @@ export default function TarotLandingContent() {
               </p>
             </div>
 
-            {/* CardCross — oculto en mobile, visible en desktop */}
+            {/* PDF viewer — oculto en mobile, visible en desktop */}
             <div className="tarot-in-2 hidden md:flex w-[260px] shrink-0 items-center justify-center">
-              <CardCross />
+              <PdfPageViewer width={220} />
             </div>
 
           </div>
         </div>
 
-        {/* CardCross mobile */}
+        {/* PDF viewer mobile */}
         <div className="relative md:hidden flex justify-center px-4 pb-8" style={{ zIndex: 1 }}>
-          <CardCross />
+          <PdfPageViewer width={240} />
         </div>
 
         {/* ── Qué recibís ──────────────────────────────────────────── */}

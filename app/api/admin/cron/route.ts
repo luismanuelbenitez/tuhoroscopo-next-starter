@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
-// Static manifest of known automated processes.
-// Actual pg_cron schedules are not readable from the panel (requires DB-level access).
-// Frequency strings describe the intended schedule from code/documentation.
-const CRON_MANIFEST = [
+// DEAD CODE — original static manifest kept as reference but never executed
+const _CRON_MANIFEST_UNUSED = [
   {
     id: "orquesta_premium_diario",
     nombre: "Orquesta Envío Premium Diario",
