@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
-import { LogOut, RefreshCw, MessageCircle, Wand2, AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { LogOut, RefreshCw, AlertTriangle, MessageCircle, Wand2 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { MantenimientoToggle } from "@/components/admin/MantenimientoToggle";
+import { MetricaCard } from "@/components/admin/MetricaCard";
 
 interface ConfigRow {
   id: string;
@@ -13,38 +14,90 @@ interface ConfigRow {
   editable: boolean;
 }
 
-interface ApiResponse {
+interface Metricas {
   ok: boolean;
-  config?: ConfigRow[];
-  motivo?: string;
-  detalle?: string;
+  periodo: number;
+  thc: {
+    activos: number;
+    activos_wa_ok: number;
+    activos_wa_pendiente: number;
+    altas_periodo: number;
+    mensajes_enviados_periodo: number;
+    mensajes_fallidos_24h: number;
+    mensajes_pendientes: number;
+    ingresos_periodo: number;
+    mrr_uyu: number;
+    mrr_ars: number;
+    subs_activas: number;
+  };
+  ttc: {
+    ordenes_periodo: number;
+    completadas_periodo: number;
+    en_error_activo: number;
+    clientes_total: number;
+    ingresos_periodo_uyu: number;
+    ingresos_periodo_ars: number;
+  };
+  alertas: {
+    ordenes_en_error: number;
+    mensajes_fallidos_24h: number;
+    wa_pendiente: number;
+  };
+}
+
+const PERIODOS = [
+  { label: "Hoy", valor: "1" },
+  { label: "7 días", valor: "7" },
+  { label: "30 días", valor: "30" },
+  { label: "90 días", valor: "90" },
+] as const;
+
+function fmt(n: number): string {
+  return n.toLocaleString("es-UY");
 }
 
 export function AdminHub() {
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const [cargando, setCargando] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cargandoConfig, setCargandoConfig] = useState(true);
+  const [cargandoMetricas, setCargandoMetricas] = useState(true);
   const [configRows, setConfigRows] = useState<ConfigRow[]>([]);
+  const [metricas, setMetricas] = useState<Metricas | null>(null);
+  const [errorMetricas, setErrorMetricas] = useState<string | null>(null);
+  const [periodo, setPeriodo] = useState<string>("30");
 
-  async function cargar() {
-    setCargando(true);
-    setErrorMsg(null);
+  const cargarConfig = useCallback(async () => {
+    setCargandoConfig(true);
     try {
       const res = await fetch("/api/admin/config");
-      const json: ApiResponse = await res.json();
-      if (!json.ok) {
-        setErrorMsg(json.detalle ?? json.motivo ?? "Error al cargar configuración");
+      const json = await res.json();
+      if (json.ok) setConfigRows(json.config ?? []);
+    } catch {
+      // silencioso — la config es secundaria en el hub
+    } finally {
+      setCargandoConfig(false);
+    }
+  }, []);
+
+  const cargarMetricas = useCallback(async (p: string) => {
+    setCargandoMetricas(true);
+    setErrorMetricas(null);
+    try {
+      const res = await fetch(`/api/admin/metricas-globales?periodo=${p}`);
+      const json: Metricas = await res.json();
+      if (json.ok) {
+        setMetricas(json);
       } else {
-        setConfigRows(json.config ?? []);
+        setErrorMetricas("Error al cargar métricas");
       }
     } catch {
-      setErrorMsg("Error de red");
+      setErrorMetricas("Error de red");
     } finally {
-      setCargando(false);
+      setCargandoMetricas(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargarConfig(); }, [cargarConfig]);
+  useEffect(() => { cargarMetricas(periodo); }, [periodo, cargarMetricas]);
 
   async function cerrarSesion() {
     setCerrandoSesion(true);
@@ -60,7 +113,11 @@ export function AdminHub() {
   const whatsappModo = configRows.find((r) => r.nombre.toUpperCase() === "WHATSAPP_MODO");
   const debugMode = configRows.find((r) => r.nombre.toUpperCase() === "APP_DEBUG_MODE");
 
-  const siteOnMaintenance = modoMantenimiento?.valor === "true";
+  const m = metricas;
+  const hayAlertas =
+    m && (m.alertas.ordenes_en_error > 0 || m.alertas.mensajes_fallidos_24h > 0);
+
+  const labelPeriodo = PERIODOS.find((p) => p.valor === periodo)?.label ?? `${periodo}d`;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
@@ -80,36 +137,84 @@ export function AdminHub() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 
-        {/* Title */}
-        <div className="flex items-center justify-between">
+        {/* Title + controles */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-bold text-gray-100">Panel global</h1>
             <p className="text-xs text-gray-500 mt-0.5">Tu Oráculo · Administración</p>
           </div>
-          <button
-            onClick={cargar}
-            disabled={cargando}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-gray-800 rounded-lg px-3 py-2 transition-colors hover:border-gray-700"
-          >
-            <RefreshCw size={12} className={cargando ? "animate-spin" : ""} />
-            Actualizar
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Selector de período */}
+            <div className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1">
+              {PERIODOS.map((p) => (
+                <button
+                  key={p.valor}
+                  onClick={() => setPeriodo(p.valor)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    periodo === p.valor
+                      ? "bg-gray-700 text-gray-100"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => { cargarConfig(); cargarMetricas(periodo); }}
+              disabled={cargandoMetricas}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-gray-800 rounded-lg px-3 py-2 transition-colors hover:border-gray-700"
+            >
+              <RefreshCw size={12} className={cargandoMetricas ? "animate-spin" : ""} />
+              Actualizar
+            </button>
+          </div>
         </div>
 
-        {errorMsg && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
-            <AlertCircle size={14} className="shrink-0" />
-            {errorMsg}
+        {/* === Alertas === */}
+        {!cargandoMetricas && hayAlertas && m && (
+          <div className="rounded-xl border border-red-800/60 bg-red-950/20 px-5 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={15} className="text-red-400 shrink-0" />
+              <p className="text-sm font-semibold text-red-300">Requiere atención</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {m.alertas.ordenes_en_error > 0 && (
+                <a
+                  href="/admin/tarot"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-800/40 text-xs text-red-300 hover:bg-red-950/60 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  {m.alertas.ordenes_en_error} {m.alertas.ordenes_en_error === 1 ? "orden tarot en error" : "órdenes tarot en error"}
+                  <span className="text-red-500">→</span>
+                </a>
+              )}
+              {m.alertas.mensajes_fallidos_24h > 0 && (
+                <a
+                  href="/admin/horoscopo"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-950/40 border border-red-800/40 text-xs text-red-300 hover:bg-red-950/60 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  {m.alertas.mensajes_fallidos_24h} {m.alertas.mensajes_fallidos_24h === 1 ? "mensaje fallido" : "mensajes fallidos"} (24h)
+                  <span className="text-red-500">→</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Error cargando métricas */}
+        {errorMetricas && (
+          <div className="rounded-lg border border-red-800/50 bg-red-950/30 px-4 py-2.5 text-sm text-red-300">
+            {errorMetricas}
           </div>
         )}
 
         {/* === Sistema === */}
         <section>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Sistema</p>
-
-          {/* Maintenance mode — prominent */}
           <div className={`rounded-xl border px-5 py-5 mb-3 ${
-            siteOnMaintenance
+            modoMantenimiento?.valor === "true"
               ? "border-red-800/50 bg-red-950/10"
               : "border-gray-800 bg-gray-900/50"
           }`}>
@@ -117,23 +222,21 @@ export function AdminHub() {
               <div>
                 <p className="text-sm font-semibold text-gray-100 font-mono">MODO_MANTENIMIENTO</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Cuando está activo, todos los visitantes son redirigidos a{" "}
+                  Redirige todos los visitantes a{" "}
                   <span className="font-mono text-gray-400">/mantenimiento</span>. El panel admin sigue accesible.
-                  Cache de 30s en middleware.
                 </p>
               </div>
             </div>
-            {cargando ? (
+            {cargandoConfig ? (
               <div className="text-xs text-gray-600 animate-pulse">Cargando…</div>
             ) : modoMantenimiento ? (
-              <MantenimientoToggle valor={modoMantenimiento.valor} onOk={cargar} />
+              <MantenimientoToggle valor={modoMantenimiento.valor} onOk={cargarConfig} />
             ) : (
               <p className="text-xs text-gray-600 italic">MODO_MANTENIMIENTO no encontrado en config</p>
             )}
           </div>
 
-          {/* Other global flags — read-only chips */}
-          {!cargando && (whatsappModo || debugMode) && (
+          {!cargandoConfig && (whatsappModo || debugMode) && (
             <div className="flex flex-wrap gap-2">
               {whatsappModo && (
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
@@ -161,52 +264,145 @@ export function AdminHub() {
                 href="/admin/config"
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-800 text-xs text-gray-500 hover:text-gray-300 hover:border-gray-700 transition-colors"
               >
-                Ver toda la config →
+                Toda la config →
               </a>
             </div>
           )}
         </section>
 
-        {/* === Productos === */}
-        <section>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Productos</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* === Métricas — grid 2 columnas === */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* THC — Horóscopo */}
-            <a
-              href="/admin/horoscopo"
-              className="group rounded-xl border border-violet-800/30 bg-violet-950/10 hover:bg-violet-950/20 hover:border-violet-700/40 transition-colors px-5 py-5 flex items-start gap-4"
-            >
-              <div className="p-2 rounded-lg bg-violet-950/50 border border-violet-800/40 shrink-0">
-                <MessageCircle size={20} className="text-violet-400" />
+          {/* === THC — Horóscopo === */}
+          <section className="rounded-xl border border-violet-800/25 bg-violet-950/5 px-5 py-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-violet-950/60 border border-violet-800/40">
+                  <MessageCircle size={16} className="text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-100">Horóscopo</p>
+                  <p className="text-xs text-violet-500/70">Tu Oráculo · THC</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-100 group-hover:text-white transition-colors">Horóscopo</p>
-                <p className="text-xs text-gray-500 mt-0.5">Suscriptores Premium · WhatsApp · Mensajes · Ingresos</p>
-                <p className="text-xs text-violet-500 mt-2 group-hover:text-violet-400 transition-colors">
-                  Ir al panel →
-                </p>
-              </div>
-            </a>
+              <a
+                href="/admin/horoscopo"
+                className="text-xs text-violet-500 hover:text-violet-300 transition-colors"
+              >
+                Panel →
+              </a>
+            </div>
 
-            {/* TTC — Tarot */}
-            <a
-              href="/admin/tarot"
-              className="group rounded-xl border border-amber-800/30 bg-amber-950/10 hover:bg-amber-950/20 hover:border-amber-700/40 transition-colors px-5 py-5 flex items-start gap-4"
-            >
-              <div className="p-2 rounded-lg bg-amber-950/50 border border-amber-800/40 shrink-0">
-                <Wand2 size={20} className="text-amber-400" />
+            <div className="grid grid-cols-2 gap-3">
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.thc.activos) : "—"}
+                label="Activos premium"
+                sub={m ? `${fmt(m.thc.activos_wa_ok)} con WA confirmado` : undefined}
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? `$${fmt(m.thc.mrr_uyu)}` : "—"}
+                label="MRR (UYU)"
+                sub={m && m.thc.mrr_ars > 0 ? `ARS $${fmt(m.thc.mrr_ars)}` : undefined}
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.thc.altas_periodo) : "—"}
+                label={`Altas en ${labelPeriodo}`}
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.thc.mensajes_enviados_periodo) : "—"}
+                label={`Mensajes en ${labelPeriodo}`}
+              />
+            </div>
+
+            {/* Chips de estado */}
+            {!cargandoMetricas && m && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {m.thc.mensajes_pendientes > 0 && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-yellow-950/30 border border-yellow-800/40 text-xs text-yellow-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                    {fmt(m.thc.mensajes_pendientes)} mensajes pendientes
+                  </span>
+                )}
+                {m.thc.activos_wa_pendiente > 0 && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs text-gray-500">
+                    {fmt(m.thc.activos_wa_pendiente)} sin confirmar WA
+                  </span>
+                )}
+                {m.thc.mensajes_fallidos_24h > 0 && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-950/30 border border-red-800/40 text-xs text-red-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    {fmt(m.thc.mensajes_fallidos_24h)} fallidos (24h)
+                  </span>
+                )}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-100 group-hover:text-white transition-colors">Tarot</p>
-                <p className="text-xs text-gray-500 mt-0.5">Lecturas · Clientes · Códigos · Pagos MercadoPago</p>
-                <p className="text-xs text-amber-500 mt-2 group-hover:text-amber-400 transition-colors">
-                  Ir al panel →
-                </p>
+            )}
+          </section>
+
+          {/* === TTC — Tarot === */}
+          <section className="rounded-xl border border-amber-800/25 bg-amber-950/5 px-5 py-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-amber-950/60 border border-amber-800/40">
+                  <Wand2 size={16} className="text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-100">Tarot</p>
+                  <p className="text-xs text-amber-500/70">Tu Oráculo · TTC</p>
+                </div>
               </div>
-            </a>
-          </div>
-        </section>
+              <a
+                href="/admin/tarot"
+                className="text-xs text-amber-500 hover:text-amber-300 transition-colors"
+              >
+                Panel →
+              </a>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.ttc.ordenes_periodo) : "—"}
+                label={`Órdenes en ${labelPeriodo}`}
+                sub={m ? `${fmt(m.ttc.completadas_periodo)} completadas` : undefined}
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? `$${fmt(m.ttc.ingresos_periodo_uyu)}` : "—"}
+                label={`Ingresos UYU en ${labelPeriodo}`}
+                sub={m && m.ttc.ingresos_periodo_ars > 0 ? `ARS $${fmt(m.ttc.ingresos_periodo_ars)}` : undefined}
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.ttc.clientes_total) : "—"}
+                label="Clientes totales"
+              />
+              <MetricaCard
+                esqueleto={cargandoMetricas}
+                valor={m ? fmt(m.ttc.en_error_activo) : "—"}
+                label="Órdenes en error"
+                sub={m && m.ttc.en_error_activo > 0 ? "Requieren atención" : undefined}
+                subAlerta={m ? m.ttc.en_error_activo > 0 : false}
+              />
+            </div>
+
+            {/* Chip de error si hay */}
+            {!cargandoMetricas && m && m.ttc.en_error_activo > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <a
+                  href="/admin/tarot"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-950/30 border border-red-800/40 text-xs text-red-400 hover:bg-red-950/50 transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  {fmt(m.ttc.en_error_activo)} {m.ttc.en_error_activo === 1 ? "orden" : "órdenes"} en error → ver panel
+                </a>
+              </div>
+            )}
+          </section>
+        </div>
 
       </main>
     </div>

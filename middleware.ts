@@ -9,7 +9,7 @@ const FREE_PATHS = [
 ];
 
 // These paths bypass maintenance mode (admin always accessible)
-const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/api/admin", "/mantenimiento"];
+const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/api/admin"];
 
 async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   const cookieName = adminSessionOptions.cookieName as string;
@@ -57,6 +57,15 @@ export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   if (pathname.startsWith("/admin")) {
     requestHeaders.set("x-is-admin", "1");
+  }
+
+  // /mantenimiento solo accesible si el modo está activo; si no, redirige al home
+  if (pathname === "/mantenimiento") {
+    const onMaintenance = await isMaintenanceModeOn();
+    if (!onMaintenance) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Maintenance mode — check before anything else

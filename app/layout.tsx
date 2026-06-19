@@ -9,13 +9,10 @@ export const metadata: Metadata = {
   description: "Guía diaria personalizada y lecturas de tarot, directo a tu WhatsApp.",
 icons: {
   icon: [
+    { url: "/img/logo/logo-isotipo.png", sizes: "512x512", type: "image/png" },
     { url: "/icons/favicon.ico", type: "image/x-icon" },
-    { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
-    { url: "/icons/favicon-512.png", sizes: "512x512", type: "image/png" },
   ],
-  apple: { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-  // ❌ eliminar esto mientras no exista el SVG:
-  // other: [{ rel: "icon", url: "/icons/favicon.svg", type: "image/svg+xml" }],
+  apple: { url: "/img/logo/logo-isotipo.png", sizes: "180x180", type: "image/png" },
 },
 };
 

@@ -1,7 +1,7 @@
 import { LogoIcon } from "@/components/logo-icon";
 
 export const metadata = {
-  title: "Volvemos pronto — Tu Oráculo",
+  title: "Tu Oráculo",
   robots: "noindex,nofollow",
 };
 
@@ -12,6 +12,7 @@ export default function MantenimientoPage() {
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;600&display=swap');
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html,body{height:100%;background:#07051a;font-family:'Inter',sans-serif;color:#e8e0f0;overflow:hidden}
+        header,footer{display:none!important}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
         @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 10px rgba(139,92,246,.3))}50%{filter:drop-shadow(0 0 24px rgba(139,92,246,.6))}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
