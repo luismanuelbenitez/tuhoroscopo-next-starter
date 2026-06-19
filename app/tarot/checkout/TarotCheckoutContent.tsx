@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
+import Image from 'next/image';
 import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 const GOLD = '#FFCE4D';
@@ -259,7 +260,7 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
                   Tu consulta de tarot
                 </p>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
-                  Completá tu consulta
+                  Contame tu consulta
                 </h1>
                 <p className="text-white/55 text-sm mt-2">
                   Cuanto más precisa sea tu pregunta, más útil será la lectura.
@@ -353,7 +354,7 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
                 {/* Email (opcional) */}
                 <div>
                   <label htmlFor="email" className="block text-sm text-white/80 mb-1">
-                    Email <span className="text-white/35">(opcional)</span>
+                    Email <span className="text-white/35">(opcional — respaldo si algo falla con WhatsApp)</span>
                   </label>
                   <input
                     id="email"
@@ -555,7 +556,7 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
                       boxShadow: '0 4px 20px rgba(251,191,36,0.28)',
                     }}
                   >
-                    {isLoading ? 'Procesando...' : 'Ir al pago →'}
+                    {isLoading ? 'Procesando...' : `Pagar $U ${precioFinal} →`}
                   </button>
 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12px] text-white/40">
@@ -588,48 +589,64 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
 
               {/* Resumen */}
               <div
-                className="rounded-2xl p-5"
+                className="rounded-2xl overflow-hidden"
                 style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(251,191,36,0.18)' }}
               >
-                <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: GOLD_DIM }}>
-                  Tu lectura incluye
-                </p>
-                <div className="space-y-2.5">
-                  {[
-                    { emoji: '🃏', text: 'Tirada de 5 cartas (Cruz Celta)' },
-                    { emoji: '✍️', text: 'Lectura narrativa personalizada' },
-                    { emoji: '💬', text: 'Entrega por WhatsApp' },
-                    { emoji: '⏱️', text: 'En menos de 15 minutos' },
-                    { emoji: '📎', text: 'Pago único · Sin suscripción' },
-                  ].map(item => (
-                    <div key={item.text} className="flex items-start gap-2">
-                      <span className="text-sm leading-none mt-0.5 shrink-0">{item.emoji}</span>
-                      <span className="text-white/65 text-sm leading-snug">{item.text}</span>
-                    </div>
-                  ))}
+                {/* Preview PDF */}
+                <div style={{ position: 'relative', height: 160 }}>
+                  <Image
+                    src="/img/tarot/pdf-p1.jpg"
+                    alt="Vista previa de tu lectura de tarot"
+                    fill
+                    style={{ objectFit: 'cover', objectPosition: 'top' }}
+                  />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(15,8,32,0.97) 100%)' }} />
+                  <p style={{ position: 'absolute', bottom: 10, left: 14, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(251,191,36,0.70)', fontWeight: 600, margin: 0 }}>
+                    PDF · 3 páginas · diseño premium
+                  </p>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-white/8">
-                  <div className="flex items-end justify-between">
-                    <span className="text-white/50 text-sm">Total</span>
-                    <div className="text-right">
-                      {descuento ? (
-                        <>
-                          <span className="text-sm line-through text-white/30 mr-2">$U {PRECIO_BASE}</span>
-                          <span className="text-2xl font-extrabold text-emerald-400">$U {precioFinal}</span>
-                        </>
-                      ) : (
-                        <span className="text-2xl font-extrabold text-white">$U {PRECIO_BASE}</span>
-                      )}
-                      <p className="text-[11px] text-white/40">IVA incluido</p>
-                    </div>
+                <div className="p-5">
+                  <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: GOLD_DIM }}>
+                    Tu lectura incluye
+                  </p>
+                  <div className="space-y-2.5">
+                    {[
+                      'Tirada de 5 cartas (Cruz Celta)',
+                      'Lectura narrativa personalizada',
+                      'Entrega por WhatsApp en PDF',
+                      'En menos de 15 minutos',
+                      'Pago único · Sin suscripción',
+                    ].map(text => (
+                      <div key={text} className="flex items-start gap-2">
+                        <span className="text-xs font-bold shrink-0 mt-0.5" style={{ color: GOLD_DIM }}>✓</span>
+                        <span className="text-white/65 text-sm leading-snug">{text}</span>
+                      </div>
+                    ))}
                   </div>
-                  {descuento && (
-                    <div className="mt-2 rounded-lg px-3 py-1.5 text-xs text-emerald-400 bg-emerald-400/8 border border-emerald-400/20 flex items-center gap-1.5">
-                      <Tag size={11} className="shrink-0" />
-                      Ahorrás $U {descuento.descuento_aplicado}
+
+                  <div className="mt-5 pt-4 border-t border-white/8">
+                    <div className="flex items-end justify-between">
+                      <span className="text-white/50 text-sm">Total</span>
+                      <div className="text-right">
+                        {descuento ? (
+                          <>
+                            <span className="text-sm line-through text-white/30 mr-2">$U {PRECIO_BASE}</span>
+                            <span className="text-2xl font-extrabold text-emerald-400">$U {precioFinal}</span>
+                          </>
+                        ) : (
+                          <span className="text-2xl font-extrabold text-white">$U {PRECIO_BASE}</span>
+                        )}
+                        <p className="text-[11px] text-white/40">IVA incluido</p>
+                      </div>
                     </div>
-                  )}
+                    {descuento && (
+                      <div className="mt-2 rounded-lg px-3 py-1.5 text-xs text-emerald-400 bg-emerald-400/8 border border-emerald-400/20 flex items-center gap-1.5">
+                        <Tag size={11} className="shrink-0" />
+                        Ahorrás $U {descuento.descuento_aplicado}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -631,7 +631,7 @@ function addPage2(
 
     // Nombre de carta (tamaño fijo, siempre entra)
     const isInv    = carta.orientacion === "invertida" || carta.invertida === true;
-    const cardLine = sanitize(carta.nombre_carta ?? "") + (isInv ? " (Inv.)" : "");
+    const cardLine = sanitize(carta.nombre_carta ?? carta.carta ?? "") + (isInv ? " (Inv.)" : "");
     const nameSize  = 9;
     const nameLH    = 12;
     // Baja la baseline para que los ascendentes queden dentro del box
@@ -878,7 +878,7 @@ async function generarPDF(
   try {
     // ── Resolver imagen_storage_path por nombre_es ────────────
     const nombresCartas: string[] = contenido.cartas
-      .map((cc: Json) => sanitize(cc.nombre_carta ?? ""))
+      .map((cc: Json) => sanitize(cc.nombre_carta ?? cc.carta ?? ""))
       .filter(Boolean);
 
     const { data: cartasDB } = await supabase
@@ -952,7 +952,7 @@ async function generarPDF(
     // ── Descargar imágenes de cartas en paralelo ─────────────
     const cardBytes = await Promise.all(
       contenido.cartas.map(async (carta: Json) => {
-        const nombre      = sanitize(carta.nombre_carta ?? "");
+        const nombre      = sanitize(carta.nombre_carta ?? carta.carta ?? "");
         const storagePath = cartaImageMap.get(nombre);
         if (!storagePath) {
           await log(ordenId, "carta_imagen_faltante", "warning",
@@ -984,7 +984,7 @@ async function generarPDF(
     const cardImages = await Promise.all(
       cardBytes.map(async (bytes, i) => {
         if (!bytes) return null;
-        const nombre = sanitize(contenido.cartas[i].nombre_carta ?? "");
+        const nombre = sanitize(contenido.cartas[i].nombre_carta ?? contenido.cartas[i].carta ?? "");
         const path   = cartaImageMap.get(nombre) ?? "";
         return embedImage(pdfDoc, bytes, path);
       }),

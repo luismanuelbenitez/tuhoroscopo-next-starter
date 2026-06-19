@@ -3,23 +3,24 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Layers, FileText, MessageCircle, Sparkles, Clock, ShieldCheck } from 'lucide-react';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
 
 const DELIVERABLES = [
-  { emoji: '🃏', label: 'Tirada de 5 cartas', desc: 'Cruz celta simplificada: situación, obstáculo, pasado, futuro y consejo final.' },
-  { emoji: '✍️', label: 'Lectura narrativa', desc: 'Un texto fluido que conecta las 5 cartas con tu consulta, no una lista de significados.' },
-  { emoji: '💬', label: 'Por WhatsApp', desc: 'Recibís la lectura completa en tu WhatsApp, en formato cómodo para leer cuando quieras.' },
-  { emoji: '✨', label: 'Lectura única para vos', desc: 'Cada tirada se construye desde cero para tu pregunta y contexto. No hay dos lecturas iguales.' },
-  { emoji: '⏱️', label: 'Entrega en minutos', desc: 'Una vez confirmado el pago, tu lectura llega en menos de 15 minutos.' },
-  { emoji: '📎', label: 'Sin suscripción', desc: 'Es un pago único. Sin compromisos, sin renovaciones automáticas.' },
+  { Icon: Layers,        label: 'Tirada de 5 cartas',    desc: 'Cruz celta simplificada: situación, obstáculo, pasado, futuro y consejo final.' },
+  { Icon: FileText,      label: 'Lectura narrativa',      desc: 'Un texto fluido que conecta las 5 cartas con tu consulta, no una lista de significados.' },
+  { Icon: MessageCircle, label: 'Por WhatsApp',           desc: 'Recibís el PDF completo directo en tu WhatsApp. Sin apps ni descargas adicionales.' },
+  { Icon: Sparkles,      label: 'Lectura única para vos', desc: 'Cada tirada se construye desde cero para tu pregunta y contexto. No hay dos lecturas iguales.' },
+  { Icon: Clock,         label: 'En menos de 15 minutos', desc: 'Una vez confirmado el pago, tu lectura llega en minutos.' },
+  { Icon: ShieldCheck,   label: 'Sin suscripción',        desc: 'Un pago único. Sin compromisos, sin renovaciones automáticas.' },
 ];
 
 const STEPS = [
   { n: '1', title: 'Completás el formulario', desc: 'Tu nombre, tu consulta y unos datos básicos para personalizar la lectura.' },
   { n: '2', title: 'Confirmás el pago', desc: 'Pago único seguro vía Mercado Pago. Sin suscripciones.' },
-  { n: '3', title: 'La IA genera tu lectura', desc: 'En minutos, construimos una tirada personalizada para tu pregunta.' },
+  { n: '3', title: 'La IA genera tu lectura', desc: 'En minutos, la IA construye una tirada personalizada basada en tu pregunta.' },
   { n: '4', title: 'La recibís por WhatsApp', desc: 'Texto completo, claro y listo para releer cuando lo necesités.' },
 ];
 
@@ -42,22 +43,29 @@ const TESTIMONIALS = [
     name: 'Valentina R.',
     city: 'Montevideo',
     tema: 'Amor',
+    avatar: '/img/tarot/avatar-valentina.jpg',
   },
   {
     quote: 'Me llegó en menos de 10 minutos. El PDF es precioso y me dio mucha claridad sobre mi situación laboral.',
     name: 'Marcela G.',
     city: 'Buenos Aires',
     tema: 'Trabajo',
+    avatar: '/img/tarot/avatar-marcela.jpg',
   },
   {
     quote: 'Lo compré sin saber bien qué esperar y quedé sorprendida. Lo recomendé a dos amigas esa misma noche.',
     name: 'Daniela F.',
     city: 'Córdoba',
     tema: 'Situación general',
+    avatar: '/img/tarot/avatar-daniela.jpg',
   },
 ];
 
 const FAQ_ITEMS = [
+  {
+    q: '¿En qué formato recibo la lectura?',
+    a: 'Recibís un PDF de 3 páginas directo en tu WhatsApp: la tirada visual con tus 5 cartas, la interpretación de cada una en relación a tu pregunta, y un mensaje final personalizado. Si completás el email, también te lo enviamos por esa vía como respaldo.',
+  },
   {
     q: '¿Es realmente personalizado o es un mensaje genérico?',
     a: 'Cada lectura se genera con tu nombre, fecha de nacimiento y la pregunta que vos escribís. Las cartas se seleccionan y se interpretan en relación a tu consulta específica. No es un texto estándar.',
@@ -263,19 +271,34 @@ export default function TarotLandingContent() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-center mb-2" style={{ color: GOLD_DIM }}>
               ¿Qué recibís exactamente?
             </p>
-            <p className="text-center text-white/50 text-sm mb-8">Todo en un solo mensaje de WhatsApp.</p>
+            <p className="text-center text-white/50 text-sm mb-8">Tu PDF llega directo a tu WhatsApp. Sin apps ni pasos extra.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {DELIVERABLES.map(item => (
+              {DELIVERABLES.map(({ Icon, label, desc }) => (
                 <div
-                  key={item.label}
+                  key={label}
                   className="rounded-2xl p-5"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
-                  <div className="text-2xl mb-3">{item.emoji}</div>
-                  <p className="text-white/90 text-sm font-semibold mb-1">{item.label}</p>
-                  <p className="text-white/50 text-xs leading-relaxed">{item.desc}</p>
+                  <Icon size={22} style={{ color: GOLD_DIM }} className="mb-3" />
+                  <p className="text-white/90 text-sm font-semibold mb-1">{label}</p>
+                  <p className="text-white/50 text-xs leading-relaxed">{desc}</p>
                 </div>
               ))}
+            </div>
+
+            {/* WhatsApp mockup */}
+            <div className="mt-12 flex flex-col items-center gap-4">
+              <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: GOLD_DIM }}>
+                Así llega a tu WhatsApp
+              </p>
+              <Image
+                src="/img/tarot/whatsapp-mockup.jpg"
+                alt="Vista previa de la lectura llegando por WhatsApp"
+                width={260}
+                height={371}
+                className="rounded-2xl"
+                style={{ border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 8px 40px rgba(0,0,0,0.55)' }}
+              />
             </div>
           </div>
         </div>
@@ -290,48 +313,22 @@ export default function TarotLandingContent() {
               Esto es lo que vas a recibir.
             </h2>
             <p className="text-center text-white/50 text-sm mb-10">
-              3 páginas · diseño premium · entregado directo a tu WhatsApp
+              3 páginas · diseño premium · navegá entre ellas con las flechas
             </p>
 
-            <div className="flex justify-center">
-              <div className="relative" style={{ width: 316, height: 438 }}>
-
-                {/* Página 3 — más atrás */}
-                <div className="absolute rounded-xl overflow-hidden" style={{
-                  width: 280, height: 396, top: 24, left: 24,
-                  transform: 'rotate(3deg)',
-                  border: '1px solid rgba(251,191,36,0.12)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.55)',
-                  opacity: 0.55,
-                }}>
-                  <Image src="/img/tarot/pdf-p3.jpg" alt="" width={280} height={396}
-                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
-                </div>
-
-                {/* Página 2 — medio */}
-                <div className="absolute rounded-xl overflow-hidden" style={{
-                  width: 280, height: 396, top: 12, left: 12,
-                  transform: 'rotate(1.5deg)',
-                  border: '1px solid rgba(251,191,36,0.22)',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.60)',
-                  opacity: 0.75,
-                }}>
-                  <Image src="/img/tarot/pdf-p2.jpg" alt="" width={280} height={396}
-                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
-                </div>
-
-                {/* Página 1 — frente */}
-                <div className="absolute rounded-xl overflow-hidden" style={{
-                  width: 280, height: 396, top: 0, left: 0,
-                  border: '1px solid rgba(251,191,36,0.50)',
-                  boxShadow: '0 12px 48px rgba(0,0,0,0.70), 0 0 40px rgba(251,191,36,0.08)',
-                }}>
-                  <Image src="/img/tarot/pdf-p1.jpg" alt="Vista previa de la tirada de tarot"
-                    width={280} height={396} priority
-                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
-                </div>
-
-              </div>
+            <div className="flex flex-col items-center gap-6">
+              <PdfPageViewer width={300} />
+              <Link
+                href={'/tarot/checkout' as never}
+                className="inline-block rounded-xl px-10 py-3.5 text-sm font-bold transition-all active:scale-[0.98]"
+                style={{
+                  background: 'linear-gradient(135deg, #d4a017 0%, #FFCE4D 60%, #f0c840 100%)',
+                  color: '#0f0820',
+                  boxShadow: '0 4px 20px rgba(251,191,36,0.28)',
+                }}
+              >
+                Quiero mi lectura →
+              </Link>
             </div>
           </div>
         </div>
@@ -389,10 +386,10 @@ export default function TarotLandingContent() {
         <div className="relative mx-auto max-w-4xl px-4 pb-12 md:pb-16" style={{ zIndex: 1 }}>
           <div className="border-t border-white/8 pt-10">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-center mb-2" style={{ color: GOLD_DIM }}>
-              Quienes ya consultaron
+              Experiencias reales
             </p>
             <h2 className="text-center text-white text-xl md:text-2xl font-bold mb-8">
-              Lo que dicen sobre su tirada.
+              Lo que sintieron después de su lectura.
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {TESTIMONIALS.map((t) => (
@@ -406,9 +403,14 @@ export default function TarotLandingContent() {
                     className="flex items-center justify-between gap-2 pt-2"
                     style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    <div>
-                      <p className="text-white/90 text-xs font-semibold">{t.name}</p>
-                      <p className="text-white/40 text-xs">{t.city}</p>
+                    <div className="flex items-center gap-2">
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', border: '1.5px solid rgba(251,191,36,0.35)', flexShrink: 0 }}>
+                        <Image src={t.avatar} alt={t.name} width={32} height={32} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+                      </div>
+                      <div>
+                        <p className="text-white/90 text-xs font-semibold">{t.name}</p>
+                        <p className="text-white/40 text-xs">{t.city}</p>
+                      </div>
                     </div>
                     <span
                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
