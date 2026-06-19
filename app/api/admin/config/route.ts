@@ -73,7 +73,7 @@ export async function GET() {
     valor: redactConfigValue(String(row.nombre ?? ""), String(row.valor ?? "")),
     es_sensible: isSensitiveConfigKey(String(row.nombre ?? "")),
     created_at: row.created_at ?? null,
-    editable: ["APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO"].includes(String(row.nombre).toUpperCase()),
+    editable: ["APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO", "THC_PRECIO_SUSCRIPCION"].includes(String(row.nombre).toUpperCase()),
   }));
 
   // Sanitize public.configuracion

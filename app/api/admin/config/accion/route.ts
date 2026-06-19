@@ -6,6 +6,7 @@ const CLAVES_EDITABLES = [
   "APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO",
   "ALERTAS_EMAIL_ACTIVO", "ALERTAS_EMAIL_DESTINO",
   "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
+  "THC_PRECIO_SUSCRIPCION",
 ] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
@@ -18,6 +19,7 @@ const VALORES_ENUM: Partial<Record<ClaveEditable, string[]>> = {
 
 const CLAVES_NUMERO: ClaveEditable[] = [
   "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
+  "THC_PRECIO_SUSCRIPCION",
 ];
 
 function validarValor(clave: ClaveEditable, valor: string): string | null {

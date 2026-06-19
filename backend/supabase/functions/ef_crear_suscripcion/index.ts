@@ -41,7 +41,6 @@ const MP_NOTIFICATION_URL = Deno.env.get("MP_NOTIFICATION_URL") || `${SUPABASE_U
 //   "para THC, esta suscripción ya no debe volver a usarse"
 // ============================================================================
 const MP_REASON = "Suscripción Premium Tu Oráculo";
-const MP_AMOUNT = 390;
 const MP_CURRENCY_ID = "UYU";
 const MP_FREQUENCY = 1;
 const MP_FREQUENCY_TYPE = "months";
@@ -126,7 +125,8 @@ serve(async (req)=>{
         error: "Datos incompletos"
       }, 400);
     }
-    // Monto final: usa el que viene del servidor (ya validado), fallback a MP_AMOUNT.
+    // Monto final: usa el que viene del servidor (ya validado), fallback al precio configurado.
+    const MP_AMOUNT = parseFloat(await getConfigValue("THC_PRECIO_SUSCRIPCION", "390"));
     const transactionAmount = (typeof montoBody === "number" && montoBody > 0) ? montoBody : MP_AMOUNT;
     const tieneDescuento = !!codigo_descuento;
     // ------------------------------------------------------------------------

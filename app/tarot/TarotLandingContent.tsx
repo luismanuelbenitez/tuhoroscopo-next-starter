@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import CardCross from '@/components/tarot/CardCross';
 
 const GOLD = '#FFCE4D';
@@ -210,81 +211,43 @@ export default function TarotLandingContent() {
             </p>
 
             <div className="flex justify-center">
-              <div className="relative" style={{ width: 300, height: 410 }}>
-                {/* Páginas detrás — efecto profundidad */}
-                <div className="absolute rounded-xl" style={{
-                  width: 280, height: 390, top: 16, left: 18,
-                  background: '#120a2e', border: '1px solid rgba(251,191,36,0.10)',
+              <div className="relative" style={{ width: 316, height: 438 }}>
+
+                {/* Página 3 — más atrás */}
+                <div className="absolute rounded-xl overflow-hidden" style={{
+                  width: 280, height: 396, top: 24, left: 24,
                   transform: 'rotate(3deg)',
-                }} />
-                <div className="absolute rounded-xl" style={{
-                  width: 280, height: 390, top: 8, left: 10,
-                  background: '#150c35', border: '1px solid rgba(251,191,36,0.15)',
-                  transform: 'rotate(1.5deg)',
-                }} />
-
-                {/* Página principal */}
-                <div className="absolute rounded-xl" style={{
-                  width: 280, height: 390, top: 0, left: 0,
-                  background: 'linear-gradient(160deg, #1f0d4a 0%, #130827 100%)',
-                  border: '1px solid rgba(251,191,36,0.45)',
-                  boxShadow: '0 12px 48px rgba(0,0,0,0.70), 0 0 40px rgba(251,191,36,0.07)',
-                  padding: '18px 16px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  border: '1px solid rgba(251,191,36,0.12)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.55)',
+                  opacity: 0.55,
                 }}>
-                  {/* Header */}
-                  <p style={{ fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 600, color: 'rgba(251,191,36,0.60)', marginBottom: 4 }}>
-                    Tu Tirada Cósmica
-                  </p>
-                  <p style={{ color: 'white', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Valentina · Amor</p>
-                  <div style={{ width: '80%', height: 1, background: 'rgba(251,191,36,0.15)', marginBottom: 14 }} />
-
-                  {/* Cards cross */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr',
-                    gridTemplateRows: '1fr 1fr 1fr',
-                    gap: 6,
-                    width: '100%',
-                    flex: 1,
-                  }}>
-                    {PDF_MOCK_POSITIONS.map((pos) => (
-                      <div
-                        key={pos.n}
-                        style={{
-                          gridColumn: pos.col,
-                          gridRow: pos.row,
-                          background: 'linear-gradient(160deg, #2d1b69 0%, #1a0f45 100%)',
-                          border: pos.n === '1'
-                            ? '1px solid rgba(251,191,36,0.65)'
-                            : '1px solid rgba(251,191,36,0.22)',
-                          borderRadius: 6,
-                          display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center',
-                          gap: 4, padding: '4px 2px',
-                          boxShadow: pos.n === '1' ? '0 0 16px rgba(251,191,36,0.18)' : 'none',
-                        }}
-                      >
-                        <span style={{
-                          width: 18, height: 18, borderRadius: '50%',
-                          background: 'rgba(251,191,36,0.15)',
-                          border: '1px solid rgba(251,191,36,0.55)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 9, fontWeight: 700, color: GOLD, flexShrink: 0,
-                        }}>{pos.n}</span>
-                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 1.3, padding: '0 2px' }}>
-                          {pos.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Footer */}
-                  <div style={{ width: '80%', height: 1, background: 'rgba(251,191,36,0.10)', marginTop: 12, marginBottom: 8 }} />
-                  <p style={{ fontSize: 7, color: 'rgba(251,191,36,0.28)', letterSpacing: '0.15em' }}>
-                    TU HORÓSCOPO CÓSMICO · PÁG. 1 DE 3
-                  </p>
+                  <Image src="/img/tarot/pdf-p3.jpg" alt="" width={280} height={396}
+                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
                 </div>
+
+                {/* Página 2 — medio */}
+                <div className="absolute rounded-xl overflow-hidden" style={{
+                  width: 280, height: 396, top: 12, left: 12,
+                  transform: 'rotate(1.5deg)',
+                  border: '1px solid rgba(251,191,36,0.22)',
+                  boxShadow: '0 6px 24px rgba(0,0,0,0.60)',
+                  opacity: 0.75,
+                }}>
+                  <Image src="/img/tarot/pdf-p2.jpg" alt="" width={280} height={396}
+                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+                </div>
+
+                {/* Página 1 — frente */}
+                <div className="absolute rounded-xl overflow-hidden" style={{
+                  width: 280, height: 396, top: 0, left: 0,
+                  border: '1px solid rgba(251,191,36,0.50)',
+                  boxShadow: '0 12px 48px rgba(0,0,0,0.70), 0 0 40px rgba(251,191,36,0.08)',
+                }}>
+                  <Image src="/img/tarot/pdf-p1.jpg" alt="Vista previa de la tirada de tarot"
+                    width={280} height={396} priority
+                    style={{ objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+                </div>
+
               </div>
             </div>
           </div>

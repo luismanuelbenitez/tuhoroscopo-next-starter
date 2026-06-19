@@ -5,8 +5,24 @@ import { Footer } from "@/components/Footer";
 import { headers } from "next/headers";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tuoraculo.uy"),
   title: "Tu Oráculo",
-  description: "Guía diaria personalizada y lecturas de tarot, directo a tu WhatsApp.",
+  description: "Claridad cuando más la necesitás. Horóscopo diario y lectura de tarot, directo a tu WhatsApp.",
+  openGraph: {
+    title: "Tu Oráculo",
+    description: "Claridad cuando más la necesitás.",
+    url: "https://tuoraculo.uy",
+    siteName: "Tu Oráculo",
+    images: [{ url: "/img/whatsapp/og.jpg", width: 1200, height: 630, alt: "Tu Oráculo" }],
+    locale: "es_UY",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tu Oráculo",
+    description: "Claridad cuando más la necesitás.",
+    images: ["/img/whatsapp/og.jpg"],
+  },
 icons: {
   icon: [
     { url: "/img/logo/logo-isotipo.png", sizes: "512x512", type: "image/png" },

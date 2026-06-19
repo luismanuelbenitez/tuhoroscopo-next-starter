@@ -498,6 +498,126 @@ function UrlEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
 }
 
 // ===========================================================================
+// Price editor for THC_PRECIO_SUSCRIPCION
+// ===========================================================================
+
+function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [nuevoValor, setNuevoValor] = useState(row.valor);
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarEdicion() {
+    setNuevoValor(row.valor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setEditando(true);
+  }
+
+  function cancelar() {
+    setEditando(false);
+    setErrorMsg(null);
+  }
+
+  async function guardar() {
+    const n = parseInt(nuevoValor, 10);
+    if (isNaN(n) || n < 1 || n > 9999) { setErrorMsg("Debe ser un número entre 1 y 9999"); return; }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: row.nombre, valor: String(n), motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setEditando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-sm font-bold text-gray-200">$ {row.valor} UYU</span>
+        {!editando && (
+          <button
+            onClick={iniciarEdicion}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
+          >
+            <Pencil size={11} /> Editar
+          </button>
+        )}
+      </div>
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+      {editando && (
+        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
+          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Nuevo precio (UYU)</label>
+            <input
+              type="number"
+              min="1"
+              max="9999"
+              value={nuevoValor}
+              onChange={(e) => setNuevoValor(e.target.value)}
+              className="w-32 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-violet-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={2}
+              placeholder="ej: actualización de precio para campaña de verano"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+            />
+          </div>
+          {errorMsg && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle size={12} /> {errorMsg}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={guardar}
+              disabled={guardando || !nuevoValor || motivo.trim().length < 5}
+              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+            >
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+            <button
+              onClick={cancelar}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // Configuracion section (read-only structured)
 // ===========================================================================
 
@@ -713,6 +833,7 @@ export default function ConfigPage() {
                     const isWaModo = key === "WHATSAPP_MODO";
                     const isUrl = key === "THC_BACK_URL" || key === "TTC_BACK_URL";
                     const isMantenimiento = key === "MODO_MANTENIMIENTO";
+                    const isPrecio = key === "THC_PRECIO_SUSCRIPCION";
 
                     const descriptions: Record<string, string> = {
                       WHATSAPP_MODO: "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request.",
@@ -720,6 +841,7 @@ export default function ConfigPage() {
                       THC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la suscripción de horóscopo. Cambiar cuando el dominio tuoraculo.uy esté activo.",
                       TTC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la tirada de tarot. Cambiar cuando el dominio tuoraculo.uy esté activo.",
                       MODO_MANTENIMIENTO: "Cuando está activo, todos los visitantes son redirigidos a la página de mantenimiento. El panel admin sigue accesible. Cache de 30s en middleware.",
+                      THC_PRECIO_SUSCRIPCION: "Precio mensual de la suscripción Premium de horóscopo en pesos uruguayos. ef_crear_suscripcion lo lee al crear cada preapproval en MercadoPago.",
                     };
 
                     return (
@@ -746,6 +868,8 @@ export default function ConfigPage() {
                         </div>
                         {isMantenimiento ? (
                           <MantenimientoToggle valor={row.valor} onOk={cargar} />
+                        ) : isPrecio ? (
+                          <PrecioEditor row={row} onOk={cargar} />
                         ) : isUrl ? (
                           <UrlEditor row={row} onOk={cargar} />
                         ) : isWaModo ? (
