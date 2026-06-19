@@ -58,9 +58,10 @@ export async function POST(
   };
 
   let estadoActual: string;
+  let deckSlug: string | null = null;
   try {
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/tarot_ordenes?id=eq.${encodeURIComponent(ordenId)}&select=id,estado&limit=1`,
+      `${supabaseUrl}/rest/v1/tarot_ordenes?id=eq.${encodeURIComponent(ordenId)}&select=id,estado,mazo_id&limit=1`,
       { headers: restHeaders, cache: "no-store" },
     );
     if (!res.ok) throw new Error(`REST ${res.status}`);
@@ -69,6 +70,18 @@ export async function POST(
       return NextResponse.json({ ok: false, motivo: "orden_no_encontrada" }, { status: 404 });
     }
     estadoActual = rows[0].estado;
+
+    // Resolver deck slug cuando se va a regenerar el PDF
+    if (accion === "reintentar_pdf" && rows[0].mazo_id) {
+      const resMazo = await fetch(
+        `${supabaseUrl}/rest/v1/tarot_mazos?id=eq.${encodeURIComponent(rows[0].mazo_id)}&select=slug&limit=1`,
+        { headers: restHeaders, cache: "no-store" },
+      );
+      if (resMazo.ok) {
+        const mazos = await resMazo.json();
+        deckSlug = mazos?.[0]?.slug ?? null;
+      }
+    }
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "db_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }
@@ -88,6 +101,7 @@ export async function POST(
   // Disparar EF fire-and-forget
   const efUrl = `${supabaseUrl}/functions/v1/${EF_MAP[accion]}`;
   const efBody: Record<string, unknown> = { orden_id: ordenId };
+  if (accion === "reintentar_pdf" && deckSlug) efBody.deck = deckSlug;
 
   fetch(efUrl, {
     method: "POST",

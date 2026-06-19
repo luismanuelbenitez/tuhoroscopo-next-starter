@@ -252,10 +252,10 @@ async function generarLectura(ordenId: string): Promise<void> {
     return;
   }
 
-  // 1. Fetch orden
+  // 1. Fetch orden + slug del mazo (necesario para pasar deck al PDF EF)
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema")
+    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, tarot_mazos(slug)")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -628,7 +628,11 @@ async function generarLectura(ordenId: string): Promise<void> {
         Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       },
-      body: JSON.stringify({ orden_id: ordenId, lectura_id: lecturaId }),
+      body: JSON.stringify({
+        orden_id:   ordenId,
+        lectura_id: lecturaId,
+        deck: (orden as unknown as { tarot_mazos?: { slug?: string } }).tarot_mazos?.slug ?? null,
+      }),
     }).catch(async (err) => {
       await registrarLog(ordenId, "pdf_dispatch_error", "warning",
         "No se pudo disparar ef_tarot_generar_pdf",
