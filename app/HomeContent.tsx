@@ -116,7 +116,7 @@ export default function HomeContent() {
             {/* WAPreview — oculto en mobile (se muestra abajo), visible en desktop */}
             <div className="hero-in-2 hidden md:block w-[340px] shrink-0">
               <img
-                src="/img/horoscopo/phone-preview-thc.webp"
+                src="/img/horoscopo/phone-preview-thc.png"
                 alt="Ejemplo de mensaje en WhatsApp"
                 className="w-full h-auto"
               />
@@ -128,7 +128,7 @@ export default function HomeContent() {
         {/* WAPreview mobile — debajo del hero, full width */}
         <div className="relative md:hidden px-4 pb-6" style={{ zIndex: 1 }}>
           <img
-                src="/img/horoscopo/phone-preview-thc.webp"
+                src="/img/horoscopo/phone-preview-thc.png"
                 alt="Ejemplo de mensaje en WhatsApp"
                 className="w-full h-auto"
               />

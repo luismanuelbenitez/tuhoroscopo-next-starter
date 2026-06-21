@@ -6,7 +6,7 @@ const CLAVES_EDITABLES = [
   "APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO",
   "ALERTAS_EMAIL_ACTIVO", "ALERTAS_EMAIL_DESTINO",
   "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
-  "THC_PRECIO_SUSCRIPCION", "OPENAI_MODEL",
+  "THC_PRECIO_SUSCRIPCION", "OPENAI_MODEL", "OPENAI_TEMPERATURE", "OPENAI_MAX_TOKENS",
 ] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
@@ -20,8 +20,10 @@ const VALORES_ENUM: Partial<Record<ClaveEditable, string[]>> = {
 
 const CLAVES_NUMERO: ClaveEditable[] = [
   "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
-  "THC_PRECIO_SUSCRIPCION",
+  "THC_PRECIO_SUSCRIPCION", "OPENAI_MAX_TOKENS",
 ];
+
+const CLAVES_DECIMAL: ClaveEditable[] = ["OPENAI_TEMPERATURE"];
 
 function validarValor(clave: ClaveEditable, valor: string): string | null {
   if (VALORES_ENUM[clave]) {
@@ -46,6 +48,11 @@ function validarValor(clave: ClaveEditable, valor: string): string | null {
   if (CLAVES_NUMERO.includes(clave)) {
     const n = parseInt(valor, 10);
     if (isNaN(n) || n < 1 || n > 9999) return "Debe ser un número entero entre 1 y 9999";
+    return null;
+  }
+  if (CLAVES_DECIMAL.includes(clave)) {
+    const n = parseFloat(valor);
+    if (isNaN(n) || n < 0 || n > 2) return "Debe ser un número decimal entre 0 y 2";
     return null;
   }
   return null;
@@ -85,7 +92,7 @@ export async function POST(req: NextRequest) {
   }
 
   // URL, email, y número preservan case/formato; enum keys pasan a lowercase
-  const CLAVES_PRESERVAR_CASE: string[] = ["THC_BACK_URL", "TTC_BACK_URL", "ALERTAS_EMAIL_DESTINO", "OPENAI_MODEL", ...CLAVES_NUMERO];
+  const CLAVES_PRESERVAR_CASE: string[] = ["THC_BACK_URL", "TTC_BACK_URL", "ALERTAS_EMAIL_DESTINO", "OPENAI_MODEL", ...CLAVES_NUMERO, ...CLAVES_DECIMAL];
   const valorRaw = typeof body.valor === "string"
     ? (CLAVES_PRESERVAR_CASE.includes(clave) ? body.valor.trim() : body.valor.trim().toLowerCase())
     : "";

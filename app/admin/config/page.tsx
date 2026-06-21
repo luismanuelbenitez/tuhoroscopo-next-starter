@@ -1,17 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  MessageCircle,
-  LogOut,
-  RefreshCw,
-  AlertCircle,
-  ShieldAlert,
-  ToggleLeft,
-  ToggleRight,
-  Lock,
-  ChevronDown,
-  ChevronUp,
-  Pencil,
+  LogOut, RefreshCw, AlertCircle, ShieldAlert, ToggleLeft, ToggleRight,
+  Lock, ChevronDown, ChevronUp, Pencil, Check, X, Loader2,
 } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -45,14 +36,13 @@ interface Configuracion {
   admin_contacto: string | null;
 }
 
-interface ApiResponse {
-  ok: boolean;
-  config?: ConfigRow[];
-  configuracion?: Configuracion | null;
-  warnings?: string[];
-  nota?: string;
-  motivo?: string;
-  detalle?: string;
+interface Plantilla {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  contenido: string;
+  creado_en: string | null;
+  activo: boolean;
 }
 
 interface AcResponse {
@@ -65,6 +55,8 @@ interface AcResponse {
   detalle?: string;
 }
 
+type Tab = "config" | "ia";
+
 // ===========================================================================
 // Helpers
 // ===========================================================================
@@ -74,29 +66,93 @@ function fmtDate(iso: string | null | undefined): string {
   try {
     return new Date(iso).toLocaleString("es-UY", {
       timeZone: "America/Montevideo",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
     });
   } catch {
     return iso;
   }
 }
 
+function ResultMsg({ ok, texto }: { ok: boolean; texto: string }) {
+  return (
+    <div className={`flex items-center gap-1.5 text-xs ${ok ? "text-emerald-400" : "text-red-400"}`}>
+      {ok ? <Check size={12} /> : <AlertCircle size={12} />}
+      {texto}
+    </div>
+  );
+}
+
+// ===========================================================================
+// Confirm+motivo helper used by multiple editors
+// ===========================================================================
+
+function ConfirmBox({
+  titulo,
+  pendingLabel,
+  motivo,
+  setMotivo,
+  guardando,
+  errorMsg,
+  onConfirmar,
+  onCancelar,
+  placeholder,
+}: {
+  titulo: string;
+  pendingLabel: string;
+  motivo: string;
+  setMotivo: (v: string) => void;
+  guardando: boolean;
+  errorMsg: string | null;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
+      <p className="text-xs text-amber-300 font-semibold">{titulo} → <span className="font-mono">{pendingLabel}</span></p>
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">
+          Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
+        </label>
+        <textarea
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          rows={2}
+          placeholder={placeholder ?? "Describe el motivo del cambio"}
+          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+        />
+      </div>
+      {errorMsg && (
+        <p className="text-xs text-red-400 flex items-center gap-1">
+          <AlertCircle size={12} /> {errorMsg}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={onConfirmar}
+          disabled={guardando || motivo.trim().length < 5}
+          className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+        >
+          {guardando ? "Guardando…" : "Confirmar"}
+        </button>
+        <button
+          onClick={onCancelar}
+          disabled={guardando}
+          className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ===========================================================================
 // Toggle panel for APP_DEBUG_MODE
 // ===========================================================================
 
-function DebugModeToggle({
-  row,
-  onOk,
-}: {
-  row: ConfigRow;
-  onOk: () => void;
-}) {
+function DebugModeToggle({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
   const isOn = row.valor.toLowerCase() === "true";
   const [confirmando, setConfirmando] = useState(false);
   const [pendingValor, setPendingValor] = useState<"true" | "false">("false");
@@ -113,17 +169,8 @@ function DebugModeToggle({
     setConfirmando(true);
   }
 
-  function cancelar() {
-    setConfirmando(false);
-    setMotivo("");
-    setErrorMsg(null);
-  }
-
   async function confirmar() {
-    if (motivo.trim().length < 5) {
-      setErrorMsg("El motivo debe tener al menos 5 caracteres");
-      return;
-    }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
     setGuardando(true);
     setErrorMsg(null);
     try {
@@ -159,77 +206,36 @@ function DebugModeToggle({
               : "border-gray-700/60 bg-gray-800/60 text-gray-400 hover:bg-gray-800"
           }`}
         >
-          {isOn ? (
-            <ToggleRight size={16} className="text-green-400" />
-          ) : (
-            <ToggleLeft size={16} className="text-gray-500" />
-          )}
+          {isOn ? <ToggleRight size={16} className="text-green-400" /> : <ToggleLeft size={16} className="text-gray-500" />}
           {isOn ? "ON" : "OFF"}
         </button>
         <span className="text-xs text-gray-500">
           Actualmente: <span className={isOn ? "text-green-400 font-semibold" : "text-gray-500"}>{row.valor}</span>
         </span>
       </div>
-
-      {successMsg && (
-        <p className="mt-2 text-xs text-green-400">{successMsg}</p>
-      )}
-
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
       {confirmando && (
-        <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
-          <p className="text-xs text-amber-300 font-semibold">
-            Confirmar cambio: APP_DEBUG_MODE → <span className="font-mono">{pendingValor}</span>
-          </p>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
-            </label>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              rows={2}
-              placeholder="ej: activar debug para diagnóstico de sender"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
-            />
-          </div>
-          {errorMsg && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle size={12} /> {errorMsg}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={confirmar}
-              disabled={guardando || motivo.trim().length < 5}
-              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
-            >
-              {guardando ? "Guardando…" : "Confirmar"}
-            </button>
-            <button
-              onClick={cancelar}
-              disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmBox
+          titulo="APP_DEBUG_MODE"
+          pendingLabel={pendingValor}
+          motivo={motivo}
+          setMotivo={setMotivo}
+          guardando={guardando}
+          errorMsg={errorMsg}
+          onConfirmar={confirmar}
+          onCancelar={() => { setConfirmando(false); setMotivo(""); setErrorMsg(null); }}
+          placeholder="ej: activar debug para diagnóstico de sender"
+        />
       )}
     </div>
   );
 }
 
 // ===========================================================================
-// Toggle panel for WHATSAPP_MODO (sandbox / production)
+// Toggle panel for WHATSAPP_MODO
 // ===========================================================================
 
-function WaModoToggle({
-  row,
-  onOk,
-}: {
-  row: ConfigRow;
-  onOk: () => void;
-}) {
+function WaModoToggle({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
   const isProduction = row.valor === "production";
   const [confirmando, setConfirmando] = useState(false);
   const [pendingValor, setPendingValor] = useState<"sandbox" | "production">("sandbox");
@@ -238,25 +244,8 @@ function WaModoToggle({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  function iniciarCambio(nuevoValor: "sandbox" | "production") {
-    setPendingValor(nuevoValor);
-    setMotivo("");
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setConfirmando(true);
-  }
-
-  function cancelar() {
-    setConfirmando(false);
-    setMotivo("");
-    setErrorMsg(null);
-  }
-
   async function confirmar() {
-    if (motivo.trim().length < 5) {
-      setErrorMsg("El motivo debe tener al menos 5 caracteres");
-      return;
-    }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
     setGuardando(true);
     setErrorMsg(null);
     try {
@@ -285,7 +274,7 @@ function WaModoToggle({
     <div>
       <div className="flex items-center gap-3">
         <button
-          onClick={() => !isProduction && iniciarCambio("production")}
+          onClick={() => { if (!isProduction) { setPendingValor("production"); setMotivo(""); setErrorMsg(null); setSuccessMsg(null); setConfirmando(true); } }}
           disabled={isProduction}
           className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
             isProduction
@@ -296,7 +285,7 @@ function WaModoToggle({
           PRODUCCIÓN
         </button>
         <button
-          onClick={() => isProduction && iniciarCambio("sandbox")}
+          onClick={() => { if (isProduction) { setPendingValor("sandbox"); setMotivo(""); setErrorMsg(null); setSuccessMsg(null); setConfirmando(true); } }}
           disabled={!isProduction}
           className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
             !isProduction
@@ -308,56 +297,118 @@ function WaModoToggle({
         </button>
         <span className="text-xs text-gray-500">
           Actualmente:{" "}
-          <span className={isProduction ? "text-amber-400 font-semibold" : "text-violet-400 font-semibold"}>
-            {row.valor}
-          </span>
+          <span className={isProduction ? "text-amber-400 font-semibold" : "text-violet-400 font-semibold"}>{row.valor}</span>
         </span>
       </div>
-
       {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
-
       {confirmando && (
-        <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
-          <p className="text-xs text-amber-300 font-semibold">
-            Confirmar cambio: WHATSAPP_MODO → <span className="font-mono">{pendingValor}</span>
-            {pendingValor === "production" && (
-              <span className="ml-2 text-amber-500">⚠ Los mensajes se enviarán a usuarios reales</span>
-            )}
-          </p>
+        <ConfirmBox
+          titulo="WHATSAPP_MODO"
+          pendingLabel={pendingValor + (pendingValor === "production" ? " ⚠ Los mensajes se enviarán a usuarios reales" : "")}
+          motivo={motivo}
+          setMotivo={setMotivo}
+          guardando={guardando}
+          errorMsg={errorMsg}
+          onConfirmar={confirmar}
+          onCancelar={() => { setConfirmando(false); setMotivo(""); setErrorMsg(null); }}
+          placeholder={pendingValor === "production" ? "ej: activar envíos reales para lanzamiento" : "ej: volver a sandbox para pruebas"}
+        />
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// URL editor
+// ===========================================================================
+
+function UrlEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [nuevoValor, setNuevoValor] = useState(row.valor);
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarEdicion() {
+    setNuevoValor(row.valor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setEditando(true);
+  }
+
+  async function guardar() {
+    try { const u = new URL(nuevoValor.trim()); if (u.protocol !== "https:") { setErrorMsg("Debe ser una URL HTTPS"); return; } }
+    catch { setErrorMsg("URL inválida — debe comenzar con https://"); return; }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: row.nombre, valor: nuevoValor.trim(), motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setEditando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-xs text-gray-300 break-all">{row.valor || "—"}</span>
+        {!editando && (
+          <button
+            onClick={iniciarEdicion}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
+          >
+            <Pencil size={11} /> Editar
+          </button>
+        )}
+      </div>
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+      {editando && (
+        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
+          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
-            </label>
+            <label className="block text-xs text-gray-400 mb-1">Nueva URL <span className="text-gray-600">(https://)</span></label>
+            <input
+              type="url"
+              value={nuevoValor}
+              onChange={(e) => setNuevoValor(e.target.value)}
+              placeholder="https://tuoraculo.uy/horoscopo/gracias"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span></label>
             <textarea
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               rows={2}
-              placeholder={
-                pendingValor === "production"
-                  ? "ej: activar envíos reales para lanzamiento"
-                  : "ej: volver a sandbox para pruebas"
-              }
+              placeholder="ej: dominio tuoraculo.uy configurado y apuntando"
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
             />
           </div>
-          {errorMsg && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle size={12} /> {errorMsg}
-            </p>
-          )}
+          {errorMsg && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle size={12} /> {errorMsg}</p>}
           <div className="flex gap-2">
-            <button
-              onClick={confirmar}
-              disabled={guardando || motivo.trim().length < 5}
-              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
-            >
-              {guardando ? "Guardando…" : "Confirmar"}
+            <button onClick={guardar} disabled={guardando || !nuevoValor.trim() || motivo.trim().length < 5} className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors">
+              {guardando ? "Guardando…" : "Guardar"}
             </button>
-            <button
-              onClick={cancelar}
-              disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
+            <button onClick={() => { setEditando(false); setErrorMsg(null); }} disabled={guardando} className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors">
               Cancelar
             </button>
           </div>
@@ -368,7 +419,87 @@ function WaModoToggle({
 }
 
 // ===========================================================================
-// Selector for OPENAI_MODEL
+// Price editor
+// ===========================================================================
+
+function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
+  const [editando, setEditando] = useState(false);
+  const [nuevoValor, setNuevoValor] = useState(row.valor);
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  async function guardar() {
+    const n = parseInt(nuevoValor, 10);
+    if (isNaN(n) || n < 1 || n > 9999) { setErrorMsg("Debe ser un número entre 1 y 9999"); return; }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: row.nombre, valor: String(n), motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setEditando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-sm font-bold text-gray-200">$ {row.valor} UYU</span>
+        {!editando && (
+          <button
+            onClick={() => { setNuevoValor(row.valor); setMotivo(""); setErrorMsg(null); setSuccessMsg(null); setEditando(true); }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
+          >
+            <Pencil size={11} /> Editar
+          </button>
+        )}
+      </div>
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+      {editando && (
+        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
+          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Nuevo precio (UYU)</label>
+            <input type="number" min="1" max="9999" value={nuevoValor} onChange={(e) => setNuevoValor(e.target.value)} className="w-32 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-violet-600" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span></label>
+            <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} placeholder="ej: actualización de precio para campaña de verano" className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none" />
+          </div>
+          {errorMsg && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle size={12} /> {errorMsg}</p>}
+          <div className="flex gap-2">
+            <button onClick={guardar} disabled={guardando || !nuevoValor || motivo.trim().length < 5} className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors">
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+            <button onClick={() => { setEditando(false); setErrorMsg(null); }} disabled={guardando} className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// OpenAI model selector
 // ===========================================================================
 
 const OPENAI_MODELS = [
@@ -395,17 +526,8 @@ function OAIModelSelector({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
     setConfirmando(true);
   }
 
-  function cancelar() {
-    setConfirmando(false);
-    setMotivo("");
-    setErrorMsg(null);
-  }
-
   async function confirmar() {
-    if (motivo.trim().length < 5) {
-      setErrorMsg("El motivo debe tener al menos 5 caracteres");
-      return;
-    }
+    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
     setGuardando(true);
     setErrorMsg(null);
     try {
@@ -449,62 +571,40 @@ function OAIModelSelector({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-gray-600">
-        Activo: <span className="font-mono text-violet-400">{row.valor}</span> · Leído por <span className="font-mono">ef_openia_genera_contenido_premium</span> en cada request.
-      </p>
-
       {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
-
       {confirmando && (
-        <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
-          <p className="text-xs text-amber-300 font-semibold">
-            Confirmar cambio: OPENAI_MODEL → <span className="font-mono">{pendingValor}</span>
-          </p>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
-            </label>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              rows={2}
-              placeholder="ej: mejorar calidad sin escalar mucho el costo"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
-            />
-          </div>
-          {errorMsg && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle size={12} /> {errorMsg}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={confirmar}
-              disabled={guardando || motivo.trim().length < 5}
-              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
-            >
-              {guardando ? "Guardando…" : "Confirmar"}
-            </button>
-            <button
-              onClick={cancelar}
-              disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmBox
+          titulo="OPENAI_MODEL"
+          pendingLabel={pendingValor}
+          motivo={motivo}
+          setMotivo={setMotivo}
+          guardando={guardando}
+          errorMsg={errorMsg}
+          onConfirmar={confirmar}
+          onCancelar={() => { setConfirmando(false); setMotivo(""); setErrorMsg(null); }}
+          placeholder="ej: mejorar calidad sin escalar mucho el costo"
+        />
       )}
     </div>
   );
 }
 
 // ===========================================================================
-// URL editor for THC_BACK_URL / TTC_BACK_URL
+// Generic numeric editor (temperatura, max_tokens)
 // ===========================================================================
 
-function UrlEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
-  const [editando, setEditando] = useState(false);
+function OAINumericEditor({
+  row, label, min, max, step, unit, onOk,
+}: {
+  row: ConfigRow;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  onOk: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
   const [nuevoValor, setNuevoValor] = useState(row.valor);
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -516,148 +616,13 @@ function UrlEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
     setMotivo("");
     setErrorMsg(null);
     setSuccessMsg(null);
-    setEditando(true);
+    setConfirmando(true);
   }
 
-  function cancelar() {
-    setEditando(false);
-    setErrorMsg(null);
-  }
-
-  function validarUrl(v: string): string | null {
-    try {
-      const u = new URL(v.trim());
-      if (u.protocol !== "https:") return "Debe ser una URL HTTPS";
-      return null;
-    } catch {
-      return "URL inválida — debe comenzar con https://";
-    }
-  }
-
-  async function guardar() {
-    const urlError = validarUrl(nuevoValor);
-    if (urlError) { setErrorMsg(urlError); return; }
+  async function confirmar() {
     if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
-
-    setGuardando(true);
-    setErrorMsg(null);
-    try {
-      const res = await fetch("/api/admin/config/accion", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clave: row.nombre, valor: nuevoValor.trim(), motivo: motivo.trim() }),
-      });
-      const json: AcResponse = await res.json();
-      if (!json.ok) {
-        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
-      } else {
-        setSuccessMsg(json.mensaje ?? "Actualizado");
-        setEditando(false);
-        setMotivo("");
-        onOk();
-      }
-    } catch {
-      setErrorMsg("Error de red");
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  return (
-    <div>
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-gray-300 break-all">{row.valor || "—"}</span>
-        {!editando && (
-          <button
-            onClick={iniciarEdicion}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
-          >
-            <Pencil size={11} /> Editar
-          </button>
-        )}
-      </div>
-
-      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
-
-      {editando && (
-        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
-          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Nueva URL <span className="text-gray-600">(https://)</span></label>
-            <input
-              type="url"
-              value={nuevoValor}
-              onChange={(e) => setNuevoValor(e.target.value)}
-              placeholder="https://tuoraculo.uy/horoscopo/gracias"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span></label>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              rows={2}
-              placeholder="ej: dominio tuoraculo.uy configurado y apuntando"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
-            />
-          </div>
-          {errorMsg && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle size={12} /> {errorMsg}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={guardar}
-              disabled={guardando || !nuevoValor.trim() || motivo.trim().length < 5}
-              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
-            >
-              {guardando ? "Guardando…" : "Guardar"}
-            </button>
-            <button
-              onClick={cancelar}
-              disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ===========================================================================
-// Price editor for THC_PRECIO_SUSCRIPCION
-// ===========================================================================
-
-function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
-  const [editando, setEditando] = useState(false);
-  const [nuevoValor, setNuevoValor] = useState(row.valor);
-  const [motivo, setMotivo] = useState("");
-  const [guardando, setGuardando] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  function iniciarEdicion() {
-    setNuevoValor(row.valor);
-    setMotivo("");
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setEditando(true);
-  }
-
-  function cancelar() {
-    setEditando(false);
-    setErrorMsg(null);
-  }
-
-  async function guardar() {
-    const n = parseInt(nuevoValor, 10);
-    if (isNaN(n) || n < 1 || n > 9999) { setErrorMsg("Debe ser un número entre 1 y 9999"); return; }
-    if (motivo.trim().length < 5) { setErrorMsg("El motivo debe tener al menos 5 caracteres"); return; }
+    const n = parseFloat(nuevoValor);
+    if (isNaN(n) || n < min || n > max) { setErrorMsg(`Debe ser un número entre ${min} y ${max}`); return; }
     setGuardando(true);
     setErrorMsg(null);
     try {
@@ -671,7 +636,7 @@ function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
         setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
       } else {
         setSuccessMsg(json.mensaje ?? "Actualizado");
-        setEditando(false);
+        setConfirmando(false);
         setMotivo("");
         onOk();
       }
@@ -683,64 +648,132 @@ function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-sm font-bold text-gray-200">$ {row.valor} UYU</span>
-        {!editando && (
-          <button
-            onClick={iniciarEdicion}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
-          >
-            <Pencil size={11} /> Editar
-          </button>
-        )}
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <div className="w-52 shrink-0">
+        <p className="text-xs text-gray-400">{label}</p>
+        <p className="text-xs text-gray-600 mt-0.5 font-mono">{row.nombre}</p>
       </div>
-      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
-      {editando && (
-        <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/10 px-4 py-3 space-y-3">
-          <p className="text-xs text-violet-300 font-semibold">Editar {row.nombre}</p>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Nuevo precio (UYU)</label>
+      <div className="flex-1">
+        {!confirmando ? (
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm text-gray-200">{row.valor}{unit ? ` ${unit}` : ""}</span>
+            <button
+              onClick={iniciarEdicion}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/60 bg-gray-800/60 text-xs text-gray-400 hover:text-violet-300 hover:border-violet-700/40 transition-colors"
+            >
+              <Pencil size={11} /> Editar
+            </button>
+            {successMsg && <span className="text-xs text-green-400">{successMsg}</span>}
+          </div>
+        ) : (
+          <div className="space-y-3">
             <input
               type="number"
-              min="1"
-              max="9999"
+              min={min}
+              max={max}
+              step={step}
               value={nuevoValor}
               onChange={(e) => setNuevoValor(e.target.value)}
-              className="w-32 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 focus:outline-none focus:border-violet-600"
+              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-violet-500"
             />
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span></label>
+              <textarea
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                rows={2}
+                placeholder={`ej: ajustar ${label.toLowerCase()} para mejorar coherencia`}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+              />
+            </div>
+            {errorMsg && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle size={12} /> {errorMsg}</p>}
+            <div className="flex gap-2">
+              <button onClick={confirmar} disabled={guardando || motivo.trim().length < 5} className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors">
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+              <button onClick={() => { setConfirmando(false); setErrorMsg(null); }} disabled={guardando} className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                Cancelar
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
-            </label>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              rows={2}
-              placeholder="ej: actualización de precio para campaña de verano"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
-            />
-          </div>
-          {errorMsg && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle size={12} /> {errorMsg}
-            </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// Prompt plantilla editor (collapsible)
+// ===========================================================================
+
+function PromptPlantillaEditor({ plantilla, onSaved }: { plantilla: Plantilla; onSaved: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [draft, setDraft] = useState(plantilla.contenido);
+  const [guardando, setGuardando] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const NOMBRE_LABEL: Record<string, string> = {
+    prompt_contenido_premium: "Prompt diario (lunes a sábado)",
+    prompt_contenido_premium_domingo: "Prompt domingo",
+  };
+  const label = NOMBRE_LABEL[plantilla.nombre] ?? plantilla.nombre;
+
+  async function guardar() {
+    setGuardando(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/plantillas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre: plantilla.nombre, contenido: draft }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setResult({ ok: true, texto: "Guardado correctamente" });
+        onSaved();
+      } else {
+        setResult({ ok: false, texto: json.motivo ?? "Error al guardar" });
+      }
+    } catch {
+      setResult({ ok: false, texto: "Error de red" });
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-800/60 text-left"
+      >
+        <div>
+          <span className="text-sm font-semibold text-gray-200">{label}</span>
+          <span className="ml-2 text-xs text-gray-500 font-mono">{draft.length} chars</span>
+          {plantilla.descripcion && (
+            <p className="text-xs text-gray-600 mt-0.5">{plantilla.descripcion}</p>
           )}
-          <div className="flex gap-2">
+        </div>
+        {expanded ? <ChevronUp size={14} className="text-gray-500 shrink-0" /> : <ChevronDown size={14} className="text-gray-500 shrink-0" />}
+      </button>
+
+      {expanded && (
+        <div className="p-4 space-y-3">
+          <textarea
+            rows={16}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono text-white leading-relaxed focus:outline-none focus:border-violet-500 resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <div>{result && <ResultMsg ok={result.ok} texto={result.texto} />}</div>
             <button
               onClick={guardar}
-              disabled={guardando || !nuevoValor || motivo.trim().length < 5}
-              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+              disabled={guardando || draft.trim() === plantilla.contenido.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm bg-violet-700 hover:bg-violet-600 disabled:opacity-50 text-white rounded-lg transition-colors"
             >
-              {guardando ? "Guardando…" : "Guardar"}
-            </button>
-            <button
-              onClick={cancelar}
-              disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              Cancelar
+              {guardando ? <Loader2 size={13} className="animate-spin" /> : null}
+              {guardando ? "Guardando…" : "Guardar prompt"}
             </button>
           </div>
         </div>
@@ -750,7 +783,7 @@ function PrecioEditor({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
 }
 
 // ===========================================================================
-// Configuracion section (read-only structured)
+// Configuracion read-only panel
 // ===========================================================================
 
 const CONFIGURACION_LABELS: Record<string, string> = {
@@ -767,13 +800,9 @@ const CONFIGURACION_LABELS: Record<string, string> = {
 
 function ConfiguracionPanel({ cfg }: { cfg: Configuracion }) {
   const [expanded, setExpanded] = useState(false);
-
   const fields = Object.entries(CONFIGURACION_LABELS).map(([key, label]) => ({
-    key,
-    label,
-    value: cfg[key as keyof Configuracion],
+    key, label, value: cfg[key as keyof Configuracion],
   }));
-
   const visible = expanded ? fields : fields.slice(0, 4);
 
   return (
@@ -785,23 +814,15 @@ function ConfiguracionPanel({ cfg }: { cfg: Configuracion }) {
         </div>
         <Lock size={13} className="text-gray-600" />
       </div>
-
-      {/* whatsapp_token_app always first, always redacted */}
       <div className="px-5 py-3 border-b border-gray-800/30 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-gray-500 font-mono">whatsapp_token_app</p>
-        </div>
+        <p className="text-xs text-gray-500 font-mono">whatsapp_token_app</p>
         <div className="flex items-center gap-2">
           <ShieldAlert size={11} className="text-amber-500 shrink-0" />
           <span className="font-mono text-xs text-amber-400/70">***redacted***</span>
         </div>
       </div>
-
       {visible.map(({ key, label, value }) => (
-        <div
-          key={key}
-          className="px-5 py-3 border-b border-gray-800/30 last:border-b-0 flex items-center justify-between gap-4"
-        >
+        <div key={key} className="px-5 py-3 border-b border-gray-800/30 last:border-b-0 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs text-gray-400">{label}</p>
             <p className="text-xs text-gray-600 font-mono">{key}</p>
@@ -810,30 +831,34 @@ function ConfiguracionPanel({ cfg }: { cfg: Configuracion }) {
             {value === null || value === undefined || value === "" ? (
               <span className="text-xs text-gray-700 italic">—</span>
             ) : (
-              <span className="font-mono text-xs text-gray-300 break-all max-w-xs block text-right">
-                {String(value)}
-              </span>
+              <span className="font-mono text-xs text-gray-300 break-all max-w-xs block text-right">{String(value)}</span>
             )}
           </div>
         </div>
       ))}
-
       {fields.length > 4 && (
         <button
           onClick={() => setExpanded((v) => !v)}
           className="w-full px-5 py-2.5 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-300 border-t border-gray-800/60 transition-colors"
         >
-          {expanded ? (
-            <>
-              <ChevronUp size={12} /> Mostrar menos
-            </>
-          ) : (
-            <>
-              <ChevronDown size={12} /> Mostrar {fields.length - 4} campos más
-            </>
-          )}
+          {expanded ? <><ChevronUp size={12} /> Mostrar menos</> : <><ChevronDown size={12} /> Mostrar {fields.length - 4} campos más</>}
         </button>
       )}
+    </div>
+  );
+}
+
+// ===========================================================================
+// Section card wrapper (matches Tarot's ConfigGrupo look in violet)
+// ===========================================================================
+
+function SectionCard({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-800/60">
+        <span className="text-sm font-semibold text-gray-200">{titulo}</span>
+      </div>
+      <div className="px-4 py-3">{children}</div>
     </div>
   );
 }
@@ -843,34 +868,59 @@ function ConfiguracionPanel({ cfg }: { cfg: Configuracion }) {
 // ===========================================================================
 
 export default function ConfigPage() {
+  const [tab, setTab] = useState<Tab>("config");
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [data, setData] = useState<ApiResponse | null>(null);
+  const [configRows, setConfigRows] = useState<ConfigRow[]>([]);
+  const [configuracion, setConfiguracion] = useState<Configuracion | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
+  const [cargandoPlantillas, setCargandoPlantillas] = useState(false);
 
-  async function cargar() {
+  const cargar = useCallback(async () => {
     setCargando(true);
     setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/config");
-      const json: ApiResponse = await res.json();
+      const json = await res.json();
       if (!json.ok) {
         setErrorMsg(json.detalle ?? json.motivo ?? "Error al cargar configuración");
-        setData(null);
       } else {
-        setData(json);
+        setConfigRows(json.config ?? []);
+        setConfiguracion(json.configuracion ?? null);
+        setWarnings(json.warnings ?? []);
       }
     } catch {
       setErrorMsg("Error de red al cargar configuración");
-      setData(null);
     } finally {
       setCargando(false);
     }
-  }
+  }, []);
+
+  const cargarPlantillas = useCallback(async () => {
+    setCargandoPlantillas(true);
+    try {
+      const res = await fetch("/api/admin/plantillas");
+      const json = await res.json();
+      if (json.ok) {
+        const prompts = (json.plantillas ?? []).filter((p: Plantilla) =>
+          p.nombre === "prompt_contenido_premium" || p.nombre === "prompt_contenido_premium_domingo"
+        );
+        setPlantillas(prompts);
+      }
+    } catch {
+      // silencioso — no bloquea el resto del panel
+    } finally {
+      setCargandoPlantillas(false);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
 
   useEffect(() => {
-    cargar();
-  }, []);
+    if (tab === "ia") cargarPlantillas();
+  }, [tab, cargarPlantillas]);
 
   async function cerrarSesion() {
     setCerrandoSesion(true);
@@ -882,17 +932,26 @@ export default function ConfigPage() {
     }
   }
 
-  const configRows = data?.config ?? [];
-  const configuracion = data?.configuracion ?? null;
-  const warnings = data?.warnings ?? [];
+  const row = (nombre: string) => configRows.find((r) => r.nombre.toUpperCase() === nombre.toUpperCase());
 
-  const editableRows = configRows.filter((r) => r.editable);
-  const readonlyRows = configRows.filter((r) => !r.editable);
+  const tabCls = (t: Tab) =>
+    `text-sm border-b-2 py-2.5 px-3 whitespace-nowrap transition-colors ${
+      tab === t ? "text-white border-violet-500" : "text-gray-500 hover:text-gray-300 border-transparent"
+    }`;
+
+  // groups for "config" tab
+  const sistemaCampos = ["MODO_MANTENIMIENTO", "APP_DEBUG_MODE"];
+  const waCampos      = ["WHATSAPP_MODO"];
+  const preciosCampos = ["THC_PRECIO_SUSCRIPCION", "THC_BACK_URL", "TTC_BACK_URL"];
+  const alertasCampos = configRows.filter((r) => r.nombre.startsWith("ALERTAS"));
+  const readonlyRows  = configRows.filter(
+    (r) => !r.editable && !r.nombre.startsWith("ALERTAS") && !r.nombre.startsWith("OPENAI")
+  );
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <AdminPanelSwitcher current="thc" />
           <button
             onClick={cerrarSesion}
@@ -903,20 +962,15 @@ export default function ConfigPage() {
             {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
           </button>
         </div>
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
+        <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
           <AdminNav current="/admin/config" />
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-base font-semibold text-gray-100">Configuración del sistema</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              <span className="font-mono text-gray-400">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-400">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-400">WHATSAPP_MODO</span>, <span className="font-mono text-gray-400">OPENAI_MODEL</span>, <span className="font-mono text-gray-400">THC_BACK_URL</span> y <span className="font-mono text-gray-400">TTC_BACK_URL</span> son editables desde el panel.
-            </p>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-100">Configuración THC</h2>
           <button
             onClick={cargar}
             disabled={cargando}
@@ -927,142 +981,120 @@ export default function ConfigPage() {
           </button>
         </div>
 
-        {/* Loading */}
+        {/* Sub-tabs */}
+        <div className="flex gap-0 border-b border-gray-800 mb-6">
+          <button onClick={() => setTab("config")} className={tabCls("config")}>Configuración general</button>
+          <button onClick={() => setTab("ia")}     className={tabCls("ia")}>Inteligencia Artificial</button>
+        </div>
+
+        {/* Feedback */}
         {cargando && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
-            <span className="animate-pulse">Cargando configuración…</span>
+          <div className="mb-4 flex items-center gap-2 text-sm text-gray-500 animate-pulse">
+            <Loader2 size={14} className="animate-spin" /> Cargando…
           </div>
         )}
-
-        {/* Error */}
         {errorMsg && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
-            <AlertCircle size={15} className="shrink-0" />
-            {errorMsg}
+            <AlertCircle size={15} className="shrink-0" /> {errorMsg}
           </div>
         )}
-
-        {/* Warnings */}
         {warnings.length > 0 && (
           <div className="mb-4 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 text-xs text-amber-300 space-y-1">
-            {warnings.map((w, i) => (
-              <p key={i}>⚠ {w}</p>
-            ))}
+            {warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
           </div>
         )}
 
-        {!cargando && !errorMsg && data && (
-          <div className="space-y-6">
-            {/* === Editable: APP_DEBUG_MODE === */}
-            {editableRows.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  Controles editables
+        {/* ===== TAB: Configuración general ===== */}
+        {!cargando && tab === "config" && (
+          <div className="space-y-4">
+            {/* Sistema */}
+            <SectionCard titulo="Sistema">
+              <div className="space-y-4">
+                {sistemaCampos.map((nombre) => {
+                  const r = row(nombre);
+                  if (!r) return null;
+                  const descriptions: Record<string, string> = {
+                    MODO_MANTENIMIENTO: "Cuando está activo, todos los visitantes son redirigidos a la página de mantenimiento. Cache de 30s en middleware.",
+                    APP_DEBUG_MODE: "Activa logs verbosos en Edge Functions. Desactivar en producción.",
+                  };
+                  return (
+                    <div key={nombre}>
+                      <p className="text-xs text-gray-400 mb-1 font-mono">{r.nombre}</p>
+                      {descriptions[nombre] && <p className="text-xs text-gray-600 mb-2">{descriptions[nombre]}</p>}
+                      {nombre === "MODO_MANTENIMIENTO" ? (
+                        <MantenimientoToggle valor={r.valor} onOk={cargar} />
+                      ) : (
+                        <DebugModeToggle row={r} onOk={cargar} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+
+            {/* WhatsApp */}
+            {row("WHATSAPP_MODO") && (
+              <SectionCard titulo="WhatsApp">
+                <p className="text-xs text-gray-600 mb-3">
+                  Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). <span className="font-mono">ef_whatsapp_sender</span> lo lee en cada request.
                 </p>
-                <div className="space-y-3">
-                  {editableRows.map((row) => {
-                    const key = row.nombre.toUpperCase();
-                    const isWaModo = key === "WHATSAPP_MODO";
-                    const isUrl = key === "THC_BACK_URL" || key === "TTC_BACK_URL";
-                    const isMantenimiento = key === "MODO_MANTENIMIENTO";
-                    const isPrecio = key === "THC_PRECIO_SUSCRIPCION";
-                    const isOAIModel = key === "OPENAI_MODEL";
+                <WaModoToggle row={row("WHATSAPP_MODO")!} onOk={cargar} />
+              </SectionCard>
+            )}
 
-                    const descriptions: Record<string, string> = {
-                      WHATSAPP_MODO: "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request.",
-                      APP_DEBUG_MODE: "Activa o desactiva el modo debug de la aplicación. Afecta a Edge Functions que verifican este valor.",
-                      THC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la suscripción de horóscopo. Cambiar cuando el dominio tuoraculo.uy esté activo.",
-                      TTC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la tirada de tarot. Cambiar cuando el dominio tuoraculo.uy esté activo.",
-                      MODO_MANTENIMIENTO: "Cuando está activo, todos los visitantes son redirigidos a la página de mantenimiento. El panel admin sigue accesible. Cache de 30s en middleware.",
-                      THC_PRECIO_SUSCRIPCION: "Precio mensual de la suscripción Premium de horóscopo en pesos uruguayos. ef_crear_suscripcion lo lee al crear cada preapproval en MercadoPago.",
-                      OPENAI_MODEL: "Modelo de OpenAI usado para generar el contenido diario de horóscopo. ef_openia_genera_contenido_premium lo lee en cada request desde esta tabla.",
-                    };
+            {/* Precios y URLs */}
+            <SectionCard titulo="Precios y URLs">
+              <div className="divide-y divide-gray-800/40">
+                {preciosCampos.map((nombre) => {
+                  const r = row(nombre);
+                  if (!r) return null;
+                  const descriptions: Record<string, string> = {
+                    THC_PRECIO_SUSCRIPCION: "Precio mensual de la suscripción Premium en UYU. Lo lee ef_crear_suscripcion al crear el preapproval en MercadoPago.",
+                    THC_BACK_URL: "URL de redirección post-pago de horóscopo (back_urls de MP).",
+                    TTC_BACK_URL: "URL de redirección post-pago de tarot (back_urls de MP).",
+                  };
+                  return (
+                    <div key={nombre} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-xs font-mono text-gray-300 mb-0.5">{r.nombre}</p>
+                      {descriptions[nombre] && <p className="text-xs text-gray-600 mb-2">{descriptions[nombre]}</p>}
+                      {nombre === "THC_PRECIO_SUSCRIPCION" ? (
+                        <PrecioEditor row={r} onOk={cargar} />
+                      ) : (
+                        <UrlEditor row={r} onOk={cargar} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
 
-                    return (
-                      <div
-                        key={row.id}
-                        className={`rounded-xl border px-5 py-4 ${
-                          isMantenimiento
-                            ? "border-red-900/40 bg-red-950/10"
-                            : "border-violet-800/30 bg-violet-950/10"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-4 mb-3">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-100 font-mono">{row.nombre}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {descriptions[key] ?? "Configurable desde el panel."}
-                            </p>
-                            {row.created_at && (
-                              <p className="text-xs text-gray-700 mt-1">
-                                Creado: {fmtDate(row.created_at)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        {isMantenimiento ? (
-                          <MantenimientoToggle valor={row.valor} onOk={cargar} />
-                        ) : isPrecio ? (
-                          <PrecioEditor row={row} onOk={cargar} />
-                        ) : isUrl ? (
-                          <UrlEditor row={row} onOk={cargar} />
-                        ) : isWaModo ? (
-                          <WaModoToggle row={row} onOk={cargar} />
-                        ) : isOAIModel ? (
-                          <OAIModelSelector row={row} onOk={cargar} />
-                        ) : (
-                          <DebugModeToggle row={row} onOk={cargar} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+            {/* Alertas operacionales */}
+            {alertasCampos.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Alertas operacionales</p>
+                <AlertasConfig rows={alertasCampos} onOk={cargar} />
               </div>
             )}
 
-            {/* === Alertas por email === */}
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                Alertas operacionales
-              </p>
-              <AlertasConfig
-                rows={configRows.filter((r) => r.nombre.startsWith("ALERTAS"))}
-                onOk={cargar}
-              />
-            </div>
-
-            {/* === Read-only config rows === */}
+            {/* Read-only config */}
             {readonlyRows.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  public.config — solo lectura
-                </p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">public.config — solo lectura</p>
                 <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
                   <div className="px-5 py-2.5 border-b border-gray-800/60 flex items-center justify-between">
                     <p className="text-xs text-gray-500">{readonlyRows.length} claves</p>
                     <Lock size={12} className="text-gray-700" />
                   </div>
-                  {readonlyRows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="px-5 py-3 border-b border-gray-800/30 last:border-b-0 flex items-center justify-between gap-4"
-                    >
+                  {readonlyRows.map((r) => (
+                    <div key={r.id} className="px-5 py-3 border-b border-gray-800/30 last:border-b-0 flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-xs text-gray-300 font-mono">{row.nombre}</p>
-                        {row.created_at && (
-                          <p className="text-xs text-gray-700 mt-0.5">{fmtDate(row.created_at)}</p>
-                        )}
+                        <p className="text-xs text-gray-300 font-mono">{r.nombre}</p>
+                        {r.created_at && <p className="text-xs text-gray-700 mt-0.5">{fmtDate(r.created_at)}</p>}
                       </div>
                       <div className="flex items-center gap-2 text-right">
-                        {row.es_sensible && (
-                          <ShieldAlert size={11} className="text-amber-500 shrink-0" />
-                        )}
-                        <span
-                          className={`font-mono text-xs break-all max-w-xs block text-right ${
-                            row.es_sensible ? "text-amber-400/70" : "text-gray-400"
-                          }`}
-                        >
-                          {row.valor}
+                        {r.es_sensible && <ShieldAlert size={11} className="text-amber-500 shrink-0" />}
+                        <span className={`font-mono text-xs break-all max-w-xs block text-right ${r.es_sensible ? "text-amber-400/70" : "text-gray-400"}`}>
+                          {r.valor}
                         </span>
                       </div>
                     </div>
@@ -1071,39 +1103,85 @@ export default function ConfigPage() {
               </div>
             )}
 
-            {configRows.length === 0 && (
-              <div className="text-center py-8 text-gray-600 text-sm">
-                Sin filas en public.config
-              </div>
-            )}
-
-            {/* === public.configuracion === */}
-            {configuracion ? (
+            {/* public.configuracion */}
+            {configuracion && (
               <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  public.configuracion — solo lectura
-                </p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">public.configuracion — solo lectura</p>
                 <ConfiguracionPanel cfg={configuracion} />
               </div>
-            ) : (
-              <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-6 text-center text-sm text-gray-600">
-                public.configuracion: sin datos
-              </div>
             )}
+          </div>
+        )}
 
-            {/* Nota */}
-            <div className="rounded-xl border border-gray-800/50 bg-gray-900/40 px-5 py-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Limitaciones
-              </p>
-              <ul className="space-y-1.5 text-xs text-gray-600">
-                <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-500">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-500">WHATSAPP_MODO</span>, <span className="font-mono text-gray-500">THC_BACK_URL</span> y <span className="font-mono text-gray-500">TTC_BACK_URL</span> son editables desde el panel. Toda otra modificación requiere acceso directo a la DB.</li>
-                <li>• <span className="font-mono text-gray-500">MODO_MANTENIMIENTO</span> tiene un cache de 30 segundos en el middleware — puede haber hasta 30s de delay entre el toggle y el efecto real.</li>
-                <li>• Campos sensibles (tokens, claves) se muestran como <span className="font-mono">***redacted***</span>.</li>
-                <li>• No se implementó: editar <span className="font-mono">configuracion</span>, cambiar credenciales WhatsApp, cambiar precio, cambiar versión de flujo. Los valores <span className="font-mono">ALERTAS_ULTIMO_EMAIL</span> son gestionados por la Edge Function.</li>
-                <li>• Los cambios en <span className="font-mono">APP_DEBUG_MODE</span> se aplican en la próxima llamada a Edge Functions que verifican ese valor. No afectan instancias en ejecución.</li>
-              </ul>
+        {/* ===== TAB: Inteligencia Artificial ===== */}
+        {!cargando && tab === "ia" && (
+          <div className="space-y-4">
+            {/* Parámetros de IA */}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-800/60">
+                <span className="text-sm font-semibold text-gray-200">Parámetros de IA</span>
+                <p className="text-xs text-gray-500 mt-0.5">Leídos por <span className="font-mono">ef_openia_genera_contenido_premium</span> en cada generación.</p>
+              </div>
+              <div className="px-4 pb-2">
+                {/* Modelo */}
+                {row("OPENAI_MODEL") && (
+                  <div className="py-3 border-b border-gray-800/30">
+                    <p className="text-xs text-gray-400 mb-1">Modelo</p>
+                    <p className="text-xs text-gray-600 mb-2 font-mono">OPENAI_MODEL</p>
+                    <OAIModelSelector row={row("OPENAI_MODEL")!} onOk={cargar} />
+                  </div>
+                )}
+                {/* Temperatura */}
+                {row("OPENAI_TEMPERATURE") && (
+                  <OAINumericEditor
+                    row={row("OPENAI_TEMPERATURE")!}
+                    label="Temperatura"
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    onOk={cargar}
+                  />
+                )}
+                {/* Max tokens */}
+                {row("OPENAI_MAX_TOKENS") && (
+                  <OAINumericEditor
+                    row={row("OPENAI_MAX_TOKENS")!}
+                    label="Max tokens"
+                    min={50}
+                    max={4096}
+                    step={10}
+                    unit="tokens"
+                    onOk={cargar}
+                  />
+                )}
+              </div>
             </div>
+
+            {/* Prompts */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Prompts de generación</p>
+              {cargandoPlantillas && (
+                <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse py-4">
+                  <Loader2 size={14} className="animate-spin" /> Cargando prompts…
+                </div>
+              )}
+              {!cargandoPlantillas && plantillas.length === 0 && (
+                <p className="text-sm text-gray-600 py-4">No se encontraron plantillas de prompt.</p>
+              )}
+              {!cargandoPlantillas && plantillas.length > 0 && (
+                <div className="space-y-3">
+                  {["prompt_contenido_premium", "prompt_contenido_premium_domingo"].map((nombre) => {
+                    const p = plantillas.find((pl) => pl.nombre === nombre);
+                    if (!p) return null;
+                    return <PromptPlantillaEditor key={p.id} plantilla={p} onSaved={cargarPlantillas} />;
+                  })}
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-600 pt-1">
+              Los cambios en temperatura y max_tokens se aplican en la próxima llamada a la Edge Function. El modelo se lee en cada request desde la tabla <span className="font-mono">config</span>.
+            </p>
           </div>
         )}
       </main>
