@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import confetti from "canvas-confetti";
-import { Loader2 } from "lucide-react";
+import { Loader2, Layers, Eye, Lightbulb, FileText } from "lucide-react";
 
 function CheckIcon() {
   return (
@@ -82,11 +82,12 @@ export default function TarotEstadoContent() {
   }, []);
 
   function lanzarConfeti() {
+    const colors = ['#FFCE4D', '#D4AF37', '#7c3aed', '#a855f7', '#e9d5ff', '#ffffff'];
     const duration = 8000;
     const end = Date.now() + duration;
     (function frame() {
-      confetti({ particleCount: 8, angle: 60, spread: 80, origin: { x: 0 } });
-      confetti({ particleCount: 8, angle: 120, spread: 80, origin: { x: 1 } });
+      confetti({ particleCount: 8, angle: 60, spread: 80, origin: { x: 0 }, colors });
+      confetti({ particleCount: 8, angle: 120, spread: 80, origin: { x: 1 }, colors });
       if (Date.now() < end) requestAnimationFrame(frame);
     })();
   }
@@ -161,7 +162,7 @@ export default function TarotEstadoContent() {
                 <div className="flex items-start gap-3">
                   <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">3.</div>
                   <p className="text-sm text-white/75 leading-relaxed">
-                    <strong className="text-white/90">¿No llegó nada en 10 minutos?</strong>{" "}
+                    <strong className="text-white/90">¿No llegó nada en 15 minutos?</strong>{" "}
                     Escribinos a{" "}
                     <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200">
                       hola@tuoraculo.uy
@@ -177,16 +178,52 @@ export default function TarotEstadoContent() {
                 <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
                   Tu tirada incluye
                 </p>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {[
-                    "🃏  5 cartas en cruz con interpretación personalizada",
-                    "🔮  Situación actual · Obstáculo · Base inconsciente",
-                    "💡  Consejo práctico · Tendencia próxima",
-                    "📄  PDF premium enviado por WhatsApp",
-                  ].map((item) => (
-                    <li key={item} className="text-sm text-white/65 leading-relaxed">{item}</li>
+                    { Icon: Layers,   text: "5 cartas en cruz con interpretación personalizada" },
+                    { Icon: Eye,      text: "Situación actual · Obstáculo · Base inconsciente" },
+                    { Icon: Lightbulb,text: "Consejo práctico · Tendencia próxima" },
+                    { Icon: FileText, text: "PDF premium enviado por WhatsApp" },
+                  ].map(({ Icon, text }) => (
+                    <li key={text} className="flex items-start gap-2.5 text-sm text-white/65 leading-relaxed">
+                      <Icon size={14} className="shrink-0 mt-0.5" style={{ color: "rgba(167,139,250,0.65)" }} />
+                      {text}
+                    </li>
                   ))}
                 </ul>
+              </div>
+
+              {/* Compartir */}
+              <button
+                onClick={() => {
+                  const text = encodeURIComponent('Pedí una lectura de tarot en Tu Oráculo y fue increíble 🔮 tuoraculo.uy/tarot');
+                  window.open(`https://wa.me/?text=${text}`, '_blank');
+                }}
+                className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(37,211,102,0.10)', border: '1px solid rgba(37,211,102,0.22)', color: 'rgba(37,211,102,0.80)' }}
+              >
+                Compartí con una amiga · WhatsApp
+              </button>
+
+              {/* Cross-sell horóscopo */}
+              <div
+                className="w-full rounded-2xl border border-violet-500/20 p-5 text-left"
+                style={{ background: "rgba(88,28,180,0.08)" }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(167,139,250,0.65)" }}>
+                  Mientras esperás tu lectura
+                </p>
+                <p className="text-white/85 text-sm font-semibold mb-1">Horóscopo diario por WhatsApp</p>
+                <p className="text-white/50 text-xs leading-relaxed mb-4">
+                  Cada mañana tu guía personalizada: horóscopo por signo, foco del día y número de la suerte — directo a tu WhatsApp.
+                </p>
+                <a
+                  href="/horoscopo"
+                  className="inline-block rounded-xl px-5 py-2.5 text-sm font-bold transition-all active:scale-[0.98]"
+                  style={{ background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.32)', color: 'rgba(167,139,250,0.90)' }}
+                >
+                  Ver planes →
+                </a>
               </div>
             </div>
           )}
@@ -199,14 +236,22 @@ export default function TarotEstadoContent() {
                 Tu pago está en proceso.
               </h1>
               <p className="text-white/70 text-base leading-relaxed">
-                Mercado Pago puede tardar unos minutos en confirmar el pago. En cuanto se apruebe, comenzamos a preparar tu tirada.
+                Mercado Pago puede tardar unos minutos en confirmar el pago. En cuanto se apruebe, comenzamos a preparar tu tirada automáticamente.
               </p>
               <div
-                className="w-full rounded-2xl border border-white/8 p-6"
+                className="w-full rounded-2xl border border-white/8 p-6 space-y-4"
                 style={{ background: "rgba(255,255,255,0.03)" }}
               >
-                <p className="text-sm text-white/65 leading-relaxed">
-                  Te avisaremos por WhatsApp en cuanto se confirme. No necesitás hacer nada más.
+                <p className="text-sm font-semibold text-white/80">¿Qué hacer mientras tanto?</p>
+                <p className="text-sm text-white/60 leading-relaxed">
+                  No necesitás hacer nada. En cuanto Mercado Pago confirme el pago, tu lectura se genera y te llega por WhatsApp en minutos.
+                </p>
+                <p className="text-sm text-white/45 leading-relaxed">
+                  Si en 30 minutos no recibís nada, escribinos a{" "}
+                  <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200 transition-colors">
+                    hola@tuoraculo.uy
+                  </a>
+                  {" "}y lo resolvemos de inmediato.
                 </p>
               </div>
             </div>

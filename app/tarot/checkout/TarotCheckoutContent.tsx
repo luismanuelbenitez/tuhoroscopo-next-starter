@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import Image from 'next/image';
-import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkles, MessageCircle } from 'lucide-react';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -13,8 +13,6 @@ const PRECIO_BASE = 590;
 const PAISES = [
   { codigo: 'UY', bandera: '🇺🇾', prefijo: '+598', placeholder: '091234567',
     hint: 'Acá recibís la lectura. Ej: 091234567', maxDigits: 9 },
-  { codigo: 'AR', bandera: '🇦🇷', prefijo: '+54',  placeholder: '1112345678',
-    hint: 'Sin el 0 inicial ni el 15. Ej: 1112345678', maxDigits: 11 },
 ];
 
 const TEMAS = [
@@ -535,6 +533,9 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
                     <span className="font-semibold" style={{ color: GOLD_DIM }}>en menos de 15 minutos</span>
                     . Pago único · Sin renovaciones.
                   </span>
+                  <p className="text-[11px] mt-1.5" style={{ color: 'rgba(251,191,36,0.42)' }}>
+                    ✦ Si no recibís tu lectura en 15 minutos, te devolvemos el dinero.
+                  </p>
                 </div>
 
                 {/* Error */}
@@ -658,20 +659,15 @@ export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: st
                 <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD_DIM }}>
                   ¿Qué pasa después?
                 </p>
-                <ol className="space-y-2.5">
+                <ol className="space-y-3">
                   {[
-                    'Confirmás el pago en Mercado Pago.',
-                    'Generamos tu lectura con IA.',
-                    'La recibís por WhatsApp en minutos.',
-                  ].map((step, i) => (
-                    <li key={i} className="flex gap-2 items-start text-sm text-white/60">
-                      <span
-                        className="text-xs font-bold shrink-0 mt-0.5"
-                        style={{ color: GOLD_DIM }}
-                      >
-                        {i + 1}.
-                      </span>
-                      {step}
+                    { Icon: CreditCard,    text: 'Confirmás el pago en Mercado Pago.' },
+                    { Icon: Sparkles,      text: 'La IA genera tu lectura personalizada.' },
+                    { Icon: MessageCircle, text: 'La recibís por WhatsApp en minutos.' },
+                  ].map(({ Icon, text }, i) => (
+                    <li key={i} className="flex gap-2.5 items-start text-sm text-white/60">
+                      <Icon size={15} className="shrink-0 mt-0.5" style={{ color: GOLD_DIM }} />
+                      {text}
                     </li>
                   ))}
                 </ol>

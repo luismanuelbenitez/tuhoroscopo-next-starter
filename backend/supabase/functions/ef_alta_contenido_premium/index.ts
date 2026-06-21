@@ -100,9 +100,10 @@ serve(async (req)=>{
   // -------------------------------------------
   // Extraer payload
   // -------------------------------------------
-  let { id_suscriptor, contenido, fecha_creacion, emocion_dominante, ciclo_semana, signo, fecha_envio_programada, fecha_envio_real = null, tipo, silent = false, // ✅ NUEVOS (vienen desde ef_genera_guarda_contenido_premium)
-  color_base = null, numero_base = null, contenido_preferido_key = null, // ✅ NUEVOS (metadata)
-  origen_generacion = null, meta_generacion = null } = body;
+  let { id_suscriptor, contenido, fecha_creacion, emocion_dominante, ciclo_semana, signo, fecha_envio_programada, fecha_envio_real = null, tipo, silent = false,
+  color_base = null, numero_base = null, contenido_preferido_key = null,
+  origen_generacion = null, meta_generacion = null,
+  tokens_input = null, tokens_output = null, costo_estimado = null, modelo_ia = null } = body;
   const tipoFinal = normalizarTipo(tipo);
   if (!tipoFinal) {
     await registrarLog(supabase, funcion, "Tipo inválido", {
@@ -329,7 +330,6 @@ serve(async (req)=>{
     color,
     numero,
     contenido_preferido: contenido_preferido_key_final,
-    // ✅ NUEVO: metadata en BD
     origen_generacion: origen_generacion_final,
     meta_generacion: meta_generacion_final,
     fecha_creacion: fecha_creacion_utc,
@@ -340,7 +340,11 @@ serve(async (req)=>{
     emocion_dominante,
     fecha_envio_programada: fecha_envio_programada_utc,
     fecha_envio_real: fecha_envio_real_utc,
-    tipo: tipoFinal
+    tipo: tipoFinal,
+    tokens_input: typeof tokens_input === "number" ? tokens_input : null,
+    tokens_output: typeof tokens_output === "number" ? tokens_output : null,
+    costo_estimado: typeof costo_estimado === "number" ? costo_estimado : null,
+    modelo_ia: typeof modelo_ia === "string" && modelo_ia.trim() ? modelo_ia.trim() : null,
   };
   const { data: inserted, error: errInsert } = await supabase.from("contenido_premium").insert([
     insertRow

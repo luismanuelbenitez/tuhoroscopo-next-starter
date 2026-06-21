@@ -11,7 +11,7 @@ export default function StickyCTA() {
             boxShadow: '0 4px 20px rgba(109,40,217,0.40)',
           }}
         >
-          Activar mi guía diaria →
+          Activar por $U 390/mes →
         </a>
       </div>
     </div>

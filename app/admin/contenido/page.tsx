@@ -146,13 +146,17 @@ function TipoBadge({ tipo }: { tipo: string }) {
 // ===========================================================================
 
 const CONTENIDO_CAMPOS: Array<{ key: string; label: string }> = [
-  { key: "saludo_inicial",     label: "Saludo inicial" },
-  { key: "horoscopo",          label: "Horóscopo" },
-  { key: "contenido_preferido",label: "Contenido preferido" },
-  { key: "numero",             label: "Número" },
-  { key: "color",              label: "Color" },
-  { key: "pausa",              label: "Pausa" },
-  { key: "pie_de_pagina",      label: "Pie de página" },
+  { key: "saludo_inicial",      label: "Saludo inicial" },
+  { key: "horoscopo",           label: "Horóscopo" },
+  { key: "contenido_preferido", label: "Contenido preferido" },
+  { key: "numero",              label: "Número" },
+  { key: "color",               label: "Color" },
+  { key: "pausa",               label: "Pausa" },
+  { key: "pie_de_pagina",       label: "Pie de página" },
+  { key: "balance_semanal",     label: "Balance semanal" },
+  { key: "intencion_semana",    label: "Intención de la semana" },
+  { key: "ritual_simple",       label: "Ritual simple" },
+  { key: "cierre_inspirador",   label: "Cierre inspirador" },
 ];
 
 function ContenidoRich({ raw }: { raw: unknown }) {

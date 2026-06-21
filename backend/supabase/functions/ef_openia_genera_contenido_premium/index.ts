@@ -22,8 +22,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2?target=deno
 // ============================================================================
 // OpenAI API KEY
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-// Modelo OpenAI a usar (puede ser gpt-4o, gpt-4.1, gpt-3.5, etc.)
-const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+// Modelo leído desde config table en cada request (fallback a env secret o default)
+const OPENAI_MODEL_DEFAULT = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 // Parámetros finos del modelo
 const OPENAI_TEMPERATURE = Number(Deno.env.get("OPENAI_TEMPERATURE") ?? 0.90);
 const OPENAI_MAX_TOKENS = Number(Deno.env.get("OPENAI_MAX_TOKENS") ?? 1000);
@@ -188,6 +188,10 @@ function fallbackContenido() {
 // === HANDLER PRINCIPAL ======================================================
 // ============================================================================
 serve(async (req)=>{
+  // Leer modelo desde config table; fallback a env var o default
+  const { data: modelRow } = await supabase.from("config").select("valor").eq("nombre", "OPENAI_MODEL").maybeSingle();
+  const OPENAI_MODEL = modelRow?.valor || OPENAI_MODEL_DEFAULT;
+
   // -------------------------------------------------------------------------
   // Verificación esencial: API Key
   // -------------------------------------------------------------------------

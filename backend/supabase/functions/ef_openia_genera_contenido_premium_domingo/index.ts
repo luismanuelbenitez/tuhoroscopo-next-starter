@@ -433,13 +433,30 @@ serve(async (req)=>{
     // =========================================================================
     // 5.D) Éxito
     // =========================================================================
+    const requestId = res.headers.get("x-request-id") || null;
+    const openiaMeta = {
+      provider: "openai",
+      funcion: FUNCION,
+      model: OPENAI_MODEL,
+      temperature: OPENAI_TEMPERATURE,
+      max_tokens: OPENAI_MAX_TOKENS,
+      request_id: requestId,
+      usage: data?.usage ?? null,
+      generated_at: nowUTCISO(),
+    };
     await registrarLog("Contenido domingo generado correctamente", {
       keys: Object.keys(val.data),
       model: OPENAI_MODEL,
       usage: data?.usage ?? null,
       meta
     }, true);
-    return jsonResponse(val.data, 200);
+    return new Response(JSON.stringify(val.data, null, 2), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "x-openia-meta": JSON.stringify(openiaMeta),
+      },
+    });
   } catch (error) {
     // =========================================================================
     // 6) Excepción general

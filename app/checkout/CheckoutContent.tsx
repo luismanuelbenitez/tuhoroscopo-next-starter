@@ -97,7 +97,7 @@ export default function CheckoutContent() {
     setError(null);
 
     if (!acepta) {
-      setError('Debes aceptar la Política de Privacidad para continuar.');
+      setError('Necesitás aceptar la Política de Privacidad para continuar.');
       return;
     }
     if (!formData.name.trim() || !formData.signo || !formData.contenidoPreferido || !formData.whatsapp.trim()) {
@@ -338,9 +338,13 @@ export default function CheckoutContent() {
                           Procesando…
                         </span>
                       ) : (
-                        'Activar mi guía diaria →'
+                        `Activar por $U ${descuento ? descuento.precio_aplicado : 390}/mes →`
                       )}
                     </button>
+
+                    <p className="mt-2 text-center text-[11px]" style={{ color: 'rgba(251,191,36,0.38)' }}>
+                      ✦ Cancelás cuando quieras. Sin trámites, sin llamadas.
+                    </p>
 
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12px] text-white/45">
                       <span className="flex items-center gap-1">

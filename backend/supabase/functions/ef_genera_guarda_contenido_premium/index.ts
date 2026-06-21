@@ -664,11 +664,28 @@ serve(async (req)=>{
       try {
         openiaMeta = rawOpeniaMeta ? JSON.parse(rawOpeniaMeta) : null;
       } catch (_) {
-        // si vino texto no parseable, lo guardamos igual para debug
-        openiaMeta = rawOpeniaMeta ? {
-          raw: rawOpeniaMeta
-        } : null;
+        openiaMeta = rawOpeniaMeta ? { raw: rawOpeniaMeta } : null;
       }
+      // ====================================================================
+      // CALCULAR COSTO ESTIMADO DE IA
+      // --------------------------------------------------------------------
+      // Precios por millón de tokens (USD). gpt-4o-mini es el default.
+      // ====================================================================
+      const MODEL_PRICES = {
+        "gpt-4o-mini":   { input: 0.15,  output: 0.60  },
+        "gpt-4o":        { input: 2.50,  output: 10.00 },
+        "gpt-4.1-mini":  { input: 0.40,  output: 1.60  },
+        "gpt-4.1":       { input: 2.00,  output: 8.00  },
+        "gpt-3.5-turbo": { input: 0.50,  output: 1.50  },
+      };
+      const modeloIA = openiaMeta?.model ?? "gpt-4o-mini";
+      const tokensInput = openiaMeta?.usage?.prompt_tokens ?? 0;
+      const tokensOutput = openiaMeta?.usage?.completion_tokens ?? 0;
+      const prices = MODEL_PRICES[modeloIA] ?? { input: 0.15, output: 0.60 };
+      const costoEstimado = Number(
+        ((tokensInput / 1_000_000) * prices.input +
+         (tokensOutput / 1_000_000) * prices.output).toFixed(8)
+      );
       // Construir meta final por-suscriptor (base + openai)
       const metaGeneracionFinal = {
         ...metaGeneracionBase,
@@ -740,9 +757,12 @@ serve(async (req)=>{
           color_base: colorBase,
           numero_base: numeroBase,
           contenido_preferido_key: contenidoPreferido,
-          // 
           origen_generacion: origenGeneracion,
-          meta_generacion: metaGeneracionFinal
+          meta_generacion: metaGeneracionFinal,
+          tokens_input: tokensInput,
+          tokens_output: tokensOutput,
+          costo_estimado: costoEstimado,
+          modelo_ia: modeloIA
         })
       });
       // ====================================================================

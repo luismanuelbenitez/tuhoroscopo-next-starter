@@ -143,7 +143,7 @@ export default function HomePage() {
                 </p>
                 <ul className="space-y-2 mb-6">
                   <FeatureItem color="rgba(167,139,250,0.75)" text="Por signo astral" />
-                  <FeatureItem color="rgba(167,139,250,0.75)" text="Lunes a viernes" />
+                  <FeatureItem color="rgba(167,139,250,0.75)" text="7 días a la semana" />
                   <FeatureItem color="rgba(167,139,250,0.75)" text="Sin apps" />
                 </ul>
                 <span
@@ -210,7 +210,7 @@ export default function HomePage() {
               }}
             >
               {[
-                { icon: "🌎", label: "Uruguay y LATAM" },
+                { icon: "🌎", label: "Uruguay" },
                 { icon: "⚡", label: "Entrega inmediata" },
                 { icon: "🔒", label: "Pago seguro vía MP" },
               ].map(({ icon, label }) => (

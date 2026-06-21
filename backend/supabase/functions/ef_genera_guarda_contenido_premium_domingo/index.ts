@@ -671,6 +671,32 @@ serve(async (req)=>{
         });
         continue;
       }
+      // ======================================================================
+      // EXTRAER META DE OPENAI Y CALCULAR COSTO
+      // ======================================================================
+      const rawOpeniaMeta = genRes.headers.get("x-openia-meta");
+      let openiaMeta = null;
+      try {
+        openiaMeta = rawOpeniaMeta ? JSON.parse(rawOpeniaMeta) : null;
+      } catch (_) {
+        openiaMeta = rawOpeniaMeta ? { raw: rawOpeniaMeta } : null;
+      }
+      const MODEL_PRICES: Record<string, { input: number; output: number }> = {
+        "gpt-4o-mini":   { input: 0.15,  output: 0.60  },
+        "gpt-4o":        { input: 2.50,  output: 10.00 },
+        "gpt-4.1-mini":  { input: 0.40,  output: 1.60  },
+        "gpt-4.1":       { input: 2.00,  output: 8.00  },
+        "gpt-3.5-turbo": { input: 0.50,  output: 1.50  },
+      };
+      const modeloIA: string = openiaMeta?.model ?? "gpt-4o-mini";
+      const tokensInput: number = openiaMeta?.usage?.prompt_tokens ?? 0;
+      const tokensOutput: number = openiaMeta?.usage?.completion_tokens ?? 0;
+      const prices = MODEL_PRICES[modeloIA] ?? { input: 0.15, output: 0.60 };
+      const costoEstimado: number = Number(
+        ((tokensInput / 1_000_000) * prices.input +
+         (tokensOutput / 1_000_000) * prices.output).toFixed(8)
+      );
+
       let contenidoRaw;
       try {
         contenidoRaw = await genRes.json();
@@ -767,8 +793,13 @@ serve(async (req)=>{
             emocion_dominante: emocion,
             contenido_preferido: contenidoPreferido,
             dow_montevideo: dowMVD,
-            generado_en_utc: nowUTCISO()
+            generado_en_utc: nowUTCISO(),
+            openai: openiaMeta
           },
+          tokens_input: tokensInput,
+          tokens_output: tokensOutput,
+          costo_estimado: costoEstimado,
+          modelo_ia: modeloIA,
           silent: true
         })
       });

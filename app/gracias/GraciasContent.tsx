@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import confetti from "canvas-confetti";
-import { Loader2 } from 'lucide-react'; // Importar Loader2
+import { Loader2, Sparkles, Target, Hash, Palette, Wind, Calendar } from 'lucide-react';
 
 // Tipo para los datos guardados en sessionStorage
 interface CheckoutData {
@@ -190,13 +190,13 @@ export default function GraciasContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Ejecutar solo una vez al montar
 
-  // --- Función de Confeti (sin cambios) ---
   function lanzarConfeti() {
+    const colors = ['#FFCE4D', '#D4AF37', '#7c3aed', '#a855f7', '#e9d5ff', '#ffffff'];
     const duration = 8000;
     const end = Date.now() + duration;
     (function frame() {
-      confetti({ particleCount: 8, angle: 60, spread: 80, origin: { x: 0 } });
-      confetti({ particleCount: 8, angle: 120, spread: 80, origin: { x: 1 } });
+      confetti({ particleCount: 8, angle: 60, spread: 80, origin: { x: 0 }, colors });
+      confetti({ particleCount: 8, angle: 120, spread: 80, origin: { x: 1 }, colors });
       if (Date.now() < end) requestAnimationFrame(frame);
     })();
   }
@@ -287,14 +287,14 @@ export default function GraciasContent() {
                 <div className="flex items-start gap-3">
                   <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">3.</div>
                   <p className="text-sm text-white/75 leading-relaxed">
-                    <strong className="text-white/90">¿No llegó nada en 5 minutos?</strong>{" "}
+                    <strong className="text-white/90">¿No llegó nada en 30 minutos?</strong>{" "}
                     Escribinos a{" "}
                     <a
                       href="mailto:hola@tuoraculo.uy"
                       className="text-violet-300 underline hover:text-violet-200"
                     >
                       hola@tuoraculo.uy
-                    </a>.
+                    </a>{" "}y lo resolvemos de inmediato.
                   </p>
                 </div>
               </div>
@@ -307,17 +307,57 @@ export default function GraciasContent() {
                 <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
                   Cada mañana vas a recibir
                 </p>
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {[
-                    "🌐  Horóscopo personalizado por tu signo",
-                    "💙  Foco del día según tu preferencia",
-                    "🔢  Tu número de la suerte",
-                    "🎨  Tu color del día",
-                    "🧘  Una pausa cósmica",
-                  ].map((item) => (
-                    <li key={item} className="text-sm text-white/65 leading-relaxed">{item}</li>
+                    { Icon: Sparkles,  text: 'Horóscopo personalizado por tu signo' },
+                    { Icon: Target,    text: 'Foco del día según tu preferencia' },
+                    { Icon: Hash,      text: 'Número de la suerte' },
+                    { Icon: Palette,   text: 'Color del día' },
+                    { Icon: Wind,      text: 'Una pausa' },
+                    { Icon: Calendar,  text: 'Los domingos: balance semanal y ritual especial' },
+                  ].map(({ Icon, text }) => (
+                    <li key={text} className="flex items-center gap-2.5 text-sm text-white/65 leading-relaxed">
+                      <Icon size={14} className="shrink-0" style={{ color: 'rgba(167,139,250,0.65)' }} />
+                      {text}
+                    </li>
                   ))}
                 </ul>
+                <p className="mt-3 pt-3 border-t border-white/8 text-xs" style={{ color: 'rgba(167,139,250,0.50)' }}>
+                  Tu guía llega a las 8:30 · 7 días a la semana
+                </p>
+              </div>
+
+              {/* Compartir */}
+              <button
+                onClick={() => {
+                  const text = encodeURIComponent('Empecé a recibir mi horóscopo diario por WhatsApp con Tu Oráculo 🔮 tuoraculo.uy');
+                  window.open(`https://wa.me/?text=${text}`, '_blank');
+                }}
+                className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98]"
+                style={{ background: 'rgba(37,211,102,0.10)', border: '1px solid rgba(37,211,102,0.22)', color: 'rgba(37,211,102,0.80)' }}
+              >
+                Compartí con una amiga · WhatsApp
+              </button>
+
+              {/* Cross-sell tarot */}
+              <div
+                className="w-full rounded-2xl border border-amber-500/15 p-5 text-left"
+                style={{ background: 'rgba(120,80,0,0.07)' }}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(212,175,55,0.65)' }}>
+                  ¿Querés más claridad?
+                </p>
+                <p className="text-white/85 text-sm font-semibold mb-1">Lectura de tarot personalizada</p>
+                <p className="text-white/50 text-xs leading-relaxed mb-4">
+                  Preguntá sobre amor, trabajo o lo que más te preocupa. Tirada de 5 cartas generada con IA, enviada por WhatsApp en menos de 15 minutos.
+                </p>
+                <a
+                  href="/tarot"
+                  className="inline-block rounded-xl px-5 py-2.5 text-sm font-bold transition-all active:scale-[0.98]"
+                  style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.28)', color: 'rgba(212,175,55,0.90)' }}
+                >
+                  Ver lectura de tarot →
+                </a>
               </div>
 
             </div>
@@ -331,14 +371,22 @@ export default function GraciasContent() {
                 Tu pago está en proceso.
               </h1>
               <p className="text-white/70 text-base leading-relaxed">
-                Esto es normal. Mercado Pago puede tardar unos minutos en confirmar la suscripción.
+                Mercado Pago puede tardar unos minutos en confirmar la suscripción. En cuanto se apruebe, tu guía se activa automáticamente.
               </p>
               <div
-                className="w-full rounded-2xl border border-white/8 p-6"
+                className="w-full rounded-2xl border border-white/8 p-6 space-y-4"
                 style={{ background: 'rgba(255,255,255,0.03)' }}
               >
-                <p className="text-sm text-white/65 leading-relaxed">
-                  Te avisaremos por WhatsApp en cuanto se confirme. No necesitás hacer nada más.
+                <p className="text-sm font-semibold text-white/80">¿Qué hacer mientras tanto?</p>
+                <p className="text-sm text-white/60 leading-relaxed">
+                  No necesitás hacer nada. En cuanto se confirme el pago, recibís el primer mensaje en WhatsApp.
+                </p>
+                <p className="text-sm text-white/45 leading-relaxed">
+                  Si en 30 minutos no recibís nada, escribinos a{" "}
+                  <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200 transition-colors">
+                    hola@tuoraculo.uy
+                  </a>
+                  {" "}y lo resolvemos de inmediato.
                 </p>
               </div>
             </div>
@@ -362,7 +410,7 @@ export default function GraciasContent() {
                   El pago pudo ser rechazado o faltaron datos. Podés volver a intentarlo sin problema.
                 </p>
                 <a
-                  href="/horoscopo/checkout"
+                  href="/checkout"
                   className="inline-block w-full rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 py-4 text-base font-bold text-white text-center transition-all hover:from-violet-600 hover:to-violet-400 active:scale-[0.98]"
                   style={{ boxShadow: '0 4px 24px rgba(109,40,217,0.35)' }}
                 >

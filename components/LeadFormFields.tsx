@@ -148,7 +148,7 @@ export default function LeadFormFields({
                title="Ingresa tu celular uruguayo sin el +598 (ej: 091234567)"
              />
            </div>
-           <p className="mt-1 text-xs text-white/60">Te vamos a escribir acá.   </p>
+           <p className="mt-1 text-xs text-white/60">Acá recibís tu guía cada mañana.</p>
        </div>
 
         {/* Checkbox Política de Privacidad (sin cambios) */}

@@ -1,7 +1,6 @@
 'use client';
 
-// Colocar logo en: public/logo-thc.png
-const LOGO_SRC = '/logo-thc.png';
+const LOGO_SRC = '/img/logo/logo-isotipo.png';
 
 function MsgDivider() {
   return <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '1px 0' }} />;
@@ -75,18 +74,18 @@ export default function WAPreview() {
               <MsgDivider />
 
               <div>
-                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>🌐 Horóscopo</p>
+                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>🔮 Horóscopo</p>
                 <p style={{ color: 'rgba(255,255,255,0.70)', fontSize: '13px', lineHeight: 1.5, marginTop: '2px' }}>
-                  Hoy tu energía te invita a soltar lo que venís cargando. Enfocate en una sola cosa y hacela bien.
+                  Hay algo que no terminás de cerrar. El día tiene ruido y las decisiones no aparecen claras. No forzues nada — mirá antes de actuar.
                 </p>
               </div>
 
               <MsgDivider />
 
               <div>
-                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>💙 En foco</p>
+                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>🩵 En foco</p>
                 <p style={{ color: 'rgba(255,255,255,0.70)', fontSize: '13px', lineHeight: 1.5, marginTop: '2px' }}>
-                  En bienestar mental, bajá el ritmo antes de responder. Tu claridad aparece cuando dejás de correr.
+                  En bienestar mental, algo se mueve internamente. Bajá el ritmo antes de responder.
                 </p>
               </div>
 
@@ -96,21 +95,29 @@ export default function WAPreview() {
                 <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: '13px', lineHeight: 1.45 }}>
                   🔢 <strong style={{ fontWeight: 600 }}>Número:</strong>{' '}
                   <span style={{ color: 'rgba(196,181,253,0.95)' }}>7</span>{' '}
-                  — conectá con tu intuición antes de decidir.
+                  — anotá eso que no querés olvidar hoy.
                 </p>
                 <p style={{ color: 'rgba(255,255,255,0.82)', fontSize: '13px', lineHeight: 1.45 }}>
                   🎨 <strong style={{ fontWeight: 600 }}>Color:</strong>{' '}
                   <span style={{ color: 'rgba(196,181,253,0.95)' }}>Violeta</span>{' '}
-                  — conectá con tu calma interior.
+                  — llevalo en algo pequeño para no perder el hilo.
                 </p>
               </div>
 
               <MsgDivider />
 
               <div>
-                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>🧘 Pausa</p>
+                <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13.5px', fontWeight: 600 }}>🧘‍♀️ Pausa</p>
                 <p style={{ color: 'rgba(255,255,255,0.70)', fontSize: '13px', lineHeight: 1.5, marginTop: '2px' }}>
-                  Respirá profundo tres veces antes de abrir el teléfono.
+                  Cerrá los ojos y buscá el sonido más lejano que puedas escuchar.
+                </p>
+              </div>
+
+              <MsgDivider />
+
+              <div>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '12.5px', fontStyle: 'italic' }}>
+                  Lo que no terminás de decir, también pesa.
                 </p>
               </div>
 

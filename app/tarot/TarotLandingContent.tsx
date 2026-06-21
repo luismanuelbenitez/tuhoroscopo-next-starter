@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Layers, FileText, MessageCircle, Sparkles, Clock, ShieldCheck } from 'lucide-react';
+import { Layers, FileText, MessageCircle, Sparkles, Clock, ShieldCheck, Target, User, BookOpen, Scale } from 'lucide-react';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -25,10 +25,10 @@ const STEPS = [
 ];
 
 const VALUE_CARDS = [
-  { title: 'Una pregunta real', desc: 'No es un horóscopo genérico por signo. La lectura gira alrededor de lo que vos preguntás.' },
-  { title: 'Contexto tuyo', desc: 'Usamos tu nombre y tu fecha de nacimiento para anclar la lectura en tu energía.' },
-  { title: 'Simbología clásica', desc: 'Los arquetipos del tarot tradicional aplicados a tu consulta específica, con análisis simbólico profundo.' },
-  { title: 'Tono honesto', desc: 'Sin promesas mágicas. La lectura ofrece perspectiva, no certezas absolutas.' },
+  { Icon: Target,   title: 'Una pregunta real',  desc: 'No es un horóscopo genérico por signo. La lectura gira alrededor de lo que vos preguntás.' },
+  { Icon: User,     title: 'Contexto tuyo',      desc: 'Usamos tu nombre y tu fecha de nacimiento para anclar la lectura en tu energía.' },
+  { Icon: BookOpen, title: 'Simbología clásica', desc: 'Los arquetipos del tarot tradicional aplicados a tu consulta específica, con análisis simbólico profundo.' },
+  { Icon: Scale,    title: 'Tono honesto',        desc: 'Sin promesas mágicas. La lectura ofrece perspectiva, no certezas absolutas.' },
 ];
 
 const PDF_PAGES = [
@@ -48,14 +48,14 @@ const TESTIMONIALS = [
   {
     quote: 'Me llegó en menos de 10 minutos. El PDF es precioso y me dio mucha claridad sobre mi situación laboral.',
     name: 'Marcela G.',
-    city: 'Buenos Aires',
+    city: 'Punta del Este',
     tema: 'Trabajo',
     avatar: '/img/tarot/avatar-marcela.jpg',
   },
   {
     quote: 'Lo compré sin saber bien qué esperar y quedé sorprendida. Lo recomendé a dos amigas esa misma noche.',
     name: 'Daniela F.',
-    city: 'Córdoba',
+    city: 'Salto',
     tema: 'Situación general',
     avatar: '/img/tarot/avatar-daniela.jpg',
   },
@@ -250,6 +250,9 @@ export default function TarotLandingContent() {
               <p className="mt-1 text-center md:text-left text-[11px] text-white/25">
                 Una consulta con tarotista presencial cuesta $U 2.000+. Acá la recibís en minutos.
               </p>
+              <p className="mt-1.5 text-center md:text-left text-[11px]" style={{ color: 'rgba(251,191,36,0.38)' }}>
+                ✦ Si no recibís tu lectura en 15 minutos, te devolvemos el dinero.
+              </p>
             </div>
 
             {/* PDF viewer — oculto en mobile, visible en desktop */}
@@ -339,20 +342,27 @@ export default function TarotLandingContent() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-center mb-8" style={{ color: GOLD_DIM }}>
               ¿Cómo funciona?
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {STEPS.map(step => (
-                <div key={step.n} className="flex md:flex-col gap-4 md:gap-3 md:items-center md:text-center">
-                  <div
-                    className="text-3xl md:text-4xl font-extrabold leading-none shrink-0"
-                    style={{ color: 'rgba(251,191,36,0.55)' }}
-                  >
-                    {step.n}
+            <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-0">
+              {STEPS.map((step, idx) => (
+                <Fragment key={step.n}>
+                  <div className="flex md:flex-col gap-4 md:gap-3 md:items-center md:text-center flex-1 min-w-0">
+                    <div
+                      className="text-3xl md:text-4xl font-extrabold leading-none shrink-0"
+                      style={{ color: 'rgba(251,191,36,0.55)' }}
+                    >
+                      {step.n}
+                    </div>
+                    <div>
+                      <p className="text-white/90 font-semibold text-sm md:text-base">{step.title}</p>
+                      <p className="text-white/50 text-xs md:text-sm mt-1 leading-relaxed">{step.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white/90 font-semibold text-sm md:text-base">{step.title}</p>
-                    <p className="text-white/50 text-xs md:text-sm mt-1 leading-relaxed">{step.desc}</p>
-                  </div>
-                </div>
+                  {idx < STEPS.length - 1 && (
+                    <div className="hidden md:flex items-center justify-center self-start mt-4 px-1 text-lg shrink-0" style={{ color: 'rgba(251,191,36,0.22)' }}>
+                      ›
+                    </div>
+                  )}
+                </Fragment>
               ))}
             </div>
           </div>
@@ -368,14 +378,15 @@ export default function TarotLandingContent() {
               No es un mensaje genérico.
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {VALUE_CARDS.map(card => (
+              {VALUE_CARDS.map(({ Icon, title, desc }) => (
                 <div
-                  key={card.title}
+                  key={title}
                   className="rounded-2xl p-5"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
-                  <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>{card.title}</p>
-                  <p className="text-white/60 text-sm leading-relaxed">{card.desc}</p>
+                  <Icon size={20} style={{ color: GOLD_DIM }} className="mb-3" />
+                  <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>{title}</p>
+                  <p className="text-white/60 text-sm leading-relaxed">{desc}</p>
                 </div>
               ))}
             </div>
@@ -422,6 +433,9 @@ export default function TarotLandingContent() {
                 </div>
               ))}
             </div>
+            <p className="text-center mt-6 text-[10px]" style={{ color: 'rgba(255,255,255,0.18)' }}>
+              * Experiencias ilustrativas del tipo de lectura que entregamos. Producto en lanzamiento.
+            </p>
           </div>
         </div>
 

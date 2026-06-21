@@ -6,7 +6,7 @@ const CLAVES_EDITABLES = [
   "APP_DEBUG_MODE", "WHATSAPP_MODO", "THC_BACK_URL", "TTC_BACK_URL", "MODO_MANTENIMIENTO",
   "ALERTAS_EMAIL_ACTIVO", "ALERTAS_EMAIL_DESTINO",
   "ALERTAS_COOLDOWN_HORAS", "ALERTAS_UMBRAL_ORDENES_ERROR", "ALERTAS_UMBRAL_MENSAJES_FALLIDOS",
-  "THC_PRECIO_SUSCRIPCION",
+  "THC_PRECIO_SUSCRIPCION", "OPENAI_MODEL",
 ] as const;
 type ClaveEditable = (typeof CLAVES_EDITABLES)[number];
 
@@ -15,6 +15,7 @@ const VALORES_ENUM: Partial<Record<ClaveEditable, string[]>> = {
   WHATSAPP_MODO:       ["sandbox", "production"],
   MODO_MANTENIMIENTO:  ["true", "false"],
   ALERTAS_EMAIL_ACTIVO: ["true", "false"],
+  OPENAI_MODEL:        ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4o", "gpt-4.1"],
 };
 
 const CLAVES_NUMERO: ClaveEditable[] = [
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
   }
 
   // URL, email, y número preservan case/formato; enum keys pasan a lowercase
-  const CLAVES_PRESERVAR_CASE: string[] = ["THC_BACK_URL", "TTC_BACK_URL", "ALERTAS_EMAIL_DESTINO", ...CLAVES_NUMERO];
+  const CLAVES_PRESERVAR_CASE: string[] = ["THC_BACK_URL", "TTC_BACK_URL", "ALERTAS_EMAIL_DESTINO", "OPENAI_MODEL", ...CLAVES_NUMERO];
   const valorRaw = typeof body.valor === "string"
     ? (CLAVES_PRESERVAR_CASE.includes(clave) ? body.valor.trim() : body.valor.trim().toLowerCase())
     : "";

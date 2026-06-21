@@ -250,11 +250,11 @@ async function obtenerContenidoPlantilla(nombreLogico) {
 // Disparo de generación ON-DEMAND del primer contenido premium
 // ----------------------------------------------------------------------------
 // OBJETIVO:
-// - Invocar ef_genera_guarda_contenido_premium en modo on-demand.
+// - Invocar ef_generar_contenido_premium_on_demand (detecta domingo automáticamente).
 // - Le pasamos solo id_suscriptor.
 // - La función generadora se encargará de:
 //     1) procesar solo ese usuario
-//     2) generar el contenido premium
+//     2) generar el contenido premium (diario o domingo según el día)
 //     3) guardarlo en contenido_premium
 //     4) programar su envío para el momento correspondiente
 //
@@ -266,7 +266,7 @@ async function dispararGeneracionOnDemand(id_suscriptor) {
   // --------------------------------------------------------------------------
   // URL de la Edge Function generadora
   // --------------------------------------------------------------------------
-  const url = `${SUPABASE_URL}/functions/v1/ef_genera_guarda_contenido_premium`;
+  const url = `${SUPABASE_URL}/functions/v1/ef_generar_contenido_premium_on_demand`;
   // --------------------------------------------------------------------------
   // Headers internos estandarizados
   // --------------------------------------------------------------------------

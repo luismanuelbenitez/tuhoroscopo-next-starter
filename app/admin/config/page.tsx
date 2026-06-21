@@ -368,6 +368,138 @@ function WaModoToggle({
 }
 
 // ===========================================================================
+// Selector for OPENAI_MODEL
+// ===========================================================================
+
+const OPENAI_MODELS = [
+  { value: "gpt-4o-mini",  label: "gpt-4o-mini",  note: "Económico · calidad base" },
+  { value: "gpt-4.1-mini", label: "gpt-4.1-mini", note: "Recomendado · mejor calidad, bajo costo" },
+  { value: "gpt-4o",       label: "gpt-4o",        note: "Alta calidad · costo medio" },
+  { value: "gpt-4.1",      label: "gpt-4.1",       note: "Máxima calidad · costo alto" },
+];
+
+function OAIModelSelector({ row, onOk }: { row: ConfigRow; onOk: () => void }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [pendingValor, setPendingValor] = useState(row.valor);
+  const [motivo, setMotivo] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  function iniciarCambio(nuevoValor: string) {
+    if (nuevoValor === row.valor) return;
+    setPendingValor(nuevoValor);
+    setMotivo("");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setConfirmando(true);
+  }
+
+  function cancelar() {
+    setConfirmando(false);
+    setMotivo("");
+    setErrorMsg(null);
+  }
+
+  async function confirmar() {
+    if (motivo.trim().length < 5) {
+      setErrorMsg("El motivo debe tener al menos 5 caracteres");
+      return;
+    }
+    setGuardando(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/config/accion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clave: "OPENAI_MODEL", valor: pendingValor, motivo: motivo.trim() }),
+      });
+      const json: AcResponse = await res.json();
+      if (!json.ok) {
+        setErrorMsg(json.detalle ?? json.motivo ?? "Error al guardar");
+      } else {
+        setSuccessMsg(json.mensaje ?? "Actualizado");
+        setConfirmando(false);
+        setMotivo("");
+        onOk();
+      }
+    } catch {
+      setErrorMsg("Error de red");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {OPENAI_MODELS.map((m) => (
+          <button
+            key={m.value}
+            onClick={() => iniciarCambio(m.value)}
+            disabled={m.value === row.valor}
+            className={`flex flex-col items-start px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+              m.value === row.valor
+                ? "border-violet-700/60 bg-violet-950/40 text-violet-200 cursor-default"
+                : "border-gray-700/60 bg-gray-800/60 text-gray-400 hover:text-violet-300 hover:border-violet-700/40"
+            }`}
+          >
+            <span className="font-mono">{m.label}</span>
+            <span className={`text-[10px] mt-0.5 ${m.value === row.valor ? "text-violet-400/70" : "text-gray-600"}`}>{m.note}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-gray-600">
+        Activo: <span className="font-mono text-violet-400">{row.valor}</span> · Leído por <span className="font-mono">ef_openia_genera_contenido_premium</span> en cada request.
+      </p>
+
+      {successMsg && <p className="mt-2 text-xs text-green-400">{successMsg}</p>}
+
+      {confirmando && (
+        <div className="mt-3 rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3 space-y-3">
+          <p className="text-xs text-amber-300 font-semibold">
+            Confirmar cambio: OPENAI_MODEL → <span className="font-mono">{pendingValor}</span>
+          </p>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">
+              Motivo <span className="text-gray-600">(mínimo 5 caracteres)</span>
+            </label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={2}
+              placeholder="ej: mejorar calidad sin escalar mucho el costo"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none"
+            />
+          </div>
+          {errorMsg && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle size={12} /> {errorMsg}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={confirmar}
+              disabled={guardando || motivo.trim().length < 5}
+              className="px-3 py-1.5 rounded-lg bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-xs text-white font-medium transition-colors"
+            >
+              {guardando ? "Guardando…" : "Confirmar"}
+            </button>
+            <button
+              onClick={cancelar}
+              disabled={guardando}
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===========================================================================
 // URL editor for THC_BACK_URL / TTC_BACK_URL
 // ===========================================================================
 
@@ -782,7 +914,7 @@ export default function ConfigPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-100">Configuración del sistema</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              <span className="font-mono text-gray-400">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-400">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-400">WHATSAPP_MODO</span>, <span className="font-mono text-gray-400">THC_BACK_URL</span> y <span className="font-mono text-gray-400">TTC_BACK_URL</span> son editables desde el panel.
+              <span className="font-mono text-gray-400">MODO_MANTENIMIENTO</span>, <span className="font-mono text-gray-400">APP_DEBUG_MODE</span>, <span className="font-mono text-gray-400">WHATSAPP_MODO</span>, <span className="font-mono text-gray-400">OPENAI_MODEL</span>, <span className="font-mono text-gray-400">THC_BACK_URL</span> y <span className="font-mono text-gray-400">TTC_BACK_URL</span> son editables desde el panel.
             </p>
           </div>
           <button
@@ -834,6 +966,7 @@ export default function ConfigPage() {
                     const isUrl = key === "THC_BACK_URL" || key === "TTC_BACK_URL";
                     const isMantenimiento = key === "MODO_MANTENIMIENTO";
                     const isPrecio = key === "THC_PRECIO_SUSCRIPCION";
+                    const isOAIModel = key === "OPENAI_MODEL";
 
                     const descriptions: Record<string, string> = {
                       WHATSAPP_MODO: "Controla si THC envía WhatsApp en modo sandbox (simulado) o production (real). ef_whatsapp_sender lo lee en cada request.",
@@ -842,6 +975,7 @@ export default function ConfigPage() {
                       TTC_BACK_URL: "URL a donde MP redirige al usuario después de pagar la tirada de tarot. Cambiar cuando el dominio tuoraculo.uy esté activo.",
                       MODO_MANTENIMIENTO: "Cuando está activo, todos los visitantes son redirigidos a la página de mantenimiento. El panel admin sigue accesible. Cache de 30s en middleware.",
                       THC_PRECIO_SUSCRIPCION: "Precio mensual de la suscripción Premium de horóscopo en pesos uruguayos. ef_crear_suscripcion lo lee al crear cada preapproval en MercadoPago.",
+                      OPENAI_MODEL: "Modelo de OpenAI usado para generar el contenido diario de horóscopo. ef_openia_genera_contenido_premium lo lee en cada request desde esta tabla.",
                     };
 
                     return (
@@ -874,6 +1008,8 @@ export default function ConfigPage() {
                           <UrlEditor row={row} onOk={cargar} />
                         ) : isWaModo ? (
                           <WaModoToggle row={row} onOk={cargar} />
+                        ) : isOAIModel ? (
+                          <OAIModelSelector row={row} onOk={cargar} />
                         ) : (
                           <DebugModeToggle row={row} onOk={cargar} />
                         )}

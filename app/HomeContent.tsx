@@ -67,14 +67,13 @@ export default function HomeContent() {
               </h1>
 
               <p className="text-white/70 text-base md:text-lg max-w-lg mx-auto md:mx-0 mb-4 leading-relaxed">
-                Recibí tu horóscopo, tu foco del día, tu número de la suerte y tu color — personalizados por signo, directo a WhatsApp. Sin apps.
+                Horóscopo, foco del día, número y color de la suerte, y una pausa cósmica — personalizados para tu signo, directo a WhatsApp. Todos los días.
               </p>
 
-              {/* Social proof */}
-              <div className="flex items-center justify-center md:justify-start gap-2 mb-6 text-[12px] text-white/45">
-                <span style={{ color: 'rgba(251,191,36,0.80)', letterSpacing: '1px' }}>★★★★★</span>
-                <span>Suscriptoras activas en Uruguay y LATAM</span>
-              </div>
+              {/* Garantía */}
+              <p className="flex items-center justify-center md:justify-start mb-6 text-[12px]" style={{ color: 'rgba(251,191,36,0.42)' }}>
+                ✦ Cancelás cuando quieras. Sin trámites, sin llamadas.
+              </p>
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm mb-8">
                 <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
@@ -83,7 +82,7 @@ export default function HomeContent() {
                 <span className="text-white/30">·</span>
                 <span className="text-white/65">Sin apps</span>
                 <span className="text-white/30">·</span>
-                <span className="text-white/65">Sin spam</span>
+                <span className="text-white/65">7 días a la semana</span>
                 <span className="text-white/30">·</span>
                 <span className="text-white/65">Cancelás cuando quieras</span>
               </div>
@@ -96,8 +95,8 @@ export default function HomeContent() {
                 Activar mi guía diaria →
               </Link>
 
-              <p className="mt-3 text-center md:text-left text-[12px] text-white/40">
-                Pago seguro vía Mercado Pago · Cancelás online cuando quieras
+              <p className="mt-3 text-center md:text-left text-[12px]" style={{ color: 'rgba(251,191,36,0.38)' }}>
+                ✦ Cancelás cuando quieras. Sin trámites, sin llamadas.
               </p>
 
               <div className="mt-6 grid grid-cols-2 gap-2 max-w-xs mx-auto md:mx-0">
@@ -134,7 +133,7 @@ export default function HomeContent() {
             <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest text-center mb-8">
               ¿Cómo funciona?
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-0">
               {[
                 {
                   n: '1',
@@ -149,19 +148,27 @@ export default function HomeContent() {
                 {
                   n: '3',
                   title: 'Tu guía llega cada mañana',
-                  desc: 'Personalizada para tu signo, a la hora que más la necesitás. Sin apps, sin spam.',
+                  desc: 'Personalizada para tu signo. A las 8:30 de la mañana, todos los días. Los domingos: balance semanal y ritual especial.',
                 },
-              ].map(step => (
-                <div key={step.n} className="flex md:flex-col gap-4 md:gap-3 md:items-center md:text-center">
-                  <div className="text-3xl md:text-4xl font-extrabold text-violet-500/70 leading-none shrink-0">
-                    {step.n}
+              ].flatMap((step, i, arr) => {
+                const el = (
+                  <div key={step.n} className="flex md:flex-col gap-4 md:gap-3 md:items-center md:text-center flex-1">
+                    <div className="text-3xl md:text-4xl font-extrabold text-violet-500/70 leading-none shrink-0">
+                      {step.n}
+                    </div>
+                    <div>
+                      <p className="text-white/90 font-semibold text-sm md:text-base">{step.title}</p>
+                      <p className="text-white/50 text-xs md:text-sm mt-1 leading-relaxed">{step.desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white/90 font-semibold text-sm md:text-base">{step.title}</p>
-                    <p className="text-white/50 text-xs md:text-sm mt-1 leading-relaxed">{step.desc}</p>
-                  </div>
-                </div>
-              ))}
+                );
+                if (i < arr.length - 1) {
+                  return [el, (
+                    <div key={`arrow-${i}`} className="hidden md:flex items-start justify-center pt-4 px-2 text-violet-500/30 text-2xl font-thin shrink-0">›</div>
+                  )];
+                }
+                return [el];
+              })}
             </div>
           </div>
         </div>
@@ -188,7 +195,7 @@ export default function HomeContent() {
             >
               Activar mi guía diaria →
             </Link>
-            <p className="mt-3 text-[12px] text-white/40">Pago seguro · Cancelás cuando quieras</p>
+            <p className="mt-3 text-[12px]" style={{ color: 'rgba(251,191,36,0.38)' }}>✦ Cancelás cuando quieras. Sin trámites, sin llamadas.</p>
           </div>
         </div>
 
