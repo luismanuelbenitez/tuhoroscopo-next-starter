@@ -362,7 +362,11 @@ serve(async (req)=>{
       contenido_preferido,
       numero,
       origen_generacion,
-      meta_generacion
+      meta_generacion,
+      tokens_input,
+      tokens_output,
+      costo_estimado,
+      modelo_ia
     `, {
     count: "exact"
   });

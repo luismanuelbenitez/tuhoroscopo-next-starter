@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Shield, Sparkles, CheckCircle2, MessageCircle } from 'lucide-react';
-import WAPreview from '@/components/WAPreview';
 import Testimonios from '@/components/Testimonios';
 import StickyCTA from '@/components/StickyCTA';
 
@@ -116,7 +115,11 @@ export default function HomeContent() {
 
             {/* WAPreview — oculto en mobile (se muestra abajo), visible en desktop */}
             <div className="hero-in-2 hidden md:block w-[340px] shrink-0">
-              <WAPreview />
+              <img
+                src="/img/horoscopo/phone-preview-thc.webp"
+                alt="Ejemplo de mensaje en WhatsApp"
+                className="w-full h-auto"
+              />
             </div>
 
           </div>
@@ -124,7 +127,11 @@ export default function HomeContent() {
 
         {/* WAPreview mobile — debajo del hero, full width */}
         <div className="relative md:hidden px-4 pb-6" style={{ zIndex: 1 }}>
-          <WAPreview />
+          <img
+                src="/img/horoscopo/phone-preview-thc.webp"
+                alt="Ejemplo de mensaje en WhatsApp"
+                className="w-full h-auto"
+              />
         </div>
 
         {/* ── Cómo funciona ─────────────────────────────────────────── */}

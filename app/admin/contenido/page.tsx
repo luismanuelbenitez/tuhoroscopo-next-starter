@@ -50,6 +50,10 @@ interface Contenido {
   numero: number | null;
   origen_generacion: string | null;
   meta_generacion: Record<string, unknown> | null;
+  tokens_input: number | null;
+  tokens_output: number | null;
+  costo_estimado: number | null;
+  modelo_ia: string | null;
   diagnostico_admin: DiagnosticoAdmin | null;
 }
 
@@ -437,6 +441,10 @@ function ContenidoDetalle({
             ["Tipo", item.tipo],
             ["Canal", item.canal],
             ["Origen generación", item.origen_generacion],
+            ["Modelo IA", item.modelo_ia],
+            ["Tokens entrada", item.tokens_input != null ? item.tokens_input.toLocaleString() : null],
+            ["Tokens salida", item.tokens_output != null ? item.tokens_output.toLocaleString() : null],
+            ["Costo estimado", item.costo_estimado != null ? `$${item.costo_estimado.toFixed(8)} USD` : null],
             ["Generado por", item.generado_por],
             ["Enviado por", item.enviado_por],
             ["Creado", fmtFecha(item.fecha_creacion)],

@@ -32,6 +32,10 @@ type RawContenido = {
   numero?: number | null;
   origen_generacion?: string | null;
   meta_generacion?: Record<string, unknown> | null;
+  tokens_input?: number | null;
+  tokens_output?: number | null;
+  costo_estimado?: number | null;
+  modelo_ia?: string | null;
   diagnostico_admin?: RawDiagnostico;
 };
 
@@ -162,6 +166,10 @@ export async function GET(req: NextRequest) {
         numero: c.numero ?? null,
         origen_generacion: c.origen_generacion ?? null,
         meta_generacion: c.meta_generacion ?? null,
+        tokens_input: c.tokens_input ?? null,
+        tokens_output: c.tokens_output ?? null,
+        costo_estimado: c.costo_estimado ?? null,
+        modelo_ia: c.modelo_ia ?? null,
         diagnostico_admin: c.diagnostico_admin
           ? {
               healthy: c.diagnostico_admin.healthy ?? true,

@@ -50,8 +50,9 @@ Sistema completamente operativo. El flujo premium (checkout → MP → WhatsApp 
 
 ### Panel admin
 - `docs/business/admin-operations.md` — qué hace cada sección del panel
-- `app/admin/` — páginas del panel
+- `app/admin/` — páginas del panel (10 secciones)
 - `app/api/admin/` — API routes del panel
+- `app/api/admin/plantillas/route.ts` — GET/PUT de prompts de IA (tabla plantillas)
 - `components/admin/` — componentes compartidos
 - `lib/adminSession.ts` — validación de sesión
 
@@ -110,6 +111,7 @@ Sistema completamente operativo. El flujo premium (checkout → MP → WhatsApp 
 | `/admin/contenido` | Admin | Archivo de contenido premium |
 | `/admin/suscripciones` | Admin | Contratos MP con alertas |
 | `/admin/cupones` | Admin | CRUD de descuentos |
+| `/admin/prompts` | Admin | Editor de prompts de IA (diario + domingo) |
 | `/admin/logs` | Admin | Log de funciones |
 | `/admin/cron` | Admin | Monitoreo de cron jobs |
 | `/admin/config` | Admin | Configuración del sistema |

@@ -132,13 +132,14 @@ Las capas son:
 
 **Frontend:** Next.js 14, funcionando en Vercel. Deploy automático en push a `main`.
 
-**Panel admin completado (9 secciones):**
+**Panel admin completado (10 secciones):**
 - `/admin` — Dashboard con métricas y resumen diario
 - `/admin/suscriptores` — Lista + detalle + acciones manuales premium
 - `/admin/mensajes-problematicos` — Outbox fallido con guía de reintentos
-- `/admin/contenido` — Archivo de contenido premium generado
+- `/admin/contenido` — Archivo de contenido premium generado (incluye costo IA por fila)
 - `/admin/suscripciones` — Contratos MP con conciliación y alertas
 - `/admin/cupones` — CRUD de códigos de descuento
+- `/admin/prompts` — Editor de prompts de IA (plantillas para generación diaria y domingo)
 - `/admin/logs` — Log de funciones con filtros, referencias y sanitización
 - `/admin/cron` — Monitoreo informativo de procesos automáticos
 - `/admin/config` — Configuración del sistema (APP_DEBUG_MODE editable)
