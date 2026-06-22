@@ -9,6 +9,7 @@
 // ============================================================
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
 import { UAParser } from 'ua-parser-js'; // Asegúrate de tener 'ua-parser-js' instalado: npm i ua-parser-js
 
 // ===========================================
@@ -136,7 +137,8 @@ export async function POST(req: Request) {
     // 3.5 Re-validación server-side del código de descuento (si viene)
     // ----------------------------------------------------------------
     const INTERNAL_KEY = process.env.WHATSAPP_INTERNAL_KEY;
-    let montoFinal = 390;
+    const precioBase = await getPrecioSuscripcion();
+    let montoFinal = precioBase;
     let descuentoValidado: Record<string, unknown> | null = null;
 
     if (body.codigo_descuento) {
@@ -156,7 +158,7 @@ export async function POST(req: Request) {
           codigo: String(body.codigo_descuento).trim().toUpperCase(),
           id_suscriptor: idSuscriptor,
           whatsapp: body.whatsapp,
-          precio_base: 390,
+          precio_base: precioBase,
         }),
         cache: 'no-store',
       });

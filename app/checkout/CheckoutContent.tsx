@@ -3,7 +3,6 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { Loader2, Lock, Shield, Sparkles, CheckCircle2, MessageCircle, Tag, X } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
-import WAPreview from '@/components/WAPreview';
 
 function normalizarUY(num: string): { telefono: string; whatsapp: string } {
   const digits = num.replace(/\D/g, '');
@@ -32,7 +31,7 @@ interface DescuentoAplicado {
   mensaje_usuario: string;
 }
 
-export default function CheckoutContent() {
+export default function CheckoutContent({ precioBase = 390 }: { precioBase?: number }) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     signo: '',
@@ -71,7 +70,7 @@ export default function CheckoutContent() {
       const res = await fetch('/api/validar-codigo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codigo, precio_base: 390 }),
+        body: JSON.stringify({ codigo, precio_base: precioBase }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -214,7 +213,7 @@ export default function CheckoutContent() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
             <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
-              $U 390<span className="text-white/55 font-normal">/mes · IVA incluido</span>
+              $U {precioBase}<span className="text-white/55 font-normal">/mes · IVA incluido</span>
             </span>
             <span className="text-white/30">·</span>
             <span className="text-white/65">Sin apps</span>
@@ -338,7 +337,7 @@ export default function CheckoutContent() {
                           Procesando…
                         </span>
                       ) : (
-                        `Activar por $U ${descuento ? descuento.precio_aplicado : 390}/mes →`
+                        `Activar por $U ${descuento ? descuento.precio_aplicado : precioBase}/mes →`
                       )}
                     </button>
 
@@ -352,7 +351,7 @@ export default function CheckoutContent() {
                         <span>Procesado por <strong className="text-white/65 font-semibold">Mercado Pago</strong></span>
                       </span>
                       <span className="text-white/20">·</span>
-                      <span>{descuento ? `$U ${descuento.precio_aplicado}/mes · IVA inc.` : '$U 390/mes · IVA inc.'}</span>
+                      <span>{descuento ? `$U ${descuento.precio_aplicado}/mes · IVA inc.` : `$U ${precioBase}/mes · IVA inc.`}</span>
                       <span className="text-white/20">·</span>
                       <span>Cancelás cuando quieras</span>
                     </div>
@@ -379,7 +378,11 @@ export default function CheckoutContent() {
             {/* INFO DEL PRODUCTO — orden 2 en mobile, izquierda en desktop */}
             <div className="order-2 md:order-1 flex-1 space-y-4 min-w-0">
 
-              <WAPreview />
+              <img
+                src="/img/horoscopo/phone-preview-thc.webp"
+                alt="Ejemplo de mensaje en WhatsApp"
+                className="w-full h-auto max-w-[300px] mx-auto block"
+              />
 
               {/* Cómo funciona — compacto */}
               <div

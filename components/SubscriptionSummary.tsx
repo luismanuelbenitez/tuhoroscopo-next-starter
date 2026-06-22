@@ -1,11 +1,8 @@
-// ============================================================
-// === Archivo: components/SubscriptionSummary.tsx
-// === Descripción: Componente presentacional que muestra
-// === el resumen visual del plan. (SIN CAMBIOS)
-// ============================================================
-'use client'
+'use client';
+import { usePrecioSuscripcion } from '@/lib/usePrecioSuscripcion';
 
 export default function SubscriptionSummary() {
+  const precio = usePrecioSuscripcion();
   return (
     <div className="px-0 py-0">
       <div className="mx-auto max-w-3xl">
@@ -18,7 +15,7 @@ export default function SubscriptionSummary() {
               Suscripción premium mensual
             </h1>
             <div className="my-4">
-              <span className="text-4xl md:text-5xl font-extrabold text-white">$U 390</span>
+              <span className="text-4xl md:text-5xl font-extrabold text-white">$U {precio}</span>
               <span className="text-white/80 font-semibold ml-1">/mes</span>
             </div>
             <ul className="text-white/80 text-sm space-y-1 mb-6">

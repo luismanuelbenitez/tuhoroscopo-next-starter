@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
+import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
 
-export default function QuienesSomos() {
+export default async function QuienesSomos() {
+  const precio = await getPrecioSuscripcion();
   return (
     <StaticPageLayout>
 
@@ -88,7 +90,7 @@ export default function QuienesSomos() {
         >
           Activar mi guía diaria →
         </Link>
-        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · IVA incluido · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · IVA incluido · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>

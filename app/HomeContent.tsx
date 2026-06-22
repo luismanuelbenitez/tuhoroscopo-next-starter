@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePrecioSuscripcion } from '@/lib/usePrecioSuscripcion';
 import Link from 'next/link';
 import { Shield, Sparkles, CheckCircle2, MessageCircle } from 'lucide-react';
 import Testimonios from '@/components/Testimonios';
 import StickyCTA from '@/components/StickyCTA';
 
 export default function HomeContent() {
+  const precio = usePrecioSuscripcion();
   const [showSticky, setShowSticky] = useState(false);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function HomeContent() {
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm mb-8">
                 <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
-                  $U 390<span className="text-white/55 font-normal">/mes · IVA incluido</span>
+                  $U {precio}<span className="text-white/55 font-normal">/mes · IVA incluido</span>
                 </span>
                 <span className="text-white/30">·</span>
                 <span className="text-white/65">Sin apps</span>
@@ -177,6 +179,24 @@ export default function HomeContent() {
                 return [el];
               })}
             </div>
+
+            {/* Domingo preview */}
+            <div className="mt-10 flex flex-col md:flex-row items-center gap-6 rounded-2xl border border-violet-500/10 bg-violet-950/10 px-6 py-6">
+              <div className="shrink-0 w-full md:w-[200px]">
+                <img
+                  src="/img/horoscopo/phone-preview-thc-domingo.webp"
+                  alt="Mensaje especial del domingo"
+                  className="w-full h-auto max-w-[200px] mx-auto block"
+                />
+              </div>
+              <div className="text-center md:text-left">
+                <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-widest mb-2">Los domingos es diferente</p>
+                <p className="text-white/90 font-semibold text-base mb-2">Balance semanal + ritual especial</p>
+                <p className="text-white/55 text-sm leading-relaxed">
+                  Cada domingo recibís un mensaje distinto: una mirada al cierre de tu semana, una intención para la nueva y un ritual simple para conectar con vos misma.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -192,7 +212,7 @@ export default function HomeContent() {
           <div className="rounded-2xl border border-white/8 p-8" style={{ background: 'rgba(255,255,255,0.03)' }}>
             <p className="text-white/60 text-sm mb-2">Empezá hoy. Tu primer mensaje llega en minutos.</p>
             <div className="mb-6">
-              <span className="text-3xl font-extrabold text-white">$U 390</span>
+              <span className="text-3xl font-extrabold text-white">$U {precio}</span>
               <span className="text-white/55 text-sm ml-1">/mes · IVA incluido</span>
             </div>
             <Link

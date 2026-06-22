@@ -1,59 +1,62 @@
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
+import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
 
-const FAQS = [
-  {
-    q: '¿Qué recibo exactamente?',
-    a: 'Cada mañana recibís un mensaje de WhatsApp con: tu horóscopo diario personalizado por signo, un consejo según el foco que elegiste (amor, trabajo, bienestar o general), tu número de la suerte del día con una idea práctica, tu color del día con un significado, y una pausa breve para arrancar con calma.',
-  },
-  {
-    q: '¿Cuándo me llega el mensaje?',
-    a: 'Los mensajes se envían temprano a la mañana, generalmente entre las 7 y las 9 AM (hora de Uruguay). El horario puede variar levemente. El primer mensaje llega poco después de confirmar tu WhatsApp al suscribirte.',
-  },
-  {
-    q: '¿Necesito instalar alguna app?',
-    a: 'No. Todo llega directamente a tu WhatsApp, que ya tenés instalado. Sin apps nuevas, sin contraseñas, sin configuraciones adicionales.',
-  },
-  {
-    q: '¿Cuánto cuesta?',
-    a: 'La suscripción cuesta $U 390 por mes, IVA incluido. Sin cargos ocultos ni costos adicionales.',
-  },
-  {
-    q: '¿Cómo se paga?',
-    a: 'El pago se procesa de forma segura a través de Mercado Pago. Podés pagar con tarjeta de crédito, débito u otros medios disponibles en Mercado Pago para Uruguay.',
-  },
-  {
-    q: '¿Cómo cancelo?',
-    a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuoraculo.uy. Sin trámites complicados.',
-  },
-  {
-    q: '¿Qué pasa después de suscribirme?',
-    a: 'Una vez completado el pago, te enviamos un mensaje de bienvenida a tu WhatsApp. Respondés ese mensaje una vez para activar tu cuenta y a partir de la mañana siguiente empezás a recibir tu guía diaria.',
-  },
-  {
-    q: '¿Qué hago si no me llega el mensaje?',
-    a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuoraculo.uy.',
-  },
-  {
-    q: '¿Cómo pauso o cancelo los mensajes?',
-    a: 'Respondé "BAJA" a cualquier mensaje nuestro y te damos de baja de inmediato. También podés escribirnos directamente si preferís pausarlos por un tiempo.',
-  },
-  {
-    q: '¿El contenido es personalizado?',
-    a: 'Sí. Cada mensaje se construye con tu nombre, tu signo zodiacal y el foco que elegiste. No es un mensaje genérico enviado a todos — está pensado para vos.',
-  },
-  {
-    q: '¿Puedo cambiar mi foco o preferencia más adelante?',
-    a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuoraculo.uy y lo actualizamos.',
-  },
-  {
-    q: '¿Por qué me piden mi signo y mi preferencia?',
-    a: 'Para personalizar tu mensaje. Tu signo define el horóscopo y el tono general. Tu foco determina el consejo práctico del día. Sin esos datos, el mensaje sería igual para todos.',
-  },
-];
+export default async function FAQ() {
+  const precio = await getPrecioSuscripcion();
 
-export default function FAQ() {
+  const FAQS = [
+    {
+      q: '¿Qué recibo exactamente?',
+      a: 'Cada mañana recibís un mensaje de WhatsApp con: tu horóscopo diario personalizado por signo, un consejo según el foco que elegiste (amor, trabajo, bienestar o general), tu número de la suerte del día con una idea práctica, tu color del día con un significado, y una pausa breve para arrancar con calma.',
+    },
+    {
+      q: '¿Cuándo me llega el mensaje?',
+      a: 'Los mensajes se envían temprano a la mañana, generalmente entre las 7 y las 9 AM (hora de Uruguay). El horario puede variar levemente. El primer mensaje llega poco después de confirmar tu WhatsApp al suscribirte.',
+    },
+    {
+      q: '¿Necesito instalar alguna app?',
+      a: 'No. Todo llega directamente a tu WhatsApp, que ya tenés instalado. Sin apps nuevas, sin contraseñas, sin configuraciones adicionales.',
+    },
+    {
+      q: '¿Cuánto cuesta?',
+      a: `La suscripción cuesta $U ${precio} por mes, IVA incluido. Sin cargos ocultos ni costos adicionales.`,
+    },
+    {
+      q: '¿Cómo se paga?',
+      a: 'El pago se procesa de forma segura a través de Mercado Pago. Podés pagar con tarjeta de crédito, débito u otros medios disponibles en Mercado Pago para Uruguay.',
+    },
+    {
+      q: '¿Cómo cancelo?',
+      a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuoraculo.uy. Sin trámites complicados.',
+    },
+    {
+      q: '¿Qué pasa después de suscribirme?',
+      a: 'Una vez completado el pago, te enviamos un mensaje de bienvenida a tu WhatsApp. Respondés ese mensaje una vez para activar tu cuenta y a partir de la mañana siguiente empezás a recibir tu guía diaria.',
+    },
+    {
+      q: '¿Qué hago si no me llega el mensaje?',
+      a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuoraculo.uy.',
+    },
+    {
+      q: '¿Cómo pauso o cancelo los mensajes?',
+      a: 'Respondé "BAJA" a cualquier mensaje nuestro y te damos de baja de inmediato. También podés escribirnos directamente si preferís pausarlos por un tiempo.',
+    },
+    {
+      q: '¿El contenido es personalizado?',
+      a: 'Sí. Cada mensaje se construye con tu nombre, tu signo zodiacal y el foco que elegiste. No es un mensaje genérico enviado a todos — está pensado para vos.',
+    },
+    {
+      q: '¿Puedo cambiar mi foco o preferencia más adelante?',
+      a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuoraculo.uy y lo actualizamos.',
+    },
+    {
+      q: '¿Por qué me piden mi signo y mi preferencia?',
+      a: 'Para personalizar tu mensaje. Tu signo define el horóscopo y el tono general. Tu foco determina el consejo práctico del día. Sin esos datos, el mensaje sería igual para todos.',
+    },
+  ];
+
   return (
     <StaticPageLayout>
 
@@ -114,7 +117,7 @@ export default function FAQ() {
         >
           Activar mi guía diaria →
         </a>
-        <p className="mt-2 text-[12px] text-white/40">$U 390/mes · IVA incluido · Sin apps · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · IVA incluido · Sin apps · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>

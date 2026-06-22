@@ -1,5 +1,8 @@
-'use client'
+'use client';
+import { usePrecioSuscripcion } from '@/lib/usePrecioSuscripcion';
+
 export default function StickyCTA() {
+  const precio = usePrecioSuscripcion();
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 md:hidden">
       <div className="px-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
@@ -11,7 +14,7 @@ export default function StickyCTA() {
             boxShadow: '0 4px 20px rgba(109,40,217,0.40)',
           }}
         >
-          Activar por $U 390/mes →
+          Activar por $U {precio}/mes →
         </a>
       </div>
     </div>
