@@ -103,7 +103,7 @@ export default function HomeContent() {
               <div className="mt-6 grid grid-cols-2 gap-2 max-w-xs mx-auto md:mx-0">
                 {[
                   { icon: <Shield size={13} />, text: 'Datos protegidos' },
-                  { icon: <Sparkles size={13} />, text: 'Primer mensaje hoy' },
+                  { icon: <Sparkles size={13} />, text: 'Bienvenida en minutos' },
                   { icon: <CheckCircle2 size={13} />, text: 'Cancelás online' },
                   { icon: <MessageCircle size={13} />, text: 'Solo WhatsApp' },
                 ].map(item => (
@@ -152,7 +152,7 @@ export default function HomeContent() {
                 {
                   n: '2',
                   title: 'Activás en un clic',
-                  desc: 'Te mandamos un primer mensaje. Lo respondés una vez y tu cuenta queda activa.',
+                  desc: 'En minutos recibís tu mensaje de bienvenida. Respondé una vez y tu guía diaria arranca a la mañana siguiente.',
                 },
                 {
                   n: '3',
