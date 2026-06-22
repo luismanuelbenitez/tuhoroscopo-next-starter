@@ -8,7 +8,7 @@ import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkl
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
-const PRECIO_BASE = 590;
+// PRECIO_BASE is now passed as prop from the server page
 
 const PAISES = [
   { codigo: 'UY', bandera: '🇺🇾', prefijo: '+598', placeholder: '091234567',
@@ -79,7 +79,8 @@ function formatearTelefono(raw: string, pais: string): string {
 const inputBase =
   'w-full rounded-xl bg-white/8 px-4 py-3 ring-1 ring-white/15 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60';
 
-export default function TarotCheckoutContent({ temaInicial }: { temaInicial?: string }) {
+export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: { temaInicial?: string; precioBase?: number }) {
+  const PRECIO_BASE = precioBase;
   const temaValido = TEMAS.some(t => t.value === temaInicial) ? temaInicial! : '';
   const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido });
   const [pais, setPais]           = useState('UY');

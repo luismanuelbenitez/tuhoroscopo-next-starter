@@ -165,7 +165,7 @@ function PdfPageViewer({ width = 220 }: { width?: number }) {
   );
 }
 
-export default function TarotLandingContent() {
+export default function TarotLandingContent({ precioUYU = 590 }: { precioUYU?: number }) {
   return (
     <>
       <style jsx global>{`
@@ -224,7 +224,7 @@ export default function TarotLandingContent() {
                   className="rounded-full px-4 py-1.5 font-bold text-white"
                   style={{ background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.25)' }}
                 >
-                  $U 590<span className="font-normal" style={{ color: 'rgba(255,255,255,0.50)' }}> · pago único</span>
+                  $U {precioUYU}<span className="font-normal" style={{ color: 'rgba(255,255,255,0.50)' }}> · pago único</span>
                 </span>
                 <span className="text-white/30">·</span>
                 <span className="text-white/65">Sin suscripción</span>
@@ -487,7 +487,7 @@ export default function TarotLandingContent() {
             <p className="text-white/60 text-sm mb-1">Un pago único. Sin suscripción.</p>
             <p className="text-white/30 text-xs mb-4">Consultas presenciales: $U 2.000+. Acá, en minutos.</p>
             <div className="mb-6">
-              <span className="text-3xl font-extrabold text-white">$U 590</span>
+              <span className="text-3xl font-extrabold text-white">$U {precioUYU}</span>
               <span className="text-white/55 text-sm ml-1">· IVA incluido</span>
             </div>
             <Link

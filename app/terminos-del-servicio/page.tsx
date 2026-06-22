@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
 import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
+import { getPrecioTarot } from '@/lib/getPrecioTarot';
 
 export default async function TerminosServicio() {
-  const precio = await getPrecioSuscripcion();
+  const [precio, precioTarot] = await Promise.all([
+    getPrecioSuscripcion(),
+    getPrecioTarot(),
+  ]);
 
   const SECTIONS = [
     {
@@ -20,7 +24,7 @@ export default async function TerminosServicio() {
     },
     {
       title: '4. Tarot — Pago único',
-      content: 'Las lecturas de tarot son un producto de pago único de $U 590, IVA incluido, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.',
+      content: `Las lecturas de tarot son un producto de pago único de $U ${precioTarot}, IVA incluido, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
     },
     {
       title: '5. Contenido generado por inteligencia artificial',
