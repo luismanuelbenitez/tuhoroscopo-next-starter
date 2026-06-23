@@ -10,7 +10,10 @@ export async function getPrecioSuscripcion(fallback = 390): Promise<number> {
   if (!url || !key) return fallback;
 
   try {
-    const supabase = createClient(url, key, { auth: { persistSession: false } });
+    const supabase = createClient(url, key, {
+      auth: { persistSession: false },
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+    });
     const { data } = await supabase
       .from("config")
       .select("valor")

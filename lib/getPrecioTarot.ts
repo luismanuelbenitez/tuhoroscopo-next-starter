@@ -10,7 +10,10 @@ export async function getPrecioTarot(fallback = 590): Promise<number> {
   if (!url || !key) return fallback;
 
   try {
-    const supabase = createClient(url, key, { auth: { persistSession: false } });
+    const supabase = createClient(url, key, {
+      auth: { persistSession: false },
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+    });
     const { data } = await supabase
       .from("tarot_configuracion")
       .select("valor")
