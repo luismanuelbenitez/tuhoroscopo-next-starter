@@ -47,9 +47,48 @@ async function log(
   } catch { /* non-blocking */ }
 }
 
+// ── Analytics: funnel_events ─────────────────────────────────
+
+async function logFunnelEvent(event: {
+  order_id:      string;
+  session_id?:   string | null;
+  event_name:    string;
+  product_id?:   string | null;
+  product_name?: string | null;
+  value?:        number | null;
+  currency?:     string | null;
+  metadata?:     Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const { error } = await supabase.from("funnel_events").insert({
+      order_id:     event.order_id,
+      session_id:   event.session_id   ?? null,
+      event_name:   event.event_name,
+      product_id:   event.product_id   ?? "tarot_one_shot",
+      product_name: event.product_name ?? "Lectura de tarot personalizada",
+      value:        event.value        ?? null,
+      currency:     event.currency     ?? "UYU",
+      metadata:     event.metadata     ?? {},
+    });
+    if (error) {
+      console.warn("[analytics] funnel_events insert failed", {
+        event_name: event.event_name,
+        order_id:   event.order_id,
+        error:      error.message,
+      });
+    }
+  } catch (err) {
+    console.warn("[analytics] funnel_events unexpected error", {
+      event_name: event.event_name,
+      order_id:   event.order_id,
+      error:      err,
+    });
+  }
+}
+
 // ── Tipos internos ─────────────────────────────────────────────
 interface ConfigMap { [key: string]: string }
-interface Orden     { id: string; estado: string; cliente_id: string }
+interface Orden     { id: string; estado: string; cliente_id: string; funnel_session_id: string | null; external_reference: string | null }
 interface Pdf       { id: string; storage_url: string | null }
 interface Cliente   { id: string; telefono: string; nombre_completo: string | null }
 interface Envio     { id: string; numero_intento: number; estado: string }
@@ -92,7 +131,7 @@ serve(async (req) => {
     // ── 2. Orden ─────────────────────────────────────────────────
     const { data: orden } = await supabase
       .from("tarot_ordenes")
-      .select("id, estado, cliente_id")
+      .select("id, estado, cliente_id, funnel_session_id, external_reference")
       .eq("id", ordenId)
       .maybeSingle() as { data: Orden | null };
 
@@ -186,6 +225,19 @@ serve(async (req) => {
       `Iniciando envío WA (intento ${intento}/${maxReintentos}, sandbox=${esSandbox})`,
       { envio_id: envio?.id, pdf_id: pdf.id, telefono: telefonoDest });
 
+    if (!esSandbox) {
+      await logFunnelEvent({
+        order_id:   ordenId,
+        session_id: orden.funnel_session_id ?? null,
+        event_name: "whatsapp_send_started",
+        metadata: {
+          external_reference: orden.external_reference ?? null,
+          envio_id: envio?.id ?? null,
+          intento,
+        },
+      });
+    }
+
     // ── 7. Envío ───────────────────────────────────────────────────
     let waMessageId: string | null = null;
     let envioOk     = false;
@@ -269,6 +321,19 @@ serve(async (req) => {
         `PDF entregado por WhatsApp en ${durMs}ms`,
         { envio_id: envio?.id, wa_message_id: waMessageId, duracion_ms: durMs }, durMs);
 
+      if (!esSandbox) {
+        await logFunnelEvent({
+          order_id:   ordenId,
+          session_id: orden.funnel_session_id ?? null,
+          event_name: "whatsapp_sent",
+          metadata: {
+            external_reference: orden.external_reference ?? null,
+            wa_message_id: waMessageId,
+            duracion_ms:   durMs,
+          },
+        });
+      }
+
       return json({ ok: true, enviado: true, wa_message_id: waMessageId });
 
     } else {
@@ -289,6 +354,23 @@ serve(async (req) => {
         { error_code: errorCode, error_msg: errorMsg, respuesta: respuestaRaw, duracion_ms: durMs },
         durMs);
 
+      if (!esSandbox) {
+        await logFunnelEvent({
+          order_id:   ordenId,
+          session_id: orden.funnel_session_id ?? null,
+          event_name: "whatsapp_failed",
+          metadata: {
+            external_reference: orden.external_reference ?? null,
+            error_code:    errorCode,
+            error_message: errorMsg?.substring(0, 200) ?? null,
+            envio_id:      envio?.id ?? null,
+            intento,
+            estado_orden:  estadoOrden,
+            duracion_ms:   durMs,
+          },
+        });
+      }
+
       return json({
         ok: false,
         error: "WA_SEND_ERROR",
@@ -304,6 +386,17 @@ serve(async (req) => {
     await log(ordenId, "wa_excepcion", "error",
       "Excepción no controlada en ef_tarot_enviar_whatsapp",
       { error: errMsg, duracion_ms: durMs }, durMs);
+
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: null,
+      event_name: "whatsapp_failed",
+      metadata: {
+        error_code:    "WA_EXCEPTION",
+        error_message: errMsg.substring(0, 200),
+        duracion_ms:   durMs,
+      },
+    });
 
     try {
       await supabase.from("tarot_ordenes")

@@ -200,6 +200,45 @@ async function log(
   } catch (e) { console.error("tarot_logs insert fallo:", e); }
 }
 
+// ── Analytics: funnel_events ─────────────────────────────────
+
+async function logFunnelEvent(event: {
+  order_id:      string;
+  session_id?:   string | null;
+  event_name:    string;
+  product_id?:   string | null;
+  product_name?: string | null;
+  value?:        number | null;
+  currency?:     string | null;
+  metadata?:     Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const { error } = await supabase.from("funnel_events").insert({
+      order_id:     event.order_id,
+      session_id:   event.session_id   ?? null,
+      event_name:   event.event_name,
+      product_id:   event.product_id   ?? "tarot_one_shot",
+      product_name: event.product_name ?? "Lectura de tarot personalizada",
+      value:        event.value        ?? null,
+      currency:     event.currency     ?? "UYU",
+      metadata:     event.metadata     ?? {},
+    });
+    if (error) {
+      console.warn("[analytics] funnel_events insert failed", {
+        event_name: event.event_name,
+        order_id:   event.order_id,
+        error:      error.message,
+      });
+    }
+  } catch (err) {
+    console.warn("[analytics] funnel_events unexpected error", {
+      event_name: event.event_name,
+      order_id:   event.order_id,
+      error:      err,
+    });
+  }
+}
+
 // ── Helpers de texto ─────────────────────────────────────────
 function sanitize(text: string): string {
   return (text ?? "")
@@ -776,7 +815,7 @@ async function generarPDF(
 
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id")
+    .select("id, estado, cliente_id, funnel_session_id, external_reference")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -874,6 +913,19 @@ async function generarPDF(
   await log(ordenId, "pdf_iniciado", "info",
     `Iniciando generación PDF v7 ${PLANTILLA}${debug ? " [DEBUG]" : ""} (intento ${intento}/${maxR}) deck=${mazoId}`,
     { pdf_id: pdfId, lectura_id: lecturaId, force, debug, mazo_id: mazoId });
+
+  if (!debug) {
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "pdf_generation_started",
+      metadata: {
+        external_reference: orden.external_reference ?? null,
+        pdf_id:  pdfId,
+        intento,
+      },
+    });
+  }
 
   try {
     // ── Resolver imagen_storage_path por nombre_es ────────────
@@ -1052,6 +1104,21 @@ async function generarPDF(
       { pdf_id: pdfId, storage_path: storagePath, url: urlFirmada,
         tamano_bytes: bytes.length, debug, duracion_ms: durMs }, durMs);
 
+    if (!debug) {
+      await logFunnelEvent({
+        order_id:   ordenId,
+        session_id: orden.funnel_session_id ?? null,
+        event_name: "pdf_generated",
+        metadata: {
+          external_reference: orden.external_reference ?? null,
+          pdf_id:       pdfId,
+          storage_path: storagePath,
+          tamano_bytes: bytes.length,
+          duracion_ms:  durMs,
+        },
+      });
+    }
+
     // Sprint 5 — Disparar envío WhatsApp (fire-and-forget, solo en modo normal)
     if (!debug) {
       const internalHeaders = {
@@ -1090,6 +1157,21 @@ async function generarPDF(
       "Error generando PDF v7 (intento " + intento + "/" + maxR + ")",
       { error: errMsg, pdf_id: pdfId, intento, estado_orden: estadoOrden, duracion_ms: durMs },
       durMs);
+
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "pdf_generation_failed",
+      metadata: {
+        external_reference: orden.external_reference ?? null,
+        error_code:    "PDF_ERROR",
+        error_message: errMsg.substring(0, 200),
+        pdf_id:        pdfId,
+        intento,
+        estado_orden:  estadoOrden,
+        duracion_ms:   durMs,
+      },
+    });
   }
 }
 

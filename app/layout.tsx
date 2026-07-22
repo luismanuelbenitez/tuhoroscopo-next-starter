@@ -3,6 +3,8 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { headers } from "next/headers";
+import { GoogleAnalytics } from "@next/third-parties/google";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuoraculo.uy"),
@@ -38,9 +40,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <body className="bg-cosmic min-h-screen flex flex-col">
+        <AnalyticsProvider />
         {!isAdmin && <Header />}
         <main className="flex-1">{children}</main>
         {!isAdmin && <Footer />}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+        )}
       </body>
     </html>
   );

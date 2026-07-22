@@ -32,6 +32,45 @@ const ESTADOS_YA_PROCESADOS = new Set([
   "entregado",
 ]);
 
+// ── Analytics: funnel_events ─────────────────────────────────
+
+async function logFunnelEvent(event: {
+  order_id:     string;
+  session_id?:  string | null;
+  event_name:   string;
+  product_id?:  string | null;
+  product_name?: string | null;
+  value?:       number | null;
+  currency?:    string | null;
+  metadata?:    Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const { error } = await supabase.from("funnel_events").insert({
+      order_id:     event.order_id,
+      session_id:   event.session_id   ?? null,
+      event_name:   event.event_name,
+      product_id:   event.product_id   ?? "tarot_one_shot",
+      product_name: event.product_name ?? "Lectura de tarot personalizada",
+      value:        event.value        ?? null,
+      currency:     event.currency     ?? "UYU",
+      metadata:     event.metadata     ?? {},
+    });
+    if (error) {
+      console.warn("[analytics] funnel_events insert failed", {
+        event_name: event.event_name,
+        order_id:   event.order_id,
+        error:      error.message,
+      });
+    }
+  } catch (err) {
+    console.warn("[analytics] funnel_events unexpected error", {
+      event_name: event.event_name,
+      order_id:   event.order_id,
+      error:      err,
+    });
+  }
+}
+
 // ── Logging ──────────────────────────────────────────────────
 
 async function registrarLog(
@@ -112,7 +151,7 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
   // 3) Buscar la orden en la BD
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id")
+    .select("id, estado, cliente_id, funnel_session_id")
     .eq("external_reference", externalRef)
     .maybeSingle();
 
@@ -168,6 +207,20 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       { payment_id: paymentId, mp_status: mpStatus, duracion_ms: Date.now() - t0 },
       ip, Date.now() - t0);
 
+    await logFunnelEvent({
+      order_id:     ordenId,
+      session_id:   orden.funnel_session_id ?? null,
+      event_name:   "payment_approved",
+      value:        pay.transaction_amount ?? null,
+      currency:     pay.currency_id ?? "UYU",
+      metadata: {
+        mp_payment_id:     String(paymentId),
+        external_reference: externalRef,
+        mp_status,
+        mp_status_detail:  mpStatusDetail,
+      },
+    });
+
     // ── Disparar ef_tarot_generar_lectura (fire-and-forget) ──
     const lecturaUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_lectura`;
     fetch(lecturaUrl, {
@@ -219,6 +272,18 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       "Pago rechazado o cancelado",
       { payment_id: paymentId, mp_status: mpStatus, mp_status_detail: mpStatusDetail }, ip);
 
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "payment_rejected",
+      metadata: {
+        mp_payment_id:     String(paymentId),
+        external_reference: externalRef,
+        mp_status,
+        mp_status_detail:  mpStatusDetail,
+      },
+    });
+
     // ── Liberar código de descuento reservado si existe (fire-and-forget) ──
     const { data: usoReservadoRej } = await supabase
       .from("tarot_codigos_descuento_usos")
@@ -251,6 +316,17 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
     await registrarLog(ordenId, "pago_pendiente", "info",
       `Pago en estado intermedio: ${mpStatus}`,
       { payment_id: paymentId, mp_status: mpStatus }, ip);
+
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "payment_pending",
+      metadata: {
+        mp_payment_id:     String(paymentId),
+        external_reference: externalRef,
+        mp_status,
+      },
+    });
   }
 }
 

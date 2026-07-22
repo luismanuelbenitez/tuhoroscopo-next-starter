@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { Loader2, Lock, Shield, Sparkles, CheckCircle2, MessageCircle, Tag, X } from 'lucide-react';
 import LeadFormFields from '@/components/LeadFormFields';
 
@@ -45,6 +45,13 @@ export default function CheckoutContent({ precioBase = 390 }: { precioBase?: num
   const [codigoLoading, setCodigoLoading] = useState(false);
   const [codigoError, setCodigoError] = useState<string | null>(null);
   const [descuento, setDescuento] = useState<DescuentoAplicado | null>(null);
+
+  useEffect(() => {
+    import('@/lib/analytics').then(({ trackBeginCheckout }) => {
+      trackBeginCheckout('horoscopo', precioBase);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

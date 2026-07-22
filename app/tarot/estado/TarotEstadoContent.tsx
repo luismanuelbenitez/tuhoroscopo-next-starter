@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { trackPurchase } from "@/lib/analytics";
 import confetti from "canvas-confetti";
 import { Loader2, Layers, Eye, Lightbulb, FileText } from "lucide-react";
 
@@ -51,19 +52,31 @@ export default function TarotEstadoContent() {
   }, []);
 
   useEffect(() => {
-    // Log fire-and-forget — evidencia de que el usuario completó el flujo MP
-    try {
-      fetch("/api/tarot/log-retorno", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          external_reference: externalReference,
-          estado: estadoParam,
-          mp_status: mpStatus,
-          params: Object.fromEntries(sp.entries()),
-        }),
-      });
-    } catch { /* fire-and-forget */ }
+    // Verifica estado real de la orden en el servidor.
+    // El servidor setea analytics_purchase_sent_at atómicamente para evitar doble conteo.
+    (async () => {
+      try {
+        const res = await fetch("/api/tarot/log-retorno", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            external_reference: externalReference,
+            estado:             estadoParam,
+            mp_status:          mpStatus,
+            params:             Object.fromEntries(sp.entries()),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.can_fire_purchase && data.transaction_id) {
+          trackPurchase({
+            transactionId: data.transaction_id,
+            productKey:    "tarot",
+            value:         data.value ?? 590,
+            currency:      data.currency ?? "UYU",
+          });
+        }
+      } catch { /* best-effort, no bloquea la UI */ }
+    })();
 
     const exitosos   = ["exitoso"];
     const mpOk       = ["approved", "authorized", "active"];

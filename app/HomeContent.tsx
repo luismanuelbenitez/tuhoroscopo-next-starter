@@ -17,6 +17,14 @@ export default function HomeContent() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    import('@/lib/analytics').then(({ trackViewItem, trackLandingViewed }) => {
+      trackViewItem('horoscopo', precio ?? undefined);
+      trackLandingViewed('horoscopo');
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       {/*

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Layers, FileText, MessageCircle, Sparkles, Clock, ShieldCheck, Target, User, BookOpen, Scale } from 'lucide-react';
+import { trackViewItem, trackLandingViewed } from '@/lib/analytics';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -37,29 +38,6 @@ const PDF_PAGES = [
   { src: '/img/tarot/pdf-p3.jpg', label: 'Mensaje final' },
 ];
 
-const TESTIMONIALS = [
-  {
-    quote: 'No esperaba que fuera tan personalizado. Las cartas describieron exactamente lo que estaba viviendo.',
-    name: 'Valentina R.',
-    city: 'Montevideo',
-    tema: 'Amor',
-    avatar: '/img/tarot/avatar-valentina.jpg',
-  },
-  {
-    quote: 'Me llegó en menos de 10 minutos. El PDF es precioso y me dio mucha claridad sobre mi situación laboral.',
-    name: 'Marcela G.',
-    city: 'Punta del Este',
-    tema: 'Trabajo',
-    avatar: '/img/tarot/avatar-marcela.jpg',
-  },
-  {
-    quote: 'Lo compré sin saber bien qué esperar y quedé sorprendida. Lo recomendé a dos amigas esa misma noche.',
-    name: 'Daniela F.',
-    city: 'Salto',
-    tema: 'Situación general',
-    avatar: '/img/tarot/avatar-daniela.jpg',
-  },
-];
 
 const FAQ_ITEMS = [
   {
@@ -166,6 +144,12 @@ function PdfPageViewer({ width = 220 }: { width?: number }) {
 }
 
 export default function TarotLandingContent({ precioUYU = 590 }: { precioUYU?: number }) {
+  useEffect(() => {
+    trackViewItem('tarot', precioUYU);
+    trackLandingViewed('tarot');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <style jsx global>{`
@@ -393,49 +377,45 @@ export default function TarotLandingContent({ precioUYU = 590 }: { precioUYU?: n
           </div>
         </div>
 
-        {/* ── Testimonios ──────────────────────────────────────────── */}
+        {/* ── Antes de comprar ─────────────────────────────────────── */}
         <div className="relative mx-auto max-w-4xl px-4 pb-12 md:pb-16" style={{ zIndex: 1 }}>
           <div className="border-t border-white/8 pt-10">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-center mb-2" style={{ color: GOLD_DIM }}>
-              Experiencias reales
+              Antes de comprar
             </p>
             <h2 className="text-center text-white text-xl md:text-2xl font-bold mb-8">
-              Lo que sintieron después de su lectura.
+              Lo que necesitás saber.
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {TESTIMONIALS.map((t) => (
-                <div
-                  key={t.name}
-                  className="rounded-2xl p-5 flex flex-col gap-3"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <p className="text-white/70 text-sm leading-relaxed italic flex-1">&ldquo;{t.quote}&rdquo;</p>
-                  <div
-                    className="flex items-center justify-between gap-2 pt-2"
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', border: '1.5px solid rgba(251,191,36,0.35)', flexShrink: 0 }}>
-                        <Image src={t.avatar} alt={t.name} width={32} height={32} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
-                      </div>
-                      <div>
-                        <p className="text-white/90 text-xs font-semibold">{t.name}</p>
-                        <p className="text-white/40 text-xs">{t.city}</p>
-                      </div>
-                    </div>
-                    <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
-                      style={{ background: 'rgba(251,191,36,0.10)', color: GOLD_DIM, border: '1px solid rgba(251,191,36,0.20)' }}
-                    >
-                      {t.tema}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Sparkles size={20} style={{ color: GOLD_DIM }} className="mb-3" />
+                <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>Lectura generada con IA</p>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  La lectura la construye una inteligencia artificial usando simbología del tarot clásico. No hay un tarotista humano detrás. Si buscás esa perspectiva simbólica, es para vos.
+                </p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <MessageCircle size={20} style={{ color: GOLD_DIM }} className="mb-3" />
+                <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>Llega a tu WhatsApp</p>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Recibís el PDF en el número que registrás. Normalmente en menos de 15 minutos. Si en 20 minutos no llegó nada, escribinos y lo resolvemos de inmediato.
+                </p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <ShieldCheck size={20} style={{ color: GOLD_DIM }} className="mb-3" />
+                <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>Un pago único, sin suscripción</p>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Pagás una vez por una consulta. Sin renovaciones automáticas ni cobros recurrentes. Podés volver a comprar cuando quieras, sin compromiso.
+                </p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Clock size={20} style={{ color: GOLD_DIM }} className="mb-3" />
+                <p className="text-sm font-semibold mb-1" style={{ color: GOLD }}>Pago por Mercado Pago</p>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  El pago se procesa de forma segura a través de Mercado Pago. Podés pagar con tarjeta, saldo de cuenta o transferencia. Tus datos bancarios nunca pasan por nuestros servidores.
+                </p>
+              </div>
             </div>
-            <p className="text-center mt-6 text-[10px]" style={{ color: 'rgba(255,255,255,0.18)' }}>
-              * Experiencias ilustrativas del tipo de lectura que entregamos. Producto en lanzamiento.
-            </p>
           </div>
         </div>
 

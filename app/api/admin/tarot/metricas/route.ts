@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getEnv() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,6 +13,7 @@ function getEnv() {
   return { supabaseUrl, serviceRoleKey };
 }
 
+// Cuenta filas usando el header content-range de PostgREST (sin traer datos).
 async function countTable(
   base: string,
   table: string,
@@ -24,7 +28,34 @@ async function countTable(
   return match ? parseInt(match[1], 10) : 0;
 }
 
-export async function GET() {
+// Filtra funnel_events a tarot solamente.
+// product_id = 'tarot_one_shot' cubre eventos de EFs (siempre lo setean) y
+// frontend (trackViewItem/trackBeginCheckout/trackLandingViewed pasados con key='tarot').
+// El OR con path cubre landing_viewed si product_id llegó null por alguna razón.
+function funnelFilter(eventName: string, cutoffISO: string): string {
+  return (
+    `event_name=eq.${eventName}` +
+    `&created_at=gte.${cutoffISO}` +
+    `&or=(product_id.eq.tarot_one_shot,path.like./tarot*)`
+  );
+}
+
+// Devuelve proporción redondeada a 4 decimales. 0 si divisor = 0.
+function safeRate(num: number, den: number): number {
+  if (den === 0) return 0;
+  return Math.round((num / den) * 10000) / 10000;
+}
+
+const VALID_PERIODS = new Set([1, 7, 30, 90]);
+
+const ESTADOS_PAGADO = [
+  "pago_confirmado", "generando_lectura", "lectura_lista",
+  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
+];
+
+// ── GET ───────────────────────────────────────────────────────────────────────
+
+export async function GET(req: NextRequest) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
 
@@ -33,59 +64,141 @@ export async function GET() {
 
   const { supabaseUrl, serviceRoleKey } = env;
   const base = `${supabaseUrl}/rest/v1`;
-  const headers = {
-    apikey: serviceRoleKey,
+  const restHeaders = {
+    apikey:        serviceRoleKey,
     Authorization: `Bearer ${serviceRoleKey}`,
   };
 
-  const hoyISO = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
-  const ESTADOS_PAGADO = "pago_confirmado,generando_lectura,lectura_lista,generando_pdf,pdf_listo,enviando_whatsapp,entregado";
-  const ESTADOS_ERROR = "error_lectura,error_pdf,error_whatsapp,error_critico";
+  const periodoParam = parseInt(req.nextUrl.searchParams.get("periodo") ?? "30", 10);
+  const periodoDias  = VALID_PERIODS.has(periodoParam) ? periodoParam : 30;
+  const cutoffISO    = new Date(Date.now() - periodoDias * 24 * 60 * 60 * 1000).toISOString();
+
+  const hoyISO      = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const ESTADOS_ERR = "error_lectura,error_pdf,error_whatsapp,error_critico";
 
   try {
+    // ── Todas las counts en una sola ronda paralela ────────────────────────
     const [
-      totalOrdenes,
-      ordenesHoy,
-      ordenesPagadas,
-      ordenesCompletadas,
-      ordenesError,
-      totalLecturas,
-      lecturasHoy,
-      totalPdfs,
-      pdfsHoy,
+      totalOrdenes, ordenesHoy, ordenesPagadas, ordenesCompletadas, ordenesError,
+      totalLecturas, lecturasHoy,
+      totalPdfs, pdfsHoy,
       totalClientes,
+      cVisitas, cProducto, cCheckout, cPagos,
+      cLecturaOk, cPdfOk, cWaOk,
+      cLecturaFail, cPdfFail, cWaFail,
+      cReclamosTotal, cReclamosAbiertos,
     ] = await Promise.all([
-      countTable(base, "tarot_ordenes", "", headers),
-      countTable(base, "tarot_ordenes", `created_at=gte.${hoyISO}`, headers),
-      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_PAGADO})`, headers),
-      countTable(base, "tarot_ordenes", "estado=eq.entregado", headers),
-      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_ERROR})`, headers),
-      countTable(base, "tarot_lecturas", "es_vigente=eq.true", headers),
-      countTable(base, "tarot_lecturas", `es_vigente=eq.true&created_at=gte.${hoyISO}`, headers),
-      countTable(base, "tarot_pdfs", "estado=eq.generado", headers),
-      countTable(base, "tarot_pdfs", `estado=eq.generado&created_at=gte.${hoyISO}`, headers),
-      countTable(base, "tarot_clientes", "", headers),
+      // Métricas existentes (sin cambios)
+      countTable(base, "tarot_ordenes", "", restHeaders),
+      countTable(base, "tarot_ordenes", `created_at=gte.${hoyISO}`, restHeaders),
+      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_PAGADO.join(",")})`, restHeaders),
+      countTable(base, "tarot_ordenes", "estado=eq.entregado", restHeaders),
+      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_ERR})`, restHeaders),
+      countTable(base, "tarot_lecturas", "es_vigente=eq.true", restHeaders),
+      countTable(base, "tarot_lecturas", `es_vigente=eq.true&created_at=gte.${hoyISO}`, restHeaders),
+      countTable(base, "tarot_pdfs", "estado=eq.generado", restHeaders),
+      countTable(base, "tarot_pdfs", `estado=eq.generado&created_at=gte.${hoyISO}`, restHeaders),
+      countTable(base, "tarot_clientes", "", restHeaders),
+      // Funnel de validación — conteos de funnel_events
+      countTable(base, "funnel_events", funnelFilter("landing_viewed",        cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("product_viewed",         cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("checkout_started",       cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("payment_approved",       cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("generation_succeeded",   cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("pdf_generated",          cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("whatsapp_sent",          cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("generation_failed",      cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("pdf_generation_failed",  cutoffISO), restHeaders),
+      countTable(base, "funnel_events", funnelFilter("whatsapp_failed",        cutoffISO), restHeaders),
+      // Reclamos desde tarot_ordenes — filtrados por período (igual que UTM y funnel)
+      countTable(base, "tarot_ordenes", `has_complaint=eq.true&created_at=gte.${cutoffISO}`, restHeaders),
+      countTable(base, "tarot_ordenes", `has_complaint=eq.true&follow_up_status=is.null&created_at=gte.${cutoffISO}`, restHeaders),
     ]);
 
+    // ── UTM: fuente autoritativa = columnas de tarot_ordenes ─────────────
+    // No usamos funnel_events.metadata para UTM — la orden tiene los valores nativamente.
+    // Fallback metadata solo si en el futuro tarot_ordenes.utm_source estuviera vacío.
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    const { data: ordenesUtm } = await supabase
+      .from("tarot_ordenes")
+      .select("utm_source, utm_campaign, precio_cobrado, moneda")
+      .in("estado", ESTADOS_PAGADO)
+      .gte("created_at", cutoffISO);
+
+    type UtmEntry = { utm_source: string; utm_campaign: string | null; ventas: number; total_uyu: number };
+    const utmMap = new Map<string, UtmEntry>();
+    for (const o of (ordenesUtm ?? [])) {
+      const src = (o.utm_source  as string | null) ?? "(directo)";
+      const cmp = (o.utm_campaign as string | null) ?? null;
+      const key = `${src}::${cmp ?? ""}`;
+      const cur = utmMap.get(key);
+      const monto = (o.moneda as string) === "UYU" ? Number(o.precio_cobrado ?? 0) : 0;
+      if (cur) {
+        cur.ventas    += 1;
+        cur.total_uyu += monto;
+      } else {
+        utmMap.set(key, { utm_source: src, utm_campaign: cmp, ventas: 1, total_uyu: monto });
+      }
+    }
+    const ventasPorUtm = Array.from(utmMap.values())
+      .sort((a, b) => b.ventas - a.ventas)
+      .slice(0, 10);
+
+    // ── Clientes recurrentes (histórico completo, sin filtro de período) ──
+    // Definición: clientes con más de una orden en tarot_ordenes (cualquier estado).
+    // Se mide históricamente porque un cliente que repitió siempre es relevante.
+    const { data: todasOrdenes } = await supabase
+      .from("tarot_ordenes")
+      .select("cliente_id");
+
+    let clientesRecurrentes = 0;
+    if (todasOrdenes && todasOrdenes.length > 0) {
+      const conteo = new Map<string, number>();
+      for (const o of todasOrdenes) {
+        if (o.cliente_id) conteo.set(o.cliente_id, (conteo.get(o.cliente_id) ?? 0) + 1);
+      }
+      clientesRecurrentes = Array.from(conteo.values()).filter((c) => c > 1).length;
+    }
+
+    // ── Respuesta ─────────────────────────────────────────────────────────
     return NextResponse.json({
       ok: true,
+      // Campos existentes — sin cambios para no romper el dashboard actual
       ordenes: {
-        total: totalOrdenes,
-        hoy: ordenesHoy,
-        pagadas: ordenesPagadas,
+        total:      totalOrdenes,
+        hoy:        ordenesHoy,
+        pagadas:    ordenesPagadas,
         completadas: ordenesCompletadas,
-        con_error: ordenesError,
+        con_error:  ordenesError,
       },
-      lecturas: {
-        total: totalLecturas,
-        hoy: lecturasHoy,
+      lecturas: { total: totalLecturas, hoy: lecturasHoy },
+      pdfs:     { total: totalPdfs,     hoy: pdfsHoy     },
+      clientes: { total: totalClientes },
+      // Campos nuevos S6
+      funnel: {
+        periodo_dias:         periodoDias,
+        visitas:              cVisitas,
+        vistas_producto:      cProducto,
+        checkout_iniciado:    cCheckout,
+        pagos_aprobados:      cPagos,
+        lectura_ok:           cLecturaOk,
+        pdf_ok:               cPdfOk,
+        whatsapp_ok:          cWaOk,
+        lectura_fallida:      cLecturaFail,
+        pdf_fallido:          cPdfFail,
+        whatsapp_fallido:     cWaFail,
+        conv_visita_a_pago:   safeRate(cPagos,    cVisitas),
+        conv_checkout_a_pago: safeRate(cPagos,    cCheckout),
+        conv_pago_a_whatsapp: safeRate(cWaOk,     cPagos),
+        clientes_recurrentes: clientesRecurrentes,
       },
-      pdfs: {
-        total: totalPdfs,
-        hoy: pdfsHoy,
-      },
-      clientes: {
-        total: totalClientes,
+      ventas_por_utm: ventasPorUtm,
+      reclamos: {
+        total:    cReclamosTotal,
+        abiertos: cReclamosAbiertos,
       },
     });
   } catch (e: unknown) {

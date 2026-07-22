@@ -134,6 +134,45 @@ async function registrarLog(
   }
 }
 
+// ── Analytics: funnel_events ─────────────────────────────────
+
+async function logFunnelEvent(event: {
+  order_id:      string;
+  session_id?:   string | null;
+  event_name:    string;
+  product_id?:   string | null;
+  product_name?: string | null;
+  value?:        number | null;
+  currency?:     string | null;
+  metadata?:     Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const { error } = await supabase.from("funnel_events").insert({
+      order_id:     event.order_id,
+      session_id:   event.session_id   ?? null,
+      event_name:   event.event_name,
+      product_id:   event.product_id   ?? "tarot_one_shot",
+      product_name: event.product_name ?? "Lectura de tarot personalizada",
+      value:        event.value        ?? null,
+      currency:     event.currency     ?? "UYU",
+      metadata:     event.metadata     ?? {},
+    });
+    if (error) {
+      console.warn("[analytics] funnel_events insert failed", {
+        event_name: event.event_name,
+        order_id:   event.order_id,
+        error:      error.message,
+      });
+    }
+  } catch (err) {
+    console.warn("[analytics] funnel_events unexpected error", {
+      event_name: event.event_name,
+      order_id:   event.order_id,
+      error:      err,
+    });
+  }
+}
+
 // ── Fisher-Yates shuffle ─────────────────────────────────────
 
 function shuffle<T>(arr: T[]): T[] {
@@ -255,7 +294,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   // 1. Fetch orden + slug del mazo (necesario para pasar deck al PDF EF)
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, tarot_mazos(slug)")
+    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, funnel_session_id, external_reference, tarot_mazos(slug)")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -479,6 +518,19 @@ async function generarLectura(ordenId: string): Promise<void> {
       cartas: cartasSeleccionadas.map((c) => ({ nombre: c.nombre_es, invertida: c.invertida })),
     });
 
+  await logFunnelEvent({
+    order_id:   ordenId,
+    session_id: orden.funnel_session_id ?? null,
+    event_name: "generation_started",
+    metadata: {
+      external_reference: orden.external_reference ?? null,
+      lectura_id:         lecturaId,
+      modelo_ia:          iaModelo,
+      intento:            numeroIntento,
+      max_reintentos:     maxReintentos,
+    },
+  });
+
   // 13. Llamada a Anthropic API
   try {
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -619,6 +671,21 @@ async function generarLectura(ordenId: string): Promise<void> {
       duracionMs,
     );
 
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "generation_succeeded",
+      metadata: {
+        external_reference: orden.external_reference ?? null,
+        lectura_id:         lecturaId,
+        duracion_ms:        duracionMs,
+        tokens_entrada:     tokensEntrada,
+        tokens_salida:      tokensSalida,
+        costo_usd:          costoUsd,
+        intento:            numeroIntento,
+      },
+    });
+
     // 18. Disparar ef_tarot_generar_pdf (fire-and-forget)
     const pdfUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_pdf`;
     fetch(pdfUrl, {
@@ -671,6 +738,21 @@ async function generarLectura(ordenId: string): Promise<void> {
       },
       duracionMs,
     );
+
+    await logFunnelEvent({
+      order_id:   ordenId,
+      session_id: orden.funnel_session_id ?? null,
+      event_name: "generation_failed",
+      metadata: {
+        external_reference: orden.external_reference ?? null,
+        error_code:         "IA_ERROR",
+        error_message:      errMsg.substring(0, 200),
+        lectura_id:         lecturaId,
+        intento:            numeroIntento,
+        estado_orden:       estadoOrden,
+        duracion_ms:        duracionMs,
+      },
+    });
   }
 }
 

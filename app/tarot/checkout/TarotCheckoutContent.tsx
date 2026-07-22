@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import Image from 'next/image';
@@ -96,6 +96,13 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
   const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
 
   const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
+
+  useEffect(() => {
+    import('@/lib/analytics').then(({ trackBeginCheckout }) => {
+      trackBeginCheckout('tarot', PRECIO_BASE);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
