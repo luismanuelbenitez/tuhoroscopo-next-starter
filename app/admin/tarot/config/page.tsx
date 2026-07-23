@@ -37,8 +37,10 @@ interface ProductoConfig {
 }
 
 interface EnvStatus {
-  whatsapp_token_configurado: boolean;
-  whatsapp_phone_id_configurado: boolean;
+  whatsapp_token_configurado?: boolean;
+  whatsapp_phone_id_configurado?: boolean;
+  source?: string;
+  ef_unreachable?: boolean;
 }
 
 // ============================================================================
@@ -516,8 +518,10 @@ export default function TarotConfigPage() {
     const fallback    = configMap.fallback_email_si_falla_whatsapp !== "false";
     if (!waActivo && !emailActivo)
       warns.push("Ningún canal activo — los clientes no recibirán el producto.");
-    if (debeWa && !envStatus.whatsapp_token_configurado)
-      warns.push("WhatsApp activo pero WHATSAPP_TOKEN no detectado en entorno Next.js. Verificar variables de entorno de Vercel.");
+    if (debeWa && envStatus.ef_unreachable)
+      warns.push("No se pudo verificar el estado de los secrets de WhatsApp (EF no alcanzable).");
+    else if (debeWa && !envStatus.whatsapp_token_configurado)
+      warns.push("WhatsApp activo pero WHATSAPP_TOKEN no detectado en Supabase Edge Secrets. Configurar con: supabase secrets set WHATSAPP_TOKEN=...");
     if (canal === "whatsapp" && !emailActivo && fallback)
       warns.push("Fallback a email activado pero email desactivado — el fallback no funcionará.");
     return warns;
@@ -627,23 +631,30 @@ export default function TarotConfigPage() {
               <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-800/60">
                   <span className="text-sm font-semibold text-gray-200">Estado de integración WhatsApp</span>
+                  <span className="ml-2 text-xs text-gray-500">— Supabase Edge Functions</span>
                 </div>
-                <div className="divide-y divide-gray-800/40">
-                  <div className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_TOKEN</span>
-                    <span className={`text-sm font-mono ${envStatus.whatsapp_token_configurado ? "text-emerald-400" : "text-red-400"}`}>
-                      {envStatus.whatsapp_token_configurado ? "✓ Configurado" : "✗ No detectado"}
-                    </span>
+                {envStatus.ef_unreachable ? (
+                  <p className="px-4 py-3 text-xs text-amber-400">
+                    No se pudo consultar el estado de los secrets (EF no alcanzable). El envío puede funcionar igual si los secrets están configurados.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-gray-800/40">
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_TOKEN</span>
+                      <span className={`text-sm font-mono ${envStatus.whatsapp_token_configurado ? "text-emerald-400" : "text-red-400"}`}>
+                        {envStatus.whatsapp_token_configurado ? "✓ Configurado" : "✗ No detectado"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_PHONE_NUMBER_ID</span>
+                      <span className={`text-sm font-mono ${envStatus.whatsapp_phone_id_configurado ? "text-emerald-400" : "text-red-400"}`}>
+                        {envStatus.whatsapp_phone_id_configurado ? "✓ Configurado" : "✗ No detectado"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_PHONE_NUMBER_ID</span>
-                    <span className={`text-sm font-mono ${envStatus.whatsapp_phone_id_configurado ? "text-emerald-400" : "text-red-400"}`}>
-                      {envStatus.whatsapp_phone_id_configurado ? "✓ Configurado" : "✗ No detectado"}
-                    </span>
-                  </div>
-                </div>
+                )}
                 <p className="px-4 py-2 text-xs text-gray-600">
-                  Indica si las variables están presentes en el entorno Next.js. Los secrets de las Edge Functions se configuran por separado con <code>supabase secrets set</code>.
+                  Estas variables se verifican en el entorno de Supabase Edge Functions, que es donde se ejecuta el envío real de WhatsApp. Configurar con <code>supabase secrets set</code>.
                 </p>
                 {waWarnings.length > 0 && (
                   <div className="border-t border-amber-900/40 bg-amber-950/20 px-4 py-3 space-y-1">

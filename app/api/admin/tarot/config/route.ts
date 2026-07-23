@@ -46,10 +46,32 @@ export async function GET(_req: NextRequest) {
 
   const data = rows.filter((r) => !CLAVES_OCULTAS.has(r.clave));
 
-  const envStatus = {
-    whatsapp_token_configurado:    !!process.env.WHATSAPP_TOKEN,
-    whatsapp_phone_id_configurado: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
-  };
+  // Consulta el estado de los secrets desde el runtime de Supabase Edge Functions,
+  // que es donde realmente ocurre el envío de WhatsApp.
+  // Timeout de 5s para no bloquear la carga del panel si la EF no responde.
+  let envStatus: Record<string, unknown> = { ef_unreachable: true };
+  try {
+    const efRes = await fetch(
+      `${supabaseUrl}/functions/v1/ef_tarot_env_status`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${serviceRoleKey}` },
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (efRes.ok) {
+      const efData = await efRes.json().catch(() => null);
+      if (efData?.ok) {
+        envStatus = {
+          whatsapp_token_configurado:          efData.whatsapp_token_configurado,
+          whatsapp_phone_id_configurado:       efData.whatsapp_phone_number_id_configurado,
+          source:                              "supabase_edge_secrets",
+        };
+      }
+    }
+  } catch {
+    // timeout o EF no disponible — el panel mostrará estado indeterminado
+  }
 
   return NextResponse.json({ ok: true, data, env_status: envStatus });
 }
