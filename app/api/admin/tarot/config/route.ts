@@ -46,7 +46,12 @@ export async function GET(_req: NextRequest) {
 
   const data = rows.filter((r) => !CLAVES_OCULTAS.has(r.clave));
 
-  return NextResponse.json({ ok: true, data });
+  const envStatus = {
+    whatsapp_token_configurado:    !!process.env.WHATSAPP_TOKEN,
+    whatsapp_phone_id_configurado: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
+  };
+
+  return NextResponse.json({ ok: true, data, env_status: envStatus });
 }
 
 export async function PATCH(req: NextRequest) {

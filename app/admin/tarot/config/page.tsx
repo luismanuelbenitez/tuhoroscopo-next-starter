@@ -36,6 +36,11 @@ interface ProductoConfig {
   updated_at: string | null;
 }
 
+interface EnvStatus {
+  whatsapp_token_configurado: boolean;
+  whatsapp_phone_id_configurado: boolean;
+}
+
 // ============================================================================
 // Config groups definition
 // ============================================================================
@@ -91,6 +96,31 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
         helpText: 'Cambiá a "production" para envíos reales por WhatsApp.' },
       { clave: "wa_proveedor",      label: "Proveedor",      tipo: "text" },
       { clave: "max_reintentos_wa", label: "Reintentos WA",  tipo: "number", min: 1, max: 10 },
+    ],
+  },
+  {
+    titulo: "Entrega del producto",
+    campos: [
+      { clave: "canal_entrega_principal",
+        label: "Canal principal",
+        tipo: "select" as const,
+        opciones: ["both", "whatsapp", "email"],
+        helpText: '"both" envía por WA y email. "whatsapp" usa WA con fallback a email si falla. "email" solo email.' },
+      { clave: "envio_whatsapp_activo",
+        label: "WhatsApp activo",
+        tipo: "select" as const,
+        opciones: ["true", "false"],
+        helpText: '"false" omite el envío por WA independientemente del canal configurado.' },
+      { clave: "envio_email_activo",
+        label: "Email activo",
+        tipo: "select" as const,
+        opciones: ["true", "false"],
+        helpText: '"false" omite el envío por email (el fallback tampoco funcionará).' },
+      { clave: "fallback_email_si_falla_whatsapp",
+        label: "Fallback email si falla WA",
+        tipo: "select" as const,
+        opciones: ["true", "false"],
+        helpText: 'Solo cuando canal="whatsapp". Si WA falla definitivamente, envía el PDF por email.' },
     ],
   },
   {
@@ -441,6 +471,7 @@ export default function TarotConfigPage() {
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [envStatus, setEnvStatus] = useState<EnvStatus | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -451,8 +482,12 @@ export default function TarotConfigPage() {
         fetch("/api/admin/tarot/config/prompt"),
       ]);
       const [dCfg, dPrompt] = await Promise.all([rCfg.json(), rPrompt.json()]);
-      if (dCfg.ok) setConfigRows(dCfg.data ?? []);
-      else setErrorMsg(dCfg.detalle ?? "Error al cargar configuración");
+      if (dCfg.ok) {
+        setConfigRows(dCfg.data ?? []);
+        setEnvStatus(dCfg.env_status ?? null);
+      } else {
+        setErrorMsg(dCfg.detalle ?? "Error al cargar configuración");
+      }
       if (dPrompt.ok) setPromptConfigs(dPrompt.configs ?? []);
     } catch {
       setErrorMsg("Error de red");
@@ -470,6 +505,23 @@ export default function TarotConfigPage() {
   }
 
   const configMap = Object.fromEntries(configRows.map((r) => [r.clave, r.valor]));
+
+  const waWarnings = (() => {
+    if (!envStatus) return [];
+    const warns: string[] = [];
+    const waActivo    = configMap.envio_whatsapp_activo !== "false";
+    const emailActivo = configMap.envio_email_activo    !== "false";
+    const canal       = configMap.canal_entrega_principal ?? "both";
+    const debeWa      = waActivo && (canal === "whatsapp" || canal === "both");
+    const fallback    = configMap.fallback_email_si_falla_whatsapp !== "false";
+    if (!waActivo && !emailActivo)
+      warns.push("Ningún canal activo — los clientes no recibirán el producto.");
+    if (debeWa && !envStatus.whatsapp_token_configurado)
+      warns.push("WhatsApp activo pero WHATSAPP_TOKEN no detectado en entorno Next.js. Verificar variables de entorno de Vercel.");
+    if (canal === "whatsapp" && !emailActivo && fallback)
+      warns.push("Fallback a email activado pero email desactivado — el fallback no funcionará.");
+    return warns;
+  })();
 
   async function saveConfigGroup(updates: Record<string, string>): Promise<{ ok: boolean; error?: string }> {
     try {
@@ -571,6 +623,39 @@ export default function TarotConfigPage() {
                 onSave={saveConfigGroup}
               />
             ))}
+            {envStatus && (
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800/60">
+                  <span className="text-sm font-semibold text-gray-200">Estado de integración WhatsApp</span>
+                </div>
+                <div className="divide-y divide-gray-800/40">
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_TOKEN</span>
+                    <span className={`text-sm font-mono ${envStatus.whatsapp_token_configurado ? "text-emerald-400" : "text-red-400"}`}>
+                      {envStatus.whatsapp_token_configurado ? "✓ Configurado" : "✗ No detectado"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="w-52 shrink-0 text-xs text-gray-400">WHATSAPP_PHONE_NUMBER_ID</span>
+                    <span className={`text-sm font-mono ${envStatus.whatsapp_phone_id_configurado ? "text-emerald-400" : "text-red-400"}`}>
+                      {envStatus.whatsapp_phone_id_configurado ? "✓ Configurado" : "✗ No detectado"}
+                    </span>
+                  </div>
+                </div>
+                <p className="px-4 py-2 text-xs text-gray-600">
+                  Indica si las variables están presentes en el entorno Next.js. Los secrets de las Edge Functions se configuran por separado con <code>supabase secrets set</code>.
+                </p>
+                {waWarnings.length > 0 && (
+                  <div className="border-t border-amber-900/40 bg-amber-950/20 px-4 py-3 space-y-1">
+                    {waWarnings.map((w, i) => (
+                      <p key={i} className="text-xs text-amber-400 flex items-center gap-1.5">
+                        <AlertCircle size={11} className="shrink-0" /> {w}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <p className="text-xs text-gray-600 pt-1">
               Campos ocultos (solo lectura desde DB): <span className="font-mono">mazo_default, tipo_tirada_default, storage_bucket_*</span>
             </p>

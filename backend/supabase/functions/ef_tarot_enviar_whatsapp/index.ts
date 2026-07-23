@@ -114,12 +114,18 @@ serve(async (req) => {
   const forzar = body.forzar === true;
   const t0 = Date.now();
 
+  // Hoisted for catch block access — defaults allow all channels
+  let canalPrincipal = "both";
+  let fallbackMail   = true;
+  let emailActivo    = true;
+
   try {
     // ── 1. Configuración ────────────────────────────────────────
     const { data: cfgRows } = await supabase
       .from("tarot_configuracion")
       .select("clave, valor")
-      .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa"]);
+      .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa",
+                     "canal_entrega_principal", "fallback_email_si_falla_whatsapp", "envio_email_activo"]);
 
     const cfg: ConfigMap = Object.fromEntries(
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
@@ -127,6 +133,9 @@ serve(async (req) => {
     // whatsapp_modo is the authoritative control for WA sandbox/prod; falls back to mp_modo
     const esSandbox    = (cfg.whatsapp_modo ?? cfg.mp_modo) !== "production";
     const maxReintentos = Number(cfg.max_reintentos_wa ?? 3);
+    canalPrincipal = cfg.canal_entrega_principal ?? "both";
+    fallbackMail   = cfg.fallback_email_si_falla_whatsapp !== "false";
+    emailActivo    = cfg.envio_email_activo !== "false";
 
     // ── 2. Orden ─────────────────────────────────────────────────
     const { data: orden } = await supabase
@@ -371,6 +380,20 @@ serve(async (req) => {
         });
       }
 
+      if (intento >= maxReintentos && canalPrincipal === "whatsapp" && fallbackMail && emailActivo) {
+        await log(ordenId, "entrega_fallback_email_despachado", "info",
+          `Fallback a email por fallo definitivo de WA (intento ${intento}/${maxReintentos})`);
+        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "x-internal-key": TAROT_INTERNAL_KEY,
+          },
+          body: JSON.stringify({ orden_id: ordenId }),
+        }).catch(() => {});
+      }
+
       return json({
         ok: false,
         error: "WA_SEND_ERROR",
@@ -402,6 +425,20 @@ serve(async (req) => {
       await supabase.from("tarot_ordenes")
         .update({ estado: "error_whatsapp", updated_at: now() }).eq("id", ordenId);
     } catch { /* best effort */ }
+
+    if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo) {
+      await log(ordenId, "entrega_fallback_email_despachado", "info",
+        "Fallback a email por excepción en ef_tarot_enviar_whatsapp");
+      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({ orden_id: ordenId }),
+      }).catch(() => {});
+    }
 
     return json({ ok: false, error: "EXCEPCION", mensaje: errMsg }, 500);
   }

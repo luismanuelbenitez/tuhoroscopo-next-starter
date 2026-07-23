@@ -869,7 +869,9 @@ async function generarPDF(
   const { data: cfgRows } = await supabase
     .from("tarot_configuracion")
     .select("clave, valor")
-    .in("clave", ["storage_bucket_pdfs", "pdf_url_expiracion_horas", "max_reintentos_pdf"])
+    .in("clave", ["storage_bucket_pdfs", "pdf_url_expiracion_horas", "max_reintentos_pdf",
+                 "envio_whatsapp_activo", "envio_email_activo", "canal_entrega_principal",
+                 "fallback_email_si_falla_whatsapp"])
     .eq("activo", true);
 
   const cfg: Record<string, string> = {};
@@ -1119,24 +1121,55 @@ async function generarPDF(
       });
     }
 
-    // Sprint 5 — Disparar envío WhatsApp (fire-and-forget, solo en modo normal)
+    // ── Entrega del producto (config-driven) ─────────────────
     if (!debug) {
+      const waActivo     = cfg.envio_whatsapp_activo            !== "false";
+      const emailActivo  = cfg.envio_email_activo               !== "false";
+      const canal        = cfg.canal_entrega_principal           ?? "both";
+      const fallbackMail = cfg.fallback_email_si_falla_whatsapp !== "false";
+
       const internalHeaders = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       };
 
-      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
-        method: "POST", headers: internalHeaders,
-        body: JSON.stringify({ orden_id: ordenId }),
-      }).catch(() => { /* fire-and-forget */ });
+      const debeWa    = waActivo    && (canal === "whatsapp" || canal === "both");
+      const debeEmail = emailActivo && (canal === "email"    || canal === "both");
 
-      // Email con PDF — solo actúa si el cliente tiene email y RESEND_API_KEY está configurada
-      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
-        method: "POST", headers: internalHeaders,
-        body: JSON.stringify({ orden_id: ordenId }),
-      }).catch(() => { /* fire-and-forget */ });
+      await log(ordenId, "entrega_config_leida", "info",
+        `Canal: ${canal} | WA: ${waActivo} | Email: ${emailActivo} | Fallback: ${fallbackMail}`,
+        { canal, wa_activo: waActivo, email_activo: emailActivo, fallback_email: fallbackMail });
+
+      if (!debeWa && !debeEmail) {
+        await log(ordenId, "entrega_sin_canal_activo", "error",
+          "Ningún canal de entrega activo — el cliente no recibirá el producto",
+          { canal, wa_activo: waActivo, email_activo: emailActivo });
+      }
+
+      if (debeWa) {
+        await log(ordenId, "entrega_whatsapp_despachada", "info", "Despachando envío WhatsApp");
+        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
+          method: "POST", headers: internalHeaders,
+          body: JSON.stringify({ orden_id: ordenId }),
+        }).catch(() => {});
+      } else {
+        await log(ordenId, "entrega_whatsapp_omitida_por_config", "info",
+          `WhatsApp omitido — canal: ${canal}, wa_activo: ${waActivo}`,
+          { canal, wa_activo: waActivo });
+      }
+
+      if (debeEmail) {
+        await log(ordenId, "entrega_email_despachada", "info", "Despachando envío Email");
+        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+          method: "POST", headers: internalHeaders,
+          body: JSON.stringify({ orden_id: ordenId }),
+        }).catch(() => {});
+      } else {
+        await log(ordenId, "entrega_email_omitida_por_config", "info",
+          `Email omitido — canal: ${canal}, email_activo: ${emailActivo}`,
+          { canal, email_activo: emailActivo });
+      }
     }
 
   } catch (err) {
