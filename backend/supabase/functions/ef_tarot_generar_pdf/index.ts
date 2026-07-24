@@ -1148,10 +1148,15 @@ async function generarPDF(
       }
 
       if (debeWa) {
+        if (force) {
+          await log(ordenId, "whatsapp_dispatch_forzado", "info",
+            "force=true: dispatch WA con forzar=true para omitir idempotencia",
+            { force });
+        }
         await log(ordenId, "entrega_whatsapp_despachada", "info", "Despachando envío WhatsApp");
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
           method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId }),
+          body: JSON.stringify({ orden_id: ordenId, forzar: force }),
         }).catch(() => {});
       } else {
         await log(ordenId, "entrega_whatsapp_omitida_por_config", "info",
