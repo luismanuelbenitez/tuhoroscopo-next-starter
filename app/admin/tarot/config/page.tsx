@@ -524,6 +524,10 @@ export default function TarotConfigPage() {
       warns.push("WhatsApp activo pero WHATSAPP_TOKEN no detectado en Supabase Edge Secrets. Configurar con: supabase secrets set WHATSAPP_TOKEN=...");
     if (canal === "whatsapp" && !emailActivo && fallback)
       warns.push("Fallback a email activado pero email desactivado — el fallback no funcionará.");
+    const mpModo = configMap.mp_modo ?? "sandbox";
+    const waModo = configMap.whatsapp_modo ?? "sandbox";
+    if (mpModo !== "production" && waModo === "production" && debeWa)
+      warns.push("Modo prueba controlada activo: WhatsApp real solo se enviará al número autorizado (TEST_WHATSAPP_ALLOWED_PHONE en Supabase Secrets). Todos los demás recibirán envío simulado.");
     return warns;
   })();
 

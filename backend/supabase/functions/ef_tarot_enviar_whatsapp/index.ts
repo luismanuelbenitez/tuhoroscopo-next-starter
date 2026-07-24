@@ -17,8 +17,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
-const WHATSAPP_TOKEN            = Deno.env.get("WHATSAPP_TOKEN") ?? "";
-const WHATSAPP_PHONE_NUMBER_ID  = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
+const WHATSAPP_TOKEN              = Deno.env.get("WHATSAPP_TOKEN") ?? "";
+const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
+// Número autorizado para recibir WA real en modo prueba controlada (mp_modo=sandbox + whatsapp_modo=production).
+// Solo se lee en Supabase Secrets — nunca expuesto al frontend.
+const TEST_WHATSAPP_ALLOWED_PHONE = Deno.env.get("TEST_WHATSAPP_ALLOWED_PHONE") ?? "";
 
 const FN = "ef_tarot_enviar_whatsapp";
 
@@ -131,7 +134,11 @@ serve(async (req) => {
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
     );
     // whatsapp_modo is the authoritative control for WA sandbox/prod; falls back to mp_modo
-    const esSandbox    = (cfg.whatsapp_modo ?? cfg.mp_modo) !== "production";
+    const waEsSandbox    = (cfg.whatsapp_modo ?? cfg.mp_modo) !== "production";
+    const mpEsSandbox    = (cfg.mp_modo ?? "sandbox") !== "production";
+    // modoControlado: WA real (production) pero MP todavía en sandbox.
+    // En este modo solo se envía WA real al número autorizado en TEST_WHATSAPP_ALLOWED_PHONE.
+    const modoControlado = !waEsSandbox && mpEsSandbox;
     const maxReintentos = Number(cfg.max_reintentos_wa ?? 3);
     canalPrincipal = cfg.canal_entrega_principal ?? "both";
     fallbackMail   = cfg.fallback_email_si_falla_whatsapp !== "false";
@@ -186,6 +193,11 @@ serve(async (req) => {
     // Normalizar teléfono: "+598091234567" → "598091234567"
     const telefonoDest = cliente.telefono.replace(/^\+/, "");
 
+    // Modo prueba controlada: WA real solo llega al número autorizado en Supabase Secrets.
+    // Si TEST_WHATSAPP_ALLOWED_PHONE no está seteado, todos quedan bloqueados por seguridad.
+    const telefonoAutorizado = TEST_WHATSAPP_ALLOWED_PHONE.trim();
+    const bloqueadoPorNumero = modoControlado && telefonoDest !== telefonoAutorizado;
+
     // ── 5. Idempotencia: envío anterior ───────────────────────────
     const { data: envioAnterior } = await supabase
       .from("tarot_envios_whatsapp")
@@ -231,10 +243,10 @@ serve(async (req) => {
       .update({ estado: "enviando_whatsapp", updated_at: now() }).eq("id", ordenId);
 
     await log(ordenId, "wa_iniciando", "info",
-      `Iniciando envío WA (intento ${intento}/${maxReintentos}, sandbox=${esSandbox})`,
-      { envio_id: envio?.id, pdf_id: pdf.id, telefono: telefonoDest });
+      `Iniciando envío WA (intento ${intento}/${maxReintentos}, wa_sandbox=${waEsSandbox}, controlado=${modoControlado}, bloqueado=${bloqueadoPorNumero})`,
+      { envio_id: envio?.id, pdf_id: pdf.id });
 
-    if (!esSandbox) {
+    if (!waEsSandbox && !bloqueadoPorNumero) {
       await logFunnelEvent({
         order_id:   ordenId,
         session_id: orden.funnel_session_id ?? null,
@@ -254,12 +266,19 @@ serve(async (req) => {
     let errorMsg:    string | null = null;
     let respuestaRaw: unknown = null;
 
-    if (esSandbox) {
+    if (waEsSandbox || bloqueadoPorNumero) {
       waMessageId  = `sandbox_${crypto.randomUUID()}`;
       envioOk      = true;
-      respuestaRaw = { sandbox: true, simulado: true };
-      await log(ordenId, "wa_sandbox_simulado", "info",
-        "Modo sandbox: envío simulado exitoso (no se llamó a la API real)");
+      if (bloqueadoPorNumero) {
+        respuestaRaw = { sandbox: true, bloqueado: true, motivo: "numero_no_autorizado" };
+        await log(ordenId, "whatsapp_real_bloqueado_por_numero_no_autorizado", "warning",
+          "Modo prueba controlada: número de destino no autorizado — envío simulado (sin WA real)",
+          { modo_controlado: true, destino_match: false });
+      } else {
+        respuestaRaw = { sandbox: true, simulado: true };
+        await log(ordenId, "wa_sandbox_simulado", "info",
+          "Modo sandbox: envío simulado exitoso (no se llamó a la API real)");
+      }
     } else {
       if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
         throw new Error("WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados en env vars");
@@ -330,7 +349,7 @@ serve(async (req) => {
         `PDF entregado por WhatsApp en ${durMs}ms`,
         { envio_id: envio?.id, wa_message_id: waMessageId, duracion_ms: durMs }, durMs);
 
-      if (!esSandbox) {
+      if (!waEsSandbox && !bloqueadoPorNumero) {
         await logFunnelEvent({
           order_id:   ordenId,
           session_id: orden.funnel_session_id ?? null,
@@ -363,7 +382,7 @@ serve(async (req) => {
         { error_code: errorCode, error_msg: errorMsg, respuesta: respuestaRaw, duracion_ms: durMs },
         durMs);
 
-      if (!esSandbox) {
+      if (!waEsSandbox && !bloqueadoPorNumero) {
         await logFunnelEvent({
           order_id:   ordenId,
           session_id: orden.funnel_session_id ?? null,
