@@ -40,11 +40,11 @@ async function log(
   try {
     await supabase.from("tarot_logs").insert({
       orden_id: ordenId,
-      funcion: FN,
+      funcion_origen: FN,
       evento,
       nivel,
       mensaje,
-      datos: datos ?? null,
+      payload: datos ?? null,
       duracion_ms: duracionMs ?? null,
     });
   } catch { /* non-blocking */ }
@@ -165,7 +165,7 @@ serve(async (req) => {
       .from("tarot_pdfs")
       .select("id, storage_url")
       .eq("orden_id", ordenId)
-      .eq("es_vigente", true)
+      .eq("estado", "listo")
       .not("storage_url", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
