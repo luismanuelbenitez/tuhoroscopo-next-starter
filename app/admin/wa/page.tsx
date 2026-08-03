@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { MessageCircle, Send, X, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { MessageCircle, Send, X, ChevronLeft, ChevronRight, RefreshCw, LogOut } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 
@@ -199,19 +199,26 @@ export default function WaConversacionesPage() {
     <div className="min-h-screen bg-gray-950 text-white">
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-gray-950/95 backdrop-blur border-b border-white/8">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-center gap-4 py-3">
-            <span className="font-bold text-white text-sm whitespace-nowrap">THC Admin</span>
-            <AdminPanelSwitcher current="thc" />
-            <nav className="flex items-center gap-1 overflow-x-auto flex-1">
-              <AdminNav current="/admin/wa" />
-            </nav>
-          </div>
+      <header className="border-b border-gray-800">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <AdminPanelSwitcher current="thc" />
+          <button
+            onClick={async () => {
+              await fetch("/api/admin/auth/logout", { method: "POST" });
+              window.location.href = "/admin/login";
+            }}
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            <LogOut size={15} />
+            Cerrar sesión
+          </button>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
+          <AdminNav current="/admin/wa" />
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
 
         {/* Título */}
         <div className="flex items-center justify-between">

@@ -24,7 +24,9 @@ interface CronJob {
   jobid: number;
   jobname: string;
   schedule: string;
-  command: string;
+  // ef_name: nombre sanitizado de la Edge Function detectada en el comando.
+  // Nunca se recibe ni muestra el campo command completo (puede contener secretos).
+  ef_name: string | null;
   active: boolean;
   ultimo_inicio: string | null;
   ultimo_fin: string | null;
@@ -85,11 +87,6 @@ function fmtRelative(iso: string | null | undefined): string {
   } catch { return ""; }
 }
 
-function extraerEfName(command: string): string | null {
-  const match = command.match(/functions\/v1\/([a-zA-Z0-9_-]+)/);
-  return match ? match[1] : null;
-}
-
 // ===========================================================================
 // Job row component
 // ===========================================================================
@@ -97,15 +94,13 @@ function extraerEfName(command: string): string | null {
 function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void }) {
   const [editandoSchedule, setEditandoSchedule] = useState(false);
   const [nuevoSchedule, setNuevoSchedule] = useState(job.schedule);
-  const [mostrandoCmd, setMostrandoCmd] = useState(false);
+  const [mostrandoInfo, setMostrandoInfo] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [feedbackToggle, setFeedbackToggle] = useState<string | null>(null);
   const [feedbackSchedule, setFeedbackSchedule] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [feedbackTrigger, setFeedbackTrigger] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
-
-  const efName = extraerEfName(job.command);
 
   const PRESETS = [
     { label: "Cada min", value: "* * * * *" },
@@ -117,6 +112,7 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
   ];
 
   async function handleToggle() {
+    if (toggling) return;
     setToggling(true);
     setFeedbackToggle(null);
     try {
@@ -126,13 +122,20 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
         body: JSON.stringify({ accion: "toggle", activo: !job.active }),
       });
       const json = await res.json();
-      if (json.ok) { onRefresh(); }
-      else { setFeedbackToggle(json.detalle ?? json.motivo ?? "Error"); }
-    } catch { setFeedbackToggle("Error de red"); }
-    finally { setToggling(false); }
+      if (json.ok) {
+        onRefresh();
+      } else {
+        setFeedbackToggle(json.detalle ?? json.motivo ?? "Error al cambiar el estado");
+      }
+    } catch {
+      setFeedbackToggle("Error de red");
+    } finally {
+      setToggling(false);
+    }
   }
 
   async function handleReschedule() {
+    if (guardando) return;
     setGuardando(true);
     setFeedbackSchedule(null);
     try {
@@ -147,13 +150,17 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
         setEditandoSchedule(false);
         onRefresh();
       } else {
-        setFeedbackSchedule({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error" });
+        setFeedbackSchedule({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error al guardar" });
       }
-    } catch { setFeedbackSchedule({ tipo: "error", texto: "Error de red" }); }
-    finally { setGuardando(false); }
+    } catch {
+      setFeedbackSchedule({ tipo: "error", texto: "Error de red" });
+    } finally {
+      setGuardando(false);
+    }
   }
 
   async function handleTrigger() {
+    if (triggering) return;
     setTriggering(true);
     setFeedbackTrigger(null);
     try {
@@ -166,10 +173,13 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
       if (json.ok) {
         setFeedbackTrigger({ tipo: "ok", texto: `${json.ef} ejecutado (HTTP ${json.http_status})` });
       } else {
-        setFeedbackTrigger({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error" });
+        setFeedbackTrigger({ tipo: "error", texto: json.detalle ?? json.motivo ?? "Error al ejecutar" });
       }
-    } catch { setFeedbackTrigger({ tipo: "error", texto: "Error de red" }); }
-    finally { setTriggering(false); }
+    } catch {
+      setFeedbackTrigger({ tipo: "error", texto: "Error de red" });
+    } finally {
+      setTriggering(false);
+    }
   }
 
   return (
@@ -197,9 +207,9 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
             <span className="text-xs text-gray-500">{fmtCronDesc(job.schedule)}</span>
           </div>
 
-          {/* EF name */}
-          {efName && (
-            <p className="text-xs text-gray-600 mt-1 font-mono">{efName}</p>
+          {/* EF name — sanitizado, nunca el comando completo */}
+          {job.ef_name && (
+            <p className="text-xs text-gray-600 mt-1 font-mono">{job.ef_name}</p>
           )}
         </div>
 
@@ -239,27 +249,29 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
                   : "border-gray-700/50 bg-gray-800/60 text-gray-500 hover:text-gray-300"
               }`}
             >
-              {job.active
-                ? <><ToggleRight size={13} /> Activo</>
-                : <><ToggleLeft size={13} /> Inactivo</>}
+              {toggling
+                ? <span className="animate-pulse">…</span>
+                : job.active
+                  ? <><ToggleRight size={13} /> Activo</>
+                  : <><ToggleLeft size={13} /> Inactivo</>}
             </button>
 
             {/* Edit schedule */}
             <button
               onClick={() => { setNuevoSchedule(job.schedule); setEditandoSchedule(true); setFeedbackSchedule(null); }}
-              disabled={editandoSchedule}
+              disabled={editandoSchedule || guardando}
               title="Editar schedule"
               className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-700/50 bg-gray-800/60 text-xs text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors disabled:opacity-40"
             >
               <Pencil size={11} /> Schedule
             </button>
 
-            {/* Trigger (only if EF detected) */}
-            {efName && (
+            {/* Trigger — solo si hay EF detectada */}
+            {job.ef_name && (
               <button
                 onClick={handleTrigger}
                 disabled={triggering}
-                title={`Ejecutar ${efName} ahora`}
+                title={`Ejecutar ${job.ef_name} ahora`}
                 className="flex items-center gap-1 px-2 py-1 rounded-lg border border-amber-800/50 bg-amber-950/20 text-xs text-amber-400 hover:bg-amber-950/40 transition-colors disabled:opacity-40"
               >
                 <Play size={11} /> {triggering ? "…" : "Trigger"}
@@ -297,7 +309,8 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
               <button
                 key={p.value}
                 onClick={() => setNuevoSchedule(p.value)}
-                className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                disabled={guardando}
+                className={`text-xs px-2 py-1 rounded-lg border transition-colors disabled:opacity-40 ${
                   nuevoSchedule === p.value
                     ? "border-violet-600 bg-violet-900/40 text-violet-300"
                     : "border-gray-700 bg-gray-800/60 text-gray-400 hover:text-gray-200"
@@ -311,8 +324,9 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
             type="text"
             value={nuevoSchedule}
             onChange={(e) => setNuevoSchedule(e.target.value)}
+            disabled={guardando}
             placeholder="* * * * *"
-            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600"
+            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs font-mono text-gray-200 placeholder-gray-600 focus:outline-none focus:border-violet-600 disabled:opacity-50"
           />
           {nuevoSchedule && (
             <p className="text-xs text-gray-500">{fmtCronDesc(nuevoSchedule)}</p>
@@ -334,7 +348,7 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
             <button
               onClick={() => { setEditandoSchedule(false); setFeedbackSchedule(null); }}
               disabled={guardando}
-              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+              className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-40"
             >
               Cancelar
             </button>
@@ -342,19 +356,23 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
         </div>
       )}
 
-      {/* Command toggle */}
+      {/* Función invocada — muestra solo el nombre sanitizado, nunca el comando completo */}
       <div className="mt-3 pt-3 border-t border-gray-800/50">
         <button
-          onClick={() => setMostrandoCmd((v) => !v)}
+          onClick={() => setMostrandoInfo((v) => !v)}
           className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-400 transition-colors"
         >
-          {mostrandoCmd ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          {mostrandoCmd ? "Ocultar comando" : "Ver comando"}
+          {mostrandoInfo ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          {mostrandoInfo ? "Ocultar" : "Ver función"}
         </button>
-        {mostrandoCmd && (
-          <pre className="mt-2 px-3 py-2.5 rounded-lg bg-gray-950 border border-gray-800 text-xs text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap break-all">
-            {job.command}
-          </pre>
+        {mostrandoInfo && (
+          <div className="mt-2 px-3 py-2.5 rounded-lg bg-gray-950 border border-gray-800 text-xs font-mono">
+            {job.ef_name ? (
+              <span className="text-violet-400">{job.ef_name}</span>
+            ) : (
+              <span className="text-gray-600 italic">Función SQL interna (no invocable manualmente)</span>
+            )}
+          </div>
         )}
       </div>
     </div>
