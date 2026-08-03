@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { unsealData } from "iron-session";
 import { AdminSession, adminSessionOptions } from "@/lib/adminSessionOptions";
 
@@ -28,7 +28,7 @@ async function verifyAdminSession(req: NextRequest): Promise<boolean> {
 async function isMaintenanceModeOn(): Promise<boolean> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKey = process.env.SUPABASE_SECRET_KEY;
     if (!supabaseUrl || !serviceKey) return false;
 
     const res = await fetch(

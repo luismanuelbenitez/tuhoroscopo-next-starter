@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
   const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!;
 
   const { searchParams } = new URL(req.url);
   const estado  = searchParams.get('estado') ?? '';   // pendiente | auto_respondido | respondido | ignorado | ''

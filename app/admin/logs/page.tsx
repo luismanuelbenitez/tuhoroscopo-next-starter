@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   MessageCircle,
@@ -100,7 +100,7 @@ const DEFAULT_FILTROS: Filtros = {
 const SENSITIVE_KEY_PATTERNS = [
   "token", "api_key", "apikey", "bearer", "service_role", "authorization",
   "access_token", "refresh_token", "whatsapp_internal_key",
-  "supabase_service_role_key", "secret", "password", "credential",
+  "SUPABASE_SECRET_KEY", "secret", "password", "credential",
   "private_key", "client_secret", "_key",
 ];
 

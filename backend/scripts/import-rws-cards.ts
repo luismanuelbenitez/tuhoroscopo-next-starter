@@ -1,4 +1,4 @@
-/**
+﻿/**
  * import-rws-cards.ts — Sprint 4.2
  *
  * Descarga imágenes RWS desde Wikimedia Commons (dominio público),
@@ -14,7 +14,7 @@
  *
  * VARIABLES DE ENTORNO REQUERIDAS:
  *   SUPABASE_URL              — URL del proyecto Supabase
- *   SUPABASE_SERVICE_ROLE_KEY — Clave service_role (nunca anon)
+ *   SUPABASE_SECRET_KEY — Clave service_role (nunca anon)
  *
  * NOTAS LEGALES:
  *   Las imágenes Rider-Waite-Smith son obra de Pamela Colman Smith (1878–1951),
@@ -28,7 +28,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const BUCKET = "tarot-assets";
 const WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php";
 const USER_AGENT = "TuHoroscopo-RWS-Importer/1.0 (mbenitezmdeo@gmail.com)";
@@ -136,7 +136,7 @@ async function resolveWikimediaUrl(fileName: string): Promise<string | null> {
 async function main() {
   // Validar env
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error("❌  Faltan variables de entorno: SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY");
+    console.error("❌  Faltan variables de entorno: SUPABASE_URL y/o SUPABASE_SECRET_KEY");
     Deno.exit(1);
   }
 

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // 🔁 EDGE FUNCTION: ef_admin_reintentar_mensaje
 // ============================================================================
 //
@@ -59,7 +59,7 @@
 //
 // SEGURIDAD:
 //   - Requiere x-internal-key.
-//   - Usa SUPABASE_SERVICE_ROLE_KEY.
+//   - Usa SUPABASE_SECRET_KEY.
 //   - Función interna.
 //
 // ============================================================================
@@ -69,14 +69,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // 🔐 ENV
 // ============================================================================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 const FUNCION = "ef_admin_reintentar_mensaje";
 // Nombre técnico de tu sender.
 // Si tu función tiene otro nombre, cambiá este valor.
 const SENDER_FUNCTION_NAME = "ef_whatsapp_sender";
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 // ============================================================================
 // 🧰 HELPERS GENERALES
 // ============================================================================

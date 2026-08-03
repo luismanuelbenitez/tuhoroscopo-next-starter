@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 const APPROVED_ESTADOS = new Set(['pago_confirmado', 'lectura_generada', 'pdf_listo', 'enviado']);
 const APPROVED_MP      = new Set(['approved', 'authorized', 'active']);
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const { external_reference, estado, mp_status, params } = body;
 
     const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!;
     const ip             = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
     const userAgent      = req.headers.get('user-agent') ?? null;
 

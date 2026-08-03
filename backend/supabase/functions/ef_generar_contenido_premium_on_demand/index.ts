@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // === Edge Function: ef_generar_contenido_premium_on_demand ==================
 // ============================================================================
 // - Genera contenido premium HOY para un suscriptor específico
@@ -8,7 +8,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
-const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
 const FN = "ef_generar_contenido_premium_on_demand";
 const EDGE_BASE_URL = Deno.env.get("EDGE_BASE_URL");
 const INTERNAL_TOKEN = Deno.env.get("INTERNAL_TOKEN");

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const internalKey = process.env.WHATSAPP_INTERNAL_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl) {
     return NextResponse.json(
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   }
   if (!serviceRoleKey) {
     return NextResponse.json(
-      { ok: false, motivo: "config_error", detalle: "SUPABASE_SERVICE_ROLE_KEY no configurada" },
+      { ok: false, motivo: "config_error", detalle: "SUPABASE_SECRET_KEY no configurada" },
       { status: 500 }
     );
   }

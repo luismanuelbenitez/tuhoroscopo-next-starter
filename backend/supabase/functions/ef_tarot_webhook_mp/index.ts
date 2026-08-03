@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // ef_tarot_webhook_mp — Sprint 2
 // Endpoint público que recibe notificaciones de Mercado Pago
 // para pagos del módulo Tarot.
@@ -14,12 +14,12 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
 const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_webhook_mp";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 // Estados que indican que el pago ya fue procesado en rondas anteriores
 const ESTADOS_YA_PROCESADOS = new Set([
@@ -227,7 +227,7 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       },
       body: JSON.stringify({ orden_id: ordenId }),
@@ -250,7 +250,7 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
           "x-internal-key": TAROT_INTERNAL_KEY,
         },
         body: JSON.stringify({ uso_id: usoReservado.id, mp_payment_id: String(paymentId) }),
@@ -297,7 +297,7 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
           "x-internal-key": TAROT_INTERNAL_KEY,
         },
         body: JSON.stringify({

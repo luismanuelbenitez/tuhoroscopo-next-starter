@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_crear_suscripcion
 // VERSION: V11.0 – ALINEADA A FLUJO REAL (MP → WEBHOOK)
 // ============================================================================
@@ -15,7 +15,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 // CONFIGURACIÓN
 // ============================================================================
 const SUPABASE_URL = Deno.env.get("NEXT_PUBLIC_SUPABASE_URL");
-const SRK = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const SRK = Deno.env.get("SUPABASE_SECRET_KEY");
 const MP_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
 const MP_ENV = (Deno.env.get("MP_ENV") || "sandbox").toLowerCase();
 const MP_TEST_EMAIL = Deno.env.get("MP_TEST_PLAYER_EMAIL");

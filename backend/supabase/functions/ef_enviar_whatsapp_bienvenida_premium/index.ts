@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_enviar_whatsapp_bienvenida_premium
 // ============================================================================
 // Propósito:
@@ -32,7 +32,7 @@
 //
 // Env vars esperadas:
 //   - SUPABASE_URL
-//   - SUPABASE_SERVICE_ROLE_KEY
+//   - SUPABASE_SECRET_KEY
 //   - SUPABASE_ANON_KEY
 //   - WHATSAPP_TOKEN
 //   - WHATSAPP_PHONE_NUMBER_ID
@@ -47,7 +47,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2?target=deno
 const FUNCION = "ef_enviar_whatsapp_bienvenida_premium";
 // Supabase
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 // WhatsApp Cloud API
 const WHATSAPP_API_BASE = Deno.env.get("WHATSAPP_API_BASE") || "https://graph.facebook.com/v20.0";
@@ -58,7 +58,7 @@ const NOMBRE_PLANTILLA_BIENVENIDA = Deno.env.get("NOMBRE_PLANTILLA_BIENVENIDA") 
 // Nombre de la EF de OpenAI que genera el JSON de bienvenida
 const FN_OPENIA_BIENVENIDA = "ef_openia_genera_mensaje_bienvenida";
 // Cliente Supabase (service role) para lecturas/escrituras y logs
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 // ============================================================================
 // Helpers genéricos
 // ============================================================================

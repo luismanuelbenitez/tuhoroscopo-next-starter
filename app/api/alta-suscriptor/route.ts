@@ -1,4 +1,4 @@
-// /api/alta-suscriptor/route.ts
+﻿// /api/alta-suscriptor/route.ts
 import { NextResponse } from "next/server";
 import { headers } from 'next/headers';
 // ===========================================
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     // === LECTURA DE VARIABLES DE ENTORNO (Servidor Vercel) ===
     // ===========================================
     const SUPABASE_URL_SERVER = process.env.SUPABASE_URL; // Usamos la variable de servidor
-    const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SRK = process.env.SUPABASE_SECRET_KEY;
 
     if (!SUPABASE_URL_SERVER || !SRK) {
         console.error("❌ Variables de entorno del SERVIDOR faltantes:", { SUPABASE_URL: SUPABASE_URL_SERVER ? "OK" : "MISSING", SRK: SRK ? "OK" : "MISSING" });

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_webhook_whatsapp_events
 // ============================================================================
 // CAPA 1 (captura técnica) - Webhook OFICIAL configurado en Meta
@@ -27,7 +27,7 @@
 // REQUISITOS DE ENTORNO:
 // ---------------------------------------------------------------------------
 // - SUPABASE_URL
-// - SUPABASE_SERVICE_ROLE_KEY
+// - SUPABASE_SECRET_KEY
 // - WHATSAPP_VERIFY_TOKEN
 // - WHATSAPP_INTERNAL_KEY
 //
@@ -53,7 +53,7 @@ const FUNCION = "ef_webhook_whatsapp_events";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
 // Credenciales de Supabase para insertar y actualizar registros.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 // Base URL para funciones Edge.
 // Si no viene explícita, la derivamos desde SUPABASE_URL.
 const FUNCTIONS_BASE_URL = Deno.env.get("SUPABASE_FUNCTIONS_URL") || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : "");
@@ -298,8 +298,8 @@ serve(async (req)=>{
   }
   // Si falta configuración crítica de Supabase, no podemos persistir.
   // Aun así, respondemos OK para no romper el webhook.
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(`[${FUNCION}] Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY`);
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
+    console.error(`[${FUNCION}] Faltan SUPABASE_URL o SUPABASE_SECRET_KEY`);
     return new Response("OK", {
       status: 200,
       headers: {
@@ -307,7 +307,7 @@ serve(async (req)=>{
       }
     });
   }
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
   // Extraemos resumen del evento con tolerancia a payloads parciales.
   const resumen = resumirEventoWhatsApp(body);
   // ID del registro insertado en whatsapp_webhook_events.

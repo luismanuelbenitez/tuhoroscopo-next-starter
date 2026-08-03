@@ -1,4 +1,4 @@
-// Edge Function: ef_genera_guarda_contenido_gratis
+﻿// Edge Function: ef_genera_guarda_contenido_gratis
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // --- CONFIGURABLES ---
@@ -54,7 +54,7 @@ async function registrarLog(supabase, resultado, detalle = {}, exito = true) {
 }
 // --- MAIN ---
 serve(async (req)=>{
-  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
   let logResultado = "OK";
   let logDetalle = {};
   let logExito = true;

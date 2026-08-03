@@ -1,4 +1,4 @@
-// supabase/functions/ef_alta_suscriptor_premium/index.ts
+﻿// supabase/functions/ef_alta_suscriptor_premium/index.ts
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // 🔹 Helper para logging embebido
@@ -32,9 +32,9 @@ serve(async (req)=>{
     // === INICIALIZACIÓN Y VALIDACIÓN DE ENV ===
     // ===========================================
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseKey = Deno.env.get("SUPABASE_SECRET_KEY");
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Edge Function");
+      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SECRET_KEY en Edge Function");
       return new Response(JSON.stringify({
         resultado: "error",
         mensaje: "Configuración interna del servidor (EF)"

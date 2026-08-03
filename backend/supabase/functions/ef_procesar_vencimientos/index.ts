@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // === Archivo: ef_procesar_vencimientos/index.ts
 // === Descripción: Tarea programada (Cron Job) para
 // === desactivar el premium a usuarios que cancelaron
@@ -34,9 +34,9 @@ serve(async (req)=>{
     // === INICIALIZACIÓN Y VALIDACIÓN DE ENV ===
     // ===========================================
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseKey = Deno.env.get("SUPABASE_SECRET_KEY");
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
+      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SECRET_KEY");
       return new Response(JSON.stringify({
         resultado: "error",
         mensaje: "Configuración interna del servidor (EF)"

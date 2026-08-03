@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_orquesta_menu_respuesta
 // MVP completo del Menú WhatsApp — THC
 // ============================================================================
@@ -48,7 +48,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const FN = "ef_orquesta_menu_respuesta";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 

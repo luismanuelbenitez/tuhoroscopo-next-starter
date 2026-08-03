@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminSession } from '@/lib/adminSession';
 
 export const dynamic = 'force-dynamic';
@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 function getEnv() {
   const supabaseUrl    = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const internalKey    = process.env.TAROT_INTERNAL_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !internalKey || !serviceRoleKey) return null;
   return { supabaseUrl, internalKey, serviceRoleKey };
 }

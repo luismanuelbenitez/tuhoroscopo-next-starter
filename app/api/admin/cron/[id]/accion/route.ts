@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
@@ -18,7 +18,7 @@ export async function POST(
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
 
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
   const internalKey = process.env.TAROT_INTERNAL_KEY;
 
   if (!supabaseUrl || !serviceRoleKey || !internalKey) {

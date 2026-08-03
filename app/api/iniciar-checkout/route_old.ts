@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // === Archivo: app/api/iniciar-checkout/route.ts
 // === Descripción: API Route unificada (Serverless Function)
 // ===              para manejar el proceso de checkout completo.
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     // --- Lectura de Variables de Entorno ---
     // Obtenemos las URLs y claves necesarias desde las variables de entorno.
     const SUPABASE_URL_SERVER = process.env.SUPABASE_URL;
-    const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SRK = process.env.SUPABASE_SECRET_KEY;
 
     // Verificamos que las variables críticas existan.
     if (!SUPABASE_URL_SERVER || !SRK) {

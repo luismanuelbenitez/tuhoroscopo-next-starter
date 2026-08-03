@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // ef_tarot_crear_orden — Sprint 2
 // Recibe los datos del formulario, crea cliente + orden en BD,
 // genera la preferencia de pago en Mercado Pago y devuelve
@@ -9,13 +9,13 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
 // URL base a donde redirigir al usuario tras el pago (back_urls de MP)
 // Ejemplo: https://tuhoroscopocosmico.com/tarot/estado/
 const FN = "ef_tarot_crear_orden";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 async function getConfigValue(clave: string, fallback: string): Promise<string> {
   try {

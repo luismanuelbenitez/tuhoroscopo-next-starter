@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // === Archivo: app/api/iniciar-checkout/route.ts
 // === Descripción: API Route unificada (Serverless Function)
 // ===              para manejar el proceso de checkout completo.
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     // 2. Configuración de Entorno y Metadatos
     // ----------------------------------------------------------------
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // ¡Usar Service Role para permisos de escritura!
+    const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY; // ¡Usar Service Role para permisos de escritura!
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       console.error(`❌ [${funcion}] Error crítico: Faltan variables de entorno de Supabase.`);

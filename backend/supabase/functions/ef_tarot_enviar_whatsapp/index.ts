@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // ef_tarot_enviar_whatsapp — Sprint 5
 // Entrega el PDF de tarot al cliente via WhatsApp Cloud API.
 //
@@ -15,7 +15,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const WHATSAPP_TOKEN              = Deno.env.get("WHATSAPP_TOKEN") ?? "";
 const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
@@ -25,7 +25,7 @@ const TEST_WHATSAPP_ALLOWED_PHONE = Deno.env.get("TEST_WHATSAPP_ALLOWED_PHONE") 
 
 const FN = "ef_tarot_enviar_whatsapp";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 function now() { return new Date().toISOString(); }
 
@@ -406,7 +406,7 @@ serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
             "x-internal-key": TAROT_INTERNAL_KEY,
           },
           body: JSON.stringify({ orden_id: ordenId }),
@@ -452,7 +452,7 @@ serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
           "x-internal-key": TAROT_INTERNAL_KEY,
         },
         body: JSON.stringify({ orden_id: ordenId }),

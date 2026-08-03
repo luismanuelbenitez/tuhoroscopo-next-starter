@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // === Edge Function: ef_openia_genera_contenido_premium (VERSIÓN PRO 4.0) ====
 // ============================================================================
 //
@@ -34,7 +34,7 @@ const MODO_TEST = (Deno.env.get("MODO_TEST") || "false").toLowerCase() === "true
 const VERSION_FUN = "PRO 4.0";
 const RETURN_FALLBACK_ON_ERROR = (Deno.env.get("RETURN_FALLBACK_ON_ERROR") || "false").toLowerCase() === "true";
 // Cliente Supabase (service role)
-const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
 const FUNCION = "ef_openia_genera_contenido_premium";
 // ============================================================================
 // === HELPERS ================================================================

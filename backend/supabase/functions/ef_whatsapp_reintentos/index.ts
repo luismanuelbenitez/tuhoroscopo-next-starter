@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_whatsapp_reintentos
 // ============================================================================
 //
@@ -43,7 +43,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 //
 // ----------------------------------------------------------------------------
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL"); // URL del proyecto (ej: https://xxx.supabase.co)
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"); // Service Role (interno)
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY"); // Service Role (interno)
 // Clave interna compartida con sender.
 // - ef_whatsapp_sender valida que req.headers["x-internal-key"] coincida.
 // - Evita que cualquiera dispare el sender sin conocer esta clave.
@@ -58,7 +58,7 @@ const FN = "ef_whatsapp_reintentos";
 // - Regla: solo reintenta si intentos < MAX_RETRY
 const MAX_RETRY = Number(Deno.env.get("MAX_RETRY") ?? 3);
 // Cliente Supabase (Service Role)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -139,7 +139,7 @@ function dispararSender(id_mensaje) {
       "x-internal-key": WHATSAPP_INTERNAL_KEY,
       // ✅ Autorización:
       // Permite invocar Edge Function usando Service Role (llamado interno)
-      "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+      "Authorization": `Bearer ${SUPABASE_SECRET_KEY}`
     },
     body: JSON.stringify({
       id_mensaje

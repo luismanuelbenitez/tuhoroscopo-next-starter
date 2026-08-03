@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 
 /**
  * Lee el precio de suscripción mensual desde la tabla config.
@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
  */
 export async function getPrecioSuscripcion(fallback = 390): Promise<number> {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const key = process.env.SUPABASE_SECRET_KEY ?? "";
   if (!url || !key) return fallback;
 
   try {

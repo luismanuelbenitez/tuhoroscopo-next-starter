@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // ef_revisar_pendientes — Tarea CRON diaria
 //
 // Hace dos barridos:
@@ -38,7 +38,7 @@ async function registrarLog(
 
 serve(async () => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const supabaseKey = Deno.env.get("SUPABASE_SECRET_KEY");
   const mpToken    = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
 
   if (!supabaseUrl || !supabaseKey) {

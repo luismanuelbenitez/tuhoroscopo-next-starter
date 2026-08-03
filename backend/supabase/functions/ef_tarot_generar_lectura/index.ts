@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // ef_tarot_generar_lectura — Sprint 3 v4
 // Recibe { orden_id } desde ef_tarot_webhook_mp tras pago aprobado.
 // Selecciona 5 cartas al azar, llama a Claude via Anthropic API
@@ -17,12 +17,12 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_generar_lectura";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 // Costo aproximado por millón de tokens (claude-sonnet-4-6, junio 2026)
 const PRECIO_INPUT_POR_MTOKEN = 3.0;
@@ -692,7 +692,7 @@ async function generarLectura(ordenId: string): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type":   "application/json",
-        Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        Authorization:    `Bearer ${SUPABASE_SECRET_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       },
       body: JSON.stringify({

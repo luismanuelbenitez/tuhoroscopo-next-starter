@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 const TIPOS_PERMITIDOS_MVP = ['porcentaje', 'monto_fijo'];
 
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
     const INTERNAL_KEY = process.env.WHATSAPP_INTERNAL_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_KEY || !INTERNAL_KEY) {

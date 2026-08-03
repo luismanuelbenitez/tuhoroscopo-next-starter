@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_genera_guarda_contenido_premium
 // VERSION: v1.x (GENERACIÓN + PERSISTENCIA DE CONTENIDO PREMIUM DIARIO)
 // ----------------------------------------------------------------------------
@@ -56,7 +56,7 @@
 // ----------------------------------------------------------------------------
 // VARIABLES DE ENTORNO UTILIZADAS:
 //   - SUPABASE_URL
-//   - SUPABASE_SERVICE_ROLE_KEY
+//   - SUPABASE_SECRET_KEY
 //   - ANON_KEY_SUPABASE
 //
 // ----------------------------------------------------------------------------
@@ -201,7 +201,7 @@ serve(async (req)=>{
   // INICIALIZAR CLIENTE SUPABASE CON SERVICE_ROLE_KEY
   // ========================================================================
   const supabaseURL = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SECRET_KEY');
   const anonKey = Deno.env.get('ANON_KEY_SUPABASE');
   const supabase = createClient(supabaseURL, serviceRoleKey);
   // ========================================================================

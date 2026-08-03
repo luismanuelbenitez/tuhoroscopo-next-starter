@@ -1,4 +1,4 @@
-// app/api/crear-suscripcion/route.ts
+﻿// app/api/crear-suscripcion/route.ts
 import { NextResponse } from "next/server";
 
 // ===========================================
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     // === LECTURA DE VARIABLES DE ENTORNO ===
     // ===========================================
     const EDGE_BASE = process.env.EDGE_BASE; // ej: https://[ref].supabase.co/functions/v1
-    const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SRK = process.env.SUPABASE_SECRET_KEY;
 
     if (!EDGE_BASE || !SRK) {
         console.error("❌ [API] /crear-suscripcion: Faltan variables EDGE_BASE o SRK");

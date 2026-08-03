@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!;
   const waToken        = process.env.WHATSAPP_TOKEN ?? '';
   const waPhoneId      = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
 

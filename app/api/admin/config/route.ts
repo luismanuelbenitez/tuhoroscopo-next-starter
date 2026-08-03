@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdminSession } from "@/lib/adminSession";
 
@@ -6,7 +6,7 @@ import { requireAdminSession } from "@/lib/adminSession";
 const SENSITIVE_CONFIG_KEYS = [
   "whatsapp_internal_key",
   "supabase_anon_key",
-  "supabase_service_role_key",
+  "SUPABASE_SECRET_KEY",
   "anon_key",
   "service_role",
   "token",
@@ -37,7 +37,7 @@ export async function GET() {
   }
 
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
     return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });

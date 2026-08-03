@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 const MOTIVOS: Record<string, string> = {
   codigo_requerido:              'Ingresá un código.',
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const supabaseUrl    = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
   const internalKey    = process.env.TAROT_INTERNAL_KEY;
 
   if (!supabaseUrl || !serviceRoleKey || !internalKey) {

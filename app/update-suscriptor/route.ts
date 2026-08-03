@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     // 🔑 Variables de entorno
     const EDGE_BASE = process.env.NEXT_PUBLIC_EDGE_BASE;
-    const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SRK = process.env.SUPABASE_SECRET_KEY;
 
     const url = `${EDGE_BASE}/ef_update_suscriptor`;
 

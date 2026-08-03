@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // 🧠 DESCRIPCIÓN TÉCNICA — ef_actualiza_envio_real_premium
 // VERSION: v1.1.1
 // FECHA: 2026-05-07
@@ -200,7 +200,7 @@ async function registrarLog(supabase, nombreFuncion, resultado, detalle = {}, ex
 }
 serve(async (req)=>{
   const funcion = "ef_actualiza_envio_real_premium";
-  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
   // ============================================================================
   // 🔐 SEGURIDAD INTERNA
   // ----------------------------------------------------------------------------

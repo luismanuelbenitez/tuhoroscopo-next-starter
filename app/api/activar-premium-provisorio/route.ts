@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 // === FUNCIONES AUXILIARES ===
 
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     // CORRECCIÓN: Validamos solo esos dos campos
     if (!id_suscriptor || !preapproval_id) {
-      await logFunction(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+      await logFunction(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
           nombre_funcion: "backurl-provisional",
           resultado: "ERROR_PARAMS",
           detalle: { error: "Faltan id_suscriptor o preapproval_id", campos_recibidos: { id_suscriptor, preapproval_id } },
@@ -58,9 +58,9 @@ export async function POST(req: Request) {
     }
 
     // 2. Validar Variables de Entorno
-    const { NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+    const { NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY } = process.env;
 
-    if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SECRET_KEY) {
       return NextResponse.json(
         { ok: false, error: "Faltan variables de entorno de Supabase" },
         { status: 500 }
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     }
     
     const supabaseUrl = NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKey = SUPABASE_SECRET_KEY;
     
     // 3. Definir Cuerpo de Actualización (LÓGICA CORREGIDA: Siempre provisional)
     // Esta función solo da acceso inmediato. El webhook confirmará.

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // ef_tarot_aplicar_codigo
 // Confirma el uso de un código reservado al verificarse el pago.
 // Llamar desde el webhook de MP cuando mp_status = 'approved'.
@@ -17,11 +17,11 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL             = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const TAROT_INTERNAL_KEY       = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FUNCION                  = "ef_tarot_aplicar_codigo";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 function jsonResponse(data: unknown, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {

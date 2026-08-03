@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // EDGE FUNCTION: ef_envio_premium_post_confirmacion (v2.0 FINAL)
 // ============================================================================
 //
@@ -24,13 +24,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 // ENV
 // ----------------------------------------------------------------------------
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? ""; // tolerante
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 const APP_ENV = (Deno.env.get("APP_ENV") ?? "sandbox").toLowerCase();
 const SANDBOX = APP_ENV !== "production";
 const FN = "ef_envio_premium_post_confirmacion";
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 // ----------------------------------------------------------------------------
 // Helpers fecha / logging
 // ----------------------------------------------------------------------------

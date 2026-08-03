@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+﻿export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY! // server-only
+    process.env.SUPABASE_SECRET_KEY! // server-only
   );
 
   // Log del poll
