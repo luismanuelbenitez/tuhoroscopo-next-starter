@@ -37,7 +37,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // Service role para escribir logs y, si hace falta, leer tablas internas
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // ANON KEY para invocar Edge Functions protegidas por JWT normal
-const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
+// SUPABASE_ANON_KEY: auto-inyectada por Supabase con la publishable key vigente
+// ANON_KEY_SUPABASE: secret manual legacy (fallback)
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Base URL de Edge Functions
 // Ejemplo:
 // https://xxxxx.supabase.co/functions/v1

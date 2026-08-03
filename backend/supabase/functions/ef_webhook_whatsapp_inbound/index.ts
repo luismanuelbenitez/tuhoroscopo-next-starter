@@ -46,16 +46,12 @@ const FUNCION = "ef_webhook_whatsapp_inbound";
 // SUPABASE_SERVICE_ROLE_KEY:
 //   clave con permisos backend para leer/escribir en BD.
 //
-// ANON_KEY_SUPABASE:
-//   JWT válido para invocar otras Edge Functions que tengan verify_jwt activo.
-//
-// IMPORTANTE:
-// - Usamos UN solo nombre para el JWT interno.
-// - Evitamos mezclar SUPABASE_ANON_KEY con ANON_KEY_SUPABASE.
+// SUPABASE_ANON_KEY: auto-inyectada por Supabase (publishable key vigente)
+// ANON_KEY_SUPABASE: secret manual legacy (fallback por si existe)
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ANON_KEY_SUPABASE = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
+const ANON_KEY_SUPABASE = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Seguridad entre funciones internas (recomendado)
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 // WA Cloud API — para responder a clientes TTC dentro de ventana 24h

@@ -63,10 +63,10 @@ const WHATSAPP_INBOUND_FUNCTION_URL = Deno.env.get("WHATSAPP_INBOUND_FUNCTION_UR
 // Clave interna que CAPA 1 envía a CAPA 2.
 // Esto te permite validar que la llamada viene de tu backend.
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
-// JWT opcional para llamar a CAPA 2 si esa función tiene verify_jwt=true.
-// Mantengo ANON_KEY_SUPABASE por compatibilidad con tu implementación actual.
-// Agrego fallback a SUPABASE_ANON_KEY por si ese es el nombre real en tu proyecto.
-const INTERNAL_JWT = Deno.env.get("ANON_KEY_SUPABASE") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+// JWT para llamar a CAPA 2 si esa función tiene verify_jwt=true.
+// SUPABASE_ANON_KEY: auto-inyectada por Supabase (siempre válida, publishable key vigente)
+// ANON_KEY_SUPABASE: secret manual legacy (fallback)
+const INTERNAL_JWT = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // ============================================================================
 // HELPERS
 // ============================================================================

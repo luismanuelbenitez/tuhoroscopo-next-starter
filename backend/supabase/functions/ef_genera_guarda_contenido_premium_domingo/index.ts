@@ -275,7 +275,7 @@ serve(async (req)=>{
   // ==========================================================================
   const supabaseURL = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const anonKey = Deno.env.get("ANON_KEY_SUPABASE") || Deno.env.get("SUPABASE_ANON_KEY") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("ANON_KEY_SUPABASE") || "";
   if (!supabaseURL || !serviceRoleKey) {
     return jsonResponse({
       resultado: "error",
@@ -347,11 +347,11 @@ serve(async (req)=>{
   // ==========================================================================
   if (!anonKey) {
     await registrarLog("ANON_KEY faltante", {
-      msg: "No se encontró ANON_KEY_SUPABASE ni SUPABASE_ANON_KEY"
+      msg: "No se encontró SUPABASE_ANON_KEY ni ANON_KEY_SUPABASE"
     }, false);
     return jsonResponse({
       resultado: "error",
-      mensaje: "ANON_KEY_SUPABASE o SUPABASE_ANON_KEY no configurada"
+      mensaje: "SUPABASE_ANON_KEY o ANON_KEY_SUPABASE no configurada"
     }, 500);
   }
   // ==========================================================================
