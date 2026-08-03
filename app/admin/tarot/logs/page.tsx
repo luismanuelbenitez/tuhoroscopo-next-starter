@@ -201,7 +201,7 @@ export default function TarotLogsPage() {
 
         {/* Título */}
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">🪵 Logs de Tarot</h2>
+          <h2 className="text-base font-semibold text-white">Logs · Tarot</h2>
           <a
             href="/admin/tarot/ordenes"
             className="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-3 py-1.5 transition-colors"

@@ -181,6 +181,7 @@ export default function TarotOrdenesPage() {
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Órdenes</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Pedidos de lectura y su estado en el flujo</p>
         </div>
 
         {/* Filtros */}

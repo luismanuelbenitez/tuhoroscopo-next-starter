@@ -541,6 +541,18 @@ export default function TarotDashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-base font-semibold text-gray-100">Panel · Tarot (TTC)</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Métricas, órdenes y estado de lecturas</p>
+          </div>
+          <a
+            href="/admin/tarot/config"
+            className="text-xs text-amber-500/70 hover:text-amber-300 transition-colors"
+          >
+            Config →
+          </a>
+        </div>
         {cargando && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
             <span className="animate-pulse">Cargando métricas…</span>

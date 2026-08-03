@@ -880,6 +880,12 @@ export default function SuscripcionesPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-100">Suscripciones</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Historial de suscripciones y estado MercadoPago</p>
+          </div>
+        </div>
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
           {/* Estado local */}

@@ -1226,6 +1226,17 @@ export default function CuponesPage() {
           </select>
 
           <button
+            onClick={() => applyFiltro({ busqueda: busquedaInput, activo: "true", vencidos: false })}
+            className={`text-sm px-3 py-2 rounded-lg border transition-colors ${
+              filtros.activo === "true" && !filtros.vencidos
+                ? "border-green-700 bg-green-900/40 text-green-300"
+                : "border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Solo válidos
+          </button>
+
+          <button
             onClick={() => applyFiltro({ busqueda: busquedaInput, vencidos: !filtros.vencidos })}
             className={`text-sm px-3 py-2 rounded-lg border transition-colors ${
               filtros.vencidos

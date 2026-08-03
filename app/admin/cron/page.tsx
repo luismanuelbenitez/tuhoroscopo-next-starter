@@ -74,6 +74,33 @@ function fmtDatetime(iso: string | null | undefined): string {
   } catch { return iso; }
 }
 
+function computeNextRun(expr: string): string | null {
+  const f = expr.trim().split(/\s+/);
+  if (f.length !== 5) return null;
+  const [min, hour, dom, , dow] = f;
+  if (min.includes("*") || hour.includes("*") || dom.includes("*") === false && dom !== "*") return null;
+  const targetMin = parseInt(min, 10);
+  const targetHour = parseInt(hour, 10);
+  if (isNaN(targetMin) || isNaN(targetHour)) return null;
+  const now = new Date();
+  const nowH = now.getUTCHours();
+  const nowM = now.getUTCMinutes();
+  const timeLabel = `${String(targetHour).padStart(2, "0")}:${String(targetMin).padStart(2, "0")} UTC`;
+  if (dow === "*") {
+    const isToday = nowH < targetHour || (nowH === targetHour && nowM < targetMin);
+    return isToday ? `hoy ~${timeLabel}` : `mañana ~${timeLabel}`;
+  }
+  const targetDow = parseInt(dow, 10);
+  if (isNaN(targetDow)) return null;
+  const todayDow = now.getUTCDay();
+  const diff = (targetDow - todayDow + 7) % 7;
+  const isToday = diff === 0 && (nowH < targetHour || (nowH === targetHour && nowM < targetMin));
+  if (isToday) return `hoy ~${timeLabel}`;
+  const inDays = diff === 0 ? 7 : diff;
+  if (inDays === 1) return `mañana ~${timeLabel}`;
+  return `en ${inDays}d ~${timeLabel}`;
+}
+
 function fmtRelative(iso: string | null | undefined): string {
   if (!iso) return "";
   try {
@@ -201,10 +228,16 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
           </div>
 
           {/* Schedule */}
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="font-mono text-xs text-violet-400">{job.schedule}</span>
             <span className="text-xs text-gray-600">·</span>
             <span className="text-xs text-gray-500">{fmtCronDesc(job.schedule)}</span>
+            {job.active && computeNextRun(job.schedule) && (
+              <>
+                <span className="text-xs text-gray-700">·</span>
+                <span className="text-xs text-sky-600/80">próx. {computeNextRun(job.schedule)}</span>
+              </>
+            )}
           </div>
 
           {/* EF name — sanitizado, nunca el comando completo */}

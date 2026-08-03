@@ -531,7 +531,12 @@ export default function TarotCodigosPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-white">Códigos de descuento</h2>
+          <div>
+            <h2 className="text-base font-semibold text-white">Códigos de descuento</h2>
+            {total > 0 && (
+              <p className="text-xs text-gray-500 mt-0.5">{total} código{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}</p>
+            )}
+          </div>
           <button
             onClick={abrirCrear}
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors"

@@ -552,14 +552,22 @@ export function AdminDashboard() {
       <header className="border-b border-gray-800">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
+          <div className="flex items-center gap-4">
+            <a
+              href="/admin/horoscopo/config"
+              className="text-xs text-violet-500 hover:text-violet-300 transition-colors"
+            >
+              Config →
+            </a>
+            <button
+              onClick={handleLogout}
+              disabled={cerrandoSesion}
+              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+            >
+              <LogOut size={15} />
+              {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
+            </button>
+          </div>
         </div>
         {/* Nav */}
         <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">

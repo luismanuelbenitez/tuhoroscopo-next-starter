@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { MessageCircle, Send, X, ChevronLeft, ChevronRight, RefreshCw, LogOut } from "lucide-react";
+import { MessageCircle, Send, X, ChevronLeft, ChevronRight, RefreshCw, LogOut, Info } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 
@@ -239,13 +239,16 @@ export default function WaConversacionesPage() {
           </button>
         </div>
 
-        {/* Nota de configuración — solo visible si falta algo */}
-        <p className="text-[11px] text-gray-700 leading-relaxed">
-          Para enviar respuestas desde este panel, asegurate de tener{" "}
-          <code className="text-gray-600">WHATSAPP_TOKEN</code> y{" "}
-          <code className="text-gray-600">WHATSAPP_PHONE_NUMBER_ID</code>{" "}
-          como variables de entorno en Next.js / Vercel (los mismos valores que en Supabase).
-        </p>
+        {/* Nota de configuración */}
+        <div className="flex items-start gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-2.5 text-xs text-gray-500">
+          <Info size={12} className="text-gray-600 shrink-0 mt-0.5" />
+          <span>
+            Para enviar respuestas desde este panel asegurate de tener{" "}
+            <code className="font-mono text-gray-400">WHATSAPP_TOKEN</code> y{" "}
+            <code className="font-mono text-gray-400">WHATSAPP_PHONE_NUMBER_ID</code>{" "}
+            como variables de entorno en Next.js/Vercel.
+          </span>
+        </div>
 
         {/* Filtros rápidos */}
         <div className="flex flex-wrap gap-2">

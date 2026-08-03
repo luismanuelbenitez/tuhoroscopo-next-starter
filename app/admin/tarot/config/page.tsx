@@ -590,7 +590,7 @@ export default function TarotConfigPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-white">Configuración TTC</h2>
+          <h2 className="text-base font-semibold text-white">Configuración · Tarot (TTC)</h2>
           <button
             onClick={cargar}
             disabled={cargando}

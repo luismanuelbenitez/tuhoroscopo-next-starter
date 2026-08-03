@@ -218,7 +218,7 @@ export default function IngresosPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <TrendingUp size={18} className="text-amber-400" />
-            <h2 className="text-base font-semibold text-white">Ingresos</h2>
+            <h2 className="text-base font-semibold text-white">Ingresos · Tarot (TTC)</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-lg border border-gray-700 overflow-hidden">

@@ -112,6 +112,7 @@ export default function TarotClientesPage() {
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Clientes</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Clientes registrados con historial de órdenes</p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">

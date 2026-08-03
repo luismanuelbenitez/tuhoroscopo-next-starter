@@ -213,7 +213,7 @@ export function AdminHub() {
         {/* === Sistema === */}
         <section>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Sistema</p>
-          <div className={`rounded-xl border px-5 py-5 mb-3 ${
+          <div className={`rounded-xl border px-5 py-5 ${
             modoMantenimiento?.valor === "true"
               ? "border-red-800/50 bg-red-950/10"
               : "border-gray-800 bg-gray-900/50"
@@ -235,39 +235,6 @@ export function AdminHub() {
               <p className="text-xs text-gray-600 italic">MODO_MANTENIMIENTO no encontrado en config</p>
             )}
           </div>
-
-          {!cargandoConfig && (whatsappModo || debugMode) && (
-            <div className="flex flex-wrap gap-2">
-              {whatsappModo && (
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
-                  whatsappModo.valor === "production"
-                    ? "border-amber-800/50 bg-amber-950/20 text-amber-400"
-                    : "border-violet-800/40 bg-violet-950/15 text-violet-400"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${whatsappModo.valor === "production" ? "bg-amber-400" : "bg-violet-400"}`} />
-                  <span className="font-mono">WHATSAPP_MODO</span>
-                  <span className="font-semibold">{whatsappModo.valor.toUpperCase()}</span>
-                </div>
-              )}
-              {debugMode && (
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
-                  debugMode.valor === "true"
-                    ? "border-green-800/50 bg-green-950/20 text-green-400"
-                    : "border-gray-800 bg-gray-900/50 text-gray-500"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${debugMode.valor === "true" ? "bg-green-400" : "bg-gray-600"}`} />
-                  <span className="font-mono">APP_DEBUG_MODE</span>
-                  <span className="font-semibold">{debugMode.valor.toUpperCase()}</span>
-                </div>
-              )}
-              <a
-                href="/admin/config"
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-800 text-xs text-gray-500 hover:text-gray-300 hover:border-gray-700 transition-colors"
-              >
-                Toda la config →
-              </a>
-            </div>
-          )}
         </section>
 
         {/* === Métricas — grid 2 columnas === */}
@@ -285,12 +252,20 @@ export function AdminHub() {
                   <p className="text-xs text-violet-500/70">Tu Oráculo · THC</p>
                 </div>
               </div>
-              <a
-                href="/admin/horoscopo"
-                className="text-xs text-violet-500 hover:text-violet-300 transition-colors"
-              >
-                Panel →
-              </a>
+              <div className="flex items-center gap-3">
+                <a
+                  href="/admin/horoscopo/config"
+                  className="text-xs text-violet-500/60 hover:text-violet-300 transition-colors"
+                >
+                  Config →
+                </a>
+                <a
+                  href="/admin/horoscopo"
+                  className="text-xs text-violet-500 hover:text-violet-300 transition-colors"
+                >
+                  Panel →
+                </a>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -337,6 +312,34 @@ export function AdminHub() {
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
                     {fmt(m.thc.mensajes_fallidos_24h)} fallidos (24h)
                   </span>
+                )}
+              </div>
+            )}
+
+            {/* Chips de config del producto */}
+            {!cargandoConfig && (whatsappModo || debugMode) && (
+              <div className="flex flex-wrap gap-2 pt-1 border-t border-violet-900/20">
+                {whatsappModo && (
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
+                    whatsappModo.valor === "production"
+                      ? "border-amber-800/50 bg-amber-950/20 text-amber-400"
+                      : "border-violet-800/40 bg-violet-950/15 text-violet-400"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${whatsappModo.valor === "production" ? "bg-amber-400" : "bg-violet-400"}`} />
+                    <span className="font-mono">WHATSAPP_MODO</span>
+                    <span className="font-semibold">{whatsappModo.valor.toUpperCase()}</span>
+                  </div>
+                )}
+                {debugMode && (
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${
+                    debugMode.valor === "true"
+                      ? "border-green-800/50 bg-green-950/20 text-green-400"
+                      : "border-gray-800 bg-gray-900/50 text-gray-500"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${debugMode.valor === "true" ? "bg-green-400" : "bg-gray-600"}`} />
+                    <span className="font-mono">APP_DEBUG_MODE</span>
+                    <span className="font-semibold">{debugMode.valor.toUpperCase()}</span>
+                  </div>
                 )}
               </div>
             )}

@@ -238,6 +238,12 @@ export default function MensajesProblematicosPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-100">Mensajes problemáticos</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Mensajes fallidos, con error o pendientes de envío</p>
+          </div>
+        </div>
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
           {/* Estado dropdown */}

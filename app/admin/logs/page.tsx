@@ -672,6 +672,26 @@ export default function LogsPage() {
           </div>
         )}
 
+        {/* Quick-filter: función */}
+        {porFuncion.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {porFuncion.map(([fn, count]) => (
+              <button
+                key={fn}
+                onClick={() => handleFuncionChip(fn)}
+                className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-colors ${
+                  filtros.nombre_funcion === fn
+                    ? "border-violet-600 bg-violet-900/50 text-violet-200"
+                    : "border-gray-800 bg-gray-900 text-gray-500 hover:text-gray-300 hover:border-gray-700"
+                }`}
+              >
+                {fn.replace(/^ef_/, "")}{" "}
+                <span className="text-gray-600 font-sans">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-3">
           {/* Nombre función */}

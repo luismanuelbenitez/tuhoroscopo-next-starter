@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { href: "/admin/prompts",                label: "Prompts" },
   { href: "/admin/logs",                   label: "Logs" },
   { href: "/admin/cron",                   label: "Cron" },
-  { href: "/admin/config",                 label: "Config" },
+  { href: "/admin/horoscopo/config",        label: "Config" },
 ] as const;
 
 export function AdminNav({ current }: { current: string }) {

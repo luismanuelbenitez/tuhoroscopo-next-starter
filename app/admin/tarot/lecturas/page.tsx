@@ -147,6 +147,16 @@ export default function TarotLecturasPage() {
           >
             Solo errores
           </button>
+          <button
+            onClick={() => setFiltros({ ...filtros, estado: filtros.estado === "pendiente" ? "" : "pendiente", solo_errores: false, offset: 0 })}
+            className={`text-xs px-3 py-2 rounded-lg border transition-colors ${
+              filtros.estado === "pendiente"
+                ? "border-sky-700 bg-sky-900/40 text-sky-300"
+                : "border-gray-700 bg-gray-900 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            Solo pendientes
+          </button>
         </div>
 
         {errorMsg && (
