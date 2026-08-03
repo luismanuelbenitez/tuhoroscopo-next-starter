@@ -83,7 +83,7 @@ function extraerColorBase(valor) {
 // ============================================================
 serve(async (req)=>{
   const funcion = "ef_alta_contenido_premium";
-  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
+  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
   let body;
   try {
     body = await req.json();

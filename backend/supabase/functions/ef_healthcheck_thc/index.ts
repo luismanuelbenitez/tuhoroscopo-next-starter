@@ -36,7 +36,7 @@
 //
 // SEGURIDAD:
 //   - Requiere x-internal-key.
-//   - Usa SUPABASE_SECRET_KEY.
+//   - Usa SUPABASE_SERVICE_ROLE_KEY.
 //   - Pensada para uso interno desde Postman, cron manual, dashboard admin
 //     o futura pantalla operativa.
 //
@@ -47,10 +47,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // 🔐 ENV
 // ============================================================================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 const FUNCION = "ef_healthcheck_thc";
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 // 🧰 HELPERS GENERALES
 // ============================================================================

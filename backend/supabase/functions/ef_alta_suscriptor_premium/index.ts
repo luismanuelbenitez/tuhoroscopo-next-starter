@@ -32,9 +32,9 @@ serve(async (req)=>{
     // === INICIALIZACIÓN Y VALIDACIÓN DE ENV ===
     // ===========================================
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SECRET_KEY");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SECRET_KEY en Edge Function");
+      console.error("Error fatal: Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en Edge Function");
       return new Response(JSON.stringify({
         resultado: "error",
         mensaje: "Configuración interna del servidor (EF)"

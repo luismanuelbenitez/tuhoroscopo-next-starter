@@ -187,7 +187,7 @@
 //   - no procesa nada
 //
 // ADEMÁS:
-//   - usa `SUPABASE_SECRET_KEY`
+//   - usa `SUPABASE_SERVICE_ROLE_KEY`
 //   - por lo tanto tiene permisos altos sobre la base
 //
 // CONSECUENCIA:
@@ -532,7 +532,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Supabase
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // ---------------------------------------------------------------------------
 // WhatsApp
 // ---------------------------------------------------------------------------
@@ -614,7 +614,7 @@ const MAX_INTENTOS = 5;
 // - leer contenido_premium
 // - actualizar contenido_premium
 // - escribir log_funciones
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 // 🧩 MAPEO DE VARIABLES POR TEMPLATE
 // ----------------------------------------------------------------------------

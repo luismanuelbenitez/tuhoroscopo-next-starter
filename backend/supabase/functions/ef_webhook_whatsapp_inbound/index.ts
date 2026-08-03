@@ -43,7 +43,7 @@ const FUNCION = "ef_webhook_whatsapp_inbound";
 // SUPABASE_URL:
 //   URL base del proyecto.
 //
-// SUPABASE_SECRET_KEY:
+// SUPABASE_SERVICE_ROLE_KEY:
 //   clave con permisos backend para leer/escribir en BD.
 //
 // ANON_KEY_SUPABASE:
@@ -54,7 +54,7 @@ const FUNCION = "ef_webhook_whatsapp_inbound";
 // - Evitamos mezclar SUPABASE_ANON_KEY con ANON_KEY_SUPABASE.
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY_SUPABASE = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Seguridad entre funciones internas (recomendado)
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
@@ -160,7 +160,7 @@ const ESTADO_FALLO_DEFINITIVO = "fallo_definitivo";
 // ---------------------------------------------------------------------------
 // Cliente Supabase (Service Role)
 // ---------------------------------------------------------------------------
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 // Helpers generales (UTC / normalización)
 // ============================================================================

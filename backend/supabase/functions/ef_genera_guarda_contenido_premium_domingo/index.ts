@@ -274,12 +274,12 @@ serve(async (req)=>{
   // 1) ENV / CLIENTES
   // ==========================================================================
   const supabaseURL = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const anonKey = Deno.env.get("ANON_KEY_SUPABASE") || Deno.env.get("SUPABASE_ANON_KEY") || "";
   if (!supabaseURL || !serviceRoleKey) {
     return jsonResponse({
       resultado: "error",
-      mensaje: "SUPABASE_URL o SUPABASE_SECRET_KEY no configurados"
+      mensaje: "SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados"
     }, 500);
   }
   const supabase = createClient(supabaseURL, serviceRoleKey);

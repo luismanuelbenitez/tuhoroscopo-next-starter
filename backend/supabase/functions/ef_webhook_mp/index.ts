@@ -12,14 +12,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 // Tu URL de Supabase
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // Service Role para permisos totales
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // Access Token privado de Mercado Pago
 const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
 // Si un pago aprobado activa la suscripción automáticamente
 const CONFIRM_WITH_AUTHORIZED_PAYMENT = (Deno.env.get("CONFIRM_WITH_AUTHORIZED_PAYMENT") ?? "true").toLowerCase() === "true";
 const internalKey = Deno.env.get("WHATSAPP_INTERNAL_KEY");
 // Cliente Supabase con permisos completos
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // Constante para logs
 const FN = "ef_webhook_mp";
 // Entorno de MP (sandbox o producción)
@@ -268,7 +268,7 @@ async function handlePreapproval(preapprovalId) {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${SUPABASE_SECRET_KEY}`,
+              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               "x-internal-key": internalKey,
             },
             body: JSON.stringify({

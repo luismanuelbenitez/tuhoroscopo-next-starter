@@ -8,7 +8,7 @@ const IDIOMA = "es";
 const MAX_RETRY = Number(Deno.env.get("MAX_RETRY") || 3);
 // Fallbacks seguros para llamadas internas
 const EDGE_BASE_URL = Deno.env.get("EDGE_BASE_URL") ?? `${Deno.env.get("SUPABASE_URL")}/functions/v1`; // ej: https://xxx.supabase.co/functions/v1
-const INTERNAL_TOKEN = Deno.env.get("INTERNAL_TOKEN") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const INTERNAL_TOKEN = Deno.env.get("INTERNAL_TOKEN") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 // ========= UTC & LOGGING =========
 function nowUTCISO() {
   return new Date().toISOString();
@@ -74,7 +74,7 @@ function classifyProvider(waResOk, waStatus, waJson) {
 }
 // ========= MAIN =========
 serve(async (req)=>{
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SECRET_KEY'));
+  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
   // -------- Parse body --------
   let body;
   try {

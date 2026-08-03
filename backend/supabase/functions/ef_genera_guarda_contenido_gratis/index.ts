@@ -54,7 +54,7 @@ async function registrarLog(supabase, resultado, detalle = {}, exito = true) {
 }
 // --- MAIN ---
 serve(async (req)=>{
-  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
+  const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
   let logResultado = "OK";
   let logDetalle = {};
   let logExito = true;

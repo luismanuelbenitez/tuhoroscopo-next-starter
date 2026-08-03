@@ -26,7 +26,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // 🔐 ENV
 // ============================================================================
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 const TJW = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 const FUNCION = "ef_run_sender_batch";
@@ -36,7 +36,7 @@ const DEFAULT_LIMIT = 20;
 // ============================================================================
 // 🔌 CLIENTE
 // ============================================================================
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 // 🧰 HELPERS
 // ============================================================================

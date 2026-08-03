@@ -13,7 +13,7 @@ import { encode as encodeBase64 } from "https://deno.land/std@0.192.0/encoding/b
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const RESEND_API_KEY            = Deno.env.get("RESEND_API_KEY") ?? "";
 const RESEND_FROM               = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";
@@ -21,7 +21,7 @@ const FN                        = "ef_tarot_enviar_email";
 
 const ROMAN = ["I", "II", "III", "IV", "V"];
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 

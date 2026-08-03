@@ -6,7 +6,7 @@ const NOTIF_URL            = Deno.env.get("MP_NOTIFICATION_URL") ?? "";
 const MP_ENV               = Deno.env.get("MP_ENV") ?? "production";
 const MP_TEST_PLAYER_EMAIL = Deno.env.get("MP_TEST_PLAYER_EMAIL") ?? "";
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 

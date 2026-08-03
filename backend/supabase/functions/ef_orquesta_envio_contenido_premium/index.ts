@@ -35,7 +35,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // URL base de Supabase project
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // Service role para escribir logs y, si hace falta, leer tablas internas
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // ANON KEY para invocar Edge Functions protegidas por JWT normal
 const SUPABASE_ANON_KEY = Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Base URL de Edge Functions
@@ -45,7 +45,7 @@ const EDGE_BASE_URL = Deno.env.get("EDGE_BASE_URL") ?? "";
 // Nombre canónico de esta función
 const FUNCION = "ef_orquesta_envio_contenido_premium";
 // Cliente Supabase
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ============================================================================
 // HELPERS GENERALES
 // ============================================================================

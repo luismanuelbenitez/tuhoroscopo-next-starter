@@ -14,7 +14,7 @@ function getFechaHoraMontevideoISO() {
 }
 serve(async (req)=>{
   const funcion = 'ef_alta_contenido_gratis';
-  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SECRET_KEY'));
+  const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
   async function registrarLog(nombreFuncion, resultado, detalle = {}, exito = true, creadoPor = 'system') {
     try {
       const { error } = await supabase.from('log_funciones').insert([

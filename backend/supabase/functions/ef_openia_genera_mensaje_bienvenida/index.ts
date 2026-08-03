@@ -28,7 +28,7 @@ const OPENAI_MAX_TOKENS = Number(Deno.env.get("OPENAI_MAX_TOKENS") ?? 550);
 const MODO_TEST = (Deno.env.get("MODO_TEST") || "false").toLowerCase() === "true";
 const RETURN_FALLBACK_ON_ERROR = (Deno.env.get("RETURN_FALLBACK_ON_ERROR") || "false").toLowerCase() === "true";
 // Supabase (service role) para logs
-const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SECRET_KEY"));
+const supabase = createClient(Deno.env.get("SUPABASE_URL"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
 // OpenAI API key
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 // Nombre lógico de la función para logs

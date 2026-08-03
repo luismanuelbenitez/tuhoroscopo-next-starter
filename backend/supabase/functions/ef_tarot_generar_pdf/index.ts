@@ -27,13 +27,13 @@ import {
 } from "https://esm.sh/pdf-lib@1.17.1";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN            = "ef_tarot_generar_pdf";
 const BUCKET_ASSETS = "tarot-assets";
 const PLANTILLA     = "mistico-v2";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── A4 en puntos PDF (origen: esquina inferior izquierda) ─────
 const PW = 595.28, PH = 841.89;
@@ -1130,7 +1130,7 @@ async function generarPDF(
 
       const internalHeaders = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         "x-internal-key": TAROT_INTERNAL_KEY,
       };
 
