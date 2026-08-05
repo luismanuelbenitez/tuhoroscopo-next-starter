@@ -2,8 +2,9 @@ import TarotLandingContent from './TarotLandingContent';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 
 export const metadata = {
-  title: 'Tarot — Tu Oráculo | Lectura personalizada por WhatsApp',
-  description: 'Tirada de 5 cartas generada con IA, entregada por WhatsApp en minutos. Un pago único, sin suscripción.',
+  title: 'Lectura de Tarot personalizada | Tu Oráculo',
+  description:
+    'Tirada de 5 cartas interpretada para tu pregunta real, entregada en PDF directo a tu WhatsApp en menos de 15 minutos. Un solo pago. Sin suscripción.',
 };
 
 export default async function TarotPage() {
