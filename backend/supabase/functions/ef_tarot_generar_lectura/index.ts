@@ -15,6 +15,16 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import {
+  shuffle,
+  interpolarTemplate,
+  buildLecturaTool,
+  renderCartasTexto,
+  validateLectura,
+  type WordLimits,
+  type CartaParaPrompt,
+  type LecturaIAOutput,
+} from "../_shared/tarot-core.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -173,110 +183,6 @@ async function logFunnelEvent(event: {
   }
 }
 
-// ── Fisher-Yates shuffle ─────────────────────────────────────
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// ── Tool schema dinámico (límites desde productoConfig) ──────
-
-// deno-lint-ignore no-explicit-any
-function buildLecturaTool(cfg: ProductoConfig): Record<string, any> {
-  return {
-    name: "entregar_lectura_tarot",
-    description: "Entrega la lectura de tarot personalizada en formato estructurado.",
-    input_schema: {
-      type: "object",
-      properties: {
-        descripcion_general_tirada: {
-          type: "string",
-          description: "Descripción introductoria de la tirada completa. 2 a 3 oraciones que enmarquen la energía global de la consulta.",
-        },
-        cartas: {
-          type: "array",
-          description: "Interpretación de cada una de las 5 cartas en su posición",
-          minItems: 5,
-          maxItems: 5,
-          items: {
-            type: "object",
-            properties: {
-              posicion: { type: "integer", description: "Número de posición (1 a 5)" },
-              interpretacion: {
-                type: "string",
-                description: `Interpretación de esta carta en su posición. Máximo ${cfg.max_words_interpretacion} palabras. Conectá la carta con el tema/pregunta del consultante.`,
-              },
-              consejo: {
-                type: "string",
-                description: `Consejo accionable y empático. 1 oración directa, máximo ${cfg.max_words_consejo} palabras.`,
-              },
-            },
-            required: ["posicion", "interpretacion", "consejo"],
-          },
-        },
-        resumen_lectura: {
-          type: "string",
-          description: `Síntesis de la tirada completa. Cómo las 5 cartas dialogan entre sí. Máximo ${cfg.max_words_resumen} palabras.`,
-        },
-        mensaje_final: {
-          type: "string",
-          description: `Mensaje final cálido y motivador para el consultante. Máximo ${cfg.max_words_mensaje_final} palabras.`,
-        },
-        proximos_pasos: {
-          type: "array",
-          description: `3 acciones concretas o reflexiones para los próximos días. Máximo ${cfg.max_words_proximo_paso} palabras por ítem.`,
-          minItems: 3,
-          maxItems: 3,
-          items: { type: "string" },
-        },
-        disclaimer: {
-          type: "string",
-          description: "Nota al pie de carácter legal/espiritual. Usar el texto estándar.",
-        },
-      },
-      required: ["descripcion_general_tirada", "cartas", "resumen_lectura", "mensaje_final", "proximos_pasos", "disclaimer"],
-    },
-  };
-}
-
-// ── Renderizado de cartas para el prompt ─────────────────────
-
-function renderCartasTexto(cartas: CartaConPosicion[]): string {
-  return cartas.map((c) => {
-    const orientacion = c.invertida ? "INVERTIDA" : "derecha";
-    const significado = c.invertida ? c.significado_invertido : c.significado_normal;
-    const keywords = c.keywords?.join(", ") ?? "";
-    return `  Posición ${c.posicion.numero}: "${c.posicion.nombre}"
-    - Carta: ${c.nombre_es} (${orientacion})
-    - Qué representa esta posición: ${c.posicion.descripcion}
-    - Significado de la carta: ${significado}
-    - Keywords: ${keywords}`;
-  }).join("\n\n");
-}
-
-// ── Interpolación de template ────────────────────────────────
-// Reemplaza {{key}} con el valor. Si value es null/vacío, elimina la línea completa.
-
-function interpolarTemplate(
-  template: string,
-  vars: Record<string, string | null | undefined>,
-): string {
-  let result = template;
-  for (const [key, value] of Object.entries(vars)) {
-    if (value === null || value === undefined || String(value).trim() === "") {
-      result = result.replace(new RegExp(`^[^\n]*\\{\\{${key}\\}\\}[^\n]*\n?`, "gm"), "");
-    } else {
-      result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
-    }
-  }
-  return result.replace(/\n{3,}/g, "\n\n").trim();
-}
-
 // ── Procesamiento principal ──────────────────────────────────
 
 async function generarLectura(ordenId: string): Promise<void> {
@@ -403,7 +309,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   // 9. Leer producto_config activo para esta tirada/idioma
   const { data: productoConfigRow } = await supabase
     .from("tarot_producto_config")
-    .select(`id, prompt_sistema, prompt_usuario_template,
+    .select(`id, current_prompt_version_id, prompt_sistema, prompt_usuario_template,
              max_words_interpretacion, max_words_consejo, max_words_resumen,
              max_words_mensaje_final, max_words_proximo_paso,
              ia_modelo, ia_max_tokens, ia_temperatura`)
@@ -465,7 +371,18 @@ async function generarLectura(ordenId: string): Promise<void> {
     .eq("id", ordenId);
 
   // 11. Construir prompts desde template
-  const cartasTexto = renderCartasTexto(cartasSeleccionadas);
+  const cartasParaPrompt: CartaParaPrompt[] = cartasSeleccionadas.map((c) => ({
+    id:                   c.id,
+    posicion_numero:      c.posicion.numero,
+    posicion_nombre:      c.posicion.nombre,
+    posicion_descripcion: c.posicion.descripcion,
+    nombre_es:            c.nombre_es,
+    invertida:            c.invertida,
+    significado_normal:   c.significado_normal,
+    significado_invertido: c.significado_invertido,
+    keywords:             c.keywords ?? [],
+  }));
+  const cartasTexto = renderCartasTexto(cartasParaPrompt);
   const preguntaFinal = orden.pregunta_usuario?.trim() || "Tirada abierta, claridad general sobre mi momento de vida";
 
   const promptSistema = productoConfig.prompt_sistema;
@@ -485,18 +402,26 @@ async function generarLectura(ordenId: string): Promise<void> {
     max_proximo_paso:   String(productoConfig.max_words_proximo_paso),
   });
 
-  const lecturaTool = buildLecturaTool(productoConfig);
+  const wordLimits: WordLimits = {
+    interpretacion: productoConfig.max_words_interpretacion,
+    consejo:        productoConfig.max_words_consejo,
+    resumen:        productoConfig.max_words_resumen,
+    mensaje_final:  productoConfig.max_words_mensaje_final,
+    proximo_paso:   productoConfig.max_words_proximo_paso,
+  };
+  const lecturaTool = buildLecturaTool(wordLimits);
 
   // 12. Crear registro de lectura
   const { data: lecturaRow, error: errLectura } = await supabase
     .from("tarot_lecturas")
     .insert({
-      orden_id:           ordenId,
-      estado:             "generando",
-      numero_intento:     numeroIntento,
-      es_vigente:         false,
-      ia_modelo:          iaModelo,
-      producto_config_id: productoConfigRow?.id ?? null,
+      orden_id:            ordenId,
+      estado:              "generando",
+      numero_intento:      numeroIntento,
+      es_vigente:          false,
+      ia_modelo:           iaModelo,
+      producto_config_id:  productoConfigRow?.id ?? null,
+      prompt_version_id:   productoConfigRow?.current_prompt_version_id ?? null,
     })
     .select("id")
     .single();
@@ -572,20 +497,11 @@ async function generarLectura(ordenId: string): Promise<void> {
       throw new Error("Anthropic no devolvió un tool_use block válido");
     }
 
-    const iaOutput = toolBlock.input as {
-      descripcion_general_tirada: string;
-      cartas: Array<{ posicion: number; interpretacion: string; consejo: string }>;
-      resumen_lectura: string;
-      mensaje_final: string;
-      proximos_pasos: string[];
-      disclaimer: string;
-    };
+    const iaOutput = toolBlock.input as LecturaIAOutput;
 
-    if (!Array.isArray(iaOutput.cartas) || iaOutput.cartas.length !== 5) {
-      throw new Error(`Schema inválido: se esperaban 5 cartas, llegaron ${iaOutput.cartas?.length ?? 0}`);
-    }
-    if (!iaOutput.descripcion_general_tirada || !iaOutput.resumen_lectura || !iaOutput.mensaje_final || !Array.isArray(iaOutput.proximos_pasos)) {
-      throw new Error("Schema inválido: faltan campos obligatorios en la respuesta IA");
+    const validacion = validateLectura(iaOutput);
+    if (!validacion.valida) {
+      throw new Error(`lectura_invalida: ${validacion.campo} — ${validacion.detalle}`);
     }
 
     const cartasIA = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
