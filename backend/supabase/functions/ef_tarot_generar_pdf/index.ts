@@ -62,19 +62,16 @@ interface BlockCard  { x: Px; y: Px; w: Px; h: Px }
 interface BlockText  { x: Px; yStart: Px; w: Px; minY: Px }
 interface P2Block    { outer: BlockOuter; card: BlockCard; text: BlockText }
 interface BodyZone   { x: Px; yStart: Px; width: Px; minY: Px; fontSize: Px }
-interface InlineZone { x: Px; y: Px; width: Px; fontSize: Px }
 interface StepZone   { x: Px; y: Px; width: Px; minY: Px }
 interface P3Layout {
   resumen:       BodyZone;
   mensajeFinal:  BodyZone;
   proximosPasos: StepZone[];
-  recordatorio:  InlineZone;
 }
 
 // ── Colores ──────────────────────────────────────────────────
 const C_DARK_BROWN = rgb(0.16, 0.08, 0.03);
 const C_GOLD       = rgb(0.72, 0.55, 0.10);
-const C_CREAM      = rgb(0.97, 0.95, 0.90);
 const C_TEXT_DARK  = rgb(0.12, 0.07, 0.22);
 const C_TEXT_MED   = rgb(0.38, 0.30, 0.50);
 const C_WHITE      = rgb(1, 1, 1);
@@ -168,8 +165,6 @@ const P3: P3Layout = {
     { x: 420, y: 2550, width: 1900, minY: 2650 },
   ],
 
-  // Recordatorio cósmico — caja oscura, texto itálica
-  recordatorio: { x: 540, y: 2940, width: 1410, fontSize: 40 },
 };
 
 // ── Interfaces ───────────────────────────────────────────────
@@ -531,7 +526,6 @@ function addDebugOverlayP3(page: PDFPage, f: Fonts) {
   const C_RED    = rgb(0.9, 0.1, 0.1);
   const C_ORANGE = rgb(0.9, 0.5, 0.0);
   const C_GREEN  = rgb(0.0, 0.7, 0.2);
-  const C_PURP   = rgb(0.6, 0.0, 0.8);
 
   const resYStart = pY(P3.resumen.yStart);
   const resMinY   = pY(P3.resumen.minY);
@@ -559,12 +553,6 @@ function addDebugOverlayP3(page: PDFPage, f: Fonts) {
     }, `PASO${i+1}`, C_GREEN);
     drawDebugPoint(page, f, pX(pp.x), ppY, `p${i+1}Start`, C_GREEN);
   }
-
-  const recPdfY = pY(P3.recordatorio.y);
-  drawDebugBox(page, f, {
-    x: pX(P3.recordatorio.x), y: recPdfY - pX(P3.recordatorio.fontSize) * 3,
-    w: pX(P3.recordatorio.width), h: pX(P3.recordatorio.fontSize) * 4,
-  }, "RECORDATORIO", C_PURP);
 
 }
 
@@ -762,15 +750,6 @@ function addPage3(
     drawWrapped(p, pasoTxt,
       pX(pp.x), pasoDrawY, f.reg, pasoSize, CT,
       pasoMaxW, pasoSize * 1.45, pasoBotY);
-  }
-
-  // Recordatorio cósmico
-  const recStr = sanitize(c.recordatorio_cosmico ?? c.mensaje_final ?? "");
-  const recPdfY = pY(L.recordatorio.y);
-  if (recStr) {
-    drawWrapped(p, recStr,
-      pX(L.recordatorio.x), recPdfY, f.ita, pX(L.recordatorio.fontSize), C_CREAM,
-      pX(L.recordatorio.width), pX(L.recordatorio.fontSize) * 1.5, recPdfY - 40 - pX(20));
   }
 
   if (debug) addDebugOverlayP3(p, f);
