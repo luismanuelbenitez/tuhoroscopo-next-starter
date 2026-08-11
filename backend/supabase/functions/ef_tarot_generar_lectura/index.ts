@@ -25,6 +25,7 @@ import {
   type CartaParaPrompt,
   type LecturaIAOutput,
 } from "../_shared/tarot-core.ts";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -640,6 +641,14 @@ async function generarLectura(ordenId: string): Promise<void> {
     await supabase.from("tarot_ordenes")
       .update({ estado: estadoOrden, updated_at: ahoraNow })
       .eq("id", ordenId);
+
+    // Alerta: error de generación (fire-and-forget)
+    dispararAlerta(supabase, "error_generacion", {
+      ordenId,
+      ordenRef: orden.external_reference ?? undefined,
+      error:    errMsg.substring(0, 300),
+      fecha:    ahoraNow,
+    }).catch(() => {});
 
     const duracionMs = Date.now() - t0;
     await registrarLog(ordenId, "lectura_error", "error",

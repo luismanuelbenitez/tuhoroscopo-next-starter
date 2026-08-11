@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Settings,
   Sparkles,
+  Bell,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -63,15 +64,56 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   {
     label: "Sistema",
     items: [
-      { href: "/admin/tarot/config", icon: Settings, label: "Configuración" },
+      { href: "/admin/tarot/alertas", icon: Bell,     label: "Alertas" },
+      { href: "/admin/tarot/config",  icon: Settings, label: "Configuración" },
     ],
   },
 ];
 
+const BELL_SINCE_KEY = "ttc_bell_since";
+const BELL_POLL_MS   = 30_000;
+
 export function TarotAdminShell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed]       = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [nuevasVentas, setNuevasVentas] = useState(0);
+  const sinceRef = useRef("");
   const pathname = usePathname();
+
+  // Initialize "since" from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(BELL_SINCE_KEY);
+    sinceRef.current = stored ?? new Date().toISOString();
+    if (!stored) localStorage.setItem(BELL_SINCE_KEY, sinceRef.current);
+  }, []);
+
+  // Reset badge when user navigates to /admin/tarot/alertas
+  useEffect(() => {
+    if (pathname === "/admin/tarot/alertas") {
+      const now = new Date().toISOString();
+      sinceRef.current = now;
+      localStorage.setItem(BELL_SINCE_KEY, now);
+      setNuevasVentas(0);
+    }
+  }, [pathname]);
+
+  // Poll for new sales
+  useEffect(() => {
+    async function poll() {
+      if (!sinceRef.current) return;
+      try {
+        const res = await fetch(
+          `/api/admin/tarot/alertas/nuevas-ventas?desde=${encodeURIComponent(sinceRef.current)}`,
+        );
+        if (res.ok) {
+          const d = await res.json();
+          setNuevasVentas(d.count ?? 0);
+        }
+      } catch { /* silencioso */ }
+    }
+    const id = setInterval(poll, BELL_POLL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   async function handleLogout() {
     setCerrandoSesion(true);
@@ -122,18 +164,25 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                       key={href}
                       href={href as Route<string>}
                       title={collapsed ? label : undefined}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg mx-1.5 transition-colors ${
+                      className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg mx-1.5 transition-colors ${
                         isActive
                           ? "bg-gray-800 text-white"
                           : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
                       }`}
                     >
-                      <Icon
-                        size={16}
-                        className={isActive ? "text-amber-400" : ""}
-                      />
+                      <span className="relative shrink-0">
+                        <Icon size={16} className={isActive ? "text-amber-400" : ""} />
+                        {collapsed && href === "/admin/tarot/alertas" && nuevasVentas > 0 && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
+                        )}
+                      </span>
                       {!collapsed && (
-                        <span className="text-sm truncate">{label}</span>
+                        <span className="text-sm truncate flex-1">{label}</span>
+                      )}
+                      {!collapsed && href === "/admin/tarot/alertas" && nuevasVentas > 0 && (
+                        <span className="ml-auto text-xs bg-amber-500 text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center">
+                          {nuevasVentas > 99 ? "99+" : nuevasVentas}
+                        </span>
                       )}
                     </Link>
                   );

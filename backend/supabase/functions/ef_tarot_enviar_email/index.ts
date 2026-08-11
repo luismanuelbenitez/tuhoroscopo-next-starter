@@ -11,6 +11,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { encode as encodeBase64 } from "https://deno.land/std@0.192.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -353,6 +354,12 @@ async function enviarEmail(ordenId: string): Promise<void> {
     await log(ordenId, "email_error", "error",
       `Resend respondió ${res.status}`,
       { email: cliente.email, status: res.status, body: resData });
+    // Alerta: error de email al cliente (fire-and-forget)
+    dispararAlerta(supabase, "error_email_cliente", {
+      ordenId,
+      error: `Resend respondió ${res.status}`,
+      fecha: new Date().toISOString(),
+    }).catch(() => {});
     return;
   }
 

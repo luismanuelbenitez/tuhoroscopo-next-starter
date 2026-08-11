@@ -13,6 +13,7 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -382,6 +383,14 @@ serve(async (req) => {
         { error_code: errorCode, error_msg: errorMsg, respuesta: respuestaRaw, duracion_ms: durMs },
         durMs);
 
+      // Alerta: error de WhatsApp (fire-and-forget)
+      dispararAlerta(supabase, "error_whatsapp", {
+        ordenId,
+        ordenRef: orden.external_reference ?? undefined,
+        error:    errorMsg?.substring(0, 300) ?? `Código: ${errorCode ?? "desconocido"}`,
+        fecha:    tsNow,
+      }).catch(() => {});
+
       if (!waEsSandbox && !bloqueadoPorNumero) {
         await logFunnelEvent({
           order_id:   ordenId,
@@ -444,6 +453,13 @@ serve(async (req) => {
       await supabase.from("tarot_ordenes")
         .update({ estado: "error_whatsapp", updated_at: now() }).eq("id", ordenId);
     } catch { /* best effort */ }
+
+    // Alerta: excepción en WhatsApp (fire-and-forget)
+    dispararAlerta(supabase, "error_whatsapp", {
+      ordenId,
+      error: errMsg.substring(0, 300),
+      fecha: new Date().toISOString(),
+    }).catch(() => {});
 
     if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo) {
       await log(ordenId, "entrega_fallback_email_despachado", "info",

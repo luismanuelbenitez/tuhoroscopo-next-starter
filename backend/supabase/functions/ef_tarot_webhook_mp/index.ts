@@ -12,6 +12,7 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -206,6 +207,18 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       "Pago aprobado. Disparando generación de lectura.",
       { payment_id: paymentId, mp_status: mpStatus, duracion_ms: Date.now() - t0 },
       ip, Date.now() - t0);
+
+    // Alerta: nueva venta (fire-and-forget — nunca bloquea el flujo)
+    const { data: clienteAlerta } = await supabase
+      .from("tarot_clientes").select("nombre_completo").eq("id", orden.cliente_id).maybeSingle();
+    dispararAlerta(supabase, "nueva_venta", {
+      ordenId,
+      ordenRef:      externalRef,
+      clienteNombre: clienteAlerta?.nombre_completo ?? "—",
+      importe:       String(pay.transaction_amount ?? "—"),
+      moneda:        pay.currency_id ?? "UYU",
+      fecha:         ahora,
+    }).catch(() => {});
 
     await logFunnelEvent({
       order_id:     ordenId,
