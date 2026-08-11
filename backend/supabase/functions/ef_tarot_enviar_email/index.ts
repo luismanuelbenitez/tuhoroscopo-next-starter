@@ -332,7 +332,7 @@ async function enviarEmail(ordenId: string): Promise<void> {
 
   if (pdfBase64) {
     emailPayload.attachments = [{
-      filename: `tirada-cosmica-${nombreCorto.toLowerCase()}.pdf`,
+      filename: `Tu Tirada - ${nombreCorto}.pdf`,
       content:  pdfBase64,
     }];
   }

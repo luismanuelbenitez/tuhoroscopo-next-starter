@@ -296,7 +296,7 @@ serve(async (req) => {
         type: "document",
         document: {
           link: pdf.storage_url,
-          filename: "Tu_Lectura_de_Tarot.pdf",
+          filename: `Tu Tirada - ${nombrePila}.pdf`,
           caption,
         },
       };

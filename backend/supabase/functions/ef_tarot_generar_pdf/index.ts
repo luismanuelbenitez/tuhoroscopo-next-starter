@@ -153,16 +153,16 @@ const P2_BLOCKS: P2Block[] = [
 // ─────────────────────────────────────────────────────────────
 const P3: P3Layout = {
   // Box 1 — Resumen de tu Tirada
-  resumen:      { x: 280, yStart:  780, width: 1900, minY: 1200, fontSize: 40 },
+  resumen:      { x: 280, yStart:  780, width: 1900, minY: 1400, fontSize: 40 },
 
   // Box 2 — Mensaje personal para [Nombre]
-  mensajeFinal: { x: 280, yStart: 1550, width: 1950, minY: 1850, fontSize: 40 },
+  mensajeFinal: { x: 280, yStart: 1560, width: 1950, minY: 2050, fontSize: 40 },
 
   // Box 3 — Claves prácticas (3 ítems, íconos quemados a la izq)
   proximosPasos: [
-    { x: 420, y: 2150, width: 1900, minY: 2300 },
-    { x: 420, y: 2350, width: 1900, minY: 2450 },
-    { x: 420, y: 2550, width: 1900, minY: 2650 },
+    { x: 420, y: 2150, width: 1900, minY: 2330 },
+    { x: 420, y: 2350, width: 1900, minY: 2480 },
+    { x: 420, y: 2550, width: 1900, minY: 2700 },
   ],
 
 };
@@ -1030,17 +1030,10 @@ async function generarPDF(
     const bytes = await pdfDoc.save();
 
     // ── Subir a Storage ───────────────────────────────────────
-    const now        = new Date();
-    const yyyy       = now.getFullYear();
-    const mm         = String(now.getMonth() + 1).padStart(2, "0");
-    const dd         = String(now.getDate()).padStart(2, "0");
-    const hh         = String(now.getHours()).padStart(2, "0");
-    const min        = String(now.getMinutes()).padStart(2, "0");
-    const nombreSafe = sanitize(contenido.nombre ?? "usuario")
-      .replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
-    const fileSuffix = debug ? "_debug" : "";
-    const fileName   = `${yyyy}${mm}${dd}:${hh}:${min}_${nombreSafe}${fileSuffix}.pdf`;
-    const storagePath = `${yyyy}/${mm}/${dd}/${fileName}`;
+    // Path técnico: tarot/{orden_id}.pdf — único por orden, sin nombre de cliente.
+    // El filename visible al cliente se define en ef_tarot_enviar_whatsapp/email.
+    const fileSuffix  = debug ? "_debug" : "";
+    const storagePath = `tarot/${ordenId}${fileSuffix}.pdf`;
 
     const { error: uploadErr } = await supabase.storage
       .from(bucket)
