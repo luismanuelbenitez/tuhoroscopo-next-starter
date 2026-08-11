@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { LogOut, RefreshCw, AlertTriangle, MessageCircle, Wand2 } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { RefreshCw, AlertTriangle, MessageCircle, Wand2 } from "lucide-react";
 import { MantenimientoToggle } from "@/components/admin/MantenimientoToggle";
 import { MetricaCard } from "@/components/admin/MetricaCard";
 
@@ -57,7 +56,6 @@ function fmt(n: number): string {
 }
 
 export function AdminHub() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargandoConfig, setCargandoConfig] = useState(true);
   const [cargandoMetricas, setCargandoMetricas] = useState(true);
   const [configRows, setConfigRows] = useState<ConfigRow[]>([]);
@@ -99,16 +97,6 @@ export function AdminHub() {
   useEffect(() => { cargarConfig(); }, [cargarConfig]);
   useEffect(() => { cargarMetricas(periodo); }, [periodo, cargarMetricas]);
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
-  }
-
   const modoMantenimiento = configRows.find((r) => r.nombre.toUpperCase() === "MODO_MANTENIMIENTO");
   const whatsappModo = configRows.find((r) => r.nombre.toUpperCase() === "WHATSAPP_MODO");
   const debugMode = configRows.find((r) => r.nombre.toUpperCase() === "APP_DEBUG_MODE");
@@ -120,22 +108,7 @@ export function AdminHub() {
   const labelPeriodo = PERIODOS.find((p) => p.valor === periodo)?.label ?? `${periodo}d`;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="hub" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+    <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 
         {/* Title + controles */}
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -407,7 +380,6 @@ export function AdminHub() {
           </section>
         </div>
 
-      </main>
-    </div>
+    </main>
   );
 }

@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  MessageCircle,
-  LogOut,
   Search,
   AlertCircle,
   AlertTriangle,
@@ -10,8 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { MensajeDetalle } from "@/components/admin/MensajeDetalle";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -142,7 +139,6 @@ export default function MensajesProblematicosPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [listRefreshKey, setListRefreshKey] = useState(0);
 
@@ -203,12 +199,6 @@ export default function MensajesProblematicosPage() {
     setSelectedId((prev) => (prev === m.id ? null : m.id));
   }
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
-
   const total = paginacion?.total ?? 0;
   const desde = total === 0 ? 0 : filtros.offset + 1;
   const hasta = Math.min(filtros.offset + LIMIT, total);
@@ -217,26 +207,7 @@ export default function MensajesProblematicosPage() {
   const conteoEntries = Object.entries(conteo).filter(([, v]) => v > 0);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        {/* Nav */}
-        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/mensajes-problematicos" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -495,6 +466,6 @@ export default function MensajesProblematicosPage() {
           onAccionOk={() => setListRefreshKey((k) => k + 1)}
         />
       )}
-    </div>
+    </AdminShell>
   );
 }

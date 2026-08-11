@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  MessageCircle,
-  LogOut,
   AlertCircle,
   AlertTriangle,
   Check,
@@ -12,8 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -580,7 +577,6 @@ export default function ContenidoPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [listRefreshKey, setListRefreshKey] = useState(0);
 
@@ -655,12 +651,6 @@ export default function ContenidoPage() {
     setSelectedId((prev) => (prev === c.id ? null : c.id));
   }
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
-
   const total = paginacion?.total ?? 0;
   const desde = total === 0 ? 0 : filtros.offset + 1;
   const hasta = Math.min(filtros.offset + LIMIT, total);
@@ -668,26 +658,7 @@ export default function ContenidoPage() {
   const conteoEntries = Object.entries(conteosEstado).filter(([, v]) => v > 0);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        {/* Nav */}
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/contenido" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1004,6 +975,6 @@ export default function ContenidoPage() {
           />
         ) : null;
       })()}
-    </div>
+    </AdminShell>
   );
 }

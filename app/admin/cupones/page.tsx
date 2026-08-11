@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  MessageCircle,
-  LogOut,
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
@@ -16,8 +14,7 @@ import {
   Pencil,
   Power,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -983,7 +980,6 @@ function CuponDetalleModal({
 // ===========================================================================
 
 export default function CuponesPage() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -1094,40 +1090,12 @@ export default function CuponesPage() {
     }
   }
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
-  }
-
   const cupones = data?.cupones ?? [];
   const resumen = data?.resumen;
   const selectedCupon = cupones.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/cupones" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-7xl mx-auto px-6 py-6">
         {/* Stats */}
         {resumen && (
@@ -1405,6 +1373,6 @@ export default function CuponesPage() {
           onSuccess={handleFormSuccess}
         />
       )}
-    </div>
+    </AdminShell>
   );
 }

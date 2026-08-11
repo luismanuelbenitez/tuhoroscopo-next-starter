@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  LogOut,
   RefreshCw,
   AlertCircle,
   CheckCircle2,
@@ -10,8 +9,7 @@ import {
   Save,
   Info,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -262,7 +260,6 @@ function PromptEditor({
 // ===========================================================================
 
 export default function PromptsPage() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
@@ -292,35 +289,8 @@ export default function PromptsPage() {
     cargar();
   }, []);
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/prompts" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -385,6 +355,6 @@ export default function PromptsPage() {
           </div>
         )}
       </main>
-    </div>
+    </AdminShell>
   );
 }

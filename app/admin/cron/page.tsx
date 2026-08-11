@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  LogOut,
   AlertCircle,
   RefreshCw,
   ToggleLeft,
@@ -13,8 +12,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -417,7 +415,6 @@ function CronJobRow({ job, onRefresh }: { job: CronJob; onRefresh: () => void })
 // ===========================================================================
 
 export default function CronPage() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [jobs, setJobs] = useState<CronJob[]>([]);
@@ -443,37 +440,12 @@ export default function CronPage() {
 
   useEffect(() => { cargar(); }, []);
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch { setCerrandoSesion(false); }
-  }
-
   const activos = jobs.filter((j) => j.active).length;
   const inactivos = jobs.filter((j) => !j.active).length;
   const conError = jobs.filter((j) => j.ultimo_estado === "failed").length;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/cron" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -542,6 +514,6 @@ export default function CronPage() {
           </div>
         )}
       </main>
-    </div>
+    </AdminShell>
   );
 }

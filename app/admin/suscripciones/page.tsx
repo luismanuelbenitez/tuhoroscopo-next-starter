@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  MessageCircle,
-  LogOut,
   AlertTriangle,
   Check,
   X,
@@ -12,8 +10,7 @@ import {
   Info,
   RefreshCw,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 // ===========================================================================
 // Types
@@ -771,7 +768,6 @@ function SuscripcionDetalle({
 // ===========================================================================
 
 export default function SuscripcionesPage() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -831,16 +827,6 @@ export default function SuscripcionesPage() {
     setSelectedId((prev) => (prev === s.id ? null : s.id));
   }
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
-  }
-
   const suscripciones = data?.suscripciones ?? [];
   const paginacion = data?.paginacion ?? null;
   const conteos = data?.conteos_pagina ?? {};
@@ -860,25 +846,7 @@ export default function SuscripcionesPage() {
   const selectedItem = suscripciones.find((s) => s.id === selectedId) ?? null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        {/* Nav */}
-        <div className="max-w-7xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/suscripciones" />
-        </div>
-      </header>
-
+    <AdminShell>
       <main className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1159,6 +1127,6 @@ export default function SuscripcionesPage() {
           onAccionOk={() => cargar(filtros)}
         />
       )}
-    </div>
+    </AdminShell>
   );
 }
