@@ -1,10 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  LogOut, AlertCircle, Pencil, X, Check, Loader2, ChevronDown, ChevronUp, RefreshCw,
+  AlertCircle, Pencil, X, Check, Loader2, ChevronDown, ChevronUp, RefreshCw,
 } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
 // ============================================================================
 // Types
@@ -472,7 +471,6 @@ export default function TarotConfigPage() {
   const [promptConfigs, setPromptConfigs] = useState<ProductoConfig[]>([]);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [envStatus, setEnvStatus] = useState<EnvStatus | null>(null);
 
   const cargar = useCallback(async () => {
@@ -500,11 +498,6 @@ export default function TarotConfigPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
 
   const configMap = Object.fromEntries(configRows.map((r) => [r.clave, r.valor]));
 
@@ -571,23 +564,7 @@ export default function TarotConfigPage() {
     `text-sm border-b-2 py-2.5 px-3 whitespace-nowrap transition-colors ${tab === t ? "text-white border-amber-500" : "text-gray-500 hover:text-gray-300 border-transparent"}`;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="ttc" />
-          <button
-            onClick={handleLogout} disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <TarotNav current="/admin/tarot/config" />
-        </div>
-      </header>
-
+    <TarotAdminShell>
       <main className="max-w-5xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-white">Configuración · Tarot (TTC)</h2>
@@ -697,6 +674,6 @@ export default function TarotConfigPage() {
           </div>
         )}
       </main>
-    </div>
+    </TarotAdminShell>
   );
 }

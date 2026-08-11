@@ -7,13 +7,11 @@ import {
   Users,
   AlertTriangle,
   Star,
-  LogOut,
   AlertCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
 // ============================================================================
 // Types
@@ -496,7 +494,6 @@ export default function TarotDashboardPage() {
   const [metricas, setMetricas] = useState<MetricasTTC | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [periodo, setPeriodo] = useState(30);
 
   useEffect(() => {
@@ -515,31 +512,8 @@ export default function TarotDashboardPage() {
       .finally(() => setCargando(false));
   }, [periodo]);
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="ttc" />
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <TarotNav current="/admin/tarot" />
-        </div>
-      </header>
-
+    <TarotAdminShell>
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -576,6 +550,6 @@ export default function TarotDashboardPage() {
 
         <SeccionFunnel m={metricas} periodo={periodo} onPeriodo={setPeriodo} />
       </main>
-    </div>
+    </TarotAdminShell>
   );
 }

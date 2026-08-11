@@ -1,13 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  LogOut,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotPagoDetalle } from "@/components/admin/TarotPagoDetalle";
 
 interface Pago {
@@ -61,7 +59,6 @@ export default function TarotPagosPage() {
   const [paginacion, setPaginacion] = useState<Paginacion | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [selectedPago, setSelectedPago] = useState<Pago | null>(null);
 
   useEffect(() => {
@@ -91,35 +88,13 @@ export default function TarotPagosPage() {
     doFetch();
   }, [filtros]);
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
 
   const total = paginacion?.total ?? 0;
   const desde = total === 0 ? 0 : filtros.offset + 1;
   const hasta = Math.min(filtros.offset + LIMIT, total);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="ttc" />
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <TarotNav current="/admin/tarot/pagos" />
-        </div>
-      </header>
-
+    <TarotAdminShell>
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Pagos</h2>
@@ -256,6 +231,6 @@ export default function TarotPagosPage() {
           onClose={() => setSelectedPago(null)}
         />
       )}
-    </div>
+    </TarotAdminShell>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { LogOut, AlertCircle, RefreshCw, TrendingUp } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { TarotNav } from "@/components/admin/TarotNav";
+import { AlertCircle, RefreshCw, TrendingUp } from "lucide-react";
+import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
 // ============================================================================
 // Types
@@ -164,8 +163,6 @@ export default function IngresosPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
-
   const cargar = useCallback(async (p: Periodo) => {
     setCargando(true);
     setErrorMsg(null);
@@ -186,33 +183,12 @@ export default function IngresosPage() {
 
   useEffect(() => { cargar(periodo); }, [cargar, periodo]);
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
 
   const ttc = data?.ttc;
   const thc = data?.thc;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="ttc" />
-          <button
-            onClick={handleLogout} disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <TarotNav current="/admin/tarot/ingresos" />
-        </div>
-      </header>
-
+    <TarotAdminShell>
       <main className="max-w-6xl mx-auto px-6 py-6">
         {/* Header + period selector */}
         <div className="flex items-center justify-between mb-6">
@@ -360,6 +336,6 @@ export default function IngresosPage() {
           </section>
         )}
       </main>
-    </div>
+    </TarotAdminShell>
   );
 }

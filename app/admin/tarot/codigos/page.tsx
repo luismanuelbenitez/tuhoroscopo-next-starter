@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  LogOut, ChevronLeft, ChevronRight, AlertCircle, Search,
+  ChevronLeft, ChevronRight, AlertCircle, Search,
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Loader2, CheckCircle2,
 } from "lucide-react";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { TarotNav } from "@/components/admin/TarotNav";
+import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
 // ============================================================================
 // Types
@@ -400,8 +399,6 @@ export default function TarotCodigosPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
-
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCodigo, setEditingCodigo] = useState<Codigo | null>(null);
@@ -443,11 +440,6 @@ export default function TarotCodigosPage() {
   }
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") handleBuscar();
-  }
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
   }
 
   function abrirCrear() {
@@ -512,23 +504,7 @@ export default function TarotCodigosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="ttc" />
-          <button
-            onClick={handleLogout} disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <LogOut size={15} />
-            {cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="max-w-6xl mx-auto px-6 flex gap-0 overflow-x-auto">
-          <TarotNav current="/admin/tarot/codigos" />
-        </div>
-      </header>
-
+    <TarotAdminShell>
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -736,6 +712,6 @@ export default function TarotCodigosPage() {
           onSaved={onSaved}
         />
       )}
-    </div>
+    </TarotAdminShell>
   );
 }
