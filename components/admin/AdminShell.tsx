@@ -86,7 +86,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {GRUPOS.map((grupo) => (
             <div key={grupo.label}>
               {!collapsed && (
-                <p className="px-3 mb-1 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <p className="px-3 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   {grupo.label}
                 </p>
               )}
