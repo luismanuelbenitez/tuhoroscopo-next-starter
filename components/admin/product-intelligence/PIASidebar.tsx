@@ -130,10 +130,11 @@ export function PIASidebar() {
       <div className="border-t border-gray-800/60 p-2 space-y-1">
         <Link
           href="/admin/tarot"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-600 hover:text-gray-300 hover:bg-gray-900 transition-colors"
+          title={collapsed ? "Admin Tarot" : undefined}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-amber-500/70 hover:text-amber-300 hover:bg-gray-900 transition-colors"
         >
           <ChevronLeft size={13} className="shrink-0" />
-          {!collapsed && "Volver al panel"}
+          {!collapsed && "← Admin Tarot"}
         </Link>
         <button
           onClick={() => setCollapsed((v) => !v)}

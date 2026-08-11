@@ -5,14 +5,7 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Users,
   MessageCircle,
-  AlertCircle,
-  FileText,
-  CreditCard,
-  Tag,
-  Wand2,
-  TrendingUp,
   ScrollText,
   Clock,
   Sparkles,
@@ -33,20 +26,14 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   {
     label: "Visión General",
     items: [
-      { href: "/admin", icon: LayoutDashboard, label: "Hub global", exact: true },
+      { href: "/admin", icon: LayoutDashboard, label: "Panel global", exact: true },
     ],
   },
   {
-    label: "Horóscopo (THC)",
+    label: "Productos",
     items: [
-      { href: "/admin/suscriptores",           icon: Users,          label: "Suscriptores" },
-      { href: "/admin/wa",                     icon: MessageCircle,  label: "WA Inbox" },
-      { href: "/admin/mensajes-problematicos", icon: AlertCircle,    label: "Mensajes" },
-      { href: "/admin/contenido",              icon: FileText,       label: "Contenido" },
-      { href: "/admin/suscripciones",          icon: CreditCard,     label: "Suscripciones" },
-      { href: "/admin/cupones",                icon: Tag,            label: "Cupones" },
-      { href: "/admin/prompts",                icon: Wand2,          label: "Prompts" },
-      { href: "/admin/ingresos",               icon: TrendingUp,     label: "Ingresos" },
+      { href: "/admin/tarot",     icon: Sparkles,      label: "Tarot" },
+      { href: "/admin/horoscopo", icon: MessageCircle, label: "Horóscopo" },
     ],
   },
   {
@@ -54,12 +41,6 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/logs", icon: ScrollText, label: "Logs" },
       { href: "/admin/cron", icon: Clock,      label: "Cron" },
-    ],
-  },
-  {
-    label: "Producto",
-    items: [
-      { href: "/admin/tarot", icon: Sparkles, label: "Admin Tarot" },
     ],
   },
 ];
@@ -88,9 +69,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           }`}
         >
           {!collapsed && (
-            <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">
-              Tu Oráculo
-            </span>
+            <div>
+              <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Tu Oráculo</p>
+              <p className="text-xs text-gray-600 mt-0.5">Admin</p>
+            </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
