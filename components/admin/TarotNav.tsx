@@ -10,7 +10,8 @@ const NAV_ITEMS = [
   { href: "/admin/tarot/codigos",  label: "Cupones",   exact: false },
   { href: "/admin/tarot/logs",     label: "Logs",      exact: false },
   { href: "/admin/tarot/ingresos", label: "Ingresos",  exact: false },
-  { href: "/admin/tarot/config",   label: "Config",    exact: false },
+  { href: "/admin/tarot/config",                    label: "Config",               exact: false },
+  { href: "/admin/tarot/product-intelligence",     label: "Product Intelligence",  exact: false },
 ] as const;
 
 export function TarotNav({ current }: { current: string }) {
