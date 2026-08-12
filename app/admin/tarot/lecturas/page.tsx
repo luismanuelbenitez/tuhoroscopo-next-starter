@@ -94,7 +94,7 @@ export default function TarotLecturasPage() {
 
   return (
     <TarotAdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Lecturas</h2>
         </div>

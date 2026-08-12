@@ -196,7 +196,7 @@ export default function WaConversacionesPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+      <main className="px-6 py-6 space-y-6">
 
         {/* Título */}
         <div className="flex items-center justify-between">

@@ -446,7 +446,7 @@ export default function CronPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-base font-semibold text-gray-100">Trabajos pg_cron</h2>

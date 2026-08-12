@@ -291,7 +291,7 @@ export default function PromptsPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-5xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

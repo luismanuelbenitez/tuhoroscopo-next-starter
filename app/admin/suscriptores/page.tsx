@@ -173,7 +173,7 @@ export default function SuscriptoresPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold text-gray-100">Suscriptores</h2>

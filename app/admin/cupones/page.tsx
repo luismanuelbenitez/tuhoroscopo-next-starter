@@ -1096,7 +1096,7 @@ export default function CuponesPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         {/* Stats */}
         {resumen && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

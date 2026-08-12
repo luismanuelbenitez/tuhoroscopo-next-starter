@@ -84,7 +84,7 @@ export default function TarotClientesPage() {
 
   return (
     <TarotAdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Clientes</h2>
           <p className="text-xs text-gray-500 mt-0.5">Clientes registrados con historial de órdenes</p>

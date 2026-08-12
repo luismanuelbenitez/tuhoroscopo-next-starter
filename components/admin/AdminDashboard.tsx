@@ -550,7 +550,7 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="px-6 py-4 flex items-center justify-between">
           <AdminPanelSwitcher current="thc" />
           <div className="flex items-center gap-4">
             <a
@@ -570,12 +570,12 @@ export function AdminDashboard() {
           </div>
         </div>
         {/* Nav */}
-        <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
+        <div className="px-6 flex gap-0 overflow-x-auto">
           <AdminNav current="/admin/horoscopo" />
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="px-6 py-8">
         {cargando && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
             <span className="animate-pulse">Cargando métricas…</span>

@@ -170,7 +170,7 @@ export default function TarotLogsPage() {
 
   return (
     <TarotAdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
 
         {/* Título */}
         <div className="mb-4 flex items-center justify-between">

@@ -951,7 +951,7 @@ export default function ConfigPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <header className="border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="px-6 py-4 flex items-center justify-between">
           <AdminPanelSwitcher current="thc" />
           <button
             onClick={cerrarSesion}
@@ -962,12 +962,12 @@ export default function ConfigPage() {
             {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
           </button>
         </div>
-        <div className="max-w-5xl mx-auto px-6 flex gap-0 overflow-x-auto">
+        <div className="px-6 flex gap-0 overflow-x-auto">
           <AdminNav current="/admin/horoscopo/config" />
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-100">Configuración · Horóscopo (THC)</h2>

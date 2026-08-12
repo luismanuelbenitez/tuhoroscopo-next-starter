@@ -573,7 +573,7 @@ export default function LogsPage() {
   return (
     <AdminShell>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
 
         {/* Resumen superior */}
         {data && (

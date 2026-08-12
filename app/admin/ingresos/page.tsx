@@ -197,7 +197,7 @@ export default function IngresosPage() {
 
   return (
     <AdminShell>
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="px-6 py-6">
 
         {/* Título + período */}
         <div className="flex items-center justify-between mb-6">
