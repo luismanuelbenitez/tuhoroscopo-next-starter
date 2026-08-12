@@ -226,6 +226,14 @@ export function AdminHub() {
                 ? "Los visitantes ven la página de mantenimiento. El panel admin sigue accesible."
                 : "Todos los visitantes acceden con normalidad."}
             </span>
+            <a
+              href="https://tuoraculo.uy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-500/70 hover:text-gray-300 transition-colors whitespace-nowrap"
+            >
+              Ver sitio público ↗
+            </a>
           </div>
           <MantenimientoToggle valor={modoMantenimiento.valor} onOk={cargarConfig} />
         </div>

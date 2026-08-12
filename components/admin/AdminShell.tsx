@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   MessageCircle,
-  ScrollText,
-  Clock,
   Sparkles,
   LogOut,
   ChevronLeft,
@@ -34,13 +32,6 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/tarot",     icon: Sparkles,      label: "Tarot" },
       { href: "/admin/horoscopo", icon: MessageCircle, label: "Horóscopo" },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { href: "/admin/logs", icon: ScrollText, label: "Logs" },
-      { href: "/admin/cron", icon: Clock,      label: "Cron" },
     ],
   },
 ];
