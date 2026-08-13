@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { MessageCircle, Send, X, ChevronLeft, ChevronRight, RefreshCw, Info } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ export default function WaConversacionesPage() {
   const hasNext = offset + LIMIT < total;
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6 space-y-6">
 
         {/* Título */}
@@ -373,6 +373,6 @@ export default function WaConversacionesPage() {
           onSent={() => { setReplyTarget(null); cargar(); }}
         />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

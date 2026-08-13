@@ -8,7 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { MensajeDetalle } from "@/components/admin/MensajeDetalle";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -207,7 +207,7 @@ export default function MensajesProblematicosPage() {
   const conteoEntries = Object.entries(conteo).filter(([, v]) => v > 0);
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -466,6 +466,6 @@ export default function MensajesProblematicosPage() {
           onAccionOk={() => setListRefreshKey((k) => k + 1)}
         />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

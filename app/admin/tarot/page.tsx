@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Star,
   AlertCircle,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -487,6 +488,91 @@ function SeccionFunnel({
 }
 
 // ============================================================================
+// Últimas alertas (bloque del dashboard)
+// ============================================================================
+
+interface AlertaResumen {
+  id: string;
+  severidad: "success" | "warning" | "error";
+  titulo: string;
+  mensaje: string;
+  orden_id: string | null;
+  creada_at: string;
+  leida_at: string | null;
+}
+
+function sevIcon(s: string) {
+  if (s === "success") return <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />;
+  if (s === "warning") return <AlertTriangle size={14} className="text-amber-400 shrink-0" />;
+  return <AlertCircle size={14} className="text-red-400 shrink-0" />;
+}
+
+function tiempoRel(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1)  return "ahora";
+  if (mins < 60) return `hace ${mins}m`;
+  const hs = Math.floor(mins / 60);
+  if (hs < 24)   return `hace ${hs}h`;
+  return `hace ${Math.floor(hs / 24)}d`;
+}
+
+function SeccionAlertas() {
+  const [eventos, setEventos]   = useState<AlertaResumen[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/tarot/alertas/eventos?limit=5")
+      .then(r => r.json())
+      .then(json => setEventos(json.eventos ?? []))
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, []);
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-300">Últimas alertas</h2>
+        <a href="/admin/tarot/alertas" className="text-xs text-amber-500/70 hover:text-amber-300 transition-colors">
+          Ver todas →
+        </a>
+      </div>
+      {cargando ? (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 animate-pulse">
+          Cargando…
+        </div>
+      ) : eventos.length === 0 ? (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 text-center">
+          Sin alertas recientes
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-800 bg-gray-900 divide-y divide-gray-800 overflow-hidden">
+          {eventos.map(e => (
+            <div key={e.id} className={`flex items-start gap-3 px-4 py-3 ${e.leida_at ? "opacity-50" : ""}`}>
+              <div className="mt-0.5">{sevIcon(e.severidad)}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-sm text-gray-200 font-medium">{e.titulo}</span>
+                  <span className="text-xs text-gray-600">{tiempoRel(e.creada_at)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{e.mensaje}</p>
+              </div>
+              {e.orden_id && (
+                <a
+                  href={`/admin/tarot/ordenes/${e.orden_id}`}
+                  className="shrink-0 text-xs text-amber-500/60 hover:text-amber-400 transition-colors"
+                >
+                  →
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Page
 // ============================================================================
 
@@ -548,6 +634,7 @@ export default function TarotDashboardPage() {
           <CardErrores m={metricas} />
         </div>
 
+        <SeccionAlertas />
         <SeccionFunnel m={metricas} periodo={periodo} onPeriodo={setPeriodo} />
       </main>
     </TarotAdminShell>

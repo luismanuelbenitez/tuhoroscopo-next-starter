@@ -11,7 +11,7 @@ import {
   ExternalLink,
   ShieldAlert,
 } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -571,7 +571,7 @@ export default function LogsPage() {
     : 0;
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
 
       <main className="px-6 py-6">
 
@@ -936,6 +936,6 @@ export default function LogsPage() {
       {selectedLog && (
         <LogDetalle log={selectedLog} onClose={() => setSelectedId(null)} />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

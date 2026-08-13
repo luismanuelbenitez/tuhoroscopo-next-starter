@@ -6,13 +6,10 @@ import {
   AlertTriangle,
   Clock,
   AlertCircle,
-  LogOut,
   ShieldCheck,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 
 // ===========================================================================
 // Types — metricas-basicas
@@ -537,45 +534,11 @@ function CardErroresRecientes({
 // ===========================================================================
 
 export function AdminDashboard() {
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const { data: metricas, cargando, errorMsg } = useMetricasBasicas();
   const { data: resumen, cargando: cargandoResumen } = useResumenDiario();
 
-  async function handleLogout() {
-    setCerrandoSesion(true);
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <div className="flex items-center gap-4">
-            <a
-              href="/admin/horoscopo/config"
-              className="text-xs text-violet-500 hover:text-violet-300 transition-colors"
-            >
-              Config →
-            </a>
-            <button
-              onClick={handleLogout}
-              disabled={cerrandoSesion}
-              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-            >
-              <LogOut size={15} />
-              {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-            </button>
-          </div>
-        </div>
-        {/* Nav */}
-        <div className="px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/horoscopo" />
-        </div>
-      </header>
-
-      <main className="px-6 py-8">
+    <main className="px-6 py-8">
         {cargando && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
             <span className="animate-pulse">Cargando métricas…</span>
@@ -597,6 +560,5 @@ export function AdminDashboard() {
           <CardErroresRecientes metricas={metricas} resumen={resumen} cargandoResumen={cargandoResumen} />
         </div>
       </main>
-    </div>
   );
 }

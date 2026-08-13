@@ -10,7 +10,7 @@ import {
   Info,
   RefreshCw,
 } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -846,7 +846,7 @@ export default function SuscripcionesPage() {
   const selectedItem = suscripciones.find((s) => s.id === selectedId) ?? null;
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -1127,6 +1127,6 @@ export default function SuscripcionesPage() {
           onAccionOk={() => cargar(filtros)}
         />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

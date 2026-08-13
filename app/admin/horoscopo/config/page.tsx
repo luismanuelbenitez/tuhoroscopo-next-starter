@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  LogOut, RefreshCw, AlertCircle, ShieldAlert, ToggleLeft, ToggleRight,
+  RefreshCw, AlertCircle, ShieldAlert, ToggleLeft, ToggleRight,
   Lock, ChevronDown, ChevronUp, Pencil, Check, X, Loader2,
 } from "lucide-react";
-import { AdminNav } from "@/components/admin/AdminNav";
-import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 import { MantenimientoToggle } from "@/components/admin/MantenimientoToggle";
 import { AlertasConfig } from "@/components/admin/AlertasConfig";
 
@@ -869,7 +868,6 @@ function SectionCard({ titulo, children }: { titulo: string; children: React.Rea
 
 export default function ConfigPage() {
   const [tab, setTab] = useState<Tab>("config");
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [configRows, setConfigRows] = useState<ConfigRow[]>([]);
@@ -922,16 +920,6 @@ export default function ConfigPage() {
     if (tab === "ia") cargarPlantillas();
   }, [tab, cargarPlantillas]);
 
-  async function cerrarSesion() {
-    setCerrandoSesion(true);
-    try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
-      window.location.href = "/admin/login";
-    } catch {
-      setCerrandoSesion(false);
-    }
-  }
-
   const row = (nombre: string) => configRows.find((r) => r.nombre.toUpperCase() === nombre.toUpperCase());
 
   const tabCls = (t: Tab) =>
@@ -949,24 +937,7 @@ export default function ConfigPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <header className="border-b border-gray-800">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <AdminPanelSwitcher current="thc" />
-          <button
-            onClick={cerrarSesion}
-            disabled={cerrandoSesion}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <LogOut size={13} />
-            {cerrandoSesion ? "Cerrando..." : "Cerrar sesión"}
-          </button>
-        </div>
-        <div className="px-6 flex gap-0 overflow-x-auto">
-          <AdminNav current="/admin/horoscopo/config" />
-        </div>
-      </header>
-
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -1185,6 +1156,6 @@ export default function ConfigPage() {
           </div>
         )}
       </main>
-    </div>
+    </HoroscopoAdminShell>
   );
 }

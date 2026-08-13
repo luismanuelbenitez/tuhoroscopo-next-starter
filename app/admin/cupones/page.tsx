@@ -14,7 +14,7 @@ import {
   Pencil,
   Power,
 } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -1095,7 +1095,7 @@ export default function CuponesPage() {
   const selectedCupon = cupones.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         {/* Stats */}
         {resumen && (
@@ -1373,6 +1373,6 @@ export default function CuponesPage() {
           onSuccess={handleFormSuccess}
         />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

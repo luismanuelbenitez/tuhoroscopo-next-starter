@@ -9,7 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { SuscriptorDetalle } from "@/components/admin/SuscriptorDetalle";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -172,7 +172,7 @@ export default function SuscriptoresPage() {
   const hasta = Math.min(filtros.offset + LIMIT, total);
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -395,6 +395,6 @@ export default function SuscriptoresPage() {
           onClose={() => setSelectedId(null)}
         />
       )}
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

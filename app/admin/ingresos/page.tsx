@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { AlertCircle, RefreshCw, TrendingUp } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ export default function IngresosPage() {
   useEffect(() => { cargar(periodo); }, [cargar, periodo]);
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
 
         {/* Título + período */}
@@ -358,6 +358,6 @@ export default function IngresosPage() {
           </>
         )}
       </main>
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

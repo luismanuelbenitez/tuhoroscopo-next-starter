@@ -1,21 +1,21 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  ShoppingCart,
   Users,
-  BookOpen,
+  MessageSquare,
+  Smartphone,
   FileText,
   CreditCard,
   Tag,
-  ScrollText,
   TrendingUp,
+  ScrollText,
+  Clock,
+  Wand2,
   Settings,
-  Sparkles,
-  Bell,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -34,65 +34,41 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   {
     label: "Visión General",
     items: [
-      { href: "/admin/tarot", icon: LayoutDashboard, label: "Dashboard", exact: true },
+      { href: "/admin/horoscopo", icon: LayoutDashboard, label: "Dashboard", exact: true },
     ],
   },
   {
     label: "Operación",
     items: [
-      { href: "/admin/tarot/ordenes",  icon: ShoppingCart, label: "Órdenes" },
-      { href: "/admin/tarot/clientes", icon: Users,        label: "Clientes" },
-      { href: "/admin/tarot/lecturas", icon: BookOpen,     label: "Lecturas" },
-      { href: "/admin/tarot/pdfs",     icon: FileText,     label: "PDFs" },
-      { href: "/admin/tarot/pagos",    icon: CreditCard,   label: "Pagos" },
-      { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
+      { href: "/admin/suscriptores",           icon: Users,         label: "Suscriptores" },
+      { href: "/admin/mensajes-problematicos",  icon: MessageSquare, label: "Mensajes" },
+      { href: "/admin/wa",                     icon: Smartphone,    label: "WA Inbox" },
+      { href: "/admin/contenido",              icon: FileText,      label: "Contenido" },
+      { href: "/admin/suscripciones",          icon: CreditCard,    label: "Suscripciones" },
+      { href: "/admin/cupones",                icon: Tag,           label: "Cupones" },
     ],
   },
   {
     label: "Observabilidad",
     items: [
-      { href: "/admin/tarot/logs",     icon: ScrollText,   label: "Logs" },
-      { href: "/admin/tarot/ingresos", icon: TrendingUp,   label: "Ingresos" },
-    ],
-  },
-  {
-    label: "Producto",
-    items: [
-      { href: "/admin/tarot/product-intelligence", icon: Sparkles, label: "Product Intelligence" },
+      { href: "/admin/ingresos", icon: TrendingUp, label: "Ingresos" },
+      { href: "/admin/logs",     icon: ScrollText,  label: "Logs" },
+      { href: "/admin/cron",     icon: Clock,       label: "Cron" },
     ],
   },
   {
     label: "Sistema",
     items: [
-      { href: "/admin/tarot/alertas", icon: Bell,     label: "Alertas" },
-      { href: "/admin/tarot/config",  icon: Settings, label: "Configuración" },
+      { href: "/admin/prompts",          icon: Wand2,    label: "Prompts" },
+      { href: "/admin/horoscopo/config", icon: Settings, label: "Configuración" },
     ],
   },
 ];
 
-const BELL_POLL_MS = 30_000;
-
-export function TarotAdminShell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed]           = useState(false);
+export function HoroscopoAdminShell({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed]         = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const [noLeidas, setNoLeidas]             = useState(0);
   const pathname = usePathname();
-
-  // Poll unread alert count from DB
-  useEffect(() => {
-    async function poll() {
-      try {
-        const res = await fetch("/api/admin/tarot/alertas/no-leidas");
-        if (res.ok) {
-          const d = await res.json();
-          setNoLeidas(d.count ?? 0);
-        }
-      } catch { /* silencioso */ }
-    }
-    poll();
-    const id = setInterval(poll, BELL_POLL_MS);
-    return () => clearInterval(id);
-  }, []);
 
   async function handleLogout() {
     setCerrandoSesion(true);
@@ -113,8 +89,8 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
           }`}
         >
           {!collapsed && (
-            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-              Admin Tarot
+            <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">
+              Admin Horóscopo
             </span>
           )}
           <button
@@ -143,25 +119,18 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                       key={href}
                       href={href as Route<string>}
                       title={collapsed ? label : undefined}
-                      className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg mx-1.5 transition-colors ${
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg mx-1.5 transition-colors ${
                         isActive
                           ? "bg-gray-800 text-white"
                           : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
                       }`}
                     >
-                      <span className="relative shrink-0">
-                        <Icon size={16} className={isActive ? "text-amber-400" : ""} />
-                        {collapsed && href === "/admin/tarot/alertas" && noLeidas > 0 && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
-                        )}
-                      </span>
+                      <Icon
+                        size={16}
+                        className={isActive ? "text-violet-400" : ""}
+                      />
                       {!collapsed && (
-                        <span className="text-sm truncate flex-1">{label}</span>
-                      )}
-                      {!collapsed && href === "/admin/tarot/alertas" && noLeidas > 0 && (
-                        <span className="ml-auto text-xs bg-amber-500 text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center">
-                          {noLeidas > 99 ? "99+" : noLeidas}
-                        </span>
+                        <span className="text-sm truncate">{label}</span>
                       )}
                     </Link>
                   );
@@ -174,7 +143,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
         <div className="border-t border-gray-800 p-3 space-y-2">
           {!collapsed && (
             <div className="pb-1">
-              <AdminPanelSwitcher current="ttc" />
+              <AdminPanelSwitcher current="thc" />
             </div>
           )}
           <button

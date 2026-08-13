@@ -12,7 +12,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
+import { HoroscopoAdminShell } from "@/components/admin/HoroscopoAdminShell";
 
 // ===========================================================================
 // Types
@@ -445,7 +445,7 @@ export default function CronPage() {
   const conError = jobs.filter((j) => j.ultimo_estado === "failed").length;
 
   return (
-    <AdminShell>
+    <HoroscopoAdminShell>
       <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -514,6 +514,6 @@ export default function CronPage() {
           </div>
         )}
       </main>
-    </AdminShell>
+    </HoroscopoAdminShell>
   );
 }

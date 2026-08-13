@@ -2,16 +2,18 @@
 // _shared/tarot-alertas.ts — Helper canónico de alertas operativas TTC
 //
 // ARQUITECTURA:
-//   Supabase Edge Functions = detección + reglas + envío.
-//   Next.js Admin = configuración y visualización.
-//   NUNCA llamar desde el cliente ni desde API Routes de Next.js.
+//   Una alerta operativa es un evento del backend.
+//   Email y Admin son canales de presentación del mismo evento.
+//   La fuente canónica es dispararAlerta(). NUNCA crear eventos
+//   directamente desde Next.js, React o APIs de presentación.
 //
-// Uso:
-//   import { dispararAlerta } from "../_shared/tarot-alertas.ts";
-//   await dispararAlerta(supabase, "nueva_venta", { ordenId, clienteNombre, importe, moneda, fecha });
+//   dispararAlerta() es responsable de:
+//     1. Persistir el evento en tarot_alertas_eventos (siempre)
+//     2. Enviar email si el canal email está activo (opcional)
 //
-// Nunca lanza — las alertas son fire-and-forget y nunca deben
-// interrumpir el flujo principal de negocio.
+//   Las Edge Functions solo llaman dispararAlerta().
+//   Nunca lanza — las alertas son fire-and-forget y nunca deben
+//   interrumpir el flujo principal de negocio.
 // ============================================================
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
@@ -43,6 +45,37 @@ const ETAPA_LABEL: Record<AlertaTipo, string> = {
   error_email_cliente: "Envío de email al cliente",
   orden_trabada:       "Orden trabada",
 };
+
+const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
+  nueva_venta:         "success",
+  orden_trabada:       "warning",
+  error_generacion:    "error",
+  error_pdf:           "error",
+  error_whatsapp:      "error",
+  error_email_cliente: "error",
+};
+
+function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; mensaje: string } {
+  switch (tipo) {
+    case "nueva_venta":
+      return {
+        titulo:  "Nueva venta",
+        mensaje: datos.clienteNombre
+          ? `${datos.clienteNombre} · ${datos.moneda ?? ""} ${datos.importe ?? "—"}`
+          : `${datos.moneda ?? ""} ${datos.importe ?? "—"}`,
+      };
+    case "error_generacion":
+      return { titulo: "Error de generación",        mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
+    case "error_pdf":
+      return { titulo: "Error de PDF",               mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
+    case "error_whatsapp":
+      return { titulo: "Error de WhatsApp",          mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
+    case "error_email_cliente":
+      return { titulo: "Error de email al cliente",  mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
+    case "orden_trabada":
+      return { titulo: "Orden trabada", mensaje: datos.etapa ? `Trabada en: ${datos.etapa}` : "Sin avance detectado" };
+  }
+}
 
 function fmtFecha(iso?: string): string {
   try {
@@ -101,16 +134,39 @@ export async function dispararAlerta(
   datos: AlertaDatos,
 ): Promise<void> {
   try {
-    // 1. Leer configuración de la alerta específica
+    // ── 1. Persistir evento interno (siempre, independiente del canal email) ──
+    const { titulo, mensaje } = tituloMensaje(tipo, datos);
+    const metadata: Record<string, string> = {};
+    if (datos.ordenRef)      metadata.ordenRef      = datos.ordenRef;
+    if (datos.clienteNombre) metadata.clienteNombre = datos.clienteNombre;
+    if (datos.importe)       metadata.importe       = datos.importe;
+    if (datos.moneda)        metadata.moneda        = datos.moneda;
+    if (datos.etapa)         metadata.etapa         = datos.etapa;
+    if (datos.error)         metadata.error         = datos.error.substring(0, 300);
+
+    // ignoreDuplicates=true → ON CONFLICT DO NOTHING (idempotencia nueva_venta)
+    await supabase.from("tarot_alertas_eventos").upsert(
+      {
+        tipo_alerta: tipo,
+        severidad:   SEVERIDAD[tipo],
+        titulo,
+        mensaje,
+        orden_id:    datos.ordenId ?? null,
+        metadata,
+      },
+      { ignoreDuplicates: true },
+    );
+
+    // ── 2. Canal email: leer configuración ────────────────────────────────────
     const { data: cfg } = await supabase
       .from("tarot_alertas_config")
       .select("activa, usa_email_general, email_particular")
       .eq("tipo", tipo)
       .maybeSingle() as { data: { activa: boolean; usa_email_general: boolean; email_particular: string | null } | null };
 
-    if (!cfg || !cfg.activa) return;
+    if (!cfg || !cfg.activa) return; // email desactivado — evento ya persistido arriba
 
-    // 2. Resolver destino de email
+    // ── 3. Resolver destino de email ──────────────────────────────────────────
     let destino: string;
     if (cfg.usa_email_general || !cfg.email_particular) {
       const { data: row } = await supabase
@@ -126,7 +182,7 @@ export async function dispararAlerta(
 
     if (!destino) return;
 
-    // 3. Construir email según tipo
+    // ── 4. Construir y enviar email ────────────────────────────────────────────
     const asunto = tipo === "nueva_venta"
       ? "💰 Nueva venta — Tu Tirada"
       : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tu Tirada`;
@@ -134,7 +190,6 @@ export async function dispararAlerta(
       ? htmlNuevaVenta(datos)
       : htmlError(tipo, datos);
 
-    // 4. Enviar via Resend — misma infraestructura que ef_tarot_enviar_email
     const resendKey  = Deno.env.get("RESEND_API_KEY");
     const resendFrom = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";
     if (!resendKey) return;
