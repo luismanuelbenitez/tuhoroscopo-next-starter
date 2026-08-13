@@ -171,24 +171,22 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="border-t border-gray-800 p-3 space-y-2">
-          {!collapsed && (
-            <div className="pb-1">
-              <AdminPanelSwitcher current="ttc" />
-            </div>
-          )}
-          <button
-            onClick={handleLogout}
-            disabled={cerrandoSesion}
-            className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm text-gray-500 hover:text-red-400 hover:bg-gray-800 transition-colors disabled:opacity-50 ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            <LogOut size={14} />
-            {!collapsed && (
-              <span>{cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}</span>
-            )}
-          </button>
+        <div className="border-t border-gray-800 p-3">
+          <AdminPanelSwitcher current="ttc" collapsed={collapsed} />
+          <div className="border-t border-gray-800/50 mt-2 pt-2">
+            <button
+              onClick={handleLogout}
+              disabled={cerrandoSesion}
+              className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm text-gray-500 hover:text-red-400 hover:bg-gray-800 transition-colors disabled:opacity-50 ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
+              <LogOut size={14} />
+              {!collapsed && (
+                <span>{cerrandoSesion ? "Cerrando…" : "Cerrar sesión"}</span>
+              )}
+            </button>
+          </div>
         </div>
       </aside>
 
