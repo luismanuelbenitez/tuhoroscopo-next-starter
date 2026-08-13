@@ -1,9 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Banknote,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotPagoDetalle } from "@/components/admin/TarotPagoDetalle";
@@ -24,6 +25,12 @@ interface Pago {
   created_at: string;
   estado_resumen: string;
   warnings: string[];
+  cobro_manual: boolean;
+  cobro_manual_motivo: string | null;
+  cobro_manual_observacion: string | null;
+  cobro_manual_at: string | null;
+  cobro_manual_por: string | null;
+  orden_estado: string | null;
 }
 
 interface Paginacion {
@@ -54,40 +61,39 @@ function Badge({ text, cls }: { text: string; cls: string }) {
 const LIMIT = 50;
 
 export default function TarotPagosPage() {
-  const [filtros, setFiltros] = useState({ mp_status: "", moneda: "", offset: 0 });
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [paginacion, setPaginacion] = useState<Paginacion | null>(null);
-  const [cargando, setCargando] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [filtros, setFiltros]           = useState({ mp_status: "", moneda: "", offset: 0 });
+  const [pagos, setPagos]               = useState<Pago[]>([]);
+  const [paginacion, setPaginacion]     = useState<Paginacion | null>(null);
+  const [cargando, setCargando]         = useState(false);
+  const [errorMsg, setErrorMsg]         = useState<string | null>(null);
   const [selectedPago, setSelectedPago] = useState<Pago | null>(null);
+  const [refreshKey, setRefreshKey]     = useState(0);
 
-  useEffect(() => {
-    async function doFetch() {
-      setCargando(true);
-      setErrorMsg(null);
-      const params = new URLSearchParams();
-      if (filtros.mp_status) params.set("mp_status", filtros.mp_status);
-      if (filtros.moneda) params.set("moneda", filtros.moneda);
-      params.set("offset", String(filtros.offset));
-      params.set("limit", String(LIMIT));
-      try {
-        const r = await fetch(`/api/admin/tarot/pagos?${params.toString()}`);
-        const json = await r.json().catch(() => null);
-        if (!r.ok) {
-          setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
-        } else {
-          setPagos(json.pagos ?? []);
-          setPaginacion(json.paginacion ?? null);
-        }
-      } catch (e: unknown) {
-        setErrorMsg(e instanceof Error ? e.message : "Error de red");
-      } finally {
-        setCargando(false);
+  const doFetch = useCallback(async () => {
+    setCargando(true);
+    setErrorMsg(null);
+    const params = new URLSearchParams();
+    if (filtros.mp_status) params.set("mp_status", filtros.mp_status);
+    if (filtros.moneda)    params.set("moneda",    filtros.moneda);
+    params.set("offset", String(filtros.offset));
+    params.set("limit",  String(LIMIT));
+    try {
+      const r = await fetch(`/api/admin/tarot/pagos?${params.toString()}`);
+      const json = await r.json().catch(() => null);
+      if (!r.ok) {
+        setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
+      } else {
+        setPagos(json.pagos ?? []);
+        setPaginacion(json.paginacion ?? null);
       }
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : "Error de red");
+    } finally {
+      setCargando(false);
     }
-    doFetch();
   }, [filtros]);
 
+  useEffect(() => { doFetch(); }, [doFetch, refreshKey]);
 
   const total = paginacion?.total ?? 0;
   const desde = total === 0 ? 0 : filtros.offset + 1;
@@ -178,6 +184,11 @@ export default function TarotPagosPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Badge text={badge.label} cls={badge.cls} />
+                        {p.cobro_manual && (
+                          <span title="Cobro administrativo interno" className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-amber-400">
+                            <Banknote size={11} />
+                          </span>
+                        )}
                         {p.warnings.length > 0 && <span className="ml-1.5 text-xs text-amber-400">⚠</span>}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-300 whitespace-nowrap">
@@ -229,6 +240,10 @@ export default function TarotPagosPage() {
         <TarotPagoDetalle
           pago={selectedPago}
           onClose={() => setSelectedPago(null)}
+          onSuccess={() => {
+            setSelectedPago(null);
+            setRefreshKey((k) => k + 1);
+          }}
         />
       )}
     </TarotAdminShell>

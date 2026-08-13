@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 
 type RawPago = {
@@ -19,6 +19,12 @@ type RawPago = {
   webhook_received_at?: string;
   created_at?: string;
   updated_at?: string;
+  cobro_manual?: boolean;
+  cobro_manual_motivo?: string | null;
+  cobro_manual_observacion?: string | null;
+  cobro_manual_at?: string | null;
+  cobro_manual_por?: string | null;
+  orden_estado?: string | null;
   diagnostico_admin?: {
     healthy?: boolean;
     warnings?: string[];
@@ -129,6 +135,12 @@ export async function GET(req: NextRequest) {
         webhook_received_at: p.webhook_received_at ?? null,
         created_at: p.created_at ?? "",
         updated_at: p.updated_at ?? "",
+        cobro_manual: p.cobro_manual ?? false,
+        cobro_manual_motivo: p.cobro_manual_motivo ?? null,
+        cobro_manual_observacion: p.cobro_manual_observacion ?? null,
+        cobro_manual_at: p.cobro_manual_at ?? null,
+        cobro_manual_por: p.cobro_manual_por ?? null,
+        orden_estado: p.orden_estado ?? null,
         estado_resumen: p.diagnostico_admin?.estado_resumen ?? "ok",
         warnings: p.diagnostico_admin?.warnings ?? [],
       }))
