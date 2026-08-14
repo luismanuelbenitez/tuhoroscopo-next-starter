@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // ef_tarot_webhook_mp — Sprint 2
 // Endpoint público que recibe notificaciones de Mercado Pago
 // para pagos del módulo Tarot.
@@ -12,12 +12,12 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
-import { dispararAlerta } from "../_shared/tarot-alertas.ts";
+import { ejecutarPipelinePostCobro } from "../_shared/tarot-pipeline.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
-const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
+const MP_ACCESS_TOKEN           = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
+const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_webhook_mp";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -33,17 +33,16 @@ const ESTADOS_YA_PROCESADOS = new Set([
   "entregado",
 ]);
 
-// ── Analytics: funnel_events ─────────────────────────────────
-
+// logFunnelEvent se mantiene aquí para los paths MP-específicos: rejected y pending
 async function logFunnelEvent(event: {
-  order_id:     string;
-  session_id?:  string | null;
-  event_name:   string;
-  product_id?:  string | null;
+  order_id:      string;
+  session_id?:   string | null;
+  event_name:    string;
+  product_id?:   string | null;
   product_name?: string | null;
-  value?:       number | null;
-  currency?:    string | null;
-  metadata?:    Record<string, unknown>;
+  value?:        number | null;
+  currency?:     string | null;
+  metadata?:     Record<string, unknown>;
 }): Promise<void> {
   try {
     const { error } = await supabase.from("funnel_events").insert({
@@ -92,14 +91,14 @@ async function registrarLog(
   }
   try {
     await supabase.from("tarot_logs").insert({
-      orden_id: ordenId,
+      orden_id:       ordenId,
       evento,
       nivel,
       mensaje,
-      payload: payload ?? {},
-      ip: ip ?? null,
+      payload:        payload ?? {},
+      ip:             ip ?? null,
       funcion_origen: FN,
-      duracion_ms: duracion_ms ?? null,
+      duracion_ms:    duracion_ms ?? null,
     });
   } catch (e) {
     console.error("tarot_logs insert falló:", e);
@@ -135,8 +134,8 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
     return;
   }
 
-  const externalRef: string = pay.external_reference ?? "";
-  const mpStatus: string = pay.status ?? "";
+  const externalRef: string    = pay.external_reference ?? "";
+  const mpStatus: string       = pay.status ?? "";
   const mpStatusDetail: string = pay.status_detail ?? "";
 
   // 2) Filtro de módulo: solo procesamos órdenes TAROT
@@ -175,104 +174,60 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
 
   const ahora = new Date().toISOString();
 
-  // 5) Actualizar tarot_pagos con todos los datos del webhook
+  // 5) Actualizar tarot_pagos con todos los datos del webhook MP
   await supabase
     .from("tarot_pagos")
     .update({
-      mp_payment_id: String(paymentId),
+      mp_payment_id:        String(paymentId),
       mp_external_reference: externalRef,
-      mp_status: mpStatus,
-      mp_status_detail: mpStatusDetail,
-      mp_payment_type: pay.payment_type_id ?? null,
-      mp_payment_method_id: pay.payment_method_id ?? null,
-      mp_installments: pay.installments ?? 1,
-      monto: pay.transaction_amount ?? null,
-      moneda: pay.currency_id ?? null,
-      ip_pago: pay.payer?.identification?.number ? null : null, // MP no expone IP del pagador
-      webhook_payload: pay,           // payload completo sin modificar
-      webhook_received_at: ahora,
-      updated_at: ahora,
+      mp_status:             mpStatus,
+      mp_status_detail:      mpStatusDetail,
+      mp_payment_type:       pay.payment_type_id ?? null,
+      mp_payment_method_id:  pay.payment_method_id ?? null,
+      mp_installments:       pay.installments ?? 1,
+      monto:                 pay.transaction_amount ?? null,
+      moneda:                pay.currency_id ?? null,
+      ip_pago:               null,
+      webhook_payload:       pay,
+      webhook_received_at:   ahora,
+      updated_at:            ahora,
     })
     .eq("orden_id", ordenId);
 
   // 6) Lógica de negocio según estado de MP
   if (mpStatus === "approved") {
     // ── Pago aprobado ────────────────────────────────────────
-    await supabase
-      .from("tarot_ordenes")
-      .update({ estado: "pago_confirmado", updated_at: ahora })
-      .eq("id", ordenId);
-
     await registrarLog(ordenId, "pago_confirmado", "info",
       "Pago aprobado. Disparando generación de lectura.",
       { payment_id: paymentId, mp_status: mpStatus, duracion_ms: Date.now() - t0 },
       ip, Date.now() - t0);
 
-    // Alerta: nueva venta (fire-and-forget — nunca bloquea el flujo)
-    const { data: clienteAlerta } = await supabase
-      .from("tarot_clientes").select("nombre_completo").eq("id", orden.cliente_id).maybeSingle();
-    dispararAlerta(supabase, "nueva_venta", {
-      ordenId,
-      ordenRef:      externalRef,
-      clienteNombre: clienteAlerta?.nombre_completo ?? "—",
-      importe:       String(pay.transaction_amount ?? "—"),
-      moneda:        pay.currency_id ?? "UYU",
-      fecha:         ahora,
-    }).catch(() => {});
-
-    await logFunnelEvent({
-      order_id:     ordenId,
-      session_id:   orden.funnel_session_id ?? null,
-      event_name:   "payment_approved",
-      value:        pay.transaction_amount ?? null,
-      currency:     pay.currency_id ?? "UYU",
-      metadata: {
-        mp_payment_id:     String(paymentId),
-        external_reference: externalRef,
-        mp_status,
-        mp_status_detail:  mpStatusDetail,
+    await ejecutarPipelinePostCobro(
+      supabase,
+      {
+        supabaseUrl:    SUPABASE_URL,
+        serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+        internalKey:    TAROT_INTERNAL_KEY,
+        funcionOrigen:  FN,
       },
-    });
-
-    // ── Disparar ef_tarot_generar_lectura (fire-and-forget) ──
-    const lecturaUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_lectura`;
-    fetch(lecturaUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "x-internal-key": TAROT_INTERNAL_KEY,
-      },
-      body: JSON.stringify({ orden_id: ordenId }),
-    }).catch(async (err) => {
-      await registrarLog(ordenId, "lectura_dispatch_error", "warning",
-        "No se pudo disparar ef_tarot_generar_lectura (puede no existir aún)",
-        { error: String(err) });
-    });
-
-    // ── Aplicar código de descuento reservado si existe (fire-and-forget) ──
-    const { data: usoReservado } = await supabase
-      .from("tarot_codigos_descuento_usos")
-      .select("id")
-      .eq("orden_id", ordenId)
-      .eq("estado_uso", "reservado")
-      .maybeSingle();
-
-    if (usoReservado?.id) {
-      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_aplicar_codigo`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-internal-key": TAROT_INTERNAL_KEY,
+      {
+        ordenId,
+        clienteId:         orden.cliente_id,
+        externalReference: externalRef,
+        funnelSessionId:   orden.funnel_session_id ?? null,
+        monto:             pay.transaction_amount ?? null,
+        moneda:            pay.currency_id ?? null,
+        analyticsEvent:    "payment_approved",
+        analyticsMetadata: {
+          mp_payment_id:      String(paymentId),
+          external_reference: externalRef,
+          mp_status:          mpStatus,
+          mp_status_detail:   mpStatusDetail,
         },
-        body: JSON.stringify({ uso_id: usoReservado.id, mp_payment_id: String(paymentId) }),
-      }).catch(async (err) => {
-        await registrarLog(ordenId, "aplicar_codigo_dispatch_error", "warning",
-          "No se pudo disparar ef_tarot_aplicar_codigo",
-          { error: String(err) });
-      });
-    }
+        mpPaymentId: String(paymentId),
+        ahora,
+      },
+    );
 
   } else if (mpStatus === "rejected" || mpStatus === "cancelled") {
     // ── Pago rechazado o cancelado ───────────────────────────
@@ -290,14 +245,14 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       session_id: orden.funnel_session_id ?? null,
       event_name: "payment_rejected",
       metadata: {
-        mp_payment_id:     String(paymentId),
+        mp_payment_id:      String(paymentId),
         external_reference: externalRef,
-        mp_status,
-        mp_status_detail:  mpStatusDetail,
+        mp_status:          mpStatus,
+        mp_status_detail:   mpStatusDetail,
       },
     });
 
-    // ── Liberar código de descuento reservado si existe (fire-and-forget) ──
+    // ── Liberar código de descuento reservado si existe ──────
     const { data: usoReservadoRej } = await supabase
       .from("tarot_codigos_descuento_usos")
       .select("id")
@@ -309,8 +264,8 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_liberar_codigo`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type":   "application/json",
+          Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           "x-internal-key": TAROT_INTERNAL_KEY,
         },
         body: JSON.stringify({
@@ -335,9 +290,9 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       session_id: orden.funnel_session_id ?? null,
       event_name: "payment_pending",
       metadata: {
-        mp_payment_id:     String(paymentId),
+        mp_payment_id:      String(paymentId),
         external_reference: externalRef,
-        mp_status,
+        mp_status:          mpStatus,
       },
     });
   }
@@ -357,14 +312,13 @@ serve(async (req) => {
   try {
     // ── Mode 1: IPN clásico (?topic=payment&id=xxx) ──────────
     const topicRaw = url.searchParams.get("topic");
-    const idRaw = url.searchParams.get("id");
+    const idRaw    = url.searchParams.get("id");
 
     if (topicRaw && idRaw) {
       const topic = topicRaw.toLowerCase().trim();
-      const id = idRaw.trim();
+      const id    = idRaw.trim();
 
-      // Solo procesamos topic=payment. Ignoramos preapproval y otros
-      // (Tarot no usa preapproval).
+      // Solo procesamos topic=payment. Ignoramos preapproval y otros.
       if (topic === "payment") {
         procesarPago(id, ip); // fire-and-forget: NO await
       }
@@ -381,7 +335,7 @@ serve(async (req) => {
       // body malformado: igual respondemos OK
     }
 
-    const type = String(payload?.type ?? "").toLowerCase().trim();
+    const type   = String(payload?.type    ?? "").toLowerCase().trim();
     const dataId = String(payload?.data?.id ?? "").trim();
 
     if (type === "payment" && dataId) {
