@@ -50,7 +50,6 @@ export default function HomePage() {
         }
         body::before { display: none !important; }
         header { display: none !important; }
-        footer  { display: none !important; }
 
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(16px); }
@@ -89,15 +88,18 @@ export default function HomePage() {
         <div className="relative flex-1 flex flex-col items-center" style={{ zIndex: 1 }}>
 
           {/* ── Hero ──────────────────────────────────────────────── */}
-          <div className="fi1 text-center pt-12 pb-2 px-4">
+          <div className="fi1 text-center pt-10 pb-2 px-4">
 
-            <div className="inline-flex items-center justify-center mb-5 relative">
+            <div className="inline-flex items-center justify-center mb-3 relative">
               <div style={{
-                position: "absolute", width: 140, height: 140, borderRadius: "50%",
+                position: "absolute", width: 160, height: 160, borderRadius: "50%",
                 background: "radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 65%)",
                 pointerEvents: "none",
               }} />
-              <LogoIcon size={72} />
+              <LogoIcon
+                size={84}
+                style={{ width: "clamp(64px, 10vw, 84px)", height: "clamp(64px, 10vw, 84px)" }}
+              />
             </div>
 
             <h1
@@ -305,10 +307,7 @@ export default function HomePage() {
 
         </div>
 
-        {/* ── Footer ─────────────────────────────────────────────── */}
-        <p className="text-center text-xs pb-5" style={{ color: "rgba(255,255,255,0.16)" }}>
-          © {YEAR} Tu Oráculo · tuoraculo.uy
-        </p>
+
       </div>
     </>
   );

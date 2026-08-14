@@ -14,7 +14,7 @@ export default function MantenimientoPage() {
         html,body{height:100%;background:#07051a;font-family:'Inter',sans-serif;color:#e8e0f0;overflow:hidden}
         header,footer{display:none!important}
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-        @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 10px rgba(139,92,246,.3))}50%{filter:drop-shadow(0 0 24px rgba(139,92,246,.6))}}
+        @keyframes pulse-glow{0%,100%{filter:drop-shadow(0 0 8px rgba(139,92,246,.18))}50%{filter:drop-shadow(0 0 18px rgba(139,92,246,.32))}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
         @keyframes twinkle{0%,100%{opacity:.12}50%{opacity:.55}}
         .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) var(--delay,0s) infinite ease-in-out}
@@ -55,15 +55,18 @@ export default function MantenimientoPage() {
         }} />
 
         {/* Contenido central */}
-        <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "2rem", maxWidth: 480, textAlign: "center", animation: "fadeUp .65s ease both" }}>
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 0, maxWidth: 480, textAlign: "center", animation: "fadeUp .65s ease both" }}>
 
           {/* Isotipo */}
-          <div style={{ animation: "float 4.5s ease-in-out infinite, pulse-glow 4.5s ease-in-out infinite" }}>
-            <LogoIcon size={92} />
+          <div style={{ animation: "float 4.5s ease-in-out infinite, pulse-glow 4.5s ease-in-out infinite", marginBottom: "1rem" }}>
+            <LogoIcon
+              size={100}
+              style={{ width: "clamp(80px, 12vw, 100px)", height: "clamp(80px, 12vw, 100px)" }}
+            />
           </div>
 
           {/* Marca + títulos */}
-          <div style={{ animation: "fadeUp .65s .1s ease both" }}>
+          <div style={{ animation: "fadeUp .65s .1s ease both", marginBottom: "1.875rem" }}>
             <p style={{ fontSize: 10, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(196,181,253,0.45)", marginBottom: 16 }}>
               Tu Oráculo
             </p>
@@ -89,6 +92,7 @@ export default function MantenimientoPage() {
             height: 1,
             background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.45), transparent)",
             animation: "fadeUp .65s .2s ease both",
+            marginBottom: "1.375rem",
           }} />
 
           {/* Contacto */}
