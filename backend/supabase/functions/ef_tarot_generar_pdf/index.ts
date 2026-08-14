@@ -76,6 +76,9 @@ const C_GOLD       = rgb(0.72, 0.55, 0.10);
 const C_TEXT_DARK  = rgb(0.12, 0.07, 0.22);
 const C_TEXT_MED   = rgb(0.38, 0.30, 0.50);
 const C_WHITE      = rgb(1, 1, 1);
+// Colores editoriales — cuerpo de texto sobre pergamino claro
+const C_BODY    = rgb(0.22, 0.14, 0.06);  // marrón cálido — interpretación / resumen
+const C_MENSAJE = rgb(0.18, 0.08, 0.24);  // ciruela cálido — mensaje personal P3
 
 // ─────────────────────────────────────────────────────────────
 // LAYOUT PÁGINA 1 — Tirada visual
@@ -657,33 +660,34 @@ function addPage2(
     const textStartY = pY(bl.text.yStart);
     const textMinY   = pY(bl.text.minY);
 
-    // Nombre de carta (tamaño fijo, siempre entra)
+    // Nombre de carta — bold-italic, algo más grande para crear jerarquía clara
     const isInv    = carta.orientacion === "invertida" || carta.invertida === true;
     const cardLine = sanitize(carta.nombre_carta ?? carta.carta ?? "") + (isInv ? " (Inv.)" : "");
-    const nameSize  = 9;
-    const nameLH    = 12;
+    const nameSize  = 9.5;
+    const nameLH    = 13;
     // Baja la baseline para que los ascendentes queden dentro del box
     const nameDrawY = textStartY - nameSize * 0.75;
     const afterName = drawWrapped(p, cardLine,
       textX, nameDrawY, f.bita, nameSize, C_DARK_BROWN, textMaxW, nameLH, nameDrawY - 14);
 
-    // Interpretación — auto-fit: calcula el font size que hace
-    // entrar el texto completo en el espacio disponible del bloque.
+    // Interpretación — auto-fit editorial: interlineado 1.65 para lectura cómoda
     const interp      = sanitize(carta.interpretacion ?? "");
-    const boxH        = afterName - textMinY - 4;
-    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 8.5, 6.5);
-    const interpLH    = interpSize * 1.45;
+    const LH_INTERP   = 1.65;
+    const boxH        = (afterName - 6) - textMinY - 4;
+    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 9.0, 6.8, LH_INTERP);
+    const interpLH    = interpSize * LH_INTERP;
     const afterInterp = drawWrapped(p, interp,
-      textX, afterName - 3, f.reg, interpSize, C_DARK_BROWN, textMaxW, interpLH, textMinY);
+      textX, afterName - 6, f.reg, interpSize, C_BODY, textMaxW, interpLH, textMinY);
 
-    // Consejo solo en bloque 5 si queda espacio (también auto-fit)
-    if (i === 4 && carta.consejo && afterInterp > textMinY + 14) {
+    // Consejo solo en bloque 5 si queda espacio — italic diferenciado, separación generosa
+    if (i === 4 && carta.consejo && afterInterp > textMinY + 18) {
       const consejo     = sanitize(carta.consejo);
-      const consejoH    = afterInterp - textMinY - 5;
-      const consejoSize = fitTextToBox(consejo, f.ita, textMaxW, consejoH, 8.0, 6.5);
-      const consejoLH   = consejoSize * 1.45;
+      const LH_CONSEJO  = 1.55;
+      const consejoH    = afterInterp - 8 - textMinY - 5;
+      const consejoSize = fitTextToBox(consejo, f.ita, textMaxW, consejoH, 8.0, 6.5, LH_CONSEJO);
+      const consejoLH   = consejoSize * LH_CONSEJO;
       drawWrapped(p, consejo,
-        textX, afterInterp - 5, f.ita, consejoSize, C_TEXT_MED, textMaxW, consejoLH, textMinY);
+        textX, afterInterp - 8, f.ita, consejoSize, C_TEXT_MED, textMaxW, consejoLH, textMinY);
     }
   }
 
@@ -706,36 +710,37 @@ function addPage3(
     p.drawRectangle({ x: 0, y: 0, width: PW, height: PH, color: rgb(0.10, 0.05, 0.20) });
   }
 
-  const L  = P3;
-  const CT = C_DARK_BROWN;
+  const L = P3;
 
-  // Box 1 — Resumen (auto-fit, baseline desplazada para contener ascendentes)
+  // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
   const resumenMaxW  = pX(L.resumen.width);
   const resumenTopY  = pY(L.resumen.yStart);
   const resumenBotY  = pY(L.resumen.minY);
   const resumenMaxS  = pX(L.resumen.fontSize);
+  const LH_RESUMEN   = 1.65;
   const resumenSize  = fitTextToBox(resumenText, f.reg,
-    resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0);
+    resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
   const resumenDrawY = resumenTopY - resumenSize * 0.75;
   drawWrapped(p, resumenText,
-    pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, CT,
-    resumenMaxW, resumenSize * 1.45, resumenBotY);
+    pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, C_BODY,
+    resumenMaxW, resumenSize * LH_RESUMEN, resumenBotY);
 
-  // Box 2 — Mensaje personal (auto-fit, baseline desplazada para contener ascendentes)
+  // Box 2 — Mensaje personal: cursiva con color ciruela cálido — momento emocional de cierre
   const mensajeText  = sanitize(c.mensaje_final ?? "");
   const mensajeMaxW  = pX(L.mensajeFinal.width);
   const mensajeTopY  = pY(L.mensajeFinal.yStart);
   const mensajeBotY  = pY(L.mensajeFinal.minY);
   const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
+  const LH_MENSAJE   = 1.70;
   const mensajeSize  = fitTextToBox(mensajeText, f.ita,
-    mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0);
+    mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
   const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;
   drawWrapped(p, mensajeText,
-    pX(L.mensajeFinal.x), mensajeDrawY, f.ita, mensajeSize, CT,
-    mensajeMaxW, mensajeSize * 1.45, mensajeBotY);
+    pX(L.mensajeFinal.x), mensajeDrawY, f.ita, mensajeSize, C_MENSAJE,
+    mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeBotY);
 
-  // Box 3 — Próximos pasos (auto-fit por ítem, baseline desplazada)
+  // Box 3 — Claves prácticas: bold para máxima escaneabilidad y contraste narrativo
   const pasos: string[] = Array.isArray(c.proximos_pasos) ? c.proximos_pasos : [];
   for (let i = 0; i < 3; i++) {
     const paso = pasos[i];
@@ -745,12 +750,13 @@ function addPage3(
     const pasoMaxW  = pX(pp.width);
     const pasoTopY  = pY(pp.y);
     const pasoBotY  = pY(pp.minY);
-    const pasoSize  = fitTextToBox(pasoTxt, f.reg,
-      pasoMaxW, pasoTopY - pasoBotY - 9 * 0.75, 9, 7.0);
+    const LH_PASO   = 1.55;
+    const pasoSize  = fitTextToBox(pasoTxt, f.bold,
+      pasoMaxW, pasoTopY - pasoBotY - 9 * 0.75, 9, 7.0, LH_PASO);
     const pasoDrawY = pasoTopY - pasoSize * 0.75;
     drawWrapped(p, pasoTxt,
-      pX(pp.x), pasoDrawY, f.reg, pasoSize, CT,
-      pasoMaxW, pasoSize * 1.45, pasoBotY);
+      pX(pp.x), pasoDrawY, f.bold, pasoSize, C_DARK_BROWN,
+      pasoMaxW, pasoSize * LH_PASO, pasoBotY);
   }
 
   if (debug) addDebugOverlayP3(p, f);
