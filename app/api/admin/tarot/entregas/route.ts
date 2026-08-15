@@ -32,6 +32,8 @@ async function callEF(
   });
 }
 
+// vista=ordenes (default) -> UNA fila por orden con WA+Email resumidos, para /admin/tarot/entregas.
+// vista=eventos -> feed plano de intentos individuales, para el widget del dashboard.
 export async function GET(req: NextRequest) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -41,7 +43,8 @@ export async function GET(req: NextRequest) {
   const { supabaseUrl, internalKey, serviceRoleKey } = env;
 
   const { searchParams } = req.nextUrl;
-  const efBody: Record<string, unknown> = {};
+  const vista = searchParams.get("vista") === "eventos" ? "eventos" : "ordenes";
+  const efBody: Record<string, unknown> = { vista };
 
   const orden_id = searchParams.get("orden_id");
   if (orden_id) efBody.orden_id = orden_id;
@@ -49,8 +52,13 @@ export async function GET(req: NextRequest) {
   const canal = searchParams.get("canal");
   if (canal) efBody.canal = canal;
 
-  const estado = searchParams.get("estado");
-  if (estado) efBody.estado = estado;
+  if (vista === "eventos") {
+    const estado = searchParams.get("estado");
+    if (estado) efBody.estado = estado;
+  } else {
+    const estado_general = searchParams.get("estado_general");
+    if (estado_general) efBody.estado_general = estado_general;
+  }
 
   const solo_reenvios = searchParams.get("solo_reenvios");
   if (solo_reenvios === "true") efBody.solo_reenvios = true;
@@ -86,7 +94,9 @@ export async function GET(req: NextRequest) {
   const data = await res.json();
   return NextResponse.json({
     ok: data.ok ?? false,
+    vista: data.vista ?? vista,
     paginacion: data.paginacion ?? null,
+    ordenes: data.ordenes ?? [],
     entregas: data.entregas ?? [],
   });
 }

@@ -622,7 +622,7 @@ function SeccionEntregas() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/tarot/entregas?limit=5").then(r => r.json()).catch(() => null),
+      fetch("/api/admin/tarot/entregas?vista=eventos&limit=5").then(r => r.json()).catch(() => null),
       fetch("/api/admin/tarot/entregas/solicitudes?estado=pendiente_autorizacion&limit=5").then(r => r.json()).catch(() => null),
     ]).then(([entregasJson, solicitudesJson]) => {
       const entregas: EntregaResumen[] = entregasJson?.entregas ?? [];

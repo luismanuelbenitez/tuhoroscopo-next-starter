@@ -6,30 +6,37 @@
 //   Tarot TTC — Administración / Gobernanza de entregas
 //
 // OBJETIVO:
-//   Listar entregas (envíos WhatsApp + Email) en una sola vista unificada,
-//   con datos de orden y cliente vía JOIN. Es la fuente de la pantalla
-//   /admin/tarot/entregas y del widget "Entregas recientes" del dashboard.
+//   Fuente única de datos para /admin/tarot/entregas y el widget "Entregas
+//   recientes" del dashboard. Combina tarot_envios_whatsapp + tarot_envios_email
+//   (merge en memoria — no hay UNION nativo vía supabase-js).
+//
+//   Dos formas de leer los mismos datos (mismas tablas, sin duplicar fuente
+//   de verdad), controladas por `vista`:
+//
+//   - vista="ordenes" (default): UNA fila por orden. Resume el estado de
+//     WhatsApp y Email, cuenta intentos, calcula "última actividad" y un
+//     "estado_general" derivado (entregado/parcial/error/pendiente/enviando).
+//     Es lo que necesita un administrador para entender de un vistazo qué
+//     pasó con cada orden, sin que 6 intentos técnicos parezcan 6 entregas.
+//
+//   - vista="eventos": lista plana de intentos individuales (comportamiento
+//     original de esta EF). La usa el widget "Entregas recientes" del
+//     dashboard, que quiere un feed cronológico de eventos, no órdenes.
 //
 // QUÉ NO HACE:
-//   - NO envía nada.
-//   - NO modifica estados.
-//   - NO crea ni autoriza solicitudes de reenvío (ver ef_tarot_solicitar_reenvio
-//     / ef_tarot_autorizar_reenvio / ef_tarot_admin_listar_solicitudes_reenvio).
-//
-// TIPO:
-//   Read-only / listado administrativo. Combina dos tablas en memoria
-//   (no hay UNION nativo vía supabase-js) — a la escala actual del
-//   producto (decenas/cientos de envíos) es correcto y suficiente;
-//   si el volumen crece varios órdenes de magnitud, migrar a una vista SQL.
+//   - NO envía nada. NO modifica estados. NO crea/autoriza solicitudes.
+//   - NO reimplementa verificarPermisoEnvio() ni ninguna lógica de gobernanza.
 //
 // SEGURIDAD:
 //   - Requiere x-internal-key.
 //
 // INPUT (POST body, todos opcionales):
 //   {
+//     "vista": "ordenes" | "eventos",           // default "ordenes"
 //     "orden_id": "uuid",
-//     "canal": "whatsapp" | "email",
-//     "estado": "enviado",
+//     "canal": "whatsapp" | "email",             // vista=eventos: filtra por canal
+//     "estado": "enviado",                       // vista=eventos: filtra por estado del intento
+//     "estado_general": "entregado"|"parcial"|"error"|"pendiente"|"enviando", // vista=ordenes
 //     "solo_reenvios": false,
 //     "fecha_desde": "2026-05-01",
 //     "fecha_hasta": "2026-06-01",
@@ -96,6 +103,10 @@ async function readBodySafe(req: Request): Promise<Record<string, unknown>> {
   } catch { return {}; }
 }
 
+const ESTADOS_EXITOSOS_WA = new Set(["enviado", "entregado", "leido"]);
+const ESTADOS_EXITOSOS_EMAIL = new Set(["enviado"]);
+const ESTADOS_ERROR = new Set(["error", "agotado_reintentos"]);
+
 interface EntregaFila {
   id: string;
   canal: "whatsapp" | "email";
@@ -146,12 +157,35 @@ function mapEmail(r: any): EntregaFila {
   };
 }
 
-serve(async (req) => {
-  const internalKey = req.headers.get("x-internal-key");
-  if (internalKey !== TAROT_INTERNAL_KEY) return jsonResponse({ ok: false, motivo: "unauthorized" }, 401);
-  if (req.method !== "POST") return jsonResponse({ ok: false, motivo: "metodo_no_permitido" }, 405);
+async function fetchTodosLosEnvios(filtros: {
+  orden_id: string | null; fecha_desde: string | null; fecha_hasta: string | null;
+}) {
+  const SELECT_JOIN = `*, tarot_ordenes ( external_reference, tarot_clientes ( nombre_completo, telefono, email ) )`;
+  async function fetchTabla(tabla: "tarot_envios_whatsapp" | "tarot_envios_email") {
+    let q = supabase.from(tabla).select(SELECT_JOIN);
+    if (filtros.orden_id) q = q.eq("orden_id", filtros.orden_id);
+    if (filtros.fecha_desde) q = q.gte("created_at", filtros.fecha_desde);
+    if (filtros.fecha_hasta) q = q.lt("created_at", filtros.fecha_hasta);
+    // Tope defensivo: a la escala actual del producto (decenas/cientos de envíos)
+    // esto cubre el dataset completo. Si crece varios órdenes de magnitud,
+    // migrar el agrupado a una vista SQL en vez de hacerlo en memoria.
+    q = q.order("created_at", { ascending: false }).limit(500);
+    return q;
+  }
+  const [waRes, emailRes] = await Promise.all([
+    fetchTabla("tarot_envios_whatsapp"),
+    fetchTabla("tarot_envios_email"),
+  ]);
+  if (waRes.error) throw new Error(waRes.error.message);
+  if (emailRes.error) throw new Error(emailRes.error.message);
+  return {
+    wa: (waRes.data ?? []).map(mapWa),
+    email: (emailRes.data ?? []).map(mapEmail),
+  };
+}
 
-  const body = await readBodySafe(req);
+// ── Vista "eventos": lista plana, comportamiento original ────────────────────
+async function responderVistaEventos(body: Record<string, unknown>) {
   const orden_id = normalizarUUID(body.orden_id);
   const canalFiltro = normalizarTexto(body.canal);
   const estado = normalizarTexto(body.estado);
@@ -161,52 +195,212 @@ serve(async (req) => {
   const limit = normalizarLimit(body.limit);
   const offset = normalizarOffset(body.offset);
 
-  const SELECT_JOIN = `*, tarot_ordenes ( external_reference, tarot_clientes ( nombre_completo ) )`;
-  const fetchCap = offset + limit; // suficiente para cubrir la página pedida tras el merge
+  const { wa, email } = await fetchTodosLosEnvios({ orden_id, fecha_desde, fecha_hasta });
 
-  async function fetchTabla(tabla: "tarot_envios_whatsapp" | "tarot_envios_email") {
-    let q = supabase.from(tabla).select(SELECT_JOIN, { count: "exact" });
-    if (orden_id) q = q.eq("orden_id", orden_id);
-    if (estado) q = q.eq("estado", estado);
-    if (solo_reenvios) q = q.eq("es_reenvio", true);
-    if (fecha_desde) q = q.gte("created_at", fecha_desde);
-    if (fecha_hasta) q = q.lt("created_at", fecha_hasta);
-    q = q.order("created_at", { ascending: false }).limit(fetchCap);
-    return q;
-  }
+  let filas: EntregaFila[] = [
+    ...(!canalFiltro || canalFiltro === "whatsapp" ? wa : []),
+    ...(!canalFiltro || canalFiltro === "email" ? email : []),
+  ];
+  if (estado) filas = filas.filter(f => f.estado === estado);
+  if (solo_reenvios) filas = filas.filter(f => f.es_reenvio);
+  filas = filas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const incluirWa    = !canalFiltro || canalFiltro === "whatsapp";
-  const incluirEmail = !canalFiltro || canalFiltro === "email";
-
-  const [waRes, emailRes] = await Promise.all([
-    incluirWa    ? fetchTabla("tarot_envios_whatsapp") : Promise.resolve({ data: [], error: null, count: 0 }),
-    incluirEmail ? fetchTabla("tarot_envios_email")    : Promise.resolve({ data: [], error: null, count: 0 }),
-  ]);
-
-  if (waRes.error || emailRes.error) {
-    return jsonResponse({
-      ok: false, motivo: "listar_entregas_error",
-      error: waRes.error?.message ?? emailRes.error?.message,
-    }, 500);
-  }
-
-  const filas: EntregaFila[] = [
-    ...(waRes.data ?? []).map(mapWa),
-    ...(emailRes.data ?? []).map(mapEmail),
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  const totalAprox = (waRes.count ?? 0) + (emailRes.count ?? 0);
+  const total = filas.length;
   const pagina = filas.slice(offset, offset + limit);
 
   return jsonResponse({
     ok: true,
     funcion: FUNCION,
+    vista: "eventos",
     filtros: { orden_id, canal: canalFiltro, estado, solo_reenvios, fecha_desde, fecha_hasta, limit, offset },
-    paginacion: {
-      total: totalAprox,
-      limit, offset,
-      next_offset: totalAprox > offset + limit ? offset + limit : null,
-    },
+    paginacion: { total, limit, offset, next_offset: total > offset + limit ? offset + limit : null },
     entregas: pagina,
   });
+}
+
+// ── Vista "ordenes" (default): una fila por orden, WA+Email resumidos ────────
+
+interface CanalResumen {
+  destino: string | null;
+  aplica: boolean;              // false = el cliente no tiene este canal configurado (ej: sin email)
+  estado: string | null;        // estado del último intento, o null si nunca se intentó
+  intentos: number;
+  ultimo_envio_at: string | null;
+  es_reenvio_ultimo: boolean;
+  tiene_reenvio_historico: boolean; // es_reenvio=false pero no es el primer envío exitoso (bug pre-gobernanza)
+}
+
+function resumirCanal(intentos: EntregaFila[], destinoCliente: string | null, esExitoso: (estado: string) => boolean): CanalResumen {
+  if (intentos.length === 0) {
+    return {
+      destino: destinoCliente, aplica: destinoCliente != null, estado: null,
+      intentos: 0, ultimo_envio_at: null, es_reenvio_ultimo: false, tiene_reenvio_historico: false,
+    };
+  }
+  // intentos viene ordenado desc por created_at desde el fetch original
+  const ordenAsc = [...intentos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  let vistoExitoso = false;
+  let tieneReenvioHistorico = false;
+  for (const it of ordenAsc) {
+    if (esExitoso(it.estado)) {
+      if (vistoExitoso && !it.es_reenvio) tieneReenvioHistorico = true;
+      vistoExitoso = true;
+    }
+  }
+  const ultimo = intentos[0]; // desc
+  return {
+    destino: ultimo.destino ?? destinoCliente,
+    aplica: true,
+    estado: ultimo.estado,
+    intentos: intentos.length,
+    ultimo_envio_at: ultimo.enviado_at ?? ultimo.created_at,
+    es_reenvio_ultimo: ultimo.es_reenvio,
+    tiene_reenvio_historico: tieneReenvioHistorico,
+  };
+}
+
+type EstadoCanal = "ok" | "error" | "en_curso" | "sin_intento" | "no_aplica";
+
+function clasificarCanal(c: CanalResumen, esExitoso: (estado: string) => boolean): EstadoCanal {
+  if (!c.aplica) return "no_aplica";
+  if (c.estado == null) return "sin_intento";
+  if (esExitoso(c.estado)) return "ok";
+  if (c.estado === "enviando" || c.estado === "pendiente") return "en_curso";
+  return "error"; // incluye 'agotado_reintentos'
+}
+
+// Email es un canal de respaldo/suplementario (documentado así desde el diseño
+// original: "no actualiza estado de la orden — el email es suplementario").
+// Por eso "sin_intento" en un canal NUNCA cuenta como fallo del otro: si WA
+// entregó exitosamente y Email todavía no se intentó (o no aplica), el
+// resultado sigue siendo "entregado" — el producto llegó. Solo se marca
+// "parcial" cuando un canal fue intentado de verdad y falló.
+function calcularEstadoGeneral(wa: CanalResumen, email: CanalResumen): string {
+  const waS = clasificarCanal(wa, (e) => ESTADOS_EXITOSOS_WA.has(e));
+  const emailS = clasificarCanal(email, (e) => ESTADOS_EXITOSOS_EMAIL.has(e));
+
+  const algunoOk = waS === "ok" || emailS === "ok";
+  const algunoError = waS === "error" || emailS === "error";
+  const algunoEnCurso = waS === "en_curso" || emailS === "en_curso";
+
+  if (algunoOk && algunoError) return "parcial";
+  if (algunoOk) return "entregado";
+  if (algunoError) return "error";
+  if (algunoEnCurso) return "enviando";
+  return "pendiente";
+}
+
+async function responderVistaOrdenes(body: Record<string, unknown>) {
+  const orden_id = normalizarUUID(body.orden_id);
+  const canalFiltro = normalizarTexto(body.canal); // "whatsapp" | "email" -> orden tiene actividad en ese canal
+  const estadoGeneralFiltro = normalizarTexto(body.estado_general);
+  const solo_reenvios = normalizarBoolean(body.solo_reenvios, false);
+  const fecha_desde = normalizarFecha(body.fecha_desde);
+  const fecha_hasta = normalizarFecha(body.fecha_hasta);
+  const limit = normalizarLimit(body.limit);
+  const offset = normalizarOffset(body.offset);
+
+  const { wa, email } = await fetchTodosLosEnvios({ orden_id, fecha_desde, fecha_hasta });
+
+  // Agrupar por orden_id
+  const ordenIds = new Set<string>([...wa.map(f => f.orden_id), ...email.map(f => f.orden_id)]);
+  // deno-lint-ignore no-explicit-any
+  const porOrden = new Map<string, { wa: EntregaFila[]; email: EntregaFila[]; ref: string | null; cliente: string | null }>();
+  for (const id of ordenIds) porOrden.set(id, { wa: [], email: [], ref: null, cliente: null });
+  for (const f of wa) {
+    const g = porOrden.get(f.orden_id)!;
+    g.wa.push(f); g.ref = g.ref ?? f.orden_ref; g.cliente = g.cliente ?? f.cliente_nombre;
+  }
+  for (const f of email) {
+    const g = porOrden.get(f.orden_id)!;
+    g.email.push(f); g.ref = g.ref ?? f.orden_ref; g.cliente = g.cliente ?? f.cliente_nombre;
+  }
+
+  // Solicitudes de reenvío activas (pendiente_autorizacion | autorizada) para estas órdenes
+  const idsArr = [...ordenIds];
+  let solicitudesActivas = new Map<string, number>();
+  if (idsArr.length > 0) {
+    const { data: sol } = await supabase
+      .from("tarot_solicitudes_reenvio")
+      .select("orden_id, estado")
+      .in("orden_id", idsArr)
+      .in("estado", ["pendiente_autorizacion", "autorizada"]);
+    for (const s of sol ?? []) {
+      solicitudesActivas.set(s.orden_id, (solicitudesActivas.get(s.orden_id) ?? 0) + 1);
+    }
+  }
+
+  // Necesitamos el email del cliente para saber si "no aplica" cuando nunca hubo intento.
+  // Lo tomamos del propio registro de envío de email si existe; si un canal nunca tuvo
+  // intento, no tenemos forma barata de saber si el cliente tiene email sin otra consulta.
+  const idsSinEmailIntento = idsArr.filter(id => !porOrden.get(id)!.email.length);
+  const emailPorOrden = new Map<string, string | null>();
+  if (idsSinEmailIntento.length > 0) {
+    const { data: ords } = await supabase
+      .from("tarot_ordenes")
+      .select("id, tarot_clientes(email)")
+      // deno-lint-ignore no-explicit-any
+      .in("id", idsSinEmailIntento) as { data: any[] | null };
+    for (const o of ords ?? []) emailPorOrden.set(o.id, o.tarot_clientes?.email ?? null);
+  }
+
+  let resumenes = idsArr.map((id) => {
+    const g = porOrden.get(id)!;
+    const waResumen = resumirCanal(g.wa, null, (e) => ESTADOS_EXITOSOS_WA.has(e));
+    const destinoEmailDefault = g.email.length ? null : emailPorOrden.get(id) ?? null;
+    const emailResumen = resumirCanal(g.email, destinoEmailDefault, (e) => ESTADOS_EXITOSOS_EMAIL.has(e));
+    const ultimaActividad = [waResumen.ultimo_envio_at, emailResumen.ultimo_envio_at]
+      .filter((x): x is string => !!x)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
+    return {
+      orden_id: id,
+      orden_ref: g.ref,
+      cliente_nombre: g.cliente,
+      whatsapp: waResumen,
+      email: emailResumen,
+      ultima_actividad_at: ultimaActividad,
+      estado_general: calcularEstadoGeneral(waResumen, emailResumen),
+      reenvio_pendiente: (solicitudesActivas.get(id) ?? 0) > 0,
+      tiene_reenvio_historico: waResumen.tiene_reenvio_historico || emailResumen.tiene_reenvio_historico,
+    };
+  });
+
+  if (canalFiltro === "whatsapp") resumenes = resumenes.filter(r => r.whatsapp.intentos > 0);
+  if (canalFiltro === "email") resumenes = resumenes.filter(r => r.email.intentos > 0);
+  if (estadoGeneralFiltro) resumenes = resumenes.filter(r => r.estado_general === estadoGeneralFiltro);
+  if (solo_reenvios) resumenes = resumenes.filter(r => r.whatsapp.es_reenvio_ultimo || r.email.es_reenvio_ultimo || r.reenvio_pendiente);
+
+  resumenes = resumenes.sort((a, b) => {
+    const ta = a.ultima_actividad_at ? new Date(a.ultima_actividad_at).getTime() : 0;
+    const tb = b.ultima_actividad_at ? new Date(b.ultima_actividad_at).getTime() : 0;
+    return tb - ta;
+  });
+
+  const total = resumenes.length;
+  const pagina = resumenes.slice(offset, offset + limit);
+
+  return jsonResponse({
+    ok: true,
+    funcion: FUNCION,
+    vista: "ordenes",
+    filtros: { orden_id, canal: canalFiltro, estado_general: estadoGeneralFiltro, solo_reenvios, fecha_desde, fecha_hasta, limit, offset },
+    paginacion: { total, limit, offset, next_offset: total > offset + limit ? offset + limit : null },
+    ordenes: pagina,
+  });
+}
+
+serve(async (req) => {
+  const internalKey = req.headers.get("x-internal-key");
+  if (internalKey !== TAROT_INTERNAL_KEY) return jsonResponse({ ok: false, motivo: "unauthorized" }, 401);
+  if (req.method !== "POST") return jsonResponse({ ok: false, motivo: "metodo_no_permitido" }, 405);
+
+  const body = await readBodySafe(req);
+  const vista = normalizarTexto(body.vista) === "eventos" ? "eventos" : "ordenes";
+
+  try {
+    if (vista === "eventos") return await responderVistaEventos(body);
+    return await responderVistaOrdenes(body);
+  } catch (err) {
+    return jsonResponse({ ok: false, motivo: "listar_entregas_error", error: String(err) }, 500);
+  }
 });
