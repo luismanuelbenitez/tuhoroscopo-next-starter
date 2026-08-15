@@ -1,17 +1,29 @@
 ﻿// ============================================================
-// ef_tarot_enviar_email v2
+// ef_tarot_enviar_email v3 (+ persistencia estructurada + gobernanza de entregas)
 // Email premium con PDF adjunto + resumen de la tirada.
 // Invocado fire-and-forget desde ef_tarot_generar_pdf.
+//
+// Input: { orden_id, autorizacion_id? }
 //
 // Secrets requeridos:
 //   RESEND_API_KEY            → API key de resend.com
 //   RESEND_FROM               → "Tu Oráculo <hola@tuoraculo.uy>"
 //   TAROT_INTERNAL_KEY        → clave interna
+//
+// GOBERNANZA DE ENTREGA:
+//   Persiste cada intento en tarot_envios_email (antes solo dejaba una línea
+//   de texto en tarot_logs, sin control de idempotencia posible). Si ya
+//   existe un envío exitoso previo para esta orden, NINGÚN envío nuevo se
+//   ejecuta salvo que venga con un `autorizacion_id` válido (solicitud de
+//   reenvío autorizada por un admin, consumible una sola vez). La decisión
+//   vive en _shared/tarot-entregas.ts (verificarPermisoEnvio) — único punto
+//   canónico, compartido con ef_tarot_enviar_whatsapp.
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { encode as encodeBase64 } from "https://deno.land/std@0.192.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
+import { verificarPermisoEnvio } from "../_shared/tarot-entregas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -212,7 +224,7 @@ function buildHtml(opts: {
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 
-async function enviarEmail(ordenId: string): Promise<void> {
+async function enviarEmail(ordenId: string, autorizacionId: string | null): Promise<void> {
   if (!RESEND_API_KEY) {
     await log(ordenId, "email_sin_key", "warning", "RESEND_API_KEY no configurada — email omitido");
     return;
@@ -227,6 +239,19 @@ async function enviarEmail(ordenId: string): Promise<void> {
 
   if (!orden) {
     await log(ordenId, "email_orden_no_encontrada", "error", "Orden no encontrada");
+    return;
+  }
+
+  // 1.b Gobernanza de entrega: único punto de decisión (_shared/tarot-entregas.ts).
+  // `autorizacion_id` es la única forma de reenviar sobre un email ya exitoso.
+  const permiso = await verificarPermisoEnvio(supabase, {
+    ordenId, canal: "email", autorizacionId,
+  });
+
+  if (!permiso.permitido) {
+    await log(ordenId, "email_reenvio_bloqueado", "warning",
+      `Envío bloqueado — ${permiso.motivo}`,
+      { motivo: permiso.motivo, autorizacion_id: autorizacionId });
     return;
   }
 
@@ -246,7 +271,7 @@ async function enviarEmail(ordenId: string): Promise<void> {
   // 3. PDF
   const { data: pdfRow } = await supabase
     .from("tarot_pdfs")
-    .select("storage_url, url_expira_at")
+    .select("id, storage_url, url_expira_at")
     .eq("orden_id", ordenId)
     .eq("estado", "listo")
     .order("generado_at", { ascending: false })
@@ -338,6 +363,29 @@ async function enviarEmail(ordenId: string): Promise<void> {
     }];
   }
 
+  // 8.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs)
+  const { count: previosCount } = await supabase
+    .from("tarot_envios_email")
+    .select("*", { count: "exact", head: true })
+    .eq("orden_id", ordenId);
+  const numeroIntento = (previosCount ?? 0) + 1;
+
+  const { data: envioEmail } = await supabase
+    .from("tarot_envios_email")
+    .insert({
+      orden_id: ordenId,
+      pdf_id: pdfRow.id,
+      estado: "enviando",
+      numero_intento: numeroIntento,
+      email_destino: cliente.email,
+      proveedor_email: "resend",
+      es_reenvio: permiso.esReenvio,
+      solicitud_reenvio_id: permiso.esReenvio ? permiso.solicitudId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
   // 9. Enviar
   const res = await fetch("https://api.resend.com/emails", {
     method:  "POST",
@@ -351,6 +399,15 @@ async function enviarEmail(ordenId: string): Promise<void> {
   const resData = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (envioEmail?.id) {
+      await supabase.from("tarot_envios_email").update({
+        estado: "error",
+        error_codigo: String(res.status),
+        error_mensaje: JSON.stringify(resData).substring(0, 500),
+        respuesta_raw: resData,
+        updated_at: new Date().toISOString(),
+      }).eq("id", envioEmail.id);
+    }
     await log(ordenId, "email_error", "error",
       `Resend respondió ${res.status}`,
       { email: cliente.email, status: res.status, body: resData });
@@ -361,6 +418,16 @@ async function enviarEmail(ordenId: string): Promise<void> {
       fecha: new Date().toISOString(),
     }).catch(() => {});
     return;
+  }
+
+  if (envioEmail?.id) {
+    await supabase.from("tarot_envios_email").update({
+      estado: "enviado",
+      proveedor_message_id: resData?.id ?? null,
+      respuesta_raw: resData,
+      enviado_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("id", envioEmail.id);
   }
 
   await log(ordenId, "email_enviado", "info",
@@ -393,7 +460,11 @@ serve(async (req) => {
       { status: 400, headers: { "Content-Type": "application/json" } });
   }
 
-  enviarEmail(ordenId).catch(err => {
+  const autorizacionId = typeof body.autorizacion_id === "string" && body.autorizacion_id.trim()
+    ? body.autorizacion_id.trim()
+    : null;
+
+  enviarEmail(ordenId, autorizacionId).catch(err => {
     console.error(`${FN} — error para orden ${ordenId}:`, err);
   });
 

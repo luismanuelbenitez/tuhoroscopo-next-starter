@@ -11,6 +11,7 @@ export function ConfirmDialog({
   requireMotivo = false,
   onConfirm,
   onCancel,
+  children,
 }: {
   open: boolean;
   title: string;
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   requireMotivo?: boolean;
   onConfirm: (motivo?: string) => Promise<void>;
   onCancel: () => void;
+  children?: React.ReactNode;
 }) {
   const [motivo, setMotivo] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,7 +53,8 @@ export function ConfirmDialog({
           </button>
         </div>
         <div className="p-5 space-y-4">
-          {description && <p className="text-sm text-gray-400">{description}</p>}
+          {description && <p className="text-sm text-gray-400 whitespace-pre-line">{description}</p>}
+          {children}
           {requireMotivo && (
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">

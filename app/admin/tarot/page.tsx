@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  MessageCircle,
+  Mail,
+  PauseCircle,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
@@ -573,6 +576,108 @@ function SeccionAlertas() {
 }
 
 // ============================================================================
+// Entregas recientes (bloque del dashboard)
+// ============================================================================
+
+interface EntregaResumen {
+  id: string;
+  canal: "whatsapp" | "email";
+  orden_id: string;
+  cliente_nombre: string | null;
+  estado: string;
+  created_at: string;
+}
+
+interface SolicitudResumen {
+  id: string;
+  orden_id: string;
+  canal: "whatsapp" | "email";
+  solicitado_at: string;
+  tarot_ordenes?: { tarot_clientes?: { nombre_completo: string | null } | null } | null;
+}
+
+type FilaEntregaFeed =
+  | { tipo: "entrega"; ts: string; canal: "whatsapp" | "email"; cliente: string; ok: boolean; ordenId: string; id: string }
+  | { tipo: "reenvio_pendiente"; ts: string; cliente: string; ordenId: string; id: string };
+
+const ESTADOS_OK_FEED = new Set(["enviado", "entregado", "leido"]);
+
+function EntregaIcon({ fila }: { fila: FilaEntregaFeed }) {
+  if (fila.tipo === "reenvio_pendiente") return <PauseCircle size={14} className="text-amber-400 shrink-0" />;
+  if (!fila.ok) return <AlertCircle size={14} className="text-red-400 shrink-0" />;
+  return fila.canal === "whatsapp"
+    ? <MessageCircle size={14} className="text-emerald-400 shrink-0" />
+    : <Mail size={14} className="text-emerald-400 shrink-0" />;
+}
+
+function textoFila(fila: FilaEntregaFeed): string {
+  if (fila.tipo === "reenvio_pendiente") return `Reenvío pendiente — ${fila.cliente}`;
+  const canalLabel = fila.canal === "whatsapp" ? "WhatsApp" : "Email";
+  return `${canalLabel} ${fila.ok ? "enviado" : "error"} — ${fila.cliente}`;
+}
+
+function SeccionEntregas() {
+  const [filas, setFilas] = useState<FilaEntregaFeed[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/tarot/entregas?limit=5").then(r => r.json()).catch(() => null),
+      fetch("/api/admin/tarot/entregas/solicitudes?estado=pendiente_autorizacion&limit=5").then(r => r.json()).catch(() => null),
+    ]).then(([entregasJson, solicitudesJson]) => {
+      const entregas: EntregaResumen[] = entregasJson?.entregas ?? [];
+      const solicitudes: SolicitudResumen[] = solicitudesJson?.solicitudes ?? [];
+
+      const feedEntregas: FilaEntregaFeed[] = entregas.map(e => ({
+        tipo: "entrega", ts: e.created_at, canal: e.canal,
+        cliente: e.cliente_nombre ?? "—", ok: ESTADOS_OK_FEED.has(e.estado),
+        ordenId: e.orden_id, id: `entrega-${e.id}`,
+      }));
+      const feedSolicitudes: FilaEntregaFeed[] = solicitudes.map(s => ({
+        tipo: "reenvio_pendiente", ts: s.solicitado_at,
+        cliente: s.tarot_ordenes?.tarot_clientes?.nombre_completo ?? "—",
+        ordenId: s.orden_id, id: `solicitud-${s.id}`,
+      }));
+
+      const combinado = [...feedEntregas, ...feedSolicitudes]
+        .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+        .slice(0, 5);
+      setFilas(combinado);
+    }).finally(() => setCargando(false));
+  }, []);
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-300">Entregas recientes</h2>
+        <a href="/admin/tarot/entregas" className="text-xs text-amber-500/70 hover:text-amber-300 transition-colors">
+          Ver todas →
+        </a>
+      </div>
+      {cargando ? (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 animate-pulse">
+          Cargando…
+        </div>
+      ) : filas.length === 0 ? (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 text-center">
+          Sin entregas recientes
+        </div>
+      ) : (
+        <div className="rounded-xl border border-gray-800 bg-gray-900 divide-y divide-gray-800 overflow-hidden">
+          {filas.map(fila => (
+            <div key={fila.id} className="flex items-center gap-3 px-4 py-2.5">
+              <EntregaIcon fila={fila} />
+              <span className="text-sm text-gray-200 flex-1 min-w-0 truncate">{textoFila(fila)}</span>
+              <span className="text-xs text-gray-600">{tiempoRel(fila.ts)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // Page
 // ============================================================================
 
@@ -635,6 +740,7 @@ export default function TarotDashboardPage() {
         </div>
 
         <SeccionAlertas />
+        <SeccionEntregas />
         <SeccionFunnel m={metricas} periodo={periodo} onPeriodo={setPeriodo} />
       </main>
     </TarotAdminShell>

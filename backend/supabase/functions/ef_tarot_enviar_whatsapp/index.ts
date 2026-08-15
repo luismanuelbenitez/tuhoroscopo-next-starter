@@ -1,8 +1,8 @@
 ﻿// ============================================================
-// ef_tarot_enviar_whatsapp — Sprint 5
+// ef_tarot_enviar_whatsapp — Sprint 5 (+ gobernanza de entregas)
 // Entrega el PDF de tarot al cliente via WhatsApp Cloud API.
 //
-// Input:  { orden_id, forzar? }
+// Input:  { orden_id, forzar?, autorizacion_id? }
 // Output: { ok, enviado, wa_message_id } | { ok: false, error }
 //
 // Estados: pdf_listo | error_whatsapp → enviando_whatsapp → entregado
@@ -10,10 +10,20 @@
 //
 // Sandbox: simula el envío (no llama a la API real), actualiza a entregado.
 // Producción: llama a Meta WhatsApp Cloud API con mensaje tipo documento.
+//
+// GOBERNANZA DE ENTREGA:
+//   Si ya existe un envío exitoso previo para esta orden, NINGÚN
+//   envío nuevo se ejecuta salvo que venga con un `autorizacion_id`
+//   válido (solicitud de reenvío autorizada por un admin, consumible
+//   una sola vez). `forzar` YA NO puede saltar esta guarda — solo
+//   sigue habilitando el reintento técnico más allá de
+//   max_reintentos_wa cuando el canal NUNCA entregó exitosamente.
+//   La decisión vive en _shared/tarot-entregas.ts (verificarPermisoEnvio).
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
+import { verificarPermisoEnvio } from "../_shared/tarot-entregas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -116,6 +126,9 @@ serve(async (req) => {
   if (!ordenId) return json({ ok: false, error: "ORDEN_ID_REQUERIDO" }, 400);
 
   const forzar = body.forzar === true;
+  const autorizacionId = typeof body.autorizacion_id === "string" && body.autorizacion_id.trim()
+    ? body.autorizacion_id.trim()
+    : null;
   const t0 = Date.now();
 
   // Hoisted for catch block access — defaults allow all channels
@@ -154,7 +167,10 @@ serve(async (req) => {
 
     if (!orden) return json({ ok: false, error: "ORDEN_NO_ENCONTRADA" }, 404);
 
-    const ESTADOS_VALIDOS = new Set(["pdf_listo", "error_whatsapp"]);
+    // "entregado" se incluye para permitir reenvíos autorizados sobre una
+    // orden ya entregada — la autorización real la decide verificarPermisoEnvio()
+    // más abajo, este gate solo descarta estados que nunca deberían disparar un envío.
+    const ESTADOS_VALIDOS = new Set(["pdf_listo", "error_whatsapp", "entregado"]);
     if (!ESTADOS_VALIDOS.has(orden.estado)) {
       await log(ordenId, "wa_estado_invalido", "warning",
         `Estado '${orden.estado}' no permite envío WhatsApp`);
@@ -199,7 +215,20 @@ serve(async (req) => {
     const telefonoAutorizado = TEST_WHATSAPP_ALLOWED_PHONE.trim();
     const bloqueadoPorNumero = modoControlado && telefonoDest !== telefonoAutorizado;
 
-    // ── 5. Idempotencia: envío anterior ───────────────────────────
+    // ── 5. Gobernanza de entrega: permiso canónico (_shared/tarot-entregas.ts) ────
+    // Único punto de decisión. `forzar` ya NO tiene poder acá — solo un
+    // autorizacion_id válido permite reenviar sobre una entrega exitosa previa.
+    const permiso = await verificarPermisoEnvio(supabase, {
+      ordenId, canal: "whatsapp", autorizacionId,
+    });
+
+    if (!permiso.permitido) {
+      await log(ordenId, "wa_reenvio_bloqueado", "warning",
+        `Envío bloqueado — ${permiso.motivo}`,
+        { motivo: permiso.motivo, autorizacion_id: autorizacionId });
+      return json({ ok: true, ya_enviado: true, bloqueado: true, motivo: permiso.motivo });
+    }
+
     const { data: envioAnterior } = await supabase
       .from("tarot_envios_whatsapp")
       .select("id, numero_intento, estado")
@@ -208,15 +237,12 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle() as { data: Envio | null };
 
-    if (envioAnterior?.estado === "enviado" && !forzar) {
-      await log(ordenId, "wa_ya_enviado", "info",
-        "WhatsApp ya fue enviado — ignorando. Usa forzar=true para reenviar.");
-      return json({ ok: true, ya_enviado: true });
-    }
-
     const intento = envioAnterior ? envioAnterior.numero_intento + 1 : 1;
 
-    if (intento > maxReintentos && !forzar) {
+    // El techo de reintentos solo aplica a un canal que nunca entregó
+    // exitosamente. Un reenvío ya autorizado explícitamente no está sujeto
+    // a este techo — es una acción administrativa de una sola vez, no un loop.
+    if (intento > maxReintentos && !forzar && !permiso.esReenvio) {
       const tsNow = now();
       await supabase.from("tarot_ordenes")
         .update({ estado: "error_critico", updated_at: tsNow }).eq("id", ordenId);
@@ -235,6 +261,8 @@ serve(async (req) => {
         numero_intento: intento,
         telefono_destino: telefonoDest,
         proveedor_wa: "meta_cloud",
+        es_reenvio: permiso.esReenvio,
+        solicitud_reenvio_id: permiso.esReenvio ? permiso.solicitudId : null,
         updated_at: now(),
       })
       .select("id")

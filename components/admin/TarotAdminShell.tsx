@@ -19,6 +19,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -44,6 +45,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/clientes", icon: Users,        label: "Clientes" },
       { href: "/admin/tarot/lecturas", icon: BookOpen,     label: "Lecturas" },
       { href: "/admin/tarot/pdfs",     icon: FileText,     label: "PDFs" },
+      { href: "/admin/tarot/entregas", icon: Send,         label: "Entregas" },
       { href: "/admin/tarot/pagos",    icon: CreditCard,   label: "Pagos" },
       { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
     ],

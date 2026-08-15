@@ -24,7 +24,8 @@ export type AlertaTipo =
   | "error_pdf"
   | "error_whatsapp"
   | "error_email_cliente"
-  | "orden_trabada";
+  | "orden_trabada"
+  | "reenvio_pendiente_autorizacion";
 
 export interface AlertaDatos {
   ordenId?:       string;
@@ -44,6 +45,7 @@ const ETAPA_LABEL: Record<AlertaTipo, string> = {
   error_whatsapp:      "Envío por WhatsApp",
   error_email_cliente: "Envío de email al cliente",
   orden_trabada:       "Orden trabada",
+  reenvio_pendiente_autorizacion: "Reenvío pendiente de autorización",
 };
 
 const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
@@ -53,6 +55,7 @@ const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
   error_pdf:           "error",
   error_whatsapp:      "error",
   error_email_cliente: "error",
+  reenvio_pendiente_autorizacion: "warning",
 };
 
 function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; mensaje: string } {
@@ -74,6 +77,11 @@ function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; 
       return { titulo: "Error de email al cliente",  mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
     case "orden_trabada":
       return { titulo: "Orden trabada", mensaje: datos.etapa ? `Trabada en: ${datos.etapa}` : "Sin avance detectado" };
+    case "reenvio_pendiente_autorizacion":
+      return {
+        titulo:  "Reenvío pendiente de autorización",
+        mensaje: datos.error?.substring(0, 200) ?? "Solicitud de reenvío creada — requiere autorización en el admin",
+      };
   }
 }
 

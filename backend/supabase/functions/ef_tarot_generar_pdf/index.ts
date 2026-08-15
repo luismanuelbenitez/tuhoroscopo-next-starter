@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// ef_tarot_generar_pdf — Sprint 4.2 v7
+// ef_tarot_generar_pdf — Sprint 4.2 v7.3
 // Template mistico-v2 (2480×3508 px, escala 0.24 px→pt).
 // 3 páginas: tirada visual | interpretaciones | síntesis
 //
@@ -172,7 +172,7 @@ const P3: P3Layout = {
 };
 
 // ── Interfaces ───────────────────────────────────────────────
-interface Fonts { bold: PDFFont; reg: PDFFont; ita: PDFFont; bita: PDFFont; }
+interface Fonts { bold: PDFFont; reg: PDFFont; ita: PDFFont; bita: PDFFont; claves: PDFFont; }
 type Rgb = ReturnType<typeof rgb>;
 // deno-lint-ignore no-explicit-any
 type Json = Record<string, any>;
@@ -660,31 +660,30 @@ function addPage2(
     const textStartY = pY(bl.text.yStart);
     const textMinY   = pY(bl.text.minY);
 
-    // Nombre de carta — bold-italic, algo más grande para crear jerarquía clara
+    // Nombre de carta — TimesRomanBoldItalic para jerarquía editorial/mística
     const isInv    = carta.orientacion === "invertida" || carta.invertida === true;
     const cardLine = sanitize(carta.nombre_carta ?? carta.carta ?? "") + (isInv ? " (Inv.)" : "");
-    const nameSize  = 9.5;
-    const nameLH    = 13;
-    // Baja la baseline para que los ascendentes queden dentro del box
+    const nameSize  = 11;
+    const nameLH    = 14;
     const nameDrawY = textStartY - nameSize * 0.75;
     const afterName = drawWrapped(p, cardLine,
-      textX, nameDrawY, f.bita, nameSize, C_DARK_BROWN, textMaxW, nameLH, nameDrawY - 14);
+      textX, nameDrawY, f.bita, nameSize, C_DARK_BROWN, textMaxW, nameLH, nameDrawY - 16);
 
-    // Interpretación — auto-fit editorial: interlineado 1.65 para lectura cómoda
+    // Interpretación — Helvetica, máxima legibilidad
     const interp      = sanitize(carta.interpretacion ?? "");
-    const LH_INTERP   = 1.65;
+    const LH_INTERP   = 1.40;
     const boxH        = (afterName - 6) - textMinY - 4;
-    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 9.0, 6.8, LH_INTERP);
+    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 10.0, 7.5, LH_INTERP);
     const interpLH    = interpSize * LH_INTERP;
     const afterInterp = drawWrapped(p, interp,
       textX, afterName - 6, f.reg, interpSize, C_BODY, textMaxW, interpLH, textMinY);
 
-    // Consejo solo en bloque 5 si queda espacio — italic diferenciado, separación generosa
+    // Consejo solo en bloque 5 si queda espacio — TimesRomanItalic para diferenciación
     if (i === 4 && carta.consejo && afterInterp > textMinY + 18) {
       const consejo     = sanitize(carta.consejo);
-      const LH_CONSEJO  = 1.55;
+      const LH_CONSEJO  = 1.40;
       const consejoH    = afterInterp - 8 - textMinY - 5;
-      const consejoSize = fitTextToBox(consejo, f.ita, textMaxW, consejoH, 8.0, 6.5, LH_CONSEJO);
+      const consejoSize = fitTextToBox(consejo, f.ita, textMaxW, consejoH, 9.0, 7.0, LH_CONSEJO);
       const consejoLH   = consejoSize * LH_CONSEJO;
       drawWrapped(p, consejo,
         textX, afterInterp - 8, f.ita, consejoSize, C_TEXT_MED, textMaxW, consejoLH, textMinY);
@@ -718,7 +717,7 @@ function addPage3(
   const resumenTopY  = pY(L.resumen.yStart);
   const resumenBotY  = pY(L.resumen.minY);
   const resumenMaxS  = pX(L.resumen.fontSize);
-  const LH_RESUMEN   = 1.65;
+  const LH_RESUMEN   = 1.40;
   const resumenSize  = fitTextToBox(resumenText, f.reg,
     resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
   const resumenDrawY = resumenTopY - resumenSize * 0.75;
@@ -732,7 +731,7 @@ function addPage3(
   const mensajeTopY  = pY(L.mensajeFinal.yStart);
   const mensajeBotY  = pY(L.mensajeFinal.minY);
   const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
-  const LH_MENSAJE   = 1.70;
+  const LH_MENSAJE   = 1.45;
   const mensajeSize  = fitTextToBox(mensajeText, f.ita,
     mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
   const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;
@@ -750,12 +749,12 @@ function addPage3(
     const pasoMaxW  = pX(pp.width);
     const pasoTopY  = pY(pp.y);
     const pasoBotY  = pY(pp.minY);
-    const LH_PASO   = 1.55;
-    const pasoSize  = fitTextToBox(pasoTxt, f.bold,
-      pasoMaxW, pasoTopY - pasoBotY - 9 * 0.75, 9, 7.0, LH_PASO);
+    const LH_PASO   = 1.35;
+    const pasoSize  = fitTextToBox(pasoTxt, f.claves,
+      pasoMaxW, pasoTopY - pasoBotY - 8.5 * 0.75, 8.5, 7.0, LH_PASO);
     const pasoDrawY = pasoTopY - pasoSize * 0.75;
     drawWrapped(p, pasoTxt,
-      pX(pp.x), pasoDrawY, f.bold, pasoSize, C_DARK_BROWN,
+      pX(pp.x), pasoDrawY, f.claves, pasoSize, C_DARK_BROWN,
       pasoMaxW, pasoSize * LH_PASO, pasoBotY);
   }
 
@@ -766,30 +765,73 @@ function addPage3(
 const DEFAULT_DECK_SLUG  = "rws-classic";
 const DEFAULT_MAZO_ID    = "a1000000-0000-0000-0000-000000000001";
 
-// Resuelve el slug del deck a un mazo_id válido.
-// Si el slug no existe o no está activo → fallback a rws-classic + warning.
-async function resolveDeck(slug: string | null): Promise<{
+// Resuelve el mazo a usar. Prioridad estricta:
+//   1. slug explícito del caller (ej: admin fuerza rws-classic para testing)
+//   2. orden.mazo_id — fuente canónica para regeneraciones
+//   3. mazo_default en tarot_configuracion
+//   4. hardcoded fallback (último recurso)
+async function resolveDeck(slug: string | null, ordenId: string): Promise<{
   mazoId: string; deckUsado: string; warning?: string;
 }> {
-  const fallback = { mazoId: DEFAULT_MAZO_ID, deckUsado: DEFAULT_DECK_SLUG };
-
-  if (!slug || slug === DEFAULT_DECK_SLUG) return fallback;
-
-  const { data } = await supabase
-    .from("tarot_mazos")
-    .select("id, slug")
-    .eq("slug", slug)
-    .eq("activo", true)
-    .maybeSingle();
-
-  if (!data?.id) {
-    return {
-      ...fallback,
-      warning: `El mazo "${slug}" no existe o no está activo — se generó con el mazo "${DEFAULT_DECK_SLUG}".`,
-    };
+  // 1. Slug explícito
+  if (slug) {
+    const { data } = await supabase
+      .from("tarot_mazos").select("id, slug")
+      .eq("slug", slug).eq("activo", true).maybeSingle();
+    if (data?.id) return { mazoId: data.id, deckUsado: data.slug };
   }
 
-  return { mazoId: data.id, deckUsado: slug };
+  // 2. mazo_id de la orden
+  const { data: ordenMazo } = await supabase
+    .from("tarot_ordenes").select("mazo_id").eq("id", ordenId).maybeSingle();
+  if (ordenMazo?.mazo_id) {
+    const { data: mazo } = await supabase
+      .from("tarot_mazos").select("id, slug")
+      .eq("id", ordenMazo.mazo_id).eq("activo", true).maybeSingle();
+    if (mazo?.id) return { mazoId: mazo.id, deckUsado: mazo.slug };
+  }
+
+  // 3. mazo_default en configuración
+  const { data: cfgMazo } = await supabase
+    .from("tarot_configuracion").select("valor")
+    .eq("clave", "mazo_default").eq("activo", true).maybeSingle();
+  if (cfgMazo?.valor) {
+    const { data: mazo } = await supabase
+      .from("tarot_mazos").select("id, slug")
+      .eq("id", cfgMazo.valor).eq("activo", true).maybeSingle();
+    if (mazo?.id) return { mazoId: mazo.id, deckUsado: mazo.slug };
+  }
+
+  // 4. Último recurso hardcodeado
+  return {
+    mazoId: DEFAULT_MAZO_ID,
+    deckUsado: DEFAULT_DECK_SLUG,
+    warning: "Fallback hardcodeado — orden sin mazo_id y mazo_default no disponible en BD.",
+  };
+}
+
+// ── Fuentes: StandardFonts (pdf-lib built-in) ───────────────
+// Jerarquía v7.3:
+//   bold   = TimesRomanBold      — P1 título/fecha
+//   reg    = Helvetica           — P2 interpretación, P3 resumen (máxima legibilidad)
+//   ita    = TimesRomanItalic    — P2 consejo, P3 mensaje personal (carácter editorial)
+//   bita   = TimesRomanBoldItalic— P2 nombre de carta (identidad/mística)
+//   claves = HelveticaBold       — P3 claves prácticas (escaneabilidad)
+async function loadFonts(pdfDoc: PDFDocument): Promise<Fonts> {
+  const [timBold, helvReg, timIta, timBoldIta, helvBold] = await Promise.all([
+    pdfDoc.embedFont(StandardFonts.TimesRomanBold),
+    pdfDoc.embedFont(StandardFonts.Helvetica),
+    pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
+    pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
+    pdfDoc.embedFont(StandardFonts.HelveticaBold),
+  ]);
+  return {
+    bold:   timBold,    // P1 título/fecha
+    reg:    helvReg,    // P2 interpretación, P3 resumen
+    ita:    timIta,     // P2 consejo, P3 mensaje personal
+    bita:   timBoldIta, // P2 nombre de carta
+    claves: helvBold,   // P3 claves prácticas
+  };
 }
 
 // ── Lógica principal ─────────────────────────────────────────
@@ -899,7 +941,7 @@ async function generarPDF(
   const pdfId = pdfRow.id;
 
   await log(ordenId, "pdf_iniciado", "info",
-    `Iniciando generación PDF v7 ${PLANTILLA}${debug ? " [DEBUG]" : ""} (intento ${intento}/${maxR}) deck=${mazoId}`,
+    `Iniciando generación PDF v7.3 ${PLANTILLA}${debug ? " [DEBUG]" : ""} (intento ${intento}/${maxR}) deck=${mazoId}`,
     { pdf_id: pdfId, lectura_id: lecturaId, force, debug, mazo_id: mazoId });
 
   if (!debug) {
@@ -1010,12 +1052,7 @@ async function generarPDF(
     pdfDoc.setSubject("Lectura de Tarot para " + sanitize(contenido.nombre ?? ""));
     pdfDoc.setCreationDate(new Date());
 
-    const fonts: Fonts = {
-      bold: await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
-      reg:  await pdfDoc.embedFont(StandardFonts.TimesRoman),
-      ita:  await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
-      bita: await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
-    };
+    const fonts = await loadFonts(pdfDoc);
 
     const bgP1 = bgP1Bytes ? await embedImage(pdfDoc, bgP1Bytes, "page1-bg.jpg")       : null;
     const bgP2 = bgP2Bytes ? await embedImage(pdfDoc, bgP2Bytes, "card-detail-bg.jpg") : null;
@@ -1127,15 +1164,14 @@ async function generarPDF(
       }
 
       if (debeWa) {
-        if (force) {
-          await log(ordenId, "whatsapp_dispatch_forzado", "info",
-            "force=true: dispatch WA con forzar=true para omitir idempotencia",
-            { force });
-        }
+        // Regenerar el PDF (force=true) NUNCA implica autorización de reenvío.
+        // ef_tarot_enviar_whatsapp decide por sí mismo, vía verificarPermisoEnvio()
+        // (_shared/tarot-entregas.ts), si esto es una primera entrega o un
+        // reintento legítimo — y bloquea silenciosamente si ya hubo éxito previo.
         await log(ordenId, "entrega_whatsapp_despachada", "info", "Despachando envío WhatsApp");
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
           method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId, forzar: force }),
+          body: JSON.stringify({ orden_id: ordenId }),
         }).catch(() => {});
       } else {
         await log(ordenId, "entrega_whatsapp_omitida_por_config", "info",
@@ -1169,13 +1205,11 @@ async function generarPDF(
     await supabase.from("tarot_ordenes")
       .update({ estado: estadoOrden, updated_at: ahoraNow }).eq("id", ordenId);
 
-    // Alerta: error de PDF (fire-and-forget)
-    dispararAlerta(supabase, "error_pdf", {
-      ordenId,
-      ordenRef: orden.external_reference ?? undefined,
-      error:    errMsg.substring(0, 300),
-      fecha:    ahoraNow,
-    }).catch(() => {});
+    void dispararAlerta(supabase, "error_pdf", {
+      ordenId:  ordenId,
+      ordenRef: orden.external_reference ?? null,
+      error:    errMsg,
+    });
 
     const durMs = Date.now() - t0;
     await log(ordenId, "pdf_error", "error",
@@ -1229,7 +1263,7 @@ serve(async (req) => {
   const debug     = body?.debug === true;
   const deckSlug  = body?.deck ? String(body.deck).trim().toLowerCase() : null;
 
-  const { mazoId, deckUsado, warning: deckWarning } = await resolveDeck(deckSlug);
+  const { mazoId, deckUsado, warning: deckWarning } = await resolveDeck(deckSlug, ordenId);
 
   generarPDF(ordenId, lecturaId, force, debug, mazoId).catch((err) => {
     console.error(FN + " fatal para orden " + ordenId + ":", err);
