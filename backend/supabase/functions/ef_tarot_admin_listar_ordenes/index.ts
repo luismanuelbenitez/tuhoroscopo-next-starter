@@ -40,6 +40,7 @@
 //     "tema": "amor",
 //     "moneda": "UYU",
 //     "cliente_id": "uuid",
+//     "orden_id": "uuid",      // match exacto por id — usado para deep-link desde Alertas
 //     "buscar": "TAROT-",
 //     "fecha_desde": "2026-05-01",
 //     "fecha_hasta": "2026-06-01",
@@ -232,6 +233,7 @@ serve(async (req) => {
   const tema = normalizarTexto(body.tema);
   const moneda = normalizarTexto(body.moneda);
   const cliente_id = normalizarUUID(body.cliente_id);
+  const orden_id = normalizarUUID(body.orden_id);
   const buscar = normalizarTexto(body.buscar);
   const fecha_desde = normalizarFecha(body.fecha_desde);
   const fecha_hasta = normalizarFecha(body.fecha_hasta);
@@ -266,6 +268,7 @@ serve(async (req) => {
   if (tema) query = query.eq("tema", tema);
   if (moneda) query = query.eq("moneda", moneda);
   if (cliente_id) query = query.eq("cliente_id", cliente_id);
+  if (orden_id) query = query.eq("id", orden_id);
   if (fecha_desde) query = query.gte("created_at", fecha_desde);
   if (fecha_hasta) query = query.lt("created_at", fecha_hasta);
 
@@ -316,7 +319,7 @@ serve(async (req) => {
   }
 
   // 10) Resumen
-  const filtros = { estado, tema, moneda, cliente_id, buscar, fecha_desde, fecha_hasta };
+  const filtros = { estado, tema, moneda, cliente_id, orden_id, buscar, fecha_desde, fecha_hasta };
   const resumen_texto = construirResumenTexto({ total: count ?? ordenes.length, limit, offset, filtros });
 
   // 11) Respuesta

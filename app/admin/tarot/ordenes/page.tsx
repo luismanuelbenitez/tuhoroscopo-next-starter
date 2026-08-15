@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   ChevronLeft,
@@ -100,6 +101,7 @@ const LIMIT = 50;
 // ============================================================================
 
 export default function TarotOrdenesPage() {
+  const searchParams = useSearchParams();
   const [inputBuscar, setInputBuscar] = useState("");
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INIT);
   const [ordenes, setOrdenes] = useState<Orden[]>([]);
@@ -107,6 +109,37 @@ export default function TarotOrdenesPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedOrden, setSelectedOrden] = useState<Orden | null>(null);
+  const [deepLinkErrorMsg, setDeepLinkErrorMsg] = useState<string | null>(null);
+
+  // Deep-link desde Alertas (u otra pantalla): /admin/tarot/ordenes?orden_id=...
+  // abre el mismo drawer de detalle que un click normal en la fila. Funciona
+  // con refresh y con URL copiada/pegada porque busca la orden puntual en
+  // cada montaje, no depende de que ya esté en la lista paginada visible.
+  useEffect(() => {
+    const ordenIdParam = searchParams.get("orden_id");
+    if (!ordenIdParam) return;
+
+    let cancelado = false;
+    setDeepLinkErrorMsg(null);
+    fetch(`/api/admin/tarot/ordenes?orden_id=${encodeURIComponent(ordenIdParam)}&limit=1`)
+      .then((r) => r.json().catch(() => null))
+      .then((json) => {
+        if (cancelado) return;
+        const encontrada = json?.ordenes?.[0] as Orden | undefined;
+        if (encontrada) {
+          setSelectedOrden(encontrada);
+        } else {
+          setDeepLinkErrorMsg(`No se encontró la orden solicitada (${ordenIdParam.slice(0, 8)}…).`);
+        }
+      })
+      .catch(() => {
+        if (!cancelado) setDeepLinkErrorMsg("Error al buscar la orden solicitada.");
+      });
+
+    return () => { cancelado = true; };
+    // Solo debe correr por el orden_id de la URL, no en cada cambio de filtros.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     async function doFetch() {
@@ -225,6 +258,13 @@ export default function TarotOrdenesPage() {
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
             <AlertCircle size={15} className="shrink-0" />
             {errorMsg}
+          </div>
+        )}
+
+        {deepLinkErrorMsg && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2.5 text-sm text-amber-300">
+            <AlertCircle size={15} className="shrink-0" />
+            {deepLinkErrorMsg}
           </div>
         )}
 

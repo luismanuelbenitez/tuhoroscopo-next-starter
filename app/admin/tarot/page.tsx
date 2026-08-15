@@ -16,6 +16,7 @@ import {
   PauseCircle,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
+import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
 
 // ============================================================================
 // Types
@@ -559,9 +560,9 @@ function SeccionAlertas() {
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{e.mensaje}</p>
               </div>
-              {e.orden_id && (
+              {hrefOrdenDetalle(e.orden_id) && (
                 <a
-                  href={`/admin/tarot/ordenes/${e.orden_id}`}
+                  href={hrefOrdenDetalle(e.orden_id)!}
                   className="shrink-0 text-xs text-amber-500/60 hover:text-amber-400 transition-colors"
                 >
                   →

@@ -84,6 +84,9 @@ export async function GET(req: NextRequest) {
   const cliente_id = searchParams.get("cliente_id");
   if (cliente_id) efBody.cliente_id = cliente_id;
 
+  const orden_id = searchParams.get("orden_id");
+  if (orden_id) efBody.orden_id = orden_id;
+
   const buscar = searchParams.get("buscar")?.trim();
   if (buscar) efBody.buscar = buscar;
 

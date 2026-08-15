@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, Check, CheckCheck, ExternalLink } from "lucide-react";
+import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
 
 interface AlertaEvento {
   id: string;
@@ -171,9 +172,9 @@ export function TarotAlertasEventos() {
                   <span className="text-xs text-gray-600">{tiempoRelativo(evento.creada_at)}</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{evento.mensaje}</p>
-                {evento.orden_id && (
+                {hrefOrdenDetalle(evento.orden_id) && (
                   <a
-                    href={`/admin/tarot/ordenes/${evento.orden_id}`}
+                    href={hrefOrdenDetalle(evento.orden_id)!}
                     className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-400/80 hover:text-amber-300 transition-colors"
                   >
                     Ver orden <ExternalLink size={10} />
