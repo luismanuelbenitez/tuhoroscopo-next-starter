@@ -8,10 +8,12 @@ import {
   Mail,
   RotateCcw,
   History,
+  X as XIcon,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotEntregaDetalle } from "@/components/admin/TarotEntregaDetalle";
 import { AutorizarReenvioDialog } from "@/components/admin/AutorizarReenvioDialog";
+import { RechazarReenvioDialog } from "@/components/admin/RechazarReenvioDialog";
 
 interface CanalResumen {
   destino: string | null;
@@ -154,6 +156,7 @@ export default function TarotEntregasPage() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [cargandoSol, setCargandoSol] = useState(false);
   const [autorizando, setAutorizando] = useState<Solicitud | null>(null);
+  const [rechazando, setRechazando] = useState<Solicitud | null>(null);
 
   const cargarSolicitudes = useCallback(async () => {
     setCargandoSol(true);
@@ -352,13 +355,23 @@ export default function TarotEntregasPage() {
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-400">{s.solicitado_por}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => setAutorizando(s)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
-                          >
-                            <RotateCcw size={12} />
-                            Autorizar reenvío
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setAutorizando(s)}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
+                            >
+                              <RotateCcw size={12} />
+                              Autorizar reenvío
+                            </button>
+                            <button
+                              onClick={() => setRechazando(s)}
+                              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700 text-gray-500 hover:text-red-300 hover:border-red-800/60 hover:bg-red-950/20 transition-colors"
+                              title="Rechazar solicitud de reenvío"
+                            >
+                              <XIcon size={12} />
+                              Rechazar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -384,6 +397,14 @@ export default function TarotEntregasPage() {
           motivoLabel={MOTIVO_LABEL[autorizando.motivo] ?? autorizando.motivo}
           onClose={() => setAutorizando(null)}
           onAutorizado={() => { setAutorizando(null); cargarSolicitudes(); cargarEntregas(); }}
+        />
+      )}
+
+      {rechazando && (
+        <RechazarReenvioDialog
+          solicitud={rechazando}
+          onClose={() => setRechazando(null)}
+          onRechazado={() => { setRechazando(null); cargarSolicitudes(); cargarEntregas(); }}
         />
       )}
     </TarotAdminShell>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { X, AlertCircle, Send, Check, Clock, MessageCircle, Mail } from "lucide-react";
+import { X, AlertCircle, Send, Check, Clock, MessageCircle, Mail, XCircle } from "lucide-react";
 import { SolicitarReenvioDialog } from "@/components/admin/SolicitarReenvioDialog";
 
 interface EnvioWA {
@@ -23,6 +23,8 @@ interface Solicitud {
   id: string; canal: "whatsapp" | "email"; estado: string; motivo: string; motivo_detalle: string | null;
   solicitado_por: string; solicitado_at: string;
   autorizado_por: string | null; autorizado_at: string | null; ejecutado_at: string | null;
+  rechazado_por: string | null; rechazado_at: string | null;
+  motivo_rechazo: string | null; motivo_rechazo_detalle: string | null;
 }
 
 const ESTADOS_EXITOSOS_WA = new Set(["enviado", "entregado", "leido"]);
@@ -32,6 +34,13 @@ const MOTIVO_LABEL: Record<string, string> = {
   cliente_no_recibio: "Cliente indica que no recibió",
   direccion_corregida: "Dirección corregida",
   solicitud_cliente: "Solicitud del cliente",
+  prueba_administrativa: "Prueba administrativa",
+  otro: "Otro",
+};
+
+const MOTIVO_RECHAZO_LABEL: Record<string, string> = {
+  solicitud_duplicada: "Solicitud duplicada",
+  no_corresponde: "No corresponde reenviar",
   prueba_administrativa: "Prueba administrativa",
   otro: "Otro",
 };
@@ -255,21 +264,36 @@ export function TarotEntregaDetalle({
                 <div className="mb-5">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Solicitudes de reenvío</h3>
                   <div className="space-y-2">
-                    {solicitudes.map((s) => (
-                      <div key={s.id} className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-xs">
-                        <div className="flex items-center gap-1.5 text-gray-300">
-                          {s.canal === "whatsapp" ? <MessageCircle size={12} className="text-emerald-400" /> : <Mail size={12} className="text-sky-400" />}
-                          {s.estado === "ejecutada" ? <Check size={12} className="text-emerald-400" /> : <Clock size={12} className="text-amber-400" />}
-                          <span className="font-medium">{MOTIVO_LABEL[s.motivo] ?? s.motivo}</span>
-                          <span className="text-gray-600 ml-auto">{s.estado}</span>
+                    {solicitudes.map((s) => {
+                      const rechazada = s.estado === "rechazada";
+                      const icono = rechazada
+                        ? <XCircle size={12} className="text-red-400" />
+                        : s.estado === "ejecutada"
+                          ? <Check size={12} className="text-emerald-400" />
+                          : <Clock size={12} className="text-amber-400" />;
+                      return (
+                        <div key={s.id} className={`rounded-lg border px-3 py-2 text-xs ${rechazada ? "border-red-900/40 bg-red-950/10" : "border-gray-800 bg-gray-950/40"}`}>
+                          <div className="flex items-center gap-1.5 text-gray-300">
+                            {s.canal === "whatsapp" ? <MessageCircle size={12} className="text-emerald-400" /> : <Mail size={12} className="text-sky-400" />}
+                            {icono}
+                            <span className="font-medium">{rechazada ? "Reenvío rechazado" : MOTIVO_LABEL[s.motivo] ?? s.motivo}</span>
+                            <span className="text-gray-600 ml-auto">{s.estado}</span>
+                          </div>
+                          {!rechazada && s.motivo_detalle && <p className="text-gray-500 mt-0.5">{s.motivo_detalle}</p>}
+                          <p className="text-gray-600 mt-1">
+                            Solicitado por {s.solicitado_por} — {fmtFecha(s.solicitado_at)}
+                            {s.autorizado_por && <> · Autorizado por {s.autorizado_por} — {fmtFecha(s.autorizado_at)}</>}
+                            {rechazada && s.rechazado_por && <> · Rechazado por {s.rechazado_por} — {fmtFecha(s.rechazado_at)}</>}
+                          </p>
+                          {rechazada && s.motivo_rechazo && (
+                            <p className="text-red-300/80 mt-1">
+                              Motivo: {MOTIVO_RECHAZO_LABEL[s.motivo_rechazo] ?? s.motivo_rechazo}
+                              {s.motivo_rechazo_detalle && ` — ${s.motivo_rechazo_detalle}`}
+                            </p>
+                          )}
                         </div>
-                        {s.motivo_detalle && <p className="text-gray-500 mt-0.5">{s.motivo_detalle}</p>}
-                        <p className="text-gray-600 mt-1">
-                          Solicitado por {s.solicitado_por} — {fmtFecha(s.solicitado_at)}
-                          {s.autorizado_por && <> · Autorizado por {s.autorizado_por} — {fmtFecha(s.autorizado_at)}</>}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
