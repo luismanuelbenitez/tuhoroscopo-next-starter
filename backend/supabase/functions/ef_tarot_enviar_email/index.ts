@@ -94,7 +94,7 @@ function buildHtml(opts: {
               <!-- Gold top line -->
               <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.45),transparent);margin-bottom:28px;"></div>
 
-              <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(251,191,36,0.55);">☽ &nbsp;✦&nbsp; ☾</p>
+              <img src="https://tuoraculo.uy/img/logo/logo-isotipo.png" alt="Tu Oráculo" width="64" height="64" style="display:block;margin:0 auto 12px;border:0;outline:none;text-decoration:none;" />
               <p style="margin:0 0 18px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.30);">Tu Oráculo</p>
 
               <h1 style="margin:0;font-family:Georgia,serif;font-size:26px;font-weight:normal;color:#ffffff;line-height:1.30;">
