@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   ShoppingCart,
   Sparkles,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
+import { usePollingRefresh } from "@/lib/usePollingRefresh";
 
 // ============================================================================
 // Types
@@ -520,18 +521,7 @@ function tiempoRel(iso: string): string {
   return `hace ${Math.floor(hs / 24)}d`;
 }
 
-function SeccionAlertas() {
-  const [eventos, setEventos]   = useState<AlertaResumen[]>([]);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/admin/tarot/alertas/eventos?limit=5")
-      .then(r => r.json())
-      .then(json => setEventos(json.eventos ?? []))
-      .catch(() => {})
-      .finally(() => setCargando(false));
-  }, []);
-
+function SeccionAlertas({ eventos, cargandoInicial }: { eventos: AlertaResumen[]; cargandoInicial: boolean }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
@@ -540,7 +530,7 @@ function SeccionAlertas() {
           Ver todas →
         </a>
       </div>
-      {cargando ? (
+      {cargandoInicial ? (
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 animate-pulse">
           Cargando…
         </div>
@@ -617,36 +607,7 @@ function textoFila(fila: FilaEntregaFeed): string {
   return `${canalLabel} ${fila.ok ? "enviado" : "error"} — ${fila.cliente}`;
 }
 
-function SeccionEntregas() {
-  const [filas, setFilas] = useState<FilaEntregaFeed[]>([]);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/admin/tarot/entregas?vista=eventos&limit=5").then(r => r.json()).catch(() => null),
-      fetch("/api/admin/tarot/entregas/solicitudes?estado=pendiente_autorizacion&limit=5").then(r => r.json()).catch(() => null),
-    ]).then(([entregasJson, solicitudesJson]) => {
-      const entregas: EntregaResumen[] = entregasJson?.entregas ?? [];
-      const solicitudes: SolicitudResumen[] = solicitudesJson?.solicitudes ?? [];
-
-      const feedEntregas: FilaEntregaFeed[] = entregas.map(e => ({
-        tipo: "entrega", ts: e.created_at, canal: e.canal,
-        cliente: e.cliente_nombre ?? "—", ok: ESTADOS_OK_FEED.has(e.estado),
-        ordenId: e.orden_id, id: `entrega-${e.id}`,
-      }));
-      const feedSolicitudes: FilaEntregaFeed[] = solicitudes.map(s => ({
-        tipo: "reenvio_pendiente", ts: s.solicitado_at,
-        cliente: s.tarot_ordenes?.tarot_clientes?.nombre_completo ?? "—",
-        ordenId: s.orden_id, id: `solicitud-${s.id}`,
-      }));
-
-      const combinado = [...feedEntregas, ...feedSolicitudes]
-        .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-        .slice(0, 5);
-      setFilas(combinado);
-    }).finally(() => setCargando(false));
-  }, []);
-
+function SeccionEntregas({ filas, cargandoInicial }: { filas: FilaEntregaFeed[]; cargandoInicial: boolean }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-3">
@@ -655,7 +616,7 @@ function SeccionEntregas() {
           Ver todas →
         </a>
       </div>
-      {cargando ? (
+      {cargandoInicial ? (
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-4 text-sm text-gray-600 animate-pulse">
           Cargando…
         </div>
@@ -684,25 +645,70 @@ function SeccionEntregas() {
 
 export default function TarotDashboardPage() {
   const [metricas, setMetricas] = useState<MetricasTTC | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [alertas, setAlertas] = useState<AlertaResumen[]>([]);
+  const [entregas, setEntregas] = useState<FilaEntregaFeed[]>([]);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [periodo, setPeriodo] = useState(30);
 
-  useEffect(() => {
-    setCargando(true);
-    setErrorMsg(null);
-    fetch(`/api/admin/tarot/metricas?periodo=${periodo}`)
-      .then(async (r) => {
-        const json = await r.json().catch(() => null);
-        if (!r.ok) {
-          setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
-          return;
-        }
-        setMetricas(json as MetricasTTC);
-      })
-      .catch((e: unknown) => setErrorMsg(e instanceof Error ? e.message : "Error de red"))
-      .finally(() => setCargando(false));
+  // Ciclo único y coordinado: una llamada de refresco trae métricas +
+  // alertas + entregas en paralelo. Cada fuente actualiza su propio estado
+  // de forma independiente — si una falla, las otras dos igual se
+  // actualizan y conservan su último dato bueno (nunca se pisan con null
+  // ni se vacían). Sin timers por card, sin polling duplicado: una sola
+  // llamada a usePollingRefresh más abajo dispara todo el ciclo.
+  const cargarDashboard = useCallback(async () => {
+    const [metricasRes, alertasRes, entregasRes, solicitudesRes] = await Promise.allSettled([
+      fetch(`/api/admin/tarot/metricas?periodo=${periodo}`, { cache: "no-store" })
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok) throw new Error(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
+          return json as MetricasTTC;
+        }),
+      fetch("/api/admin/tarot/alertas/eventos?limit=5", { cache: "no-store" })
+        .then(r => r.json()),
+      fetch("/api/admin/tarot/entregas?vista=eventos&limit=5", { cache: "no-store" })
+        .then(r => r.json()),
+      fetch("/api/admin/tarot/entregas/solicitudes?estado=pendiente_autorizacion&limit=5", { cache: "no-store" })
+        .then(r => r.json()),
+    ]);
+
+    if (metricasRes.status === "fulfilled") {
+      setMetricas(metricasRes.value);
+      setErrorMsg(null);
+    } else {
+      setErrorMsg(metricasRes.reason instanceof Error ? metricasRes.reason.message : "Error al cargar métricas");
+    }
+
+    if (alertasRes.status === "fulfilled") {
+      setAlertas(alertasRes.value?.eventos ?? []);
+    }
+
+    if (entregasRes.status === "fulfilled" && solicitudesRes.status === "fulfilled") {
+      const entregasData: EntregaResumen[] = entregasRes.value?.entregas ?? [];
+      const solicitudesData: SolicitudResumen[] = solicitudesRes.value?.solicitudes ?? [];
+
+      const feedEntregas: FilaEntregaFeed[] = entregasData.map(e => ({
+        tipo: "entrega", ts: e.created_at, canal: e.canal,
+        cliente: e.cliente_nombre ?? "—", ok: ESTADOS_OK_FEED.has(e.estado),
+        ordenId: e.orden_id, id: `entrega-${e.id}`,
+      }));
+      const feedSolicitudes: FilaEntregaFeed[] = solicitudesData.map(s => ({
+        tipo: "reenvio_pendiente", ts: s.solicitado_at,
+        cliente: s.tarot_ordenes?.tarot_clientes?.nombre_completo ?? "—",
+        ordenId: s.orden_id, id: `solicitud-${s.id}`,
+      }));
+
+      const combinado = [...feedEntregas, ...feedSolicitudes]
+        .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+        .slice(0, 5);
+      setEntregas(combinado);
+    }
+
+    setCargandoInicial(false);
   }, [periodo]);
+
+  usePollingRefresh(cargarDashboard);
 
   return (
     <TarotAdminShell>
@@ -719,7 +725,7 @@ export default function TarotDashboardPage() {
             Config →
           </a>
         </div>
-        {cargando && (
+        {cargandoInicial && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
             <span className="animate-pulse">Cargando métricas…</span>
           </div>
@@ -740,8 +746,8 @@ export default function TarotDashboardPage() {
           <CardErrores m={metricas} />
         </div>
 
-        <SeccionAlertas />
-        <SeccionEntregas />
+        <SeccionAlertas eventos={alertas} cargandoInicial={cargandoInicial} />
+        <SeccionEntregas filas={entregas} cargandoInicial={cargandoInicial} />
         <SeccionFunnel m={metricas} periodo={periodo} onPeriodo={setPeriodo} />
       </main>
     </TarotAdminShell>

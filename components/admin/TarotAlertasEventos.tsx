@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, Check, CheckCheck, ExternalLink } from "lucide-react";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
-import { useAlertPolling, notificarAlertasCambiaron } from "@/lib/useAlertPolling";
+import { usePollingRefresh, notificarAlertasCambiaron } from "@/lib/usePollingRefresh";
 
 interface AlertaEvento {
   id: string;
@@ -65,7 +65,7 @@ export function TarotAlertasEventos() {
 
   // Poll cada 30s + al recuperar visibilidad — antes solo cargaba al montar
   // o al cambiar de filtro, por eso los eventos nuevos solo aparecían con F5.
-  useAlertPolling(cargar);
+  usePollingRefresh(cargar);
 
   async function marcarLeida(id: string) {
     setMarcandoId(id);

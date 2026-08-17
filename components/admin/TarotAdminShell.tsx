@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
-import { useAlertPolling } from "@/lib/useAlertPolling";
+import { usePollingRefresh } from "@/lib/usePollingRefresh";
 
 interface NavItem {
   href: string;
@@ -80,7 +80,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // Poll unread alert count from DB — cada 30s + al recuperar visibilidad
-  // (ver lib/useAlertPolling.ts, mismo mecanismo que el Centro de Alertas).
+  // (ver lib/usePollingRefresh.ts, mismo mecanismo que Centro de Alertas y Dashboard).
   const pollNoLeidas = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/tarot/alertas/no-leidas", { cache: "no-store" });
@@ -90,7 +90,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
       }
     } catch { /* silencioso */ }
   }, []);
-  useAlertPolling(pollNoLeidas);
+  usePollingRefresh(pollNoLeidas);
 
   async function handleLogout() {
     setCerrandoSesion(true);

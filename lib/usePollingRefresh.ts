@@ -5,35 +5,38 @@ export const ALERTAS_POLL_MS = 30_000;
 const EVENTO_CAMBIO = "tarot-alertas:changed";
 
 /**
- * Avisa a todos los consumidores de useAlertPolling activos en la página
- * (campanita + Centro de Alertas) que refresquen ya, sin esperar el
- * próximo ciclo de 30s. Pensado para usarse justo después de una mutación
- * local exitosa (marcar leída / marcar todas), para que el badge y la
- * lista queden sincronizados al instante.
+ * Avisa a todos los consumidores de usePollingRefresh activos en la página
+ * (campanita, Centro de Alertas, Dashboard) que refresquen ya, sin esperar
+ * el próximo ciclo de 30s. Pensado para usarse justo después de una
+ * mutación local exitosa relacionada con alertas (marcar leída / marcar
+ * todas), para que el badge y cualquier otra vista queden sincronizados
+ * al instante.
  *
  * Es un CustomEvent nativo del browser — no un store global, no Context,
- * no event bus: la forma más simple de que dos componentes hermanos (sin
+ * no event bus: la forma más simple de que componentes hermanos (sin
  * relación padre/hijo directa, ej. TarotAdminShell y TarotAlertasEventos,
  * que solo se tocan vía `children`) se avisen un cambio sin levantar
- * estado ni introducir dependencias nuevas.
+ * estado ni introducir dependencias nuevas. El nombre queda ligado a
+ * "alertas" porque ese sigue siendo el único disparador de mutación local
+ * hoy — no representa un cambio genérico de cualquier dato.
  */
 export function notificarAlertasCambiaron() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENTO_CAMBIO));
 }
 
 /**
- * Poll canónico para alertas operativas del admin Tarot. Llama a `fetcher`
- * al montar, cada `intervalMs` mientras el componente vive, de inmediato
- * cuando la pestaña recupera visibilidad (el browser puede throttlear o
- * pausar setInterval en pestañas en background — sin esto, volver a la
- * pestaña podría tardar hasta intervalMs en reflejar novedades), y de
- * inmediato cuando algún consumidor llama a notificarAlertasCambiaron().
+ * Poll canónico de refresco para paneles del admin Tarot. Llama a
+ * `fetcher` al montar, cada `intervalMs` mientras el componente vive
+ * (pausado si la pestaña está oculta), de inmediato al recuperar
+ * visibilidad, y de inmediato cuando algún consumidor llama a
+ * notificarAlertasCambiaron().
  *
- * Reutilizado por la campanita (TarotAdminShell) y el Centro de Alertas
- * (TarotAlertasEventos) — misma fuente de verdad (`tarot_alertas_eventos`),
- * un solo mecanismo de polling, sin duplicar la lógica de intervalo.
+ * Reutilizado por la campanita y el Centro de Alertas (TarotAdminShell,
+ * TarotAlertasEventos) y por el Dashboard (`app/admin/tarot/page.tsx`) —
+ * un solo mecanismo de polling para todo el admin, sin duplicar la
+ * lógica de intervalo/visibilidad/solapamiento en cada consumidor.
  */
-export function useAlertPolling(
+export function usePollingRefresh(
   fetcher: () => void | Promise<void>,
   intervalMs: number = ALERTAS_POLL_MS,
 ) {
