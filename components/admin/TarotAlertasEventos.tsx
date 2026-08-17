@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, Check, CheckCheck, ExternalLink } from "lucide-react";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
-import { useAlertPolling } from "@/lib/useAlertPolling";
+import { useAlertPolling, notificarAlertasCambiaron } from "@/lib/useAlertPolling";
 
 interface AlertaEvento {
   id: string;
@@ -74,6 +74,7 @@ export function TarotAlertasEventos() {
       setEventos(prev =>
         prev.map(e => e.id === id ? { ...e, leida_at: new Date().toISOString() } : e),
       );
+      notificarAlertasCambiaron(); // badge se sincroniza sin esperar el próximo poll
     } catch { /* silencioso */ } finally {
       setMarcandoId(null);
     }
@@ -85,6 +86,7 @@ export function TarotAlertasEventos() {
       await fetch("/api/admin/tarot/alertas/marcar-todas", { method: "POST" });
       const ahora = new Date().toISOString();
       setEventos(prev => prev.map(e => ({ ...e, leida_at: e.leida_at ?? ahora })));
+      notificarAlertasCambiaron(); // badge se sincroniza sin esperar el próximo poll
     } catch { /* silencioso */ } finally {
       setMarcandoTodas(false);
     }
