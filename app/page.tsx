@@ -41,9 +41,9 @@ export default function HomePage() {
 
   return (
     <>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');`}</style>
-
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap');
+
         body {
           background-image: none !important;
           background-color: #0e0b22 !important;
