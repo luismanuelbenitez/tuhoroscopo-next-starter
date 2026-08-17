@@ -24,40 +24,102 @@ export type ValidacionLectura =
   | { valida: false; campo: string; detalle: string };
 
 /**
- * Valida que el output estructurado de Anthropic esté completo.
- * Una lectura es inválida si alguna carta carece de interpretacion/consejo,
- * o si los campos de resumen/mensaje están vacíos.
- * Uso obligatorio en ef_tarot_generar_lectura y ef_tarot_laboratorio
- * ANTES de persistir o devolver el resultado.
+ * Describe el tipo runtime de un valor para diagnóstico, sin volcar su
+ * contenido (evita loguear narrativa/PII innecesaria — solo forma, no fondo).
+ * Ej: "string (2840 caracteres)", "array (2 elementos)", "null", "number".
  */
-export function validateLectura(output: LecturaIAOutput): ValidacionLectura {
-  if (!Array.isArray(output.cartas) || output.cartas.length !== 5) {
+function tipoRuntime(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (Array.isArray(value)) return `array (${value.length} elementos)`;
+  if (typeof value === "string") return `string (${value.length} caracteres)`;
+  if (typeof value === "object") return "object";
+  return typeof value;
+}
+
+/**
+ * Valida ESTRUCTURALMENTE (en runtime) el output crudo del tool_use de
+ * Anthropic. `output` llega como `unknown` a propósito: el JSON que
+ * devuelve el modelo nunca se asume conforme al schema solo porque
+ * TypeScript lo tipe como LecturaIAOutput — un `as LecturaIAOutput` en el
+ * caller NO es validación real. Esta función es la única fuente de verdad
+ * sobre si el objeto es seguro de tratar como LecturaIAOutput.
+ *
+ * Distingue explícitamente TIPO inválido (ej: `cartas` llegó como string en
+ * vez de array) de CANTIDAD inválida (ej: llegaron 4 u 8 cartas) — un array
+ * con `.length` y un string con `.length` producen números fácilmente
+ * confundibles si no se valida el tipo primero (incidente 2026-08-17,
+ * `cartas` no-array cuyo `.length` se reportó como si fuera cantidad de
+ * cartas). Uso obligatorio en ef_tarot_generar_lectura y ef_tarot_laboratorio
+ * ANTES de persistir o devolver el resultado — y antes de cualquier cast.
+ */
+export function validateLectura(output: unknown): ValidacionLectura {
+  if (typeof output !== "object" || output === null) {
+    return {
+      valida: false,
+      campo: "root",
+      detalle: `Tipo inválido — se esperaba object, se recibió ${tipoRuntime(output)}`,
+    };
+  }
+  const o = output as Record<string, unknown>;
+
+  if (!Array.isArray(o.cartas)) {
     return {
       valida: false,
       campo: "cartas",
-      detalle: `Esperadas 5, recibidas ${output.cartas?.length ?? 0}`,
+      detalle: `Tipo inválido — se esperaba array, se recibió ${tipoRuntime(o.cartas)}`,
     };
   }
-  for (let i = 0; i < output.cartas.length; i++) {
-    const c = output.cartas[i];
-    if (!c.interpretacion?.trim()) {
-      return { valida: false, campo: `cartas[${i}].interpretacion`, detalle: "vacía o solo whitespace" };
+  if (o.cartas.length !== 5) {
+    return {
+      valida: false,
+      campo: "cartas",
+      detalle: `Cantidad inválida — esperadas 5, recibidas ${o.cartas.length}`,
+    };
+  }
+  for (let i = 0; i < o.cartas.length; i++) {
+    const c = o.cartas[i] as Record<string, unknown> | null;
+    if (typeof c?.interpretacion !== "string" || !c.interpretacion.trim()) {
+      return {
+        valida: false,
+        campo: `cartas[${i}].interpretacion`,
+        detalle: `vacía, ausente o de tipo inválido (${tipoRuntime(c?.interpretacion)})`,
+      };
     }
-    if (!c.consejo?.trim()) {
-      return { valida: false, campo: `cartas[${i}].consejo`, detalle: "vacío o solo whitespace" };
+    if (typeof c?.consejo !== "string" || !c.consejo.trim()) {
+      return {
+        valida: false,
+        campo: `cartas[${i}].consejo`,
+        detalle: `vacío, ausente o de tipo inválido (${tipoRuntime(c?.consejo)})`,
+      };
     }
   }
-  if (!output.resumen_lectura?.trim()) {
-    return { valida: false, campo: "resumen_lectura", detalle: "vacío" };
+  if (typeof o.resumen_lectura !== "string" || !o.resumen_lectura.trim()) {
+    return {
+      valida: false,
+      campo: "resumen_lectura",
+      detalle: `vacío o de tipo inválido (${tipoRuntime(o.resumen_lectura)})`,
+    };
   }
-  if (!output.mensaje_final?.trim()) {
-    return { valida: false, campo: "mensaje_final", detalle: "vacío" };
+  if (typeof o.mensaje_final !== "string" || !o.mensaje_final.trim()) {
+    return {
+      valida: false,
+      campo: "mensaje_final",
+      detalle: `vacío o de tipo inválido (${tipoRuntime(o.mensaje_final)})`,
+    };
   }
-  if (!Array.isArray(output.proximos_pasos) || output.proximos_pasos.length < 3) {
+  if (!Array.isArray(o.proximos_pasos)) {
     return {
       valida: false,
       campo: "proximos_pasos",
-      detalle: `Esperados ≥3, recibidos ${output.proximos_pasos?.length ?? 0}`,
+      detalle: `Tipo inválido — se esperaba array, se recibió ${tipoRuntime(o.proximos_pasos)}`,
+    };
+  }
+  if (o.proximos_pasos.length < 3) {
+    return {
+      valida: false,
+      campo: "proximos_pasos",
+      detalle: `Cantidad inválida — esperados ≥3, recibidos ${o.proximos_pasos.length}`,
     };
   }
   return { valida: true };

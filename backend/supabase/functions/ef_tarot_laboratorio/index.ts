@@ -66,9 +66,12 @@ serve(async (req: Request) => {
   }
 
   const consultante = body.consultante as Record<string, string> | undefined;
-  if (!consultante?.nombre || !consultante?.fecha_nacimiento || !consultante?.tema || !consultante?.pregunta) {
+  if (!consultante?.nombre || !consultante?.fecha_nacimiento || !consultante?.tema) {
     return json({ ok: false, motivo: "consultante_incompleto" }, 400);
   }
+  // pregunta es opcional (lectura abierta vs orientada — docs/product/DECISIONS.md
+  // 2026-08-16). El laboratorio necesita poder reproducir ambas modalidades,
+  // igual que el pipeline real.
 
   const promptModo       = (body.prompt_modo as string) ?? "activo";
   const guardar          = body.guardar === true;
@@ -211,6 +214,7 @@ serve(async (req: Request) => {
   }
 
   // ── 4. Construir prompts ─────────────────────────────────────
+  const preguntaFinal = consultante.pregunta?.trim() || null;
   const cartasTexto  = renderCartasTexto(cartas);
   const promptUsuario = interpolarTemplate(promptTemplate, {
     nombre:            consultante.nombre,
@@ -218,7 +222,7 @@ serve(async (req: Request) => {
     hora_nacimiento:   consultante.hora_nacimiento  ?? null,
     lugar_nacimiento:  consultante.lugar_nacimiento ?? null,
     tema:              consultante.tema,
-    pregunta:          consultante.pregunta,
+    pregunta:          preguntaFinal,
     tipo_tirada:       tiradaNombre,
     cartas_texto:      cartasTexto,
     max_interpretacion: String(wordLimits.interpretacion),
@@ -276,16 +280,24 @@ serve(async (req: Request) => {
   const content    = anthropicData.content as Array<{ type: string; input?: unknown }> | undefined;
   const toolBlock  = content?.find((b) => b.type === "tool_use");
   if (!toolBlock?.input) {
-    return json({ ok: false, motivo: "respuesta_invalida_sin_tool_block" }, 502);
+    return json({ ok: false, motivo: "respuesta_invalida_sin_tool_block", stop_reason: anthropicData.stop_reason ?? null }, 502);
   }
 
-  const iaOutput = toolBlock.input as LecturaIAOutput;
-
-  const validacion = validateLectura(iaOutput);
+  // Mismo principio que ef_tarot_generar_lectura: validar en runtime ANTES
+  // de castear. Un `as LecturaIAOutput` sin validación no es garantía real.
+  const rawInput: unknown = toolBlock.input;
+  const validacion = validateLectura(rawInput);
   if (!validacion.valida) {
     console.warn(`[ef_tarot_laboratorio] output_invalido: ${validacion.campo} — ${validacion.detalle}`);
-    return json({ ok: false, motivo: "output_invalido", campo: validacion.campo, detalle: validacion.detalle }, 422);
+    return json({
+      ok: false,
+      motivo: "output_invalido",
+      campo: validacion.campo,
+      detalle: validacion.detalle,
+      stop_reason: anthropicData.stop_reason ?? null,
+    }, 422);
   }
+  const iaOutput = rawInput as LecturaIAOutput;
 
   const cartasOrdenadas = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
 
@@ -296,7 +308,7 @@ serve(async (req: Request) => {
     fecha_lectura:              new Date().toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" }),
     tipo_tirada:                tiradaNombre,
     tema:                       consultante.tema,
-    pregunta:                   consultante.pregunta,
+    pregunta:                   preguntaFinal,
     descripcion_general_tirada: iaOutput.descripcion_general_tirada,
     cartas: cartas.map((carta, i) => ({
       posicion:        carta.posicion_numero,
@@ -325,7 +337,7 @@ serve(async (req: Request) => {
         consultante_hora_nac:  consultante.hora_nacimiento  ?? null,
         consultante_lugar_nac: consultante.lugar_nacimiento ?? null,
         tema:                  consultante.tema,
-        pregunta:              consultante.pregunta,
+        pregunta:              preguntaFinal,
         prompt_version_id:     promptVersionId ?? null,
         prompt_version_label:  promptVersionLabel,
         prompt_sistema:        promptSistema,

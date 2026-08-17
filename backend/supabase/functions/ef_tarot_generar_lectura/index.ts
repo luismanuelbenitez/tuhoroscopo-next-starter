@@ -35,6 +35,31 @@ const FN = "ef_tarot_generar_lectura";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Error con diagnóstico estructural adjunto — para que una respuesta de
+// Anthropic que no cumple el schema (incidente 2026-08-17: `cartas` no-array)
+// quede forense desde el primer log, sin tener que reproducir a ciegas.
+class LecturaInvalidaError extends Error {
+  diagnostico: Record<string, unknown>;
+  constructor(mensaje: string, diagnostico: Record<string, unknown>) {
+    super(mensaje);
+    this.name = "LecturaInvalidaError";
+    this.diagnostico = diagnostico;
+  }
+}
+
+// Resumen seguro de forma (tipo + tamaño), nunca de contenido — no se
+// loguea narrativa generada ni datos del cliente, solo su forma runtime.
+function resumenTipos(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null) return { root: typeof value };
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (Array.isArray(v)) out[k] = `array(${v.length})`;
+    else if (typeof v === "string") out[k] = `string(${v.length})`;
+    else out[k] = typeof v;
+  }
+  return out;
+}
+
 // Costo aproximado por millón de tokens (claude-sonnet-4-6, junio 2026)
 const PRECIO_INPUT_POR_MTOKEN = 3.0;
 const PRECIO_OUTPUT_POR_MTOKEN = 15.0;
@@ -494,19 +519,32 @@ async function generarLectura(ordenId: string): Promise<void> {
        (tokensSalida  / 1_000_000) * PRECIO_OUTPUT_POR_MTOKEN).toFixed(6)
     );
 
+    const stopReason = anthropicData.stop_reason ?? null;
     const toolBlock = (anthropicData.content ?? [])
       .find((b: { type: string }) => b.type === "tool_use");
 
     if (!toolBlock?.input) {
-      throw new Error("Anthropic no devolvió un tool_use block válido");
+      throw new LecturaInvalidaError(
+        "Anthropic no devolvió un tool_use block válido",
+        { stop_reason: stopReason, content_types: (anthropicData.content ?? []).map((b: { type: string }) => b.type) },
+      );
     }
 
-    const iaOutput = toolBlock.input as LecturaIAOutput;
-
-    const validacion = validateLectura(iaOutput);
+    // `toolBlock.input` es `unknown` en runtime — Anthropic garantiza el
+    // schema en la mayoría de los casos, pero NO siempre (incidente
+    // 2026-08-17). validateLectura() es la única fuente de verdad; recién
+    // después de que confirma la forma es seguro tratarlo como
+    // LecturaIAOutput. Un `as LecturaIAOutput` ANTES de esto no sería
+    // validación real, solo una promesa de TypeScript sin respaldo en runtime.
+    const rawInput: unknown = toolBlock.input;
+    const validacion = validateLectura(rawInput);
     if (!validacion.valida) {
-      throw new Error(`lectura_invalida: ${validacion.campo} — ${validacion.detalle}`);
+      throw new LecturaInvalidaError(
+        `lectura_invalida: ${validacion.campo} — ${validacion.detalle}`,
+        { stop_reason: stopReason, campo: validacion.campo, detalle: validacion.detalle, forma: resumenTipos(rawInput) },
+      );
     }
+    const iaOutput = rawInput as LecturaIAOutput;
 
     const cartasIA = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
 
@@ -629,12 +667,15 @@ async function generarLectura(ordenId: string): Promise<void> {
   } catch (err) {
     const errMsg   = String(err);
     const ahoraNow = new Date().toISOString();
+    const errorDetalle = err instanceof LecturaInvalidaError
+      ? { raw: errMsg, ...err.diagnostico }
+      : { raw: errMsg };
 
     await supabase.from("tarot_lecturas").update({
       estado:         "error",
       error_codigo:   "IA_ERROR",
       error_mensaje:  errMsg.substring(0, 500),
-      error_detalle:  { raw: errMsg },
+      error_detalle:  errorDetalle,
       prompt_sistema: promptSistema,
       prompt_usuario: promptUsuario,
       updated_at:     ahoraNow,
@@ -663,6 +704,7 @@ async function generarLectura(ordenId: string): Promise<void> {
         max_reintentos: maxReintentos,
         estado_orden:   estadoOrden,
         duracion_ms:    duracionMs,
+        ...(err instanceof LecturaInvalidaError ? { diagnostico: err.diagnostico } : {}),
       },
       duracionMs,
     );
