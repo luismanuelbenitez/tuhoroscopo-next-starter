@@ -1,6 +1,8 @@
 ﻿// ============================================================
-// ef_tarot_enviar_email v3 (+ persistencia estructurada + gobernanza de entregas)
-// Email premium con PDF adjunto + resumen de la tirada.
+// ef_tarot_enviar_email v4 (+ persistencia estructurada + gobernanza de entregas)
+// Email de ENTREGA con PDF adjunto — no reproduce contenido narrativo de la
+// lectura (el PDF es el artefacto principal de la experiencia, ver sección
+// "Template HTML" más abajo y docs/product/DECISIONS.md 2026-08-16).
 // Invocado fire-and-forget desde ef_tarot_generar_pdf.
 //
 // Input: { orden_id, autorizacion_id? }
@@ -32,8 +34,6 @@ const RESEND_API_KEY            = Deno.env.get("RESEND_API_KEY") ?? "";
 const RESEND_FROM               = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";
 const FN                        = "ef_tarot_enviar_email";
 
-const ROMAN = ["I", "II", "III", "IV", "V"];
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── Logging ──────────────────────────────────────────────────────────────────
@@ -54,63 +54,21 @@ async function log(
 }
 
 // ── Template HTML ─────────────────────────────────────────────────────────────
-
-type Carta = { numero: number; nombre_carta: string; nombre_posicion: string; invertida: boolean };
+//
+// DECISIÓN DE PRODUCTO (2026-08-16, ver docs/product/DECISIONS.md):
+// el PDF es el artefacto principal de la experiencia Tu Tirada — el momento de
+// descubrir la lectura ocurre ahí, no en el email. Este email es exclusivamente
+// una pieza de entrega/transición: identifica el envío, confirma que la lectura
+// está lista, y da un CTA claro al PDF. NUNCA reproduce contenido narrativo
+// (resumen, mensaje final, nombres de cartas, pregunta) — eso sería spoilear
+// la revelación que el PDF está diseñado para dar.
 
 function buildHtml(opts: {
   nombreCorto:  string;
-  tema:         string;
-  pregunta:     string | null;
-  cartas:       Carta[];
-  resumen:      string | null;
-  mensajeFinal: string | null;
   pdfUrl:       string;
   expiraStr:    string;
 }): string {
-  const { nombreCorto, tema, pregunta, cartas, resumen, mensajeFinal, pdfUrl, expiraStr } = opts;
-
-  const cartasHtml = cartas
-    .sort((a, b) => a.numero - b.numero)
-    .map(c => {
-      const roman = ROMAN[c.numero - 1] ?? String(c.numero);
-      const inv   = c.invertida ? ' <span style="color:rgba(167,139,250,0.6);font-size:11px;">(invertida)</span>' : "";
-      return `
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="width:28px;vertical-align:top;padding-top:1px;">
-                  <span style="font-family:Georgia,serif;font-size:11px;color:rgba(251,191,36,0.55);letter-spacing:0.05em;">${roman}.</span>
-                </td>
-                <td style="vertical-align:top;">
-                  <span style="font-size:12px;color:rgba(255,255,255,0.45);letter-spacing:0.06em;text-transform:uppercase;">${c.nombre_posicion}</span><br>
-                  <span style="font-family:Georgia,serif;font-size:15px;color:#f0e8ff;font-weight:600;">${c.nombre_carta}${inv}</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>`;
-    }).join("");
-
-  const resumenHtml = resumen
-    ? `<div style="margin-bottom:28px;">
-        <p style="margin:0 0 10px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(251,191,36,0.55);">Lo que la tirada revela</p>
-        <p style="margin:0;font-family:Georgia,serif;font-size:15px;color:rgba(255,255,255,0.80);line-height:1.70;">${resumen}</p>
-       </div>`
-    : "";
-
-  const mensajeHtml = mensajeFinal
-    ? `<div style="border-left:2px solid rgba(251,191,36,0.35);padding-left:16px;margin-bottom:28px;">
-        <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(251,191,36,0.55);">Un mensaje para vos</p>
-        <p style="margin:0;font-family:Georgia,serif;font-size:15px;font-style:italic;color:rgba(255,255,255,0.75);line-height:1.70;">"${mensajeFinal}"</p>
-       </div>`
-    : "";
-
-  const temaLabel = pregunta
-    ? `<p style="margin:0 0 4px;font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase;">Tu consulta</p>
-       <p style="margin:0;font-family:Georgia,serif;font-size:15px;color:rgba(255,255,255,0.65);font-style:italic;">"${pregunta}"</p>`
-    : `<p style="margin:0 0 4px;font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.1em;text-transform:uppercase;">Tema</p>
-       <p style="margin:0;font-family:Georgia,serif;font-size:15px;color:rgba(255,255,255,0.65);">${tema}</p>`;
+  const { nombreCorto, pdfUrl, expiraStr } = opts;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -145,43 +103,11 @@ function buildHtml(opts: {
             </td>
           </tr>
 
-          <!-- Tema / Pregunta -->
-          <tr>
-            <td style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:18px 22px;margin-bottom:24px;">
-              ${temaLabel}
-            </td>
-          </tr>
-
-          <!-- Spacer -->
-          <tr><td style="height:24px;"></td></tr>
-
-          <!-- Las 5 cartas -->
-          <tr>
-            <td style="background:rgba(88,28,180,0.10);border:1px solid rgba(139,92,246,0.20);border-radius:12px;padding:20px 22px;">
-              <p style="margin:0 0 14px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(251,191,36,0.55);">Tus 5 cartas</p>
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                ${cartasHtml}
-              </table>
-            </td>
-          </tr>
-
-          <!-- Spacer -->
-          <tr><td style="height:28px;"></td></tr>
-
-          <!-- Resumen + Mensaje final -->
-          <tr>
-            <td>
-              ${resumenHtml}
-              ${mensajeHtml}
-            </td>
-          </tr>
-
           <!-- CTA -->
           <tr>
             <td style="background:rgba(255,255,255,0.03);border:1px solid rgba(251,191,36,0.20);border-radius:14px;padding:28px 24px;text-align:center;">
-              <p style="margin:0 0 6px;font-size:11px;color:rgba(255,255,255,0.40);letter-spacing:0.1em;text-transform:uppercase;">Tu lectura completa</p>
               <p style="margin:0 0 22px;font-family:Georgia,serif;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">
-                El PDF con la interpretación carta por carta,<br>el resumen de la tirada y tus próximos pasos.
+                Tus 5 cartas ya fueron interpretadas.<br>Buscá unos minutos de tranquilidad para leerla.
               </p>
               <a href="${pdfUrl}"
                  style="display:inline-block;background:linear-gradient(135deg,#c9930a,#f5c842);color:#0f0820;font-weight:700;font-size:15px;padding:15px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;">
@@ -233,7 +159,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   // 1. Orden
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("id, cliente_id, tema, pregunta_usuario")
+    .select("id, cliente_id")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -283,39 +209,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     return;
   }
 
-  // 4. Lectura vigente (resumen + mensaje final)
-  const { data: lectura } = await supabase
-    .from("tarot_lecturas")
-    .select("id, resumen_lectura, mensaje_final")
-    .eq("orden_id", ordenId)
-    .eq("es_vigente", true)
-    .maybeSingle();
-
-  // 5. Cartas de la tirada (nombre + posición + orientación)
-  let cartas: Carta[] = [];
-  if (lectura?.id) {
-    const { data: lc } = await supabase
-      .from("tarot_lecturas_cartas")
-      .select(`
-        numero_posicion,
-        invertida,
-        tarot_cartas!inner(nombre_es),
-        tarot_posiciones_tirada!inner(nombre)
-      `)
-      .eq("lectura_id", lectura.id)
-      .order("numero_posicion");
-
-    if (lc) {
-      cartas = lc.map((r: any) => ({
-        numero:          r.numero_posicion,
-        nombre_carta:    r.tarot_cartas?.nombre_es   ?? "—",
-        nombre_posicion: r.tarot_posiciones_tirada?.nombre ?? `Posición ${r.numero_posicion}`,
-        invertida:       r.invertida ?? false,
-      }));
-    }
-  }
-
-  // 6. Datos de presentación
+  // 4. Datos de presentación
   const nombreCorto = (cliente.nombre_completo ?? "consultante").split(" ")[0];
   const pdfUrl      = pdfRow.storage_url;
   const expiraStr   = pdfRow.url_expira_at
@@ -324,7 +218,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
       })
     : "48 horas";
 
-  // 7. Adjuntar PDF como base64
+  // 5. Adjuntar PDF como base64
   let pdfBase64: string | null = null;
   try {
     const pdfResp = await fetch(pdfUrl, { signal: AbortSignal.timeout(15_000) });
@@ -337,17 +231,8 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
       "No se pudo adjuntar el PDF — se envía solo el link", { error: String(err) });
   }
 
-  // 8. Construir email
-  const html = buildHtml({
-    nombreCorto,
-    tema:         orden.tema        ?? "Tirada general",
-    pregunta:     orden.pregunta_usuario ?? null,
-    cartas,
-    resumen:      lectura?.resumen_lectura  ?? null,
-    mensajeFinal: lectura?.mensaje_final    ?? null,
-    pdfUrl,
-    expiraStr,
-  });
+  // 6. Construir email
+  const html = buildHtml({ nombreCorto, pdfUrl, expiraStr });
 
   const emailPayload: Record<string, unknown> = {
     from:    RESEND_FROM,
@@ -363,7 +248,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     }];
   }
 
-  // 8.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs)
+  // 6.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs)
   const { count: previosCount } = await supabase
     .from("tarot_envios_email")
     .select("*", { count: "exact", head: true })
@@ -386,7 +271,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     .select("id")
     .single();
 
-  // 9. Enviar
+  // 7. Enviar
   const res = await fetch("https://api.resend.com/emails", {
     method:  "POST",
     headers: {

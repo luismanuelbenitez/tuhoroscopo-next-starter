@@ -384,7 +384,10 @@ async function generarLectura(ordenId: string): Promise<void> {
     keywords:             c.keywords ?? [],
   }));
   const cartasTexto = renderCartasTexto(cartasParaPrompt);
-  const preguntaFinal = orden.pregunta_usuario?.trim() || "Tirada abierta, claridad general sobre mi momento de vida";
+  // Pregunta opcional (lectura abierta vs orientada — ver docs/product/DECISIONS.md 2026-08-16).
+  // null/ausente deja que interpolarTemplate() elimine la línea completa del template,
+  // igual que ya hace con hora_nacimiento/lugar_nacimiento — sin fabricar una pregunta falsa.
+  const preguntaFinal = orden.pregunta_usuario?.trim() || null;
 
   const promptSistema = productoConfig.prompt_sistema;
   const promptUsuario = interpolarTemplate(productoConfig.prompt_usuario_template, {

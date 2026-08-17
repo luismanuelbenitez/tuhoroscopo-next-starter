@@ -186,7 +186,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
       email:            form.email.trim() || null,
       fecha_nacimiento: form.fecha_nacimiento || null,
       tema:             form.tema,
-      pregunta_usuario: form.pregunta.trim(),
+      pregunta_usuario: form.pregunta.trim() || null,
       // Descuento (si se aplicó)
       codigo_descuento_uso_id: descuento?.uso_id ?? null,
       precio_final:            precioFinal,
@@ -269,7 +269,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                   Contame tu consulta
                 </h1>
                 <p className="text-white/55 text-sm mt-2">
-                  Cuanto más precisa sea tu pregunta, más útil será la lectura.
+                  Si tenés una pregunta puntual, te ayuda a enfocar la lectura. Si preferís venir sin una pregunta armada, también recibís una lectura completa sobre tu momento actual.
                 </p>
               </div>
 
@@ -412,21 +412,20 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                   <ChevronDown className="absolute right-3 top-9 h-5 w-5 text-white/50 pointer-events-none" />
                 </div>
 
-                {/* Pregunta */}
+                {/* Pregunta (opcional) */}
                 <div>
                   <label htmlFor="pregunta" className="block text-sm text-white/80 mb-1">
-                    Tu pregunta <span className="text-white/35">(requerido)</span>
+                    Tu pregunta <span className="text-white/35">(opcional)</span>
                   </label>
                   <textarea
                     id="pregunta"
                     name="pregunta"
                     rows={4}
                     className={`${inputBase} resize-none`}
-                    placeholder={`Escribí lo que querés consultar. Cuanto más específica, mejor la lectura.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
+                    placeholder={`Si hay algo puntual que quieras explorar, contámelo. Si no, podés recibir una lectura abierta sobre tu momento actual.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
                     value={form.pregunta}
                     onChange={handleChange}
                     disabled={isLoading}
-                    required
                     maxLength={500}
                   />
                   <p className="mt-1 text-xs text-white/35 text-right">{form.pregunta.length}/500</p>
