@@ -310,7 +310,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     .select("nombre")
     .eq("id", orden.tipo_tirada_id)
     .maybeSingle();
-  const tiradaNombre = tiradaRow?.nombre ?? "Tirada Cósmica de 5 Cartas";
+  const tiradaNombre = tiradaRow?.nombre ?? "Tirada de 5 Cartas";
 
   // 8. Selección aleatoria de 5 cartas (sin repetición, 25% chance de invertida)
   const { data: todasLasCartas } = await supabase
@@ -554,7 +554,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     });
 
     const contenidoJson = {
-      producto:                   "Tu Tirada Cósmica",
+      producto:                   "Tu Tirada",
       nombre:                     cliente.nombre_completo,
       fecha_nacimiento:           cliente.fecha_nacimiento,
       fecha_lectura:              fechaLectura,

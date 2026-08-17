@@ -232,7 +232,7 @@ export default function IngresosPage() {
         {ttc && (
           <section className="mb-10">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-amber-500">Tu Tirada Cósmica (TTC)</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-500">Tu Tirada (TTC)</span>
               <div className="flex-1 h-px bg-amber-900/40" />
             </div>
 

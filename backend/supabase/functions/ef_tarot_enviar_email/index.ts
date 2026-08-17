@@ -76,7 +76,7 @@ function buildHtml(opts: {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Tu Tirada Cósmica · Tu Oráculo</title>
+  <title>Tu Tirada · Tu Oráculo</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0d0820;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
 
@@ -98,7 +98,7 @@ function buildHtml(opts: {
               <p style="margin:0 0 18px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.30);">Tu Oráculo</p>
 
               <h1 style="margin:0;font-family:Georgia,serif;font-size:26px;font-weight:normal;color:#ffffff;line-height:1.30;">
-                Tu Tirada Cósmica<br>está lista, <strong>${nombreCorto}</strong>.
+                Tu Tirada<br>está lista, <strong>${nombreCorto}</strong>.
               </h1>
             </td>
           </tr>
@@ -237,7 +237,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   const emailPayload: Record<string, unknown> = {
     from:    RESEND_FROM,
     to:      [cliente.email],
-    subject: `✨ Tu Tirada Cósmica está lista, ${nombreCorto}`,
+    subject: `✨ Tu Tirada está lista, ${nombreCorto}`,
     html,
   };
 

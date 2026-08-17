@@ -88,7 +88,7 @@ serve(async (req: Request) => {
   let iaMaxTokens        = Number(body.ia_max_tokens ?? 4000);
   let iaTemperatura      = Number(body.ia_temperatura ?? 0.8);
   let tipoTiradaId: string | undefined;
-  let tiradaNombre       = "Tirada Cósmica";
+  let tiradaNombre       = "Tirada de 5 Cartas";
 
   if (promptModo === "manual") {
     promptSistema  = String(body.prompt_sistema ?? "");
@@ -302,7 +302,7 @@ serve(async (req: Request) => {
   const cartasOrdenadas = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
 
   const contenidoJson = {
-    producto:                   "Tu Tirada Cósmica — Laboratorio",
+    producto:                   "Tu Tirada — Laboratorio",
     nombre:                     consultante.nombre,
     fecha_nacimiento:           consultante.fecha_nacimiento,
     fecha_lectura:              new Date().toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" }),

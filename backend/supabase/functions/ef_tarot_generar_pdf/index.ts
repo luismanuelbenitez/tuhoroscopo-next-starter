@@ -1047,8 +1047,8 @@ async function generarPDF(
 
     // ── Construir PDF ─────────────────────────────────────────
     const pdfDoc = await PDFDocument.create();
-    pdfDoc.setTitle("Tu Tirada Cosmica");
-    pdfDoc.setAuthor("Tu Horoscopo Cosmico");
+    pdfDoc.setTitle("Tu Tirada");
+    pdfDoc.setAuthor("Tu Oraculo");
     pdfDoc.setSubject("Lectura de Tarot para " + sanitize(contenido.nombre ?? ""));
     pdfDoc.setCreationDate(new Date());
 
