@@ -158,9 +158,12 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                <h2 className="text-[1.05rem] font-extrabold text-white mb-1 leading-snug">
-                  Lectura de tarot personalizada
+                <h2 className="text-[1.15rem] font-extrabold text-white mb-0.5 leading-snug uppercase tracking-wide">
+                  Tu Tirada
                 </h2>
+                <p className="text-white/45 text-xs mb-2.5">
+                  Lectura de tarot personalizada
+                </p>
 
                 <p className="text-sm font-bold mb-3" style={{ color: "rgba(212,175,55,0.95)" }}>
                   $U {precioTarot}
@@ -168,11 +171,11 @@ export default function HomePage() {
                 </p>
 
                 <p className="text-white/55 text-sm leading-relaxed flex-1 mb-4">
-                  Tirada de 5 cartas para tu pregunta real. Recibís un PDF premium por WhatsApp en menos de 15 minutos.
+                  5 cartas para comprender mejor tu momento. Recibís un PDF premium por WhatsApp en menos de 15 minutos.
                 </p>
 
                 <ul className="space-y-1.5 mb-5">
-                  <FeatureItem color="rgba(212,175,55,0.70)" text="Para tu consulta específica" />
+                  <FeatureItem color="rgba(212,175,55,0.70)" text="Con o sin pregunta puntual" />
                   <FeatureItem color="rgba(212,175,55,0.70)" text="Entrega en menos de 15 min" />
                   <FeatureItem color="rgba(212,175,55,0.70)" text="Sin suscripción" />
                 </ul>
@@ -186,7 +189,7 @@ export default function HomePage() {
                     letterSpacing: "0.015em",
                   }}
                 >
-                  Consultar ahora →
+                  Quiero mi lectura →
                 </span>
               </a>
 
@@ -212,9 +215,12 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                <h2 className="text-[1.05rem] font-extrabold text-white mb-1 leading-snug">
-                  Horóscopo diario por WhatsApp
+                <h2 className="text-[1.15rem] font-extrabold text-white mb-0.5 leading-snug uppercase tracking-wide">
+                  Tu Horóscopo
                 </h2>
+                <p className="text-white/45 text-xs mb-2.5">
+                  Horóscopo diario por WhatsApp
+                </p>
 
                 <p className="text-sm font-bold text-violet-300 mb-3">
                   $U {precioHoro}
@@ -244,7 +250,7 @@ export default function HomePage() {
                     letterSpacing: "0.015em",
                   }}
                 >
-                  Activar guía diaria →
+                  Activar mi guía diaria →
                 </span>
               </a>
 
@@ -263,7 +269,7 @@ export default function HomePage() {
             >
               {[
                 { icon: "🌎", label: "Uruguay" },
-                { icon: "⚡", label: "Entrega inmediata" },
+                { icon: "⚡", label: "Entrega rápida" },
                 { icon: "🔒", label: "Pago seguro vía MP" },
               ].map(({ icon, label }) => (
                 <div key={label} className="flex items-center gap-1.5 text-xs text-white/45">
