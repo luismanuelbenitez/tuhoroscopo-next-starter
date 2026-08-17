@@ -79,7 +79,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
       { clave: "ia_modelo",              label: "Modelo",             tipo: "text",   helpText: "Ej: claude-sonnet-4-6" },
       { clave: "ia_max_tokens",          label: "Max tokens",         tipo: "number", min: 100, max: 16000 },
       { clave: "ia_temperatura",         label: "Temperatura (0–1)",  tipo: "number", min: 0, max: 1, step: 0.05 },
-      { clave: "max_reintentos_lectura", label: "Reintentos lectura", tipo: "number", min: 1, max: 10 },
+      { clave: "max_reintentos_lectura", label: "Reintentos lectura", tipo: "number", min: 1, max: 10,
+        helpText: "Intentos TOTALES permitidos (no adicionales al primero) — con 1, la primera falla ya pasa a error_critico. No hay retry automático: cada intento requiere una acción manual (\"Reintentar lectura\") o la generación inicial." },
     ],
   },
   {
@@ -87,7 +88,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
     campos: [
       { clave: "pdf_plantilla_activa",      label: "Plantilla activa",    tipo: "text" },
       { clave: "pdf_url_expiracion_horas",  label: "URL expira (horas)",  tipo: "number", min: 1, max: 720 },
-      { clave: "max_reintentos_pdf",        label: "Reintentos PDF",      tipo: "number", min: 1, max: 10 },
+      { clave: "max_reintentos_pdf",        label: "Reintentos PDF",      tipo: "number", min: 1, max: 10,
+        helpText: "Intentos TOTALES permitidos (no adicionales al primero). No hay retry automático." },
     ],
   },
   {
@@ -96,7 +98,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
       { clave: "whatsapp_modo",     label: "Modo WA",        tipo: "select", opciones: ["sandbox", "production"],
         helpText: 'Cambiá a "production" para envíos reales por WhatsApp.' },
       { clave: "wa_proveedor",      label: "Proveedor",      tipo: "text" },
-      { clave: "max_reintentos_wa", label: "Reintentos WA",  tipo: "number", min: 1, max: 10 },
+      { clave: "max_reintentos_wa", label: "Reintentos WA",  tipo: "number", min: 1, max: 10,
+        helpText: "Intentos TOTALES permitidos (no adicionales al primero). No hay retry automático — y nunca autoriza reenviar sobre una entrega ya exitosa (eso requiere gobernanza de reenvíos)." },
     ],
   },
   {
