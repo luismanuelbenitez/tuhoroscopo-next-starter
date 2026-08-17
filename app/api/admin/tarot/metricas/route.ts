@@ -96,8 +96,11 @@ export async function GET(req: NextRequest) {
       countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_ERR})`, restHeaders),
       countTable(base, "tarot_lecturas", "es_vigente=eq.true", restHeaders),
       countTable(base, "tarot_lecturas", `es_vigente=eq.true&created_at=gte.${hoyISO}`, restHeaders),
-      countTable(base, "tarot_pdfs", "estado=eq.generado", restHeaders),
-      countTable(base, "tarot_pdfs", `estado=eq.generado&created_at=gte.${hoyISO}`, restHeaders),
+      // "listo" es el estado real de éxito que escribe ef_tarot_generar_pdf.
+      // "generado" es un valor legacy que el CHECK de tarot_pdfs todavía permite
+      // pero que el pipeline actual nunca escribe — filtrar por él da 0 siempre.
+      countTable(base, "tarot_pdfs", "estado=eq.listo", restHeaders),
+      countTable(base, "tarot_pdfs", `estado=eq.listo&created_at=gte.${hoyISO}`, restHeaders),
       countTable(base, "tarot_clientes", "", restHeaders),
       // Funnel de validación — conteos de funnel_events
       countTable(base, "funnel_events", funnelFilter("landing_viewed",        cutoffISO), restHeaders),
