@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
+import { useAlertPolling } from "@/lib/useAlertPolling";
 
 interface NavItem {
   href: string;
@@ -72,29 +73,24 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-const BELL_POLL_MS = 30_000;
-
 export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed]           = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [noLeidas, setNoLeidas]             = useState(0);
   const pathname = usePathname();
 
-  // Poll unread alert count from DB
-  useEffect(() => {
-    async function poll() {
-      try {
-        const res = await fetch("/api/admin/tarot/alertas/no-leidas");
-        if (res.ok) {
-          const d = await res.json();
-          setNoLeidas(d.count ?? 0);
-        }
-      } catch { /* silencioso */ }
-    }
-    poll();
-    const id = setInterval(poll, BELL_POLL_MS);
-    return () => clearInterval(id);
+  // Poll unread alert count from DB — cada 30s + al recuperar visibilidad
+  // (ver lib/useAlertPolling.ts, mismo mecanismo que el Centro de Alertas).
+  const pollNoLeidas = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/tarot/alertas/no-leidas", { cache: "no-store" });
+      if (res.ok) {
+        const d = await res.json();
+        setNoLeidas(d.count ?? 0);
+      }
+    } catch { /* silencioso */ }
   }, []);
+  useAlertPolling(pollNoLeidas);
 
   async function handleLogout() {
     setCerrandoSesion(true);

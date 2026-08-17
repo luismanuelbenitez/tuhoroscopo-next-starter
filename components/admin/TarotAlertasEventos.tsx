@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { CheckCircle2, AlertTriangle, AlertCircle, RefreshCw, Check, CheckCheck, ExternalLink } from "lucide-react";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
+import { useAlertPolling } from "@/lib/useAlertPolling";
 
 interface AlertaEvento {
   id: string;
@@ -51,7 +52,7 @@ export function TarotAlertasEventos() {
     setCargando(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/admin/tarot/alertas/eventos?filtro=${filtro}&limit=50`);
+      const res = await fetch(`/api/admin/tarot/alertas/eventos?filtro=${filtro}&limit=50`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setEventos(json.eventos ?? []);
@@ -62,7 +63,9 @@ export function TarotAlertasEventos() {
     }
   }, [filtro]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  // Poll cada 30s + al recuperar visibilidad — antes solo cargaba al montar
+  // o al cambiar de filtro, por eso los eventos nuevos solo aparecían con F5.
+  useAlertPolling(cargar);
 
   async function marcarLeida(id: string) {
     setMarcandoId(id);
@@ -130,15 +133,17 @@ export function TarotAlertasEventos() {
         </div>
       </div>
 
-      {/* Loading */}
-      {cargando && (
+      {/* Loading — solo antes de tener datos. El polling de fondo (cada 30s)
+          no debe tapar la lista existente; el ícono del botón "Actualizar"
+          ya indica actividad. */}
+      {cargando && eventos.length === 0 && (
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 px-4 py-8 text-center text-sm text-gray-500 animate-pulse">
           Cargando eventos…
         </div>
       )}
 
       {/* Error */}
-      {!cargando && errorMsg && (
+      {errorMsg && eventos.length === 0 && (
         <div className="rounded-xl border border-red-800/50 bg-red-950/40 px-4 py-3 text-sm text-red-300">
           {errorMsg}
         </div>
@@ -151,8 +156,9 @@ export function TarotAlertasEventos() {
         </div>
       )}
 
-      {/* List */}
-      {!cargando && eventos.length > 0 && (
+      {/* List — se mantiene visible durante refrescos de fondo, solo se
+          reemplaza cuando llegan datos nuevos (sin flicker cada 30s). */}
+      {eventos.length > 0 && (
         <div className="space-y-2">
           {eventos.map(evento => (
             <div
