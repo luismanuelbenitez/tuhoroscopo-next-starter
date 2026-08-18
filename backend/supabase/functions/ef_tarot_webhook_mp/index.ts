@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { ejecutarPipelinePostCobro } from "../_shared/tarot-pipeline.ts";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -105,6 +106,37 @@ async function registrarLog(
   }
 }
 
+// ── Validación de coherencia de monto ────────────────────────
+//
+// El cliente nunca es autoridad sobre el precio (ver docs/product/
+// DECISIONS.md 2026-08-17/18): tarot_ordenes.precio_cobrado es el
+// snapshot comercial server-side tomado en ef_tarot_crear_orden.
+// Antes de disparar el pipeline post-cobro, comparamos ese valor
+// contra pay.transaction_amount (lo que MP realmente aprobó) — nunca
+// con igualdad floating-point ingenua, sino en centavos enteros para
+// evitar falsos negativos por representación decimal.
+
+function aCentavos(valor: number | string | null | undefined): number | null {
+  if (valor === null || valor === undefined) return null;
+  const n = typeof valor === "number" ? valor : Number(valor);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
+}
+
+function montoCoherente(
+  montoOrden: number | string | null | undefined,
+  monedaOrden: string | null | undefined,
+  montoMp: number | string | null | undefined,
+  monedaMp: string | null | undefined,
+): boolean {
+  const centavosOrden = aCentavos(montoOrden);
+  const centavosMp    = aCentavos(montoMp);
+  if (centavosOrden === null || centavosMp === null) return false;
+  if (centavosOrden !== centavosMp) return false;
+  if ((monedaOrden ?? "").toUpperCase() !== (monedaMp ?? "").toUpperCase()) return false;
+  return true;
+}
+
 // ── Procesamiento del pago ───────────────────────────────────
 
 async function procesarPago(paymentId: string, ip?: string): Promise<void> {
@@ -151,7 +183,7 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
   // 3) Buscar la orden en la BD
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, funnel_session_id")
+    .select("id, estado, cliente_id, funnel_session_id, precio_cobrado, moneda, external_reference")
     .eq("external_reference", externalRef)
     .maybeSingle();
 
@@ -196,7 +228,44 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
 
   // 6) Lógica de negocio según estado de MP
   if (mpStatus === "approved") {
-    // ── Pago aprobado ────────────────────────────────────────
+    // ── Validar coherencia de monto ANTES de disparar el pipeline ─────
+    // El cliente nunca es autoridad sobre el precio — precio_cobrado es
+    // el snapshot comercial server-side de la orden (ef_tarot_crear_orden).
+    // Un pago aprobado con monto/moneda distinto NUNCA dispara generación
+    // ni entrega en silencio.
+    const coherente = montoCoherente(
+      orden.precio_cobrado, orden.moneda,
+      pay.transaction_amount, pay.currency_id,
+    );
+
+    if (!coherente) {
+      await supabase
+        .from("tarot_ordenes")
+        .update({ estado: "error_critico", updated_at: ahora })
+        .eq("id", ordenId);
+
+      await registrarLog(ordenId, "pago_monto_incoherente", "critical",
+        "Monto aprobado por MP no coincide con precio_cobrado de la orden — pipeline detenido, requiere revisión manual",
+        {
+          payment_id:         paymentId,
+          precio_cobrado:     orden.precio_cobrado,
+          moneda_orden:       orden.moneda,
+          transaction_amount: pay.transaction_amount,
+          moneda_mp:          pay.currency_id,
+        },
+        ip, Date.now() - t0);
+
+      await dispararAlerta(supabase, "pago_monto_incoherente", {
+        ordenId,
+        ordenRef: externalRef,
+        error: `Orden ${orden.precio_cobrado} ${orden.moneda} vs MP ${pay.transaction_amount} ${pay.currency_id} (payment_id ${paymentId})`,
+        fecha: ahora,
+      }).catch(() => {});
+
+      return; // NO dispara ejecutarPipelinePostCobro — evidencia ya persistida en tarot_pagos (paso 5)
+    }
+
+    // ── Pago aprobado y coherente ────────────────────────────
     await registrarLog(ordenId, "pago_confirmado", "info",
       "Pago aprobado. Disparando generación de lectura.",
       { payment_id: paymentId, mp_status: mpStatus, duracion_ms: Date.now() - t0 },
@@ -336,7 +405,7 @@ serve(async (req) => {
     }
 
     const type   = String(payload?.type    ?? "").toLowerCase().trim();
-    const dataId = String(payload?.data?.id ?? "").trim();
+    const dataId = String((payload?.data as Record<string, unknown> | undefined)?.id ?? "").trim();
 
     if (type === "payment" && dataId) {
       procesarPago(dataId, ip); // fire-and-forget: NO await

@@ -25,7 +25,8 @@ export type AlertaTipo =
   | "error_whatsapp"
   | "error_email_cliente"
   | "orden_trabada"
-  | "reenvio_pendiente_autorizacion";
+  | "reenvio_pendiente_autorizacion"
+  | "pago_monto_incoherente";
 
 export interface AlertaDatos {
   ordenId?:       string;
@@ -46,6 +47,7 @@ const ETAPA_LABEL: Record<AlertaTipo, string> = {
   error_email_cliente: "Envío de email al cliente",
   orden_trabada:       "Orden trabada",
   reenvio_pendiente_autorizacion: "Reenvío pendiente de autorización",
+  pago_monto_incoherente: "Monto de pago incoherente (Mercado Pago)",
 };
 
 const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
@@ -56,6 +58,7 @@ const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
   error_whatsapp:      "error",
   error_email_cliente: "error",
   reenvio_pendiente_autorizacion: "warning",
+  pago_monto_incoherente: "error",
 };
 
 function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; mensaje: string } {
@@ -81,6 +84,11 @@ function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; 
       return {
         titulo:  "Reenvío pendiente de autorización",
         mensaje: datos.error?.substring(0, 200) ?? "Solicitud de reenvío creada — requiere autorización en el admin",
+      };
+    case "pago_monto_incoherente":
+      return {
+        titulo:  "Monto de pago incoherente",
+        mensaje: datos.error?.substring(0, 200) ?? "El monto aprobado por Mercado Pago no coincide con el precio de la orden — pipeline detenido",
       };
   }
 }

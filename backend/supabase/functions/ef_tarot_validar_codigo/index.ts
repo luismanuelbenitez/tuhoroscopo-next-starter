@@ -6,13 +6,17 @@
 // INPUT (POST):
 //   codigo          string  requerido
 //   moneda          string  requerido  UYU | ARS
-//   precio_base     number  requerido  precio sin descuento
 //   cliente_id      uuid    opcional
 //   telefono        string  opcional   para trazabilidad y cupo por cliente
 //   email           string  opcional
 //   orden_id        uuid    opcional   si ya existe la orden
 //   origen          string  opcional   'formulario_web' | 'api' | etc.
 //   log             bool    opcional   fuerza log aunque debug_mode=false
+//
+// El precio base NUNCA se recibe del cliente — se lee server-side de
+// tarot_configuracion.precio_base_uyu/ars (fuente única de verdad, ver
+// docs/product/DECISIONS.md 2026-08-17/18). Cualquier `precio_base` que
+// venga en el body se ignora.
 //
 // OUTPUT OK:
 //   { ok, valido:true, uso_id, codigo_id, tipo_descuento, precio_original,
@@ -23,6 +27,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
 
 const SUPABASE_URL            = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -49,10 +54,6 @@ function normUUID(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const s = v.trim().toLowerCase();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s) ? s : null;
-}
-function normNumero(v: unknown): number | null {
-  const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
-  return isFinite(n) && n >= 0 ? n : null;
 }
 async function leerBody(req: Request): Promise<Record<string, unknown>> {
   try { const b = await req.json(); return (b && typeof b === "object") ? b : {}; }
@@ -129,22 +130,38 @@ serve(async (req) => {
 
   const codigoRaw  = typeof body.codigo === "string" ? body.codigo.trim().toUpperCase() : "";
   const moneda     = normTexto(body.moneda)?.toUpperCase() ?? "UYU";
-  const precioBase = normNumero(body.precio_base);
   const clienteId  = normUUID(body.cliente_id);
   const ordenId    = normUUID(body.orden_id);
   const telefono   = normTexto(body.telefono);
   const email      = normTexto(body.email);
   const origen     = normTexto(body.origen) ?? "api";
 
-  await log("inicio", { codigo_raw: body.codigo, moneda, precio_base: precioBase, origen }, "debug", dbg, ordenId, clienteId);
+  await log("inicio", { codigo_raw: body.codigo, moneda, origen }, "debug", dbg, ordenId, clienteId);
 
   // 2. Input básico
   if (!codigoRaw)
     return jsonResponse({ ok: true, valido: false, motivo: "codigo_requerido" });
   if (!["UYU", "ARS"].includes(moneda))
     return jsonResponse({ ok: true, valido: false, motivo: "moneda_invalida" });
-  if (precioBase === null || precioBase <= 0)
-    return jsonResponse({ ok: true, valido: false, motivo: "precio_base_invalido" });
+
+  // 2b. Precio base — SIEMPRE server-side desde tarot_configuracion, nunca
+  // el `precio_base` que pudiera enviar el cliente (no es autoridad sobre
+  // el importe). Ver docs/product/DECISIONS.md 2026-08-17/18.
+  const claveConfigPrecio = moneda === "ARS" ? "precio_base_ars" : "precio_base_uyu";
+  const { data: cfgPrecioRow, error: errCfgPrecio } = await supabase
+    .from("tarot_configuracion")
+    .select("valor")
+    .eq("clave", claveConfigPrecio)
+    .eq("activo", true)
+    .maybeSingle();
+
+  const precioBase = errCfgPrecio ? null : parsePrecioBaseCanonico(cfgPrecioRow?.valor);
+  if (precioBase === null) {
+    await log("precio_config_invalido",
+      { clave: claveConfigPrecio, error: errCfgPrecio?.message ?? null },
+      "error", true, ordenId, clienteId);
+    return jsonResponse({ ok: false, motivo: "precio_no_disponible" }, 503);
+  }
 
   // 3. Buscar código (case-insensitive via índice UPPER)
   const { data: codigo, error: errCodigo } = await supabase

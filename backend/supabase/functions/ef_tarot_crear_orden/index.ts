@@ -7,6 +7,7 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -179,9 +180,15 @@ serve(async (req) => {
   const cfg: Record<string, string> = {};
   for (const row of configRows ?? []) cfg[row.clave] = row.valor;
 
-  const precioSegunMoneda: Record<string, number> = {
-    UYU: Number(cfg.precio_base_uyu) || 590,
-    ARS: Number(cfg.precio_base_ars) || 4900,
+  // Fuente única de verdad del precio: tarot_configuracion.precio_base_uyu/ars.
+  // Sin fallback comercial — si no se puede verificar, NO se crea la orden.
+  const precioSegunMoneda: Record<string, number | null> = {
+    UYU: parsePrecioBaseCanonico(cfg.precio_base_uyu),
+    ARS: parsePrecioBaseCanonico(cfg.precio_base_ars),
+    // USD no tiene clave propia en tarot_configuracion todavía — no es un
+    // fallback comercial silencioso, es una moneda sin fuente canónica
+    // definida aún (ver docs/modules/payment-mercadopago-reference.md,
+    // "Agregar soporte para nueva moneda"). Fuera de alcance de esta tarea.
     USD: 15,
   };
   let precio = precioSegunMoneda[monedaNorm];
@@ -189,6 +196,13 @@ serve(async (req) => {
   const tiradaId = cfg.tipo_tirada_default;
   // sandbox_init_point si estamos en sandbox
   const usarSandbox = (cfg.mp_modo ?? "sandbox").toLowerCase() !== "production";
+
+  if (precio === null) {
+    await registrarLog(null, null, "precio_config_invalido", "critical",
+      `Precio base ausente o inválido en tarot_configuracion para moneda ${monedaNorm} — orden NO creada`,
+      { moneda: monedaNorm, valor_config: monedaNorm === "ARS" ? cfg.precio_base_ars : cfg.precio_base_uyu }, ip);
+    return json({ ok: false, error: "PRECIO_NO_DISPONIBLE" }, 503);
+  }
 
   if (!mazoId || !tiradaId) {
     await registrarLog(null, null, "config_incompleta", "critical",
