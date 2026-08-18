@@ -30,7 +30,7 @@ const BENEFITS = [
   {
     icon: '🧭',
     heading: 'Una perspectiva para avanzar',
-    desc: 'No predicciones. Simbología del tarot clásico aplicada a tu pregunta específica.',
+    desc: 'No predicciones. Simbología del tarot clásico aplicada a tu momento, con o sin pregunta puntual.',
   },
   {
     icon: '📄',
@@ -43,8 +43,8 @@ const STEPS = [
   {
     n: '01',
     icon: '✏️',
-    title: 'Escribís tu pregunta',
-    desc: 'Tu nombre, tu consulta y tu número de WhatsApp. Menos de 2 minutos.',
+    title: 'Contanos sobre vos',
+    desc: 'Tu nombre, tu WhatsApp y, si querés, una pregunta o situación que quieras explorar. Menos de 2 minutos.',
   },
   {
     n: '02',
@@ -56,7 +56,7 @@ const STEPS = [
     n: '03',
     icon: '🔮',
     title: 'La IA genera tu tirada',
-    desc: 'Tu nombre, tu fecha y tu pregunta exacta. Cada lectura es única.',
+    desc: 'Las 5 cartas se interpretan con tu información y lo que quieras explorar. Cada lectura es única.',
   },
   {
     n: '04',
@@ -88,7 +88,7 @@ const QUESTION_TYPES = [
 const FAQ = [
   {
     q: '¿Es realmente personalizado?',
-    a: 'Sí. Se construye con tu nombre, tu fecha de nacimiento y la pregunta que vos escribís. Las cartas se interpretan en relación a tu consulta. No es texto estándar ni genérico.',
+    a: 'Sí. Se construye con tu nombre, tu fecha de nacimiento y, si tenés una pregunta puntual, también con ella. Las cartas se interpretan en relación a tu momento, con pregunta concreta o sin ella. No es texto estándar ni genérico.',
   },
   {
     q: '¿Qué pasa si no me llega el WhatsApp?',
@@ -96,7 +96,7 @@ const FAQ = [
   },
   {
     q: '¿Es IA o hay un tarotista humano?',
-    a: 'La lectura la genera inteligencia artificial aplicando simbología del tarot clásico a tu consulta. No hay un tarotista humano detrás. Si buscás esa perspectiva simbólica profunda aplicada a tu pregunta real, es exactamente para vos.',
+    a: 'La lectura la genera inteligencia artificial aplicando simbología del tarot clásico a tu situación. No hay un tarotista humano detrás. Si buscás esa perspectiva simbólica profunda, con o sin una pregunta concreta, es exactamente para vos.',
   },
   {
     q: '¿Puedo consultar más de una vez?',
@@ -436,8 +436,8 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 fontSize: 17, color: 'rgba(255,255,255,0.65)',
                 lineHeight: 1.65, marginBottom: 28, maxWidth: 500,
               }}>
-                Una tirada de 5 cartas interpretada para tu pregunta real.
-                Entregada en PDF directo a tu WhatsApp en menos de 15 minutos.
+                Una tirada de 5 cartas para comprender mejor tu situación, con una
+                pregunta puntual o sin ella. Entregada en PDF directo a tu WhatsApp en menos de 15 minutos.
               </p>
 
               <div className="tl-quick-facts tl-in2" style={{ marginBottom: 32 }}>
@@ -504,10 +504,10 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
             Lo que vas a lograr
           </p>
           <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 12, color: 'white', letterSpacing: '-0.022em', lineHeight: 1.25 }}>
-            No un horóscopo genérico.<br />Tu lectura.
+            Una lectura construida<br />alrededor de tu momento.
           </h2>
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.48)', textAlign: 'center', marginBottom: 44, lineHeight: 1.6 }}>
-            Cada tirada se construye desde cero con tu nombre, tu fecha y tu pregunta real.
+            Cada tirada se construye desde cero con tu nombre, tu fecha y lo que quieras explorar — con una pregunta puntual o sin ella.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
@@ -616,14 +616,14 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '0 24px 80px' }}>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-              ¿Para qué tipo de preguntas sirve?
+              ¿Qué podés explorar con Tu Tirada?
             </p>
             <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 8, color: 'white', letterSpacing: '-0.022em' }}>
               Algunos ejemplos de consultas frecuentes.
             </h2>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.46)', textAlign: 'center', marginBottom: 44, lineHeight: 1.65, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
-              La lectura gira alrededor de la consulta que vos realizás.
-              Cuanto más específica, más enfocada es la interpretación.
+              Podés traer una pregunta puntual o simplemente el tema o momento que quieras explorar.
+              Cuanto más contexto compartas, más enfocada es la interpretación.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 12 }}>
