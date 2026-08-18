@@ -250,11 +250,12 @@ function CtaLink({ size = 'md', children }: { size?: 'sm' | 'md' | 'lg'; childre
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function TarotLandingContent({ precioUYU = 690 }: { precioUYU?: number }) {
+export default function TarotLandingContent({ precioUYU }: { precioUYU: number | null }) {
   const [showSticky, setShowSticky] = useState(false);
+  const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : 'Ver precio en el checkout';
 
   useEffect(() => {
-    trackViewItem('tarot', precioUYU);
+    trackViewItem('tarot', precioUYU ?? undefined);
     trackLandingViewed('tarot');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -441,7 +442,7 @@ export default function TarotLandingContent({ precioUYU = 690 }: { precioUYU?: n
 
               <div className="tl-quick-facts tl-in2" style={{ marginBottom: 32 }}>
                 {[
-                  { icon: '💰', label: `$U ${precioUYU}`, sub: 'pago único' },
+                  { icon: '💰', label: precioTexto, sub: 'pago único' },
                   { icon: '⏱',  label: 'En < 15 min',    sub: '' },
                   { icon: '📲', label: 'WhatsApp',        sub: 'sin apps extra' },
                   { icon: '🔓', label: 'Sin suscripción', sub: '' },
@@ -664,8 +665,8 @@ export default function TarotLandingContent({ precioUYU = 690 }: { precioUYU?: n
               Acá, sin salir de tu casa, en menos de 15 minutos:
             </p>
             <div style={{ marginBottom: 6 }}>
-              <span style={{ fontSize: 58, fontWeight: 900, color: 'white', letterSpacing: '-0.04em', lineHeight: 1 }}>
-                $U&nbsp;{precioUYU}
+              <span style={{ fontSize: precioUYU !== null ? 58 : 26, fontWeight: 900, color: 'white', letterSpacing: '-0.04em', lineHeight: 1 }}>
+                {precioUYU !== null ? <>$U&nbsp;{precioUYU}</> : 'Ver precio en el checkout'}
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', marginBottom: 32 }}>
@@ -735,7 +736,7 @@ export default function TarotLandingContent({ precioUYU = 690 }: { precioUYU?: n
           </h2>
           <CtaLink size="lg" />
           <p style={{ marginTop: 14, fontSize: 12, color: 'rgba(255,255,255,0.27)' }}>
-            $U {precioUYU} · un solo pago · sin renovaciones automáticas
+            {precioTexto} · un solo pago · sin renovaciones automáticas
           </p>
         </section>
 
@@ -761,7 +762,7 @@ export default function TarotLandingContent({ precioUYU = 690 }: { precioUYU?: n
                 Lectura de Tarot personalizada
               </p>
               <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.42)' }}>
-                $U {precioUYU} · un pago · &lt; 15 min
+                {precioTexto} · un pago · &lt; 15 min
               </p>
             </div>
             <Link

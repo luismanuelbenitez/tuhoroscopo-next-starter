@@ -67,11 +67,14 @@ export default function TarotEstadoContent() {
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (data.can_fire_purchase && data.transaction_id) {
+        // Solo reportamos el evento de compra con un valor verificado por el
+        // servidor (precio_cobrado de la orden real) — nunca con un precio
+        // histórico inventado si el dato no vino en la respuesta.
+        if (data.can_fire_purchase && data.transaction_id && typeof data.value === "number") {
           trackPurchase({
             transactionId: data.transaction_id,
             productKey:    "tarot",
-            value:         data.value ?? 590,
+            value:         data.value,
             currency:      data.currency ?? "UYU",
           });
         }

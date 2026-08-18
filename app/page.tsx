@@ -166,7 +166,7 @@ export default function HomePage() {
                 </p>
 
                 <p className="text-sm font-bold mb-3" style={{ color: "rgba(212,175,55,0.95)" }}>
-                  $U {precioTarot}
+                  {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
                   <span className="font-normal text-xs" style={{ color: "rgba(212,175,55,0.50)" }}> · pago único</span>
                 </p>
 

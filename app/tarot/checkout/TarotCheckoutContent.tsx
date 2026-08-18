@@ -79,8 +79,11 @@ function formatearTelefono(raw: string, pais: string): string {
 const inputBase =
   'w-full rounded-xl bg-white/8 px-4 py-3 ring-1 ring-white/15 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60';
 
-export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: { temaInicial?: string; precioBase?: number }) {
+export default function TarotCheckoutContent({ temaInicial, precioBase }: { temaInicial?: string; precioBase: number | null }) {
   const PRECIO_BASE = precioBase;
+  // El precio no pudo verificarse contra la fuente canónica (tarot_configuracion.precio_base_uyu)
+  // — no se muestra ni se permite pagar un precio no verificado (ver docs/product/DECISIONS.md).
+  const precioNoDisponible = PRECIO_BASE === null;
   const temaValido = TEMAS.some(t => t.value === temaInicial) ? temaInicial! : '';
   const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido });
   const [pais, setPais]           = useState('UY');
@@ -98,6 +101,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
   const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
 
   useEffect(() => {
+    if (PRECIO_BASE === null) return; // sin precio verificado no reportamos analytics con un valor inventado
     import('@/lib/analytics').then(({ trackBeginCheckout }) => {
       trackBeginCheckout('tarot', PRECIO_BASE);
     });
@@ -113,6 +117,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
   async function handleValidarCodigo() {
     const codigo = codigoCampo.trim().toUpperCase();
     if (!codigo) return;
+    if (PRECIO_BASE === null) {
+      setCodigoError('El precio no está disponible ahora mismo. Volvé a intentar en unos minutos.');
+      return;
+    }
 
     setCodigoValidando(true);
     setCodigoError(null);
@@ -163,6 +171,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (PRECIO_BASE === null) {
+      setError('El precio no está disponible ahora mismo. Recargá la página o volvé a intentar en unos minutos.');
+      return;
+    }
     if (!aceptaTerminos) {
       setError('Necesitás aceptar los Términos del servicio para continuar.');
       return;
@@ -451,7 +463,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                           <span className="font-semibold">{codigoCampo}</span>
                           {' — '}
                           <span>
-                            {descuento.tipo_descuento === 'porcentaje'
+                            {descuento.tipo_descuento === 'porcentaje' && PRECIO_BASE !== null
                               ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% de descuento`
                               : `$U ${descuento.descuento_aplicado} de descuento`}
                           </span>
@@ -552,11 +564,18 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                   </div>
                 )}
 
+                {/* Precio no disponible */}
+                {precioNoDisponible && (
+                  <div className="rounded-xl px-4 py-3 text-sm text-amber-200 bg-amber-900/15 border border-amber-500/25">
+                    El precio no está disponible en este momento. Recargá la página en unos minutos para poder pagar.
+                  </div>
+                )}
+
                 {/* Submit */}
                 <div className="pt-2">
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || precioNoDisponible}
                     className="w-full rounded-xl py-4 text-base font-bold transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{
                       background: 'linear-gradient(135deg, #d4a017 0%, #FFCE4D 60%, #f0c840 100%)',
@@ -564,7 +583,11 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                       boxShadow: '0 4px 20px rgba(251,191,36,0.28)',
                     }}
                   >
-                    {isLoading ? 'Procesando...' : `Pagar $U ${precioFinal} →`}
+                    {isLoading
+                      ? 'Procesando...'
+                      : precioNoDisponible
+                        ? 'Precio no disponible'
+                        : `Pagar $U ${precioFinal} →`}
                   </button>
 
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12px] text-white/40">
@@ -572,20 +595,24 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                       <Lock size={10} style={{ color: GOLD_DIM }} className="shrink-0" />
                       <span>Procesado por <strong className="text-white/60 font-semibold">Mercado Pago</strong></span>
                     </span>
-                    <span className="text-white/20">·</span>
-                    <span>
-                      {descuento ? (
-                        <>
-                          <span className="line-through text-white/25 mr-1">${PRECIO_BASE}</span>
-                          <span className="text-emerald-400 font-semibold">$U {precioFinal}</span>
-                        </>
-                      ) : (
-                        `$U ${PRECIO_BASE}`
-                      )}{' '}
-                      · IVA incluido
-                    </span>
-                    <span className="text-white/20">·</span>
-                    <span>Pago único</span>
+                    {!precioNoDisponible && (
+                      <>
+                        <span className="text-white/20">·</span>
+                        <span>
+                          {descuento ? (
+                            <>
+                              <span className="line-through text-white/25 mr-1">${PRECIO_BASE}</span>
+                              <span className="text-emerald-400 font-semibold">$U {precioFinal}</span>
+                            </>
+                          ) : (
+                            `$U ${PRECIO_BASE}`
+                          )}{' '}
+                          · IVA incluido
+                        </span>
+                        <span className="text-white/20">·</span>
+                        <span>Pago único</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -637,7 +664,9 @@ export default function TarotCheckoutContent({ temaInicial, precioBase = 590 }: 
                     <div className="flex items-end justify-between">
                       <span className="text-white/50 text-sm">Total</span>
                       <div className="text-right">
-                        {descuento ? (
+                        {precioNoDisponible ? (
+                          <span className="text-sm font-semibold text-amber-300/80">No disponible</span>
+                        ) : descuento ? (
                           <>
                             <span className="text-sm line-through text-white/30 mr-2">$U {PRECIO_BASE}</span>
                             <span className="text-2xl font-extrabold text-emerald-400">$U {precioFinal}</span>
