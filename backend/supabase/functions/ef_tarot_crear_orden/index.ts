@@ -131,6 +131,8 @@ serve(async (req) => {
     utm_source,
     utm_medium,
     utm_campaign,
+    utm_content,
+    funnel_session_id,
     pagina_origen,
     version_terminos = "v1.0",
   } = body;
@@ -305,6 +307,8 @@ serve(async (req) => {
       utm_source: utm_source ?? null,
       utm_medium: utm_medium ?? null,
       utm_campaign: utm_campaign ?? null,
+      utm_content: utm_content ?? null,
+      funnel_session_id: funnel_session_id ?? null,
       ip_orden: ip ?? null,
       user_agent_orden: userAgent ?? null,
       pagina_origen: pagina_origen ?? null,

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import Image from 'next/image';
 import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkles, MessageCircle } from 'lucide-react';
+import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -192,6 +193,11 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       phone = `+549${phoneRaw}`;
     }
 
+    // Atribución capturada en storeAttributionFromUrl() al aterrizar en /tarot —
+    // se reenvía recién ahora, al confirmar la orden, para no acoplar el
+    // checkout a que el usuario haya llegado con UTMs en esta misma carga.
+    const attribution = getStoredAttribution();
+
     const payload = {
       nombre_completo:  form.nombre.trim(),
       telefono:         phone,
@@ -203,6 +209,13 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       codigo_descuento_uso_id: descuento?.uso_id ?? null,
       precio_final:            precioFinal,
       moneda:                  'UYU',
+      // Atribución — sin esto, tarot_ordenes.utm_* queda null y no hay forma
+      // de medir CAC por campaña (ver docs/product/DECISIONS.md 2026-08-20).
+      utm_source:        attribution?.utm_source   ?? null,
+      utm_medium:        attribution?.utm_medium   ?? null,
+      utm_campaign:      attribution?.utm_campaign ?? null,
+      utm_content:       attribution?.utm_content  ?? null,
+      funnel_session_id: getOrCreateSessionId() || null,
     };
 
     try {
