@@ -86,8 +86,12 @@ export default function TarotClientesPage() {
     <TarotAdminShell>
       <main className="px-6 py-6">
         <div className="mb-4">
-          <h2 className="text-base font-semibold text-white">Clientes</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Clientes registrados con historial de órdenes</p>
+          <h2 className="text-base font-semibold text-white">Registros</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Filas crudas tal como entraron al sistema — un mismo cliente puede tener varios registros.
+            Para personas únicas con historial comercial consolidado, ver{" "}
+            <a href="/admin/tarot/clientes-unicos" className="text-amber-400 hover:text-amber-300 underline">Clientes</a>.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">

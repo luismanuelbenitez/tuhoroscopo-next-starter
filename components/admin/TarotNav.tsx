@@ -3,7 +3,8 @@
 const NAV_ITEMS = [
   { href: "/admin/tarot",          label: "Dashboard", exact: true  },
   { href: "/admin/tarot/ordenes",  label: "Órdenes",   exact: false },
-  { href: "/admin/tarot/clientes", label: "Clientes",  exact: false },
+  { href: "/admin/tarot/clientes", label: "Registros",  exact: false },
+  { href: "/admin/tarot/clientes-unicos", label: "Clientes", exact: false },
   { href: "/admin/tarot/lecturas", label: "Lecturas",  exact: false },
   { href: "/admin/tarot/pdfs",     label: "PDFs",      exact: false },
   { href: "/admin/tarot/pagos",    label: "Pagos",     exact: false },

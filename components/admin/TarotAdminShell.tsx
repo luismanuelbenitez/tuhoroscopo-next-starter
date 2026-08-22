@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Users,
+  UserCheck,
   BookOpen,
   FileText,
   CreditCard,
@@ -43,7 +44,8 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     label: "Operación",
     items: [
       { href: "/admin/tarot/ordenes",  icon: ShoppingCart, label: "Órdenes" },
-      { href: "/admin/tarot/clientes", icon: Users,        label: "Clientes" },
+      { href: "/admin/tarot/clientes", icon: Users,        label: "Registros" },
+      { href: "/admin/tarot/clientes-unicos", icon: UserCheck, label: "Clientes" },
       { href: "/admin/tarot/lecturas", icon: BookOpen,     label: "Lecturas" },
       { href: "/admin/tarot/pdfs",     icon: FileText,     label: "PDFs" },
       { href: "/admin/tarot/entregas", icon: Send,         label: "Entregas" },

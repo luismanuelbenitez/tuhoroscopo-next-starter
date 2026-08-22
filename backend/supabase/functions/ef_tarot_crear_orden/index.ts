@@ -8,6 +8,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
+import { normalizarTelefono } from "../_shared/tarot-identidad.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -70,20 +71,6 @@ async function registrarLog(
   } catch (e) {
     console.error("FATAL: tarot_logs insert falló:", e);
   }
-}
-
-// Normaliza teléfono a E.164. Soporta Uruguay y Argentina.
-function normalizarTelefono(raw: string): string | null {
-  const limpio = raw.replace(/[\s\-().]/g, "");
-  // Ya en E.164
-  if (/^\+\d{8,15}$/.test(limpio)) return limpio;
-  // Uruguay: 09XXXXXXXX → +598 9XXXXXXXX
-  if (/^09\d{7}$/.test(limpio)) return "+598" + limpio.slice(1);
-  // Uruguay: 9XXXXXXXX → +598 9XXXXXXXX
-  if (/^9\d{7}$/.test(limpio)) return "+598" + limpio;
-  // Argentina: 011XXXXXXXX → +5411XXXXXXXX
-  if (/^0\d{9,10}$/.test(limpio)) return "+54" + limpio.slice(1);
-  return null;
 }
 
 // Hash SHA-256 para deduplicación suave de clientes
