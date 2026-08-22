@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 import { createClient } from "@supabase/supabase-js";
+import { fetchResumenClientesUnicos } from "@/lib/tarotClientesUnicos";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ export const dynamic = "force-dynamic";
 //     sin uso — ahora se lee/escribe acá)
 //   - discovery_experimentos: presupuesto del experimento activo
 //   - tarot_configuracion.tipo_cambio_usd_uyu: tipo de cambio manual
+//   - ef_tarot_admin_clientes_unicos (vía lib/tarotClientesUnicos.ts):
+//     fuente canónica única de identidad de cliente — CAC usa clientes
+//     nuevos únicos, no órdenes (ver DECISIONS.md 2026-08-22)
 //
 // NO reimplementa el funnel (ya existe en /api/admin/tarot/metricas) ni
 // los totales de ingresos por semana (ya existen en /api/admin/tarot/ingresos)
@@ -26,8 +30,9 @@ export const dynamic = "force-dynamic";
 function getEnv() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
-  if (!supabaseUrl || !serviceRoleKey) return null;
-  return { supabaseUrl, serviceRoleKey };
+  const internalKey = process.env.TAROT_INTERNAL_KEY;
+  if (!supabaseUrl || !serviceRoleKey || !internalKey) return null;
+  return { supabaseUrl, serviceRoleKey, internalKey };
 }
 
 // Mismo set que /api/admin/tarot/metricas — una orden "pagada" es la que
@@ -64,7 +69,7 @@ export async function GET(req: NextRequest) {
 
   const env = getEnv();
   if (!env) return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });
-  const { supabaseUrl, serviceRoleKey } = env;
+  const { supabaseUrl, serviceRoleKey, internalKey } = env;
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   const { desde, hasta, periodoDias } = cutoffFromParams(req);
@@ -87,6 +92,24 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     const tipoCambio = cfgCambio?.valor ? Number(cfgCambio.valor) : null;
     const tipoCambioValido = tipoCambio !== null && Number.isFinite(tipoCambio) && tipoCambio > 0 ? tipoCambio : null;
+
+    // ── Clientes únicos del período — fuente canónica única (Regla 3) ────
+    // ver lib/tarotClientesUnicos.ts y docs/product/DECISIONS.md 2026-08-22.
+    // "Clientes nuevos" (primera compra pagada histórica dentro del período)
+    // es el denominador correcto de CAC — NO órdenes pagadas del período,
+    // que es lo que este endpoint usaba hasta 2026-08-22.
+    const resumenClientes = await fetchResumenClientesUnicos({
+      supabaseUrl, internalKey, serviceRoleKey, desde, hasta,
+    });
+    if (!resumenClientes.ok) {
+      return NextResponse.json(
+        { ok: false, motivo: "clientes_unicos_error", detalle: resumenClientes.detalle ?? resumenClientes.motivo },
+        { status: 502 },
+      );
+    }
+    const clientesNuevosPeriodo = resumenClientes.resumen.nuevos_periodo;
+    const clientesRecurrentesPeriodo = resumenClientes.resumen.recurrentes_periodo;
+    const clientesUnicosTotal = resumenClientes.resumen.clientes_unicos_total;
 
     // ── Gasto publicitario ──────────────────────────────────────────────
     // Total del experimento completo (todo el histórico de campaign_costs,
@@ -166,11 +189,16 @@ export async function GET(req: NextRequest) {
     const costoIaPromedioUsd = (lecturasCosto ?? []).length > 0 ? costoIaTotalUsd / (lecturasCosto ?? []).length : null;
 
     // ── Derivados (fórmulas documentadas — ver docs/product/DECISIONS.md) ──
-    // CAC = gasto publicitario (USD, período) / compradores atribuidos (período).
-    // Requiere gasto > 0: con gasto = 0 (todavía no se cargó ningún gasto)
-    // CAC no es "gratis", es "no disponible" — mostrar $0 acá sería
-    // exactamente el caso que este sprint prohíbe explícitamente.
-    const cacUsd = compradoresTotal > 0 && gastoPeriodoUsd > 0 ? gastoPeriodoUsd / compradoresTotal : null;
+    // CAC = gasto publicitario (USD, período) / CLIENTES NUEVOS ÚNICOS
+    // (período) — personas cuya primera compra pagada histórica cae en el
+    // período, vía la fuente canónica de identidad. Hasta 2026-08-22 el
+    // denominador era compradoresTotal (órdenes pagadas del período), lo que
+    // sobre-contaba adquisición: una misma persona con 2 compras, o con
+    // varios registros de tarot_clientes, no son 2 (ni 5) adquisiciones.
+    // Requiere gasto > 0 Y clientes nuevos > 0: CAC no es "gratis", es
+    // "no disponible" — mostrar $0 o dividir por cero sería exactamente el
+    // caso que este sprint prohíbe explícitamente.
+    const cacUsd = clientesNuevosPeriodo > 0 && gastoPeriodoUsd > 0 ? gastoPeriodoUsd / clientesNuevosPeriodo : null;
 
     // ROAS = ingresos atribuidos / gasto publicitario, en la MISMA moneda.
     // Requiere tipo de cambio manual válido para convertir ingreso UYU a USD.
@@ -224,6 +252,14 @@ export async function GET(req: NextRequest) {
         total: compradoresTotal,
         cobro_manual: compradoresCobroManual,
         reales_mercado_pago: compradoresRealesMp,
+      },
+      // Personas únicas (fuente canónica — ver lib/tarotClientesUnicos.ts).
+      // NO confundir con "compradores" arriba, que cuenta ÓRDENES pagadas
+      // del período (una persona puede tener varias).
+      clientes: {
+        unicos_total: clientesUnicosTotal,
+        nuevos_periodo: clientesNuevosPeriodo,
+        recurrentes_periodo: clientesRecurrentesPeriodo,
       },
       ingresos: {
         bruto_uyu: ventasBrutasUyu,

@@ -48,6 +48,9 @@ interface AdquisicionData {
   };
   costo_ia: { total_usd: number; lecturas_contadas: number; promedio_usd_por_lectura: number | null };
   compradores: { total: number; cobro_manual: number; reales_mercado_pago: number };
+  // Personas únicas (fuente canónica de identidad) — distinto de "compradores"
+  // arriba, que cuenta ÓRDENES pagadas del período. Ver docs/product/DECISIONS.md 2026-08-22.
+  clientes: { unicos_total: number; nuevos_periodo: number; recurrentes_periodo: number };
   ingresos: { bruto_uyu: number; descuentos_uyu: number; neto_uyu: number; ticket_promedio_uyu: number };
   derivados: {
     cac_usd: number | null;
@@ -173,7 +176,9 @@ function BloqueMetricas({ data, funnel }: { data: AdquisicionData | null; funnel
     <Bloque titulo="Métricas principales" sub="Del período seleccionado — no del experimento completo.">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <Metric label="Ventas (compradores)" value={data?.compradores.total ?? "—"} sub={data ? `${data.compradores.reales_mercado_pago} MP · ${data.compradores.cobro_manual} manual` : undefined} />
-        <Metric label="CAC" value={d?.cac_usd != null ? usd(d.cac_usd) : ND} tone="amber" />
+        <Metric label="Clientes nuevos" value={data?.clientes.nuevos_periodo ?? "—"} sub="personas, 1ª compra en el período" />
+        <Metric label="Clientes recurrentes" value={data?.clientes.recurrentes_periodo ?? "—"} sub="ya habían comprado antes" />
+        <Metric label="CAC" value={d?.cac_usd != null ? usd(d.cac_usd) : ND} sub="gasto / clientes nuevos" tone="amber" />
         <Metric label="ROAS" value={d?.roas != null ? d.roas.toFixed(2) + "x" : ND} tone={d?.roas != null && d.roas >= 1 ? "emerald" : "red"} />
         <Metric label="Visita → Compra" value={funnel ? pct(funnel.conv_visita_a_pago) : "—"} />
         <Metric label="Ticket promedio" value={data ? uyu(data.ingresos.ticket_promedio_uyu) : "—"} />

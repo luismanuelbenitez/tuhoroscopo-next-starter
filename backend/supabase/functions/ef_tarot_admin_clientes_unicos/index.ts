@@ -407,6 +407,7 @@ function resumenPeriodo(personas: Persona[], ordenes: OrdenCruda[], desde: strin
 
   return {
     clientes_unicos_total: clientesConCompraTotal,
+    clientes_recurrentes_historico: clientesRecurrentesTotal,
     compradores_periodo: compradoresPeriodo,
     nuevos_periodo: nuevosPeriodo,
     recurrentes_periodo: recurrentesPeriodo,

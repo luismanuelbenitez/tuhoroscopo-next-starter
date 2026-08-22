@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 import { createClient } from "@supabase/supabase-js";
+import { fetchResumenClientesUnicos } from "@/lib/tarotClientesUnicos";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,9 @@ export const dynamic = "force-dynamic";
 function getEnv() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
-  if (!supabaseUrl || !serviceRoleKey) return null;
-  return { supabaseUrl, serviceRoleKey };
+  const internalKey = process.env.TAROT_INTERNAL_KEY;
+  if (!supabaseUrl || !serviceRoleKey || !internalKey) return null;
+  return { supabaseUrl, serviceRoleKey, internalKey };
 }
 
 // Cuenta filas usando el header content-range de PostgREST (sin traer datos).
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
   const env = getEnv();
   if (!env) return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });
 
-  const { supabaseUrl, serviceRoleKey } = env;
+  const { supabaseUrl, serviceRoleKey, internalKey } = env;
   const base = `${supabaseUrl}/rest/v1`;
   const restHeaders = {
     apikey:        serviceRoleKey,
@@ -82,11 +84,11 @@ export async function GET(req: NextRequest) {
       totalOrdenes, ordenesHoy, ordenesPagadas, ordenesCompletadas, ordenesError,
       totalLecturas, lecturasHoy,
       totalPdfs, pdfsHoy,
-      totalClientes,
       cVisitas, cProducto, cCheckout, cPagos,
       cLecturaOk, cPdfOk, cWaOk,
       cLecturaFail, cPdfFail, cWaFail,
       cReclamosTotal, cReclamosAbiertos,
+      resumenClientes,
     ] = await Promise.all([
       // Métricas existentes (sin cambios)
       countTable(base, "tarot_ordenes", "", restHeaders),
@@ -101,7 +103,6 @@ export async function GET(req: NextRequest) {
       // pero que el pipeline actual nunca escribe — filtrar por él da 0 siempre.
       countTable(base, "tarot_pdfs", "estado=eq.listo", restHeaders),
       countTable(base, "tarot_pdfs", `estado=eq.listo&created_at=gte.${hoyISO}`, restHeaders),
-      countTable(base, "tarot_clientes", "", restHeaders),
       // Funnel de validación — conteos de funnel_events
       countTable(base, "funnel_events", funnelFilter("landing_viewed",        cutoffISO), restHeaders),
       countTable(base, "funnel_events", funnelFilter("product_viewed",         cutoffISO), restHeaders),
@@ -116,7 +117,22 @@ export async function GET(req: NextRequest) {
       // Reclamos desde tarot_ordenes — filtrados por período (igual que UTM y funnel)
       countTable(base, "tarot_ordenes", `has_complaint=eq.true&created_at=gte.${cutoffISO}`, restHeaders),
       countTable(base, "tarot_ordenes", `has_complaint=eq.true&follow_up_status=is.null&created_at=gte.${cutoffISO}`, restHeaders),
+      // Clientes únicos / recurrentes — fuente canónica única (Regla 3),
+      // ver lib/tarotClientesUnicos.ts y docs/product/DECISIONS.md 2026-08-22.
+      // clientes_unicos_total y clientes_recurrentes_historico son históricos
+      // (no dependen del período), el "periodo" acá solo se pasa por
+      // consistencia con el resto del endpoint.
+      fetchResumenClientesUnicos({ supabaseUrl, internalKey, serviceRoleKey, periodo: periodoDias }),
     ]);
+
+    if (!resumenClientes.ok) {
+      return NextResponse.json(
+        { ok: false, motivo: "clientes_unicos_error", detalle: resumenClientes.detalle ?? resumenClientes.motivo },
+        { status: 502 },
+      );
+    }
+    const totalClientes = resumenClientes.resumen.clientes_unicos_total;
+    const clientesRecurrentes = resumenClientes.resumen.clientes_recurrentes_historico;
 
     // ── UTM: fuente autoritativa = columnas de tarot_ordenes ─────────────
     // No usamos funnel_events.metadata para UTM — la orden tiene los valores nativamente.
@@ -150,22 +166,6 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.ventas - a.ventas)
       .slice(0, 10);
 
-    // ── Clientes recurrentes (histórico completo, sin filtro de período) ──
-    // Definición: clientes con más de una orden en tarot_ordenes (cualquier estado).
-    // Se mide históricamente porque un cliente que repitió siempre es relevante.
-    const { data: todasOrdenes } = await supabase
-      .from("tarot_ordenes")
-      .select("cliente_id");
-
-    let clientesRecurrentes = 0;
-    if (todasOrdenes && todasOrdenes.length > 0) {
-      const conteo = new Map<string, number>();
-      for (const o of todasOrdenes) {
-        if (o.cliente_id) conteo.set(o.cliente_id, (conteo.get(o.cliente_id) ?? 0) + 1);
-      }
-      clientesRecurrentes = Array.from(conteo.values()).filter((c) => c > 1).length;
-    }
-
     // ── Respuesta ─────────────────────────────────────────────────────────
     return NextResponse.json({
       ok: true,
@@ -179,6 +179,10 @@ export async function GET(req: NextRequest) {
       },
       lecturas: { total: totalLecturas, hoy: lecturasHoy },
       pdfs:     { total: totalPdfs,     hoy: pdfsHoy     },
+      // clientes.total: hasta 2026-08-21 era un COUNT crudo de tarot_clientes
+      // (registros, no personas). Desde 2026-08-22 es clientes_unicos_total
+      // de la fuente canónica de identidad — mismo shape de campo, valor
+      // corregido. Ver docs/product/DECISIONS.md 2026-08-22.
       clientes: { total: totalClientes },
       // Campos nuevos S6
       funnel: {
