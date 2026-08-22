@@ -7,6 +7,9 @@ import Image from 'next/image';
 import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkles, MessageCircle } from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
+// Meta InitiateCheckout se dispara recién cuando existe una orden real creada
+// (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
+// 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -104,10 +107,13 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
 
   useEffect(() => {
     if (PRECIO_BASE === null) return; // sin precio verificado no reportamos analytics con un valor inventado
+    // GA4 begin_checkout / funnel_events checkout_started: "el usuario
+    // aterrizó en la página de checkout" (ver docstring de trackBeginCheckout
+    // en lib/analytics.ts) — semántica deliberada, distinta de Meta
+    // InitiateCheckout, no se cambia acá.
     import('@/lib/analytics').then(({ trackBeginCheckout }) => {
       trackBeginCheckout('tarot', PRECIO_BASE);
     });
-    metaInitiateCheckout(PRECIO_BASE);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -242,6 +248,13 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
             nombre: form.nombre.trim(),
           }));
         } catch { /* non-blocking */ }
+        // Meta InitiateCheckout: recién acá existe una orden real (con
+        // preferencia de Mercado Pago generada) — es el punto más cercano al
+        // inicio real del pago sin arriesgar reportar un intento que nunca
+        // llegó a ser una orden válida (ver docs/product/DECISIONS.md
+        // 2026-08-22). value = precioFinal (con descuento si se aplicó),
+        // igual criterio que usa Purchase más adelante con precio_cobrado.
+        metaInitiateCheckout(precioFinal ?? 0);
         window.location.href = data.init_point;
       } else {
         throw new Error('No se recibió la URL de pago.');
