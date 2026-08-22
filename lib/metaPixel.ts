@@ -23,9 +23,31 @@ declare global {
   }
 }
 
+// NEXT_PUBLIC_* se inlinea en build time — disponible en cualquier módulo
+// cliente sin prop-drilling. Mismo valor que ya lee app/layout.tsx para
+// decidir si monta <MetaPixel>.
+const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+
+/**
+ * Confirmado en producción (2026-08-22, evidencia real de Meta Test
+ * Events): todos los eventos disparados vía fbq() — no solo PageView,
+ * también InitiateCheckout con params por lo demás correctos — llegaban a
+ * Meta con la URL de la primera página cargada en la sesión (ej. "/"),
+ * nunca con la URL real donde el evento ocurrió. Causa: el Pixel de Meta
+ * fija su contexto de página (URL) al momento de fbq('init', ...), que en
+ * una SPA solo se ejecuta una vez (el snippet base no vuelve a correr en
+ * navegación client-side) — y no lo refresca solo. Re-invocar
+ * fbq('init', pixelId) con el MISMO Pixel ID es idempotente para Meta (no
+ * crea una instancia ni un evento duplicado — documentado así por Meta,
+ * es el mecanismo estándar para múltiples inits del mismo pixel) y fuerza
+ * a releer document.location antes de cada evento. Se hace acá, en el
+ * único punto por el que pasan todos los track() de nuestro código, en
+ * vez de en cada call site — una sola implementación, no un wrapper nuevo.
+ */
 function fbqCall(...args: unknown[]): void {
   try {
     if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+      if (PIXEL_ID) window.fbq('init', PIXEL_ID);
       window.fbq(...args);
     }
   } catch { /* best-effort */ }
