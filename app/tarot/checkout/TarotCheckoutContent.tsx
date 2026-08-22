@@ -217,6 +217,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       utm_medium:        attribution?.utm_medium   ?? null,
       utm_campaign:      attribution?.utm_campaign ?? null,
       utm_content:       attribution?.utm_content  ?? null,
+      utm_term:          attribution?.utm_term     ?? null,
       funnel_session_id: getOrCreateSessionId() || null,
     };
 
