@@ -1,6 +1,17 @@
 ﻿import { NextResponse } from 'next/server';
 
-const APPROVED_ESTADOS = new Set(['pago_confirmado', 'lectura_generada', 'pdf_listo', 'enviado']);
+// Mismo set que ESTADOS_PAGADO en /api/admin/tarot/metricas, /adquisicion y
+// ef_tarot_admin_clientes_unicos — una orden "pagada" es la que llegó al
+// menos a pago_confirmado. Corregido 2026-08-22: antes tenía nombres de
+// estado que nunca existieron ('lectura_generada', 'enviado' — los reales
+// son 'lectura_lista'/'generando_lectura' y 'entregado') y le faltaban la
+// mayoría de los estados reales del pipeline, por lo que canFirePurchase
+// quedaba en false para la mayoría de las compras reales — ver
+// docs/product/DECISIONS.md 2026-08-22 ("Meta Pixel + conversión").
+const APPROVED_ESTADOS = new Set([
+  'pago_confirmado', 'generando_lectura', 'lectura_lista',
+  'generando_pdf', 'pdf_listo', 'enviando_whatsapp', 'entregado',
+]);
 const APPROVED_MP      = new Set(['approved', 'authorized', 'active']);
 
 export async function POST(req: Request) {
@@ -21,7 +32,11 @@ export async function POST(req: Request) {
 
     if (external_reference) {
       const fetchRes = await fetch(
-        `${supabaseUrl}/rest/v1/tarot_ordenes?external_reference=eq.${encodeURIComponent(external_reference)}&select=id,estado,precio_final,moneda,analytics_purchase_sent_at&limit=1`,
+        // precio_cobrado es la columna real de tarot_ordenes — hasta 2026-08-22
+        // esto pedía "precio_final", una columna que nunca existió, por lo que
+        // esta consulta fallaba con un error de PostgREST y `orden` siempre
+        // quedaba null (ver DECISIONS.md 2026-08-22).
+        `${supabaseUrl}/rest/v1/tarot_ordenes?external_reference=eq.${encodeURIComponent(external_reference)}&select=id,estado,precio_cobrado,moneda,analytics_purchase_sent_at&limit=1`,
         { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
       );
       const rows = await fetchRes.json().catch(() => []);
@@ -29,7 +44,7 @@ export async function POST(req: Request) {
 
       if (orden) {
         ordenId         = orden.id;
-        purchaseValue   = orden.precio_final ?? null;
+        purchaseValue   = orden.precio_cobrado ?? null;
         purchaseCurrency = orden.moneda ?? 'UYU';
 
         const isApproved = APPROVED_ESTADOS.has(orden.estado ?? '') || APPROVED_MP.has((mp_status ?? '').toLowerCase());

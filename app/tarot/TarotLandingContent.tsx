@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ShieldCheck, Clock, MessageCircle, FileText, Zap, ChevronDown } from 'lucide-react';
 import { trackViewItem, trackLandingViewed } from '@/lib/analytics';
+import { metaViewContent } from '@/lib/metaPixel';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.68)';
@@ -257,6 +258,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
   useEffect(() => {
     trackViewItem('tarot', precioUYU ?? undefined);
     trackLandingViewed('tarot');
+    metaViewContent(precioUYU ?? undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

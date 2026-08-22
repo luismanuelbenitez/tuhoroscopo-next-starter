@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { trackPurchase } from "@/lib/analytics";
+import { metaPurchase } from "@/lib/metaPixel";
 import confetti from "canvas-confetti";
 import { Loader2, Layers, Eye, Lightbulb, FileText } from "lucide-react";
 
@@ -76,6 +77,14 @@ export default function TarotEstadoContent() {
             productKey:    "tarot",
             value:         data.value,
             currency:      data.currency ?? "UYU",
+          });
+          // Mismo gate server-side que GA4 arriba — nunca se dispara por
+          // haber llegado a esta URL, solo cuando el servidor ya confirmó
+          // que existe una compra válida y no reportada antes.
+          metaPurchase({
+            eventId:  data.transaction_id,
+            value:    data.value,
+            currency: data.currency ?? "UYU",
           });
         }
       } catch { /* best-effort, no bloquea la UI */ }

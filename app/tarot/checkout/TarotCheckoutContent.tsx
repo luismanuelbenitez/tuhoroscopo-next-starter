@@ -6,6 +6,7 @@ import ReactCountryFlag from 'react-country-flag';
 import Image from 'next/image';
 import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkles, MessageCircle } from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
+import { metaInitiateCheckout } from '@/lib/metaPixel';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.70)';
@@ -106,6 +107,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
     import('@/lib/analytics').then(({ trackBeginCheckout }) => {
       trackBeginCheckout('tarot', PRECIO_BASE);
     });
+    metaInitiateCheckout(PRECIO_BASE);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

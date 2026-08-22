@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import { MetaPixel } from "@/components/MetaPixel";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuoraculo.uy"),
@@ -46,6 +47,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {!isAdmin && <Footer />}
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+        )}
+        {process.env.NEXT_PUBLIC_META_PIXEL_ID && (
+          <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} />
         )}
       </body>
     </html>
