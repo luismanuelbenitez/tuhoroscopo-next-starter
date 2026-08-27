@@ -317,6 +317,13 @@ function fitFontSize(
   return size;
 }
 
+// Reduce el tamaño hasta el piso "visualmente aceptable" (minSize) — igual
+// que antes, el comportamiento esperado en el caso normal. Si ni siquiera
+// ahí entra (texto generado más largo de lo esperado pese al límite del
+// prompt), sigue reduciendo por debajo de minSize hasta que entre de
+// verdad — nunca devuelve un tamaño que vaya a dejar texto cortado. Este
+// segundo tramo es un fallback de emergencia, no el resultado esperado
+// (ver docs/product/DECISIONS.md 2026-08-26).
 function fitTextToBox(
   text: string,
   font: PDFFont,
@@ -327,15 +334,39 @@ function fitTextToBox(
   lineHeightRatio = 1.45,
 ): number {
   const s = sanitize(text);
+  const cabe = (size: number) => {
+    const lh = size * lineHeightRatio;
+    return wrapText(s, font, size, maxW).length * lh <= maxH;
+  };
   let size = maxSize;
   while (size > minSize) {
-    const lh    = size * lineHeightRatio;
-    const lines = wrapText(s, font, size, maxW);
-    const totalH = lines.length * lh;
-    if (totalH <= maxH) return size;
+    if (cabe(size)) return size;
     size -= 0.5;
   }
-  return minSize;
+  if (cabe(minSize)) return minSize;
+  size = minSize;
+  const ABSOLUTE_FLOOR = 3.0;
+  while (size > ABSOLUTE_FLOOR) {
+    size -= 0.5;
+    if (cabe(size)) return size;
+  }
+  return ABSOLUTE_FLOOR;
+}
+
+// Calcula cuánto espacio vertical sobrante queda dentro de un área ya
+// definida (topY/botY, coordenadas PDF) una vez elegido el tamaño de
+// fuente — para poder arrancar a dibujar más abajo y que el bloque quede
+// centrado verticalmente, sin mover ni redimensionar el área en sí.
+// Usa el mismo modelo de altura (lines * lh) que ya usa fitTextToBox, para
+// que "cuánto ocupa el texto" sea siempre la misma cuenta en todo el archivo.
+function verticalCenterOffset(
+  text: string, font: PDFFont, size: number, maxW: number,
+  lh: number, topY: number, botY: number,
+): number {
+  const lines  = wrapText(sanitize(text), font, size, maxW).length;
+  const blockH = lines * lh;
+  const boxH   = topY - botY;
+  return Math.max(0, boxH - blockH) / 2;
 }
 
 // ── Helpers de imagen ────────────────────────────────────────
@@ -669,11 +700,17 @@ function addPage2(
     const afterName = drawWrapped(p, cardLine,
       textX, nameDrawY, f.bita, nameSize, C_DARK_BROWN, textMaxW, nameLH, nameDrawY - 16);
 
-    // Interpretación — Helvetica, máxima legibilidad
+    // Interpretación — Helvetica, máxima legibilidad.
+    // Piso visual bajado de 7.5 a 6.5pt (2026-08-26): medido con las
+    // dimensiones reales de este bloque, 70 palabras (el límite de
+    // generación vigente hasta esa fecha) necesitaba 6.25pt para entrar —
+    // ya no cabía ni al piso anterior. fitTextToBox ahora además nunca deja
+    // texto cortado: si ni con este piso entra, sigue reduciendo (ver su
+    // definición) en vez de cortar la interpretación.
     const interp      = sanitize(carta.interpretacion ?? "");
     const LH_INTERP   = 1.40;
     const boxH        = (afterName - 6) - textMinY - 4;
-    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 10.0, 7.5, LH_INTERP);
+    const interpSize  = fitTextToBox(interp, f.reg, textMaxW, boxH, 10.0, 6.5, LH_INTERP);
     const interpLH    = interpSize * LH_INTERP;
     const afterInterp = drawWrapped(p, interp,
       textX, afterName - 6, f.reg, interpSize, C_BODY, textMaxW, interpLH, textMinY);
@@ -711,32 +748,50 @@ function addPage3(
 
   const L = P3;
 
+  // Buffers de seguridad (2026-08-26): QA con textos deliberadamente largos
+  // detectó que el minY declarado de "resumen" y "mensajeFinal" es más
+  // generoso que el espacio real disponible en el arte del template antes
+  // de la franja quemada del título de la siguiente sección — medido por
+  // muestreo de píxeles de summary-bg.jpg (ver docs/product/DECISIONS.md).
+  // Solo afecta el cálculo de fit/centrado/dibujo de ESTE archivo — el
+  // minY declarado en P3 (arriba) permanece sin cambios.
+  const RESUMEN_SAFE_BOTTOM_BUFFER_PX  = 100;
+  const MENSAJE_SAFE_BOTTOM_BUFFER_PX  = 110;
+
   // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
   const resumenMaxW  = pX(L.resumen.width);
   const resumenTopY  = pY(L.resumen.yStart);
-  const resumenBotY  = pY(L.resumen.minY);
+  const resumenBotY  = pY(L.resumen.minY - RESUMEN_SAFE_BOTTOM_BUFFER_PX);
   const resumenMaxS  = pX(L.resumen.fontSize);
   const LH_RESUMEN   = 1.40;
   const resumenSize  = fitTextToBox(resumenText, f.reg,
     resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
-  const resumenDrawY = resumenTopY - resumenSize * 0.75;
+  // Centrado vertical dentro del mismo área (resumenTopY/resumenBotY sin
+  // cambios) — no mueve ni redimensiona el bloque, solo dónde arranca el texto.
+  const resumenOffset = verticalCenterOffset(resumenText, f.reg, resumenSize,
+    resumenMaxW, resumenSize * LH_RESUMEN, resumenTopY, resumenBotY);
+  const resumenDrawY = resumenTopY - resumenOffset - resumenSize * 0.75;
   drawWrapped(p, resumenText,
     pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, C_BODY,
     resumenMaxW, resumenSize * LH_RESUMEN, resumenBotY);
 
-  // Box 2 — Mensaje personal: cursiva con color ciruela cálido — momento emocional de cierre
+  // Box 2 — Mensaje personal: misma tipografía que "Resumen de tu Tirada"
+  // (f.reg — antes f.ita) para coherencia visual entre ambos bloques.
+  // Color ciruela cálido sin cambios — momento emocional de cierre.
   const mensajeText  = sanitize(c.mensaje_final ?? "");
   const mensajeMaxW  = pX(L.mensajeFinal.width);
   const mensajeTopY  = pY(L.mensajeFinal.yStart);
-  const mensajeBotY  = pY(L.mensajeFinal.minY);
+  const mensajeBotY  = pY(L.mensajeFinal.minY - MENSAJE_SAFE_BOTTOM_BUFFER_PX);
   const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
   const LH_MENSAJE   = 1.45;
-  const mensajeSize  = fitTextToBox(mensajeText, f.ita,
+  const mensajeSize  = fitTextToBox(mensajeText, f.reg,
     mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
-  const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;
+  const mensajeOffset = verticalCenterOffset(mensajeText, f.reg, mensajeSize,
+    mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeTopY, mensajeBotY);
+  const mensajeDrawY = mensajeTopY - mensajeOffset - mensajeSize * 0.75;
   drawWrapped(p, mensajeText,
-    pX(L.mensajeFinal.x), mensajeDrawY, f.ita, mensajeSize, C_MENSAJE,
+    pX(L.mensajeFinal.x), mensajeDrawY, f.reg, mensajeSize, C_MENSAJE,
     mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeBotY);
 
   // Box 3 — Claves prácticas: bold para máxima escaneabilidad y contraste narrativo
@@ -752,7 +807,9 @@ function addPage3(
     const LH_PASO   = 1.35;
     const pasoSize  = fitTextToBox(pasoTxt, f.claves,
       pasoMaxW, pasoTopY - pasoBotY - 8.5 * 0.75, 8.5, 7.0, LH_PASO);
-    const pasoDrawY = pasoTopY - pasoSize * 0.75;
+    const pasoOffset = verticalCenterOffset(pasoTxt, f.claves, pasoSize,
+      pasoMaxW, pasoSize * LH_PASO, pasoTopY, pasoBotY);
+    const pasoDrawY = pasoTopY - pasoOffset - pasoSize * 0.75;
     drawWrapped(p, pasoTxt,
       pX(pp.x), pasoDrawY, f.claves, pasoSize, C_DARK_BROWN,
       pasoMaxW, pasoSize * LH_PASO, pasoBotY);
@@ -813,8 +870,8 @@ async function resolveDeck(slug: string | null, ordenId: string): Promise<{
 // ── Fuentes: StandardFonts (pdf-lib built-in) ───────────────
 // Jerarquía v7.3:
 //   bold   = TimesRomanBold      — P1 título/fecha
-//   reg    = Helvetica           — P2 interpretación, P3 resumen (máxima legibilidad)
-//   ita    = TimesRomanItalic    — P2 consejo, P3 mensaje personal (carácter editorial)
+//   reg    = Helvetica           — P2 interpretación, P3 resumen, P3 mensaje personal (máxima legibilidad, coherencia entre bloques — 2026-08-26)
+//   ita    = TimesRomanItalic    — P2 consejo (carácter editorial)
 //   bita   = TimesRomanBoldItalic— P2 nombre de carta (identidad/mística)
 //   claves = HelveticaBold       — P3 claves prácticas (escaneabilidad)
 async function loadFonts(pdfDoc: PDFDocument): Promise<Fonts> {
@@ -827,8 +884,8 @@ async function loadFonts(pdfDoc: PDFDocument): Promise<Fonts> {
   ]);
   return {
     bold:   timBold,    // P1 título/fecha
-    reg:    helvReg,    // P2 interpretación, P3 resumen
-    ita:    timIta,     // P2 consejo, P3 mensaje personal
+    reg:    helvReg,    // P2 interpretación, P3 resumen, P3 mensaje personal
+    ita:    timIta,     // P2 consejo
     bita:   timBoldIta, // P2 nombre de carta
     claves: helvBold,   // P3 claves prácticas
   };
