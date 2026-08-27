@@ -758,10 +758,27 @@ function addPage3(
   const RESUMEN_SAFE_BOTTOM_BUFFER_PX  = 100;
   const MENSAJE_SAFE_BOTTOM_BUFFER_PX  = 110;
 
+  // Extensiones de seguridad hacia ARRIBA (2026-08-27): el centrado vertical
+  // usaba yStart como techo del área útil, pero yStart cae bien por debajo
+  // del borde real del panel — hay espacio de pergamino real sin usar entre
+  // el borde superior del recuadro (debajo de la placa del título) y yStart.
+  // Medido por el mismo método de muestreo de píxeles de summary-bg.jpg,
+  // esta vez escaneando desde el techo de página hacia abajo por una columna
+  // lateral (x=200 y x=2280 ref, lejos del texto de la placa) para encontrar
+  // dónde termina realmente la placa/sombra y empieza el pergamino del
+  // recuadro. Sin esto, verticalCenterOffset() reparte el sobrante dentro de
+  // un área ya recortada por arriba — el resultado queda centrado dentro de
+  // ESA área, pero visualmente por debajo del centro óptico real del panel.
+  // Igual que los buffers de abajo: solo afecta el cálculo interno, no toca
+  // el yStart declarado en P3.
+  const RESUMEN_SAFE_TOP_EXTENSION_PX  = 108; // techo real medido ≈ref 662px (159pt); yStart=780px → 118px libres, uso 108 (cushion ~10px)
+  const MENSAJE_SAFE_TOP_EXTENSION_PX  = 137; // techo real medido ≈ref 1413px (339pt); yStart=1560px → 147px libres, uso 137 (cushion ~10px)
+  const CLAVES_PASO1_SAFE_TOP_EXTENSION_PX = 95; // techo real medido ≈ref 2045px (491pt); paso1.y=2150px → 105px libres, uso 95 (cushion ~10px). Solo paso1 está pegado al encabezado; paso2/paso3 ya miden bien.
+
   // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
   const resumenMaxW  = pX(L.resumen.width);
-  const resumenTopY  = pY(L.resumen.yStart);
+  const resumenTopY  = pY(L.resumen.yStart - RESUMEN_SAFE_TOP_EXTENSION_PX);
   const resumenBotY  = pY(L.resumen.minY - RESUMEN_SAFE_BOTTOM_BUFFER_PX);
   const resumenMaxS  = pX(L.resumen.fontSize);
   const LH_RESUMEN   = 1.40;
@@ -781,7 +798,7 @@ function addPage3(
   // Color ciruela cálido sin cambios — momento emocional de cierre.
   const mensajeText  = sanitize(c.mensaje_final ?? "");
   const mensajeMaxW  = pX(L.mensajeFinal.width);
-  const mensajeTopY  = pY(L.mensajeFinal.yStart);
+  const mensajeTopY  = pY(L.mensajeFinal.yStart - MENSAJE_SAFE_TOP_EXTENSION_PX);
   const mensajeBotY  = pY(L.mensajeFinal.minY - MENSAJE_SAFE_BOTTOM_BUFFER_PX);
   const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
   const LH_MENSAJE   = 1.45;
@@ -802,7 +819,11 @@ function addPage3(
     const pp        = L.proximosPasos[i];
     const pasoTxt   = sanitize(paso);
     const pasoMaxW  = pX(pp.width);
-    const pasoTopY  = pY(pp.y);
+    // Solo paso1 está pegado al encabezado "Claves prácticas para tu camino"
+    // y necesita la misma extensión hacia arriba que resumen/mensaje.
+    // paso2/paso3 ya miden bien contra su propio espacio real (sin extensión).
+    const pasoTopExt = i === 0 ? CLAVES_PASO1_SAFE_TOP_EXTENSION_PX : 0;
+    const pasoTopY  = pY(pp.y - pasoTopExt);
     const pasoBotY  = pY(pp.minY);
     const LH_PASO   = 1.35;
     const pasoSize  = fitTextToBox(pasoTxt, f.claves,
