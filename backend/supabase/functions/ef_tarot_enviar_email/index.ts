@@ -281,14 +281,23 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     }];
   }
 
-  // 6.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs)
-  const { count: previosCount } = await supabase
-    .from("tarot_envios_email")
-    .select("*", { count: "exact", head: true })
-    .eq("orden_id", ordenId);
-  const numeroIntento = (previosCount ?? 0) + 1;
+  // 6.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs).
+  // La constraint UNIQUE(orden_id, numero_intento) en tarot_envios_email es la
+  // protección REAL contra duplicados por carrera — el chequeo de "enCurso" de
+  // arriba (3.b) cubre el caso común pero, al no ser atómico contra el INSERT,
+  // dos requests casi simultáneas pueden pasarlo ambas (confirmado con una
+  // carrera real en QA: dos envíos concurrentes llegaron a mandar dos emails
+  // reales antes de que existiera esta constraint). Con la constraint, la
+  // segunda request en llegar falla acá con unique_violation (23505) — se
+  // aborta ANTES de llamar a Resend, en vez de reintentar con otro número
+  // (reintentar podría volver a chocar contra otra carrera y no aporta nada:
+  // el pedido original de "enviar por email" ya está en curso en la otra request).
+  const numeroIntentoBase = (
+    await supabase.from("tarot_envios_email").select("*", { count: "exact", head: true }).eq("orden_id", ordenId)
+  ).count ?? 0;
+  const numeroIntento = numeroIntentoBase + 1;
 
-  const { data: envioEmail } = await supabase
+  const { data: envioEmail, error: errInsertEnvio } = await supabase
     .from("tarot_envios_email")
     .insert({
       orden_id: ordenId,
@@ -303,6 +312,16 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     })
     .select("id")
     .single();
+
+  if (errInsertEnvio) {
+    const esCarrera = errInsertEnvio.code === "23505"; // unique_violation
+    await log(ordenId, "email_envio_en_curso", "warning",
+      esCarrera
+        ? "Carrera de envío detectada por constraint única — otra request ya está procesando este envío"
+        : "No se pudo registrar el intento de envío — se aborta sin llamar a Resend",
+      { error: errInsertEnvio.message, codigo: errInsertEnvio.code });
+    return { ok: false, motivo: esCarrera ? "envio_en_curso" : "error_registro_envio" };
+  }
 
   // 7. Enviar
   const res = await fetch("https://api.resend.com/emails", {
