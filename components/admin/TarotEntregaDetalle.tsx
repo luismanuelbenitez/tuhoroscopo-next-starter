@@ -118,6 +118,8 @@ export function TarotEntregaDetalle({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [solicitarCanal, setSolicitarCanal] = useState<"whatsapp" | "email" | null>(null);
   const [solicitudMsg, setSolicitudMsg] = useState<string | null>(null);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [envioEmailMsg, setEnvioEmailMsg] = useState<string | null>(null);
 
   function cargar() {
     setCargando(true);
@@ -136,6 +138,27 @@ export function TarotEntregaDetalle({
 
   useEffect(cargar, [ordenId]);
 
+  // Envío directo (sin solicitud/autorización) — solo válido cuando el canal
+  // nunca tuvo ningún intento. Reusa exclusivamente el endpoint canónico;
+  // no envía el email desde el frontend.
+  function enviarEmailDirecto() {
+    if (enviandoEmail) return; // guarda de doble clic en el propio botón
+    setEnviandoEmail(true);
+    setEnvioEmailMsg(null);
+    fetch(`/api/admin/tarot/entregas/${ordenId}/enviar-email`, { method: "POST" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok) {
+          setEnvioEmailMsg(`Email enviado a ${json.email}.`);
+        } else {
+          setEnvioEmailMsg(`No se pudo enviar: ${json.motivo ?? "error desconocido"}${json.detalle ? ` — ${json.detalle}` : ""}`);
+        }
+        cargar();
+      })
+      .catch(() => setEnvioEmailMsg("Error de red al enviar."))
+      .finally(() => setEnviandoEmail(false));
+  }
+
   const waEtiquetado = etiquetarHistorial(wa, (e) => ESTADOS_EXITOSOS_WA.has(e));
   const emailEtiquetado = etiquetarHistorial(email, (e) => ESTADOS_EXITOSOS_EMAIL.has(e));
 
@@ -143,7 +166,6 @@ export function TarotEntregaDetalle({
   const ultimoEmail = email[0] ?? null;
 
   const waExitoso = ultimoWa != null && ESTADOS_EXITOSOS_WA.has(ultimoWa.estado);
-  const emailExitoso = ultimoEmail != null && ESTADOS_EXITOSOS_EMAIL.has(ultimoEmail.estado);
 
   const solicitudPendienteWa = solicitudes.some(s => s.canal === "whatsapp" && (s.estado === "pendiente_autorizacion" || s.estado === "autorizada"));
   const solicitudPendienteEmail = solicitudes.some(s => s.canal === "email" && (s.estado === "pendiente_autorizacion" || s.estado === "autorizada"));
@@ -241,7 +263,16 @@ export function TarotEntregaDetalle({
                     Sin intentos todavía{orden.tarot_clientes?.email ? ` (destino configurado: ${orden.tarot_clientes.email})` : ""}.
                   </p>
                 )}
-                {emailExitoso && (
+                {emailAplica && email.length === 0 && (
+                  <button
+                    onClick={enviarEmailDirecto}
+                    disabled={enviandoEmail}
+                    className="mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-950/30 text-sky-300 hover:bg-sky-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send size={12} /> {enviandoEmail ? "Enviando…" : "Enviar por email"}
+                  </button>
+                )}
+                {email.length > 0 && (
                   solicitudPendienteEmail ? (
                     <p className="mt-2 text-xs text-amber-400">Ya hay una solicitud de reenvío en curso para Email.</p>
                   ) : (
@@ -249,9 +280,12 @@ export function TarotEntregaDetalle({
                       onClick={() => setSolicitarCanal("email")}
                       className="mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors"
                     >
-                      <Send size={12} /> Solicitar reenvío por Email
+                      <Send size={12} /> Reenviar por email
                     </button>
                   )
+                )}
+                {envioEmailMsg && (
+                  <p className="mt-2 text-xs text-gray-400">{envioEmailMsg}</p>
                 )}
               </div>
 

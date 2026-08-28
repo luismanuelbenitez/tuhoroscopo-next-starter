@@ -150,10 +150,22 @@ function buildHtml(opts: {
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 
-async function enviarEmail(ordenId: string, autorizacionId: string | null): Promise<void> {
+// Ventana de deduplicación para envíos concurrentes (doble clic / refresh /
+// retry simultáneo). No es un mecanismo de gobernanza nuevo — es una guarda
+// barata contra la carrera de dos requests que ambas pasan verificarPermisoEnvio()
+// casi al mismo tiempo (ninguna ve todavía el envío de la otra porque ninguna
+// terminó de insertar su fila). 30s cubre holgadamente el tiempo real de un
+// envío (fetch de PDF + Resend, normalmente 1-3s).
+const VENTANA_DEDUP_MS = 30_000;
+
+export type ResultadoEnvioEmail =
+  | { ok: true; estado: "enviado"; envioId: string; email: string; numeroIntento: number; esReenvio: boolean }
+  | { ok: false; motivo: string; detalle?: string };
+
+async function enviarEmail(ordenId: string, autorizacionId: string | null): Promise<ResultadoEnvioEmail> {
   if (!RESEND_API_KEY) {
     await log(ordenId, "email_sin_key", "warning", "RESEND_API_KEY no configurada — email omitido");
-    return;
+    return { ok: false, motivo: "sin_key" };
   }
 
   // 1. Orden
@@ -165,7 +177,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
 
   if (!orden) {
     await log(ordenId, "email_orden_no_encontrada", "error", "Orden no encontrada");
-    return;
+    return { ok: false, motivo: "orden_no_encontrada" };
   }
 
   // 1.b Gobernanza de entrega: único punto de decisión (_shared/tarot-entregas.ts).
@@ -178,7 +190,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
     await log(ordenId, "email_reenvio_bloqueado", "warning",
       `Envío bloqueado — ${permiso.motivo}`,
       { motivo: permiso.motivo, autorizacion_id: autorizacionId });
-    return;
+    return { ok: false, motivo: permiso.motivo };
   }
 
   // 2. Cliente
@@ -191,7 +203,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   if (!cliente?.email) {
     await log(ordenId, "email_sin_email_cliente", "info",
       "Cliente sin email — omitido", { cliente_id: orden.cliente_id });
-    return;
+    return { ok: false, motivo: "sin_email_cliente" };
   }
 
   // 3. PDF
@@ -206,7 +218,28 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
 
   if (!pdfRow?.storage_url) {
     await log(ordenId, "email_sin_pdf", "error", "No hay PDF listo para esta orden");
-    return;
+    return { ok: false, motivo: "sin_pdf" };
+  }
+
+  // 3.b Guarda anti-duplicado: si ya hay un envío en curso muy reciente para
+  // esta orden (carrera de doble clic / retry concurrente), no arrancar uno
+  // nuevo. verificarPermisoEnvio() ya autorizó este envío (no hay éxito previo),
+  // pero eso no dice nada sobre si OTRO request ya está procesando el mismo
+  // envío en paralelo — esta guarda es lo que evita ese duplicado.
+  const { data: enCurso } = await supabase
+    .from("tarot_envios_email")
+    .select("id, created_at")
+    .eq("orden_id", ordenId)
+    .eq("estado", "enviando")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (enCurso?.id && (Date.now() - new Date(enCurso.created_at).getTime()) < VENTANA_DEDUP_MS) {
+    await log(ordenId, "email_envio_en_curso", "warning",
+      "Ya hay un envío en curso para esta orden — se omite duplicado",
+      { envio_en_curso_id: enCurso.id });
+    return { ok: false, motivo: "envio_en_curso" };
   }
 
   // 4. Datos de presentación
@@ -302,7 +335,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
       error: `Resend respondió ${res.status}`,
       fecha: new Date().toISOString(),
     }).catch(() => {});
-    return;
+    return { ok: false, motivo: "resend_error", detalle: `Resend respondió ${res.status}` };
   }
 
   if (envioEmail?.id) {
@@ -318,6 +351,12 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   await log(ordenId, "email_enviado", "info",
     `Email enviado a ${cliente.email}${pdfBase64 ? " con PDF adjunto" : " (solo link)"}`,
     { email_id: resData?.id, email: cliente.email, pdf_adjunto: !!pdfBase64 });
+
+  return {
+    ok: true, estado: "enviado",
+    envioId: envioEmail?.id ?? "", email: cliente.email,
+    numeroIntento, esReenvio: permiso.esReenvio,
+  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -349,12 +388,35 @@ serve(async (req) => {
     ? body.autorizacion_id.trim()
     : null;
 
-  enviarEmail(ordenId, autorizacionId).catch(err => {
+  // CRÍTICO (2026-08-27): antes esto era `enviarEmail(...).catch(...)` SIN
+  // await, seguido de un `return` inmediato. Supabase Edge Runtime no
+  // garantiza que una tarea en segundo plano termine después de que la
+  // response ya fue devuelta — sin EdgeRuntime.waitUntil() (no usado en este
+  // proyecto), el runtime puede cortar la ejecución a mitad de camino. Eso
+  // causaba que ef_tarot_enviar_email nunca completara: cero filas en
+  // tarot_envios_email, cero logs, incluso en los primeros chequeos de la
+  // función. Confirmado empíricamente: ~10% de las órdenes con email
+  // configurado (2 de 19 en las últimas 2 semanas) terminaron con 0 intentos
+  // de email pese a canal_entrega_principal='both'. La misma clase de bug
+  // NO afecta a ef_tarot_enviar_whatsapp porque ese handler ya espera
+  // (`await`) todo su trabajo antes de responder — se replica exactamente
+  // ese patrón, ya probado, en vez de introducir un mecanismo nuevo.
+  let resultado: ResultadoEnvioEmail;
+  try {
+    resultado = await enviarEmail(ordenId, autorizacionId);
+  } catch (err) {
     console.error(`${FN} — error para orden ${ordenId}:`, err);
-  });
+    resultado = { ok: false, motivo: "error_inesperado", detalle: String(err) };
+  }
+
+  const status = resultado.ok
+    ? 200
+    : resultado.motivo === "envio_en_curso"
+      ? 409
+      : 200;
 
   return new Response(
-    JSON.stringify({ ok: true, mensaje: "Procesando envío de email" }),
-    { status: 202, headers: { "Content-Type": "application/json" } },
+    JSON.stringify(resultado),
+    { status, headers: { "Content-Type": "application/json" } },
   );
 });
