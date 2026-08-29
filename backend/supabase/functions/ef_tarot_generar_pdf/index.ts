@@ -921,7 +921,7 @@ async function generarPDF(
 
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, funnel_session_id, external_reference")
+    .select("id, estado, cliente_id, funnel_session_id, external_reference, email_solicitado")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -931,7 +931,7 @@ async function generarPDF(
     return;
   }
 
-  const LISTOS = new Set(["pdf_listo", "enviando_whatsapp", "entregado"]);
+  const LISTOS = new Set(["pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado"]);
   if (!force && LISTOS.has(orden.estado)) {
     await log(ordenId, "pdf_duplicado_ignorado", "info",
       "PDF ya listo - ignorando (usa force=true para regenerar)", { estado: orden.estado });
@@ -1229,11 +1229,18 @@ async function generarPDF(
       };
 
       const debeWa    = waActivo    && (canal === "whatsapp" || canal === "both");
-      const debeEmail = emailActivo && (canal === "email"    || canal === "both");
+      // La config global define qué canales están DISPONIBLES; la orden
+      // representa qué canal pidió el comprador para ESA compra. email_solicitado
+      // null = orden legacy (anterior al sprint de canales, 2026-08-29) — se
+      // conserva el comportamiento previo (solo config global) para no
+      // reinterpretar agresivamente órdenes que no declararon intención.
+      const emailBaseDisponible = emailActivo && (canal === "email" || canal === "both");
+      const emailSolicitadoOrden = (orden as { email_solicitado?: boolean | null }).email_solicitado ?? null;
+      const debeEmail = emailSolicitadoOrden === null ? emailBaseDisponible : (emailBaseDisponible && emailSolicitadoOrden);
 
       await log(ordenId, "entrega_config_leida", "info",
-        `Canal: ${canal} | WA: ${waActivo} | Email: ${emailActivo} | Fallback: ${fallbackMail}`,
-        { canal, wa_activo: waActivo, email_activo: emailActivo, fallback_email: fallbackMail });
+        `Canal: ${canal} | WA: ${waActivo} | Email: ${emailActivo} | Fallback: ${fallbackMail} | EmailSolicitado: ${emailSolicitadoOrden}`,
+        { canal, wa_activo: waActivo, email_activo: emailActivo, fallback_email: fallbackMail, email_solicitado_orden: emailSolicitadoOrden });
 
       if (!debeWa && !debeEmail) {
         await log(ordenId, "entrega_sin_canal_activo", "error",

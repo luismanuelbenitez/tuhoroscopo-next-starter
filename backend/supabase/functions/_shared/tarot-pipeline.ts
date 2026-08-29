@@ -98,6 +98,10 @@ export async function ejecutarPipelinePostCobro(
     .maybeSingle();
 
   // 3. Alerta nueva_venta (fire-and-forget — nunca bloquea el pipeline)
+  // mpPaymentId === null es la señal ya existente de "cobro manual, no
+  // Mercado Pago" (ver comentario en PipelinePostCobroParams) — se reusa acá
+  // para que la alerta no confunda un cobro manual de prueba/sandbox con una
+  // venta real (ver auditoría "Juan Felipe González", 2026-08-28).
   dispararAlerta(supabase, "nueva_venta", {
     ordenId,
     ordenRef:      externalReference ?? undefined,
@@ -105,6 +109,7 @@ export async function ejecutarPipelinePostCobro(
     importe:       String(monto ?? "—"),
     moneda:        moneda ?? "UYU",
     fecha:         ahora,
+    esCobroManual: mpPaymentId === null,
   }).catch(() => {});
 
   // 4. Analytics funnel_events

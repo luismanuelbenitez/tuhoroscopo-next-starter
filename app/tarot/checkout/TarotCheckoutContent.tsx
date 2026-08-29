@@ -62,6 +62,8 @@ const EMPTY: FormState = {
   pregunta: '',
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function telefonoValido(raw: string, pais: string): boolean {
   const digits = raw.replace(/\D/g, '');
   if (pais === 'UY') return /^09\d{7}$/.test(digits);
@@ -94,6 +96,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   const [pais, setPais]           = useState('UY');
   const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [emailSolicitado, setEmailSolicitado] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
   const [error, setError]                   = useState<string | null>(null);
 
@@ -188,6 +191,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       setError('Necesitás aceptar los Términos del servicio para continuar.');
       return;
     }
+    if (emailSolicitado && !EMAIL_RE.test(form.email.trim())) {
+      setError('Ingresá un email válido para recibir también tu lectura por ese medio.');
+      return;
+    }
     setError(null);
     setIsLoading(true);
 
@@ -210,6 +217,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       nombre_completo:  form.nombre.trim(),
       telefono:         phone,
       email:            form.email.trim() || null,
+      email_solicitado: emailSolicitado,
       fecha_nacimiento: form.fecha_nacimiento || null,
       tema:             form.tema,
       pregunta_usuario: form.pregunta.trim() || null,
@@ -398,10 +406,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                   )}
                 </div>
 
-                {/* Email (opcional) */}
+                {/* Email (opcional, requerido solo si se pide como canal) */}
                 <div>
                   <label htmlFor="email" className="block text-sm text-white/80 mb-1">
-                    Email <span className="text-white/35">(opcional — respaldo si algo falla con WhatsApp)</span>
+                    Email <span className="text-white/35">{emailSolicitado ? '(requerido — la pediste como canal extra)' : '(opcional)'}</span>
                   </label>
                   <input
                     id="email"
@@ -412,7 +420,18 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                     value={form.email}
                     onChange={handleChange}
                     disabled={isLoading}
+                    required={emailSolicitado}
                   />
+                  <label className="mt-2 flex items-start gap-2 text-xs text-white/60 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={emailSolicitado}
+                      onChange={e => setEmailSolicitado(e.target.checked)}
+                      disabled={isLoading}
+                      className="mt-0.5 accent-amber-400 shrink-0"
+                    />
+                    <span>También quiero recibir mi lectura por email</span>
+                  </label>
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}

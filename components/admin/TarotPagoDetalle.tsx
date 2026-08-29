@@ -10,6 +10,7 @@ const ESTADOS_YA_PROCESADOS = new Set([
   "pdf_listo",
   "enviando_whatsapp",
   "entregado",
+  "entregado_simulado",
 ]);
 
 const MOTIVOS = [

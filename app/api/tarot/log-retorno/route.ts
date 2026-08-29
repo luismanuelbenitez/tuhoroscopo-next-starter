@@ -10,7 +10,7 @@
 // docs/product/DECISIONS.md 2026-08-22 ("Meta Pixel + conversión").
 const APPROVED_ESTADOS = new Set([
   'pago_confirmado', 'generando_lectura', 'lectura_lista',
-  'generando_pdf', 'pdf_listo', 'enviando_whatsapp', 'entregado',
+  'generando_pdf', 'pdf_listo', 'enviando_whatsapp', 'entregado', 'entregado_simulado',
 ]);
 const APPROVED_MP      = new Set(['approved', 'authorized', 'active']);
 

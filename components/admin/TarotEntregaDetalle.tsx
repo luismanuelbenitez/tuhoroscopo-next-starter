@@ -17,6 +17,7 @@ interface EnvioEmail {
 }
 interface Orden {
   id: string; estado: string; external_reference: string | null; created_at: string;
+  email_solicitado: boolean | null;
   tarot_clientes?: { nombre_completo: string | null; telefono: string | null; email: string | null } | null;
 }
 interface Solicitud {
@@ -53,7 +54,16 @@ const ESTADO_CLS: Record<string, string> = {
   agotado_reintentos: "bg-red-900/50 text-red-300",
   enviando: "bg-amber-900/50 text-amber-300",
   pendiente: "bg-amber-900/50 text-amber-300",
+  simulado: "bg-violet-900/50 text-violet-300",
 };
+
+// "simulado" (WhatsApp en sandbox) nunca debe leerse como una entrega real —
+// ver auditoría "Juan Felipe González", 2026-08-28.
+function etiquetaEstado(estado: string): string {
+  if (estado === "simulado") return "Simulado (sandbox)";
+  if (estado === "agotado_reintentos") return "Reintentos agotados";
+  return estado;
+}
 
 function fmtFecha(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -176,7 +186,13 @@ export function TarotEntregaDetalle({
     ...email.map(e => ({ canal: "email" as const, ts: e.created_at, item: e })),
   ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
 
-  const emailAplica = !!orden?.tarot_clientes?.email || email.length > 0;
+  // Canal email: independiente del dato tarot_clientes.email (ver sección 4 de
+  // la tarea "Identidad + canales de entrega" — dato del cliente vs canal
+  // solicitado para ESTA orden). null = orden legacy, se conserva el
+  // comportamiento previo (aplica si el cliente tiene email).
+  const emailNoSolicitado = orden?.email_solicitado === false && email.length === 0;
+  const emailLegacySinDatos = (orden?.email_solicitado ?? null) === null && !orden?.tarot_clientes?.email && email.length === 0;
+  const emailAplica = !emailNoSolicitado && !emailLegacySinDatos;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -211,7 +227,7 @@ export function TarotEntregaDetalle({
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                     <MessageCircle size={13} className="text-emerald-400" /> WhatsApp
                   </h3>
-                  {ultimoWa && <Badge text={ultimoWa.estado} cls={ESTADO_CLS[ultimoWa.estado] ?? "bg-gray-800 text-gray-400"} />}
+                  {ultimoWa && <Badge text={etiquetaEstado(ultimoWa.estado)} cls={ESTADO_CLS[ultimoWa.estado] ?? "bg-gray-800 text-gray-400"} />}
                 </div>
                 {ultimoWa ? (
                   <>
@@ -247,8 +263,10 @@ export function TarotEntregaDetalle({
                   </h3>
                   {ultimoEmail && <Badge text={ultimoEmail.estado} cls={ESTADO_CLS[ultimoEmail.estado] ?? "bg-gray-800 text-gray-400"} />}
                 </div>
-                {!emailAplica ? (
-                  <p className="text-xs text-gray-600">El cliente no ingresó email — canal no aplica para esta orden.</p>
+                {emailNoSolicitado ? (
+                  <p className="text-xs text-gray-600">El comprador no pidió recibir la lectura por email en esta orden.</p>
+                ) : emailLegacySinDatos ? (
+                  <p className="text-xs text-gray-600">Orden anterior a este cambio, sin email registrado — no hay datos suficientes para saber si se solicitó.</p>
                 ) : ultimoEmail ? (
                   <>
                     <DataRow label="Destino" value={ultimoEmail.email_destino} />
@@ -346,7 +364,7 @@ export function TarotEntregaDetalle({
                         <div key={`${canal}-${item.id}`} className="flex items-center gap-2 text-xs py-1 border-b border-gray-800/40 last:border-0">
                           {canal === "whatsapp" ? <MessageCircle size={12} className="text-emerald-400 shrink-0" /> : <Mail size={12} className="text-sky-400 shrink-0" />}
                           <span className="font-mono text-gray-500 whitespace-nowrap">{fmtFecha(item.created_at)}</span>
-                          <Badge text={item.estado} cls={estadoCls} />
+                          <Badge text={etiquetaEstado(item.estado)} cls={estadoCls} />
                           {etiquetado?.etiqueta && <Badge text={etiquetado.etiqueta} cls={etiquetado.etiquetaCls} />}
                         </div>
                       );

@@ -102,7 +102,7 @@ async function logFunnelEvent(event: {
 
 // ── Tipos internos ─────────────────────────────────────────────
 interface ConfigMap { [key: string]: string }
-interface Orden     { id: string; estado: string; cliente_id: string; funnel_session_id: string | null; external_reference: string | null }
+interface Orden     { id: string; estado: string; cliente_id: string; funnel_session_id: string | null; external_reference: string | null; email_solicitado: boolean | null }
 interface Pdf       { id: string; storage_url: string | null }
 interface Cliente   { id: string; telefono: string; nombre_completo: string | null }
 interface Envio     { id: string; numero_intento: number; estado: string }
@@ -135,6 +135,7 @@ serve(async (req) => {
   let canalPrincipal = "both";
   let fallbackMail   = true;
   let emailActivo    = true;
+  let emailSolicitadoOrden: boolean | null = null;
 
   try {
     // ── 1. Configuración ────────────────────────────────────────
@@ -161,16 +162,18 @@ serve(async (req) => {
     // ── 2. Orden ─────────────────────────────────────────────────
     const { data: orden } = await supabase
       .from("tarot_ordenes")
-      .select("id, estado, cliente_id, funnel_session_id, external_reference")
+      .select("id, estado, cliente_id, funnel_session_id, external_reference, email_solicitado")
       .eq("id", ordenId)
       .maybeSingle() as { data: Orden | null };
 
     if (!orden) return json({ ok: false, error: "ORDEN_NO_ENCONTRADA" }, 404);
+    emailSolicitadoOrden = orden.email_solicitado ?? null;
 
-    // "entregado" se incluye para permitir reenvíos autorizados sobre una
-    // orden ya entregada — la autorización real la decide verificarPermisoEnvio()
-    // más abajo, este gate solo descarta estados que nunca deberían disparar un envío.
-    const ESTADOS_VALIDOS = new Set(["pdf_listo", "error_whatsapp", "entregado"]);
+    // "entregado"/"entregado_simulado" se incluyen para permitir reenvíos
+    // (autorizados, o reintentos sobre una simulación que nunca fue entrega
+    // real) — la autorización real la decide verificarPermisoEnvio() más
+    // abajo, este gate solo descarta estados que nunca deberían disparar un envío.
+    const ESTADOS_VALIDOS = new Set(["pdf_listo", "error_whatsapp", "entregado", "entregado_simulado"]);
     if (!ESTADOS_VALIDOS.has(orden.estado)) {
       await log(ordenId, "wa_estado_invalido", "warning",
         `Estado '${orden.estado}' no permite envío WhatsApp`);
@@ -360,23 +363,32 @@ serve(async (req) => {
     // ── 8. Actualizar resultado ────────────────────────────────────
     const tsNow = now();
     const durMs = Date.now() - t0;
+    // REGLA INNEGOCIABLE (auditoría "Juan Felipe González", 2026-08-28): una
+    // simulación de sandbox NUNCA es una entrega real. `simulado` distingue
+    // ambos casos en tarot_envios_whatsapp.estado y en tarot_ordenes.estado —
+    // antes ambos caminos escribían "enviado"/"entregado" sin distinción.
+    const simulado = waEsSandbox || bloqueadoPorNumero;
 
     if (envioOk) {
       await supabase.from("tarot_envios_whatsapp").update({
-        estado: "enviado",
+        estado: simulado ? "simulado" : "enviado",
         wa_message_id: waMessageId,
-        wa_status: "sent",
+        wa_status: simulado ? "simulado" : "sent",
         respuesta_raw: respuestaRaw,
         enviado_at: tsNow,
         updated_at: tsNow,
       }).eq("id", envio?.id);
 
+      // Una simulación deja la orden en un estado terminal propio
+      // ('entregado_simulado'), nunca en 'entregado' — ver regla arriba.
       await supabase.from("tarot_ordenes")
-        .update({ estado: "entregado", updated_at: tsNow }).eq("id", ordenId);
+        .update({ estado: simulado ? "entregado_simulado" : "entregado", updated_at: tsNow }).eq("id", ordenId);
 
-      await log(ordenId, "wa_enviado", "info",
-        `PDF entregado por WhatsApp en ${durMs}ms`,
-        { envio_id: envio?.id, wa_message_id: waMessageId, duracion_ms: durMs }, durMs);
+      await log(ordenId, simulado ? "wa_simulado" : "wa_enviado", "info",
+        simulado
+          ? `WhatsApp simulado (sandbox) en ${durMs}ms — NO es una entrega real`
+          : `PDF entregado por WhatsApp en ${durMs}ms`,
+        { envio_id: envio?.id, wa_message_id: waMessageId, duracion_ms: durMs, simulado }, durMs);
 
       if (!waEsSandbox && !bloqueadoPorNumero) {
         await logFunnelEvent({
@@ -391,7 +403,7 @@ serve(async (req) => {
         });
       }
 
-      return json({ ok: true, enviado: true, wa_message_id: waMessageId });
+      return json({ ok: true, enviado: !simulado, simulado, wa_message_id: waMessageId });
 
     } else {
       await supabase.from("tarot_envios_whatsapp").update({
@@ -436,7 +448,7 @@ serve(async (req) => {
         });
       }
 
-      if (intento >= maxReintentos && canalPrincipal === "whatsapp" && fallbackMail && emailActivo) {
+      if (intento >= maxReintentos && canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
         await log(ordenId, "entrega_fallback_email_despachado", "info",
           `Fallback a email por fallo definitivo de WA (intento ${intento}/${maxReintentos})`);
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
@@ -489,7 +501,7 @@ serve(async (req) => {
       fecha: new Date().toISOString(),
     }).catch(() => {});
 
-    if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo) {
+    if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
       await log(ordenId, "entrega_fallback_email_despachado", "info",
         "Fallback a email por excepción en ef_tarot_enviar_whatsapp");
       fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {

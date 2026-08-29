@@ -65,7 +65,7 @@ const PRECIO_INPUT_POR_MTOKEN = 3.0;
 const PRECIO_OUTPUT_POR_MTOKEN = 15.0;
 
 const ESTADOS_YA_COMPLETOS = new Set([
-  "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
+  "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado",
 ]);
 
 const ESTADOS_REINTENTABLES = new Set([

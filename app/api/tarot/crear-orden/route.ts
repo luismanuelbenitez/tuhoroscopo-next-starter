@@ -51,6 +51,7 @@ export async function POST(req: Request) {
       NOMBRE_REQUERIDO:            'El nombre es requerido.',
       TELEFONO_REQUERIDO:          'El teléfono es requerido.',
       TELEFONO_INVALIDO:           'El teléfono ingresado no es válido.',
+      EMAIL_REQUERIDO_PARA_CANAL_SOLICITADO: 'Ingresá un email válido para recibir también tu lectura por ese medio.',
       TERMINOS_NO_ACEPTADOS:       'Debés aceptar los términos.',
       CONFIGURACION_INCOMPLETA:    'Error de configuración del sistema. Contactá soporte.',
       ERROR_CREAR_CLIENTE:         'Error al registrar tus datos. Intentá de nuevo.',

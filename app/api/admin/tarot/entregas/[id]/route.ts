@@ -33,7 +33,7 @@ export async function GET(
   const h = restHeaders(serviceRoleKey);
 
   const ordenArr = await fetch(
-    `${supabaseUrl}/rest/v1/tarot_ordenes?id=eq.${ordenId}&select=id,estado,external_reference,created_at,cliente_id,tarot_clientes(nombre_completo,telefono,email)`,
+    `${supabaseUrl}/rest/v1/tarot_ordenes?id=eq.${ordenId}&select=id,estado,external_reference,created_at,cliente_id,email_solicitado,tarot_clientes(nombre_completo,telefono,email)`,
     { headers: h, cache: "no-store" },
   ).then((r) => (r.ok ? r.json().catch(() => []) : []));
   const orden = Array.isArray(ordenArr) && ordenArr.length > 0 ? ordenArr[0] : null;

@@ -37,6 +37,12 @@ export interface AlertaDatos {
   fecha?:         string;
   etapa?:         string;
   error?:         string;
+  // Solo aplica a tipo "nueva_venta": true cuando el pago fue confirmado
+  // manualmente por un admin (tarot_pagos.cobro_manual=true, sin
+  // mp_payment_id), no por un webhook real de Mercado Pago. Sin esto, un
+  // cobro manual de prueba/sandbox se ve idéntico a una venta real en la
+  // alerta — ver auditoría "Juan Felipe González", 2026-08-28.
+  esCobroManual?: boolean;
 }
 
 const ETAPA_LABEL: Record<AlertaTipo, string> = {
@@ -63,13 +69,14 @@ const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
 
 function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; mensaje: string } {
   switch (tipo) {
-    case "nueva_venta":
-      return {
-        titulo:  "Nueva venta",
-        mensaje: datos.clienteNombre
-          ? `${datos.clienteNombre} · ${datos.moneda ?? ""} ${datos.importe ?? "—"}`
-          : `${datos.moneda ?? ""} ${datos.importe ?? "—"}`,
-      };
+    case "nueva_venta": {
+      const base = datos.clienteNombre
+        ? `${datos.clienteNombre} · ${datos.moneda ?? ""} ${datos.importe ?? "—"}`
+        : `${datos.moneda ?? ""} ${datos.importe ?? "—"}`;
+      return datos.esCobroManual
+        ? { titulo: "Cobro manual confirmado", mensaje: `${base} (confirmado manualmente por un admin, no por Mercado Pago)` }
+        : { titulo: "Nueva venta", mensaje: base };
+    }
     case "error_generacion":
       return { titulo: "Error de generación",        mensaje: datos.error?.substring(0, 200) ?? "Sin detalle" };
     case "error_pdf":
@@ -105,18 +112,25 @@ function fmtFecha(iso?: string): string {
 }
 
 function htmlNuevaVenta(datos: AlertaDatos): string {
+  const titulo = datos.esCobroManual ? "🖊️ Cobro manual confirmado" : "💰 Nueva venta";
+  const estadoTxt = datos.esCobroManual
+    ? "🖊️ Estado: Confirmado manualmente por un admin (no es un pago de Mercado Pago)"
+    : "✅ Estado: Pago aprobado por Mercado Pago";
+  const estadoColor = datos.esCobroManual
+    ? "background:#3a2e05;border:1px solid #92640a;color:#fbbf24;"
+    : "background:#052e16;border:1px solid #166534;color:#4ade80;";
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#111;font-family:sans-serif;">
 <div style="max-width:560px;margin:32px auto;padding:28px;background:#1a1a1a;border-radius:10px;border:1px solid #2a2a2a;color:#e5e5e5;">
   <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tu Tirada — Alerta operativa</p>
-  <h2 style="margin:0 0 20px;font-size:20px;color:#fbbf24;">💰 Nueva venta</h2>
+  <h2 style="margin:0 0 20px;font-size:20px;color:#fbbf24;">${titulo}</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <tr><td style="padding:6px 0;color:#9ca3af;width:110px;">Cliente</td><td style="padding:6px 0;font-weight:600;">${datos.clienteNombre ?? "—"}</td></tr>
     <tr><td style="padding:6px 0;color:#9ca3af;">Importe</td><td style="padding:6px 0;font-weight:600;">${datos.moneda ?? ""}&nbsp;${datos.importe ?? "—"}</td></tr>
     <tr><td style="padding:6px 0;color:#9ca3af;">Fecha/hora</td><td style="padding:6px 0;">${fmtFecha(datos.fecha)}</td></tr>
     <tr><td style="padding:6px 0;color:#9ca3af;vertical-align:top;">Orden</td><td style="padding:6px 0;font-family:monospace;font-size:12px;color:#d1d5db;">${datos.ordenRef ?? datos.ordenId ?? "—"}</td></tr>
   </table>
-  <div style="margin-top:20px;padding:12px 16px;background:#052e16;border:1px solid #166534;border-radius:6px;">
-    <span style="font-size:13px;color:#4ade80;font-weight:600;">✅ Estado: Pago aprobado</span>
+  <div style="margin-top:20px;padding:12px 16px;border-radius:6px;${estadoColor}">
+    <span style="font-size:13px;font-weight:600;">${estadoTxt}</span>
   </div>
 </div></body></html>`;
 }
@@ -200,7 +214,7 @@ export async function dispararAlerta(
 
     // ── 4. Construir y enviar email ────────────────────────────────────────────
     const asunto = tipo === "nueva_venta"
-      ? "💰 Nueva venta — Tu Tirada"
+      ? (datos.esCobroManual ? "🖊️ Cobro manual confirmado — Tu Tirada" : "💰 Nueva venta — Tu Tirada")
       : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tu Tirada`;
     const html = tipo === "nueva_venta"
       ? htmlNuevaVenta(datos)

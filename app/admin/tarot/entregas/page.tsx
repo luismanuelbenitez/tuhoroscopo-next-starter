@@ -17,12 +17,12 @@ import { RechazarReenvioDialog } from "@/components/admin/RechazarReenvioDialog"
 
 interface CanalResumen {
   destino: string | null;
-  aplica: boolean;
   estado: string | null;
   intentos: number;
   ultimo_envio_at: string | null;
   es_reenvio_ultimo: boolean;
   tiene_reenvio_historico: boolean;
+  clasificacion: string; // "ok" | "error" | "en_curso" | "sin_intento" | "simulado" | "no_solicitado" | "legacy_sin_datos"
 }
 
 interface OrdenEntrega {
@@ -56,6 +56,7 @@ const ESTADO_GENERAL: Record<string, { label: string; cls: string }> = {
   parcial:   { label: "Parcial",   cls: "bg-amber-900/50 text-amber-300" },
   error:     { label: "Error",     cls: "bg-red-900/50 text-red-300" },
   enviando:  { label: "Enviando",  cls: "bg-amber-900/50 text-amber-300" },
+  simulado:  { label: "Simulado (sandbox)", cls: "bg-violet-900/50 text-violet-300" },
   pendiente: { label: "Pendiente", cls: "bg-gray-800 text-gray-400" },
 };
 
@@ -83,17 +84,30 @@ const ESTADO_CANAL_CLS: Record<string, string> = {
   agotado_reintentos: "bg-red-900/50 text-red-300",
   enviando: "bg-amber-900/50 text-amber-300",
   pendiente: "bg-amber-900/50 text-amber-300",
+  simulado: "bg-violet-900/50 text-violet-300",
+};
+
+// Estados sin intento real que la celda representa con texto simple en vez de
+// badge de color — "no_solicitado"/"legacy_sin_datos" nunca deben leerse como
+// un fallo (ver ef_tarot_admin_listar_entregas: nunca cuentan para "parcial").
+const SIN_INTENTO_LABEL: Record<string, string> = {
+  sin_intento: "Sin enviar",
+  no_solicitado: "No solicitado",
+  legacy_sin_datos: "Sin datos (orden anterior)",
 };
 
 function CanalCell({ icon, canal }: { icon: React.ReactNode; canal: CanalResumen }) {
-  if (!canal.aplica) {
-    return <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">{icon}<span>No aplica</span></span>;
+  const sinIntentoLabel = SIN_INTENTO_LABEL[canal.clasificacion];
+  if (sinIntentoLabel) {
+    return <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">{icon}<span>{sinIntentoLabel}</span></span>;
   }
   if (!canal.estado) {
     return <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">{icon}<span>Sin enviar</span></span>;
   }
   const cls = ESTADO_CANAL_CLS[canal.estado] ?? "bg-gray-800 text-gray-400";
-  const label = canal.estado === "agotado_reintentos" ? "Reintentos agotados" : canal.estado.charAt(0).toUpperCase() + canal.estado.slice(1);
+  const label = canal.estado === "agotado_reintentos" ? "Reintentos agotados"
+    : canal.estado === "simulado" ? "Simulado (sandbox)"
+    : canal.estado.charAt(0).toUpperCase() + canal.estado.slice(1);
   return (
     <span className="inline-flex items-center gap-1.5">
       {icon}
@@ -220,6 +234,7 @@ export default function TarotEntregasPage() {
                 <option value="parcial">Parcial</option>
                 <option value="error">Error</option>
                 <option value="enviando">Enviando</option>
+                <option value="simulado">Simulado (sandbox)</option>
                 <option value="pendiente">Pendiente</option>
               </select>
               <select

@@ -39,7 +39,7 @@ function getEnv() {
 // llegó al menos a pago_confirmado. Fuente única de este estado de negocio.
 const ESTADOS_PAGADO = [
   "pago_confirmado", "generando_lectura", "lectura_lista",
-  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
+  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado",
 ];
 
 const VALID_PERIODS = new Set([1, 7, 30, 90]);

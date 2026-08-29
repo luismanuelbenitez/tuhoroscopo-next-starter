@@ -32,6 +32,7 @@ const ESTADOS_YA_PROCESADOS = new Set([
   "pdf_listo",
   "enviando_whatsapp",
   "entregado",
+  "entregado_simulado",
 ]);
 
 // logFunnelEvent se mantiene aquí para los paths MP-específicos: rejected y pending

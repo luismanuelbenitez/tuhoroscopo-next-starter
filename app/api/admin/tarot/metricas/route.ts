@@ -52,7 +52,7 @@ const VALID_PERIODS = new Set([1, 7, 30, 90]);
 
 const ESTADOS_PAGADO = [
   "pago_confirmado", "generando_lectura", "lectura_lista",
-  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
+  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado",
 ];
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
     // ── Todas las counts en una sola ronda paralela ────────────────────────
     const [
       totalOrdenes, ordenesHoy, ordenesPagadas, ordenesCompletadas, ordenesError,
+      cobroManualPeriodo,
       totalLecturas, lecturasHoy,
       totalPdfs, pdfsHoy,
       cVisitas, cProducto, cCheckout, cPagos,
@@ -94,8 +95,19 @@ export async function GET(req: NextRequest) {
       countTable(base, "tarot_ordenes", "", restHeaders),
       countTable(base, "tarot_ordenes", `created_at=gte.${hoyISO}`, restHeaders),
       countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_PAGADO.join(",")})`, restHeaders),
-      countTable(base, "tarot_ordenes", "estado=eq.entregado", restHeaders),
+      // "Completadas" es una métrica de pipeline (llegó al final sin error),
+      // no de entrega real verificada — eso vive en /admin/tarot/entregas.
+      // Incluye entregado_simulado para no perder continuidad histórica del
+      // conteo mientras whatsapp_modo=sandbox (ver auditoría 2026-08-28).
+      countTable(base, "tarot_ordenes", "estado=in.(entregado,entregado_simulado)", restHeaders),
       countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_ERR})`, restHeaders),
+      // Visibilidad de cobros manuales dentro del período — "ordenesPagadas"
+      // y "ventasPorUtm" NO los excluyen (siguen tratándose como pipeline
+      // pagado, sin cambios, para no alterar CAC/ROI ya calibrados con ese
+      // criterio); esto solo hace visible cuánto de ese total es cobro
+      // manual y no un pago real de Mercado Pago (ver auditoría "Juan Felipe
+      // González", 2026-08-28 — sección 15/16).
+      countTable(base, "tarot_pagos", `cobro_manual=eq.true&created_at=gte.${cutoffISO}`, restHeaders),
       countTable(base, "tarot_lecturas", "es_vigente=eq.true", restHeaders),
       countTable(base, "tarot_lecturas", `es_vigente=eq.true&created_at=gte.${hoyISO}`, restHeaders),
       // "listo" es el estado real de éxito que escribe ef_tarot_generar_pdf.
@@ -176,6 +188,7 @@ export async function GET(req: NextRequest) {
         pagadas:    ordenesPagadas,
         completadas: ordenesCompletadas,
         con_error:  ordenesError,
+        cobro_manual_periodo: cobroManualPeriodo,
       },
       lecturas: { total: totalLecturas, hoy: lecturasHoy },
       pdfs:     { total: totalPdfs,     hoy: pdfsHoy     },

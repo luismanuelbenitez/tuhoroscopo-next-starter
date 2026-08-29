@@ -222,27 +222,24 @@ async function responderVistaEventos(body: Record<string, unknown>) {
 
 interface CanalResumen {
   destino: string | null;
-  aplica: boolean;              // false = el cliente no tiene este canal configurado (ej: sin email)
   estado: string | null;        // estado del último intento, o null si nunca se intentó
   intentos: number;
   ultimo_envio_at: string | null;
   es_reenvio_ultimo: boolean;
   tiene_reenvio_historico: boolean; // es_reenvio=false pero no es el primer envío exitoso (bug pre-gobernanza)
+  clasificacion: string;         // ver EstadoCanalWA / EstadoCanalEmail — fuente única de verdad de la etiqueta a mostrar
 }
 
-function resumirCanal(intentos: EntregaFila[], destinoCliente: string | null, esExitoso: (estado: string) => boolean): CanalResumen {
+function construirResumen(intentos: EntregaFila[], destinoCliente: string | null): Omit<CanalResumen, "clasificacion"> {
   if (intentos.length === 0) {
-    return {
-      destino: destinoCliente, aplica: destinoCliente != null, estado: null,
-      intentos: 0, ultimo_envio_at: null, es_reenvio_ultimo: false, tiene_reenvio_historico: false,
-    };
+    return { destino: destinoCliente, estado: null, intentos: 0, ultimo_envio_at: null, es_reenvio_ultimo: false, tiene_reenvio_historico: false };
   }
   // intentos viene ordenado desc por created_at desde el fetch original
   const ordenAsc = [...intentos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   let vistoExitoso = false;
   let tieneReenvioHistorico = false;
   for (const it of ordenAsc) {
-    if (esExitoso(it.estado)) {
+    if (ESTADOS_EXITOSOS_WA.has(it.estado) || ESTADOS_EXITOSOS_EMAIL.has(it.estado)) {
       if (vistoExitoso && !it.es_reenvio) tieneReenvioHistorico = true;
       vistoExitoso = true;
     }
@@ -250,7 +247,6 @@ function resumirCanal(intentos: EntregaFila[], destinoCliente: string | null, es
   const ultimo = intentos[0]; // desc
   return {
     destino: ultimo.destino ?? destinoCliente,
-    aplica: true,
     estado: ultimo.estado,
     intentos: intentos.length,
     ultimo_envio_at: ultimo.enviado_at ?? ultimo.created_at,
@@ -259,34 +255,62 @@ function resumirCanal(intentos: EntregaFila[], destinoCliente: string | null, es
   };
 }
 
-type EstadoCanal = "ok" | "error" | "en_curso" | "sin_intento" | "no_aplica";
+// WhatsApp es el canal principal/obligatorio — siempre "aplica"; el único
+// matiz es distinguir un envío real de uno simulado en sandbox (nunca cuenta
+// como entrega real — ver ESTADOS_EXITOSOS_WA, que deliberadamente NO incluye
+// "simulado").
+type EstadoCanalWA = "ok" | "error" | "en_curso" | "sin_intento" | "simulado";
 
-function clasificarCanal(c: CanalResumen, esExitoso: (estado: string) => boolean): EstadoCanal {
-  if (!c.aplica) return "no_aplica";
+function clasificarWA(c: Omit<CanalResumen, "clasificacion">): EstadoCanalWA {
   if (c.estado == null) return "sin_intento";
-  if (esExitoso(c.estado)) return "ok";
+  if (ESTADOS_EXITOSOS_WA.has(c.estado)) return "ok";
+  if (c.estado === "simulado") return "simulado";
   if (c.estado === "enviando" || c.estado === "pendiente") return "en_curso";
   return "error"; // incluye 'agotado_reintentos'
 }
 
-// Email es un canal de respaldo/suplementario (documentado así desde el diseño
-// original: "no actualiza estado de la orden — el email es suplementario").
-// Por eso "sin_intento" en un canal NUNCA cuenta como fallo del otro: si WA
-// entregó exitosamente y Email todavía no se intentó (o no aplica), el
-// resultado sigue siendo "entregado" — el producto llegó. Solo se marca
-// "parcial" cuando un canal fue intentado de verdad y falló.
-function calcularEstadoGeneral(wa: CanalResumen, email: CanalResumen): string {
-  const waS = clasificarCanal(wa, (e) => ESTADOS_EXITOSOS_WA.has(e));
-  const emailS = clasificarCanal(email, (e) => ESTADOS_EXITOSOS_EMAIL.has(e));
+// Email es un canal opcional cuya disponibilidad depende de lo que pidió el
+// comprador para ESA orden (tarot_ordenes.email_solicitado), no solo de si el
+// cliente tiene un email cargado. "no_solicitado" = el comprador explícitamente
+// no pidió este canal (orden nueva, email_solicitado=false) — nunca cuenta
+// como fallo. "legacy_sin_datos" = orden anterior a este campo (NULL) y sin
+// email conocido — no podemos saber si se solicitó o no, se etiqueta honesto
+// en vez de reutilizar "no_solicitado" (que afirmaría algo que no sabemos).
+type EstadoCanalEmail = "ok" | "error" | "en_curso" | "sin_intento" | "no_solicitado" | "legacy_sin_datos";
 
+function clasificarEmail(
+  c: Omit<CanalResumen, "clasificacion">,
+  emailSolicitadoOrden: boolean | null,
+  clienteTieneEmail: boolean,
+): EstadoCanalEmail {
+  if (c.intentos === 0) {
+    if (emailSolicitadoOrden === false) return "no_solicitado";
+    if (emailSolicitadoOrden === null && !clienteTieneEmail) return "legacy_sin_datos";
+    return "sin_intento"; // solicitado=true, o legacy con email conocido (comportamiento previo)
+  }
+  if (c.estado == null) return "sin_intento";
+  if (ESTADOS_EXITOSOS_EMAIL.has(c.estado)) return "ok";
+  if (c.estado === "enviando" || c.estado === "pendiente") return "en_curso";
+  return "error";
+}
+
+// "sin_intento"/"no_solicitado"/"legacy_sin_datos" en un canal NUNCA cuentan
+// como fallo del otro: si WA entregó exitosamente y Email no se intentó (o no
+// fue solicitado), el resultado sigue siendo "entregado" — el producto llegó.
+// Una simulación de sandbox, si es la ÚNICA señal positiva, NUNCA es
+// "entregado" — se refleja como "simulado" (ver auditoría "Juan Felipe
+// González", 2026-08-28: antes una simulación sí marcaba "entregado").
+function calcularEstadoGeneral(waS: EstadoCanalWA, emailS: EstadoCanalEmail): string {
   const algunoOk = waS === "ok" || emailS === "ok";
   const algunoError = waS === "error" || emailS === "error";
   const algunoEnCurso = waS === "en_curso" || emailS === "en_curso";
+  const algunoSimulado = waS === "simulado";
 
   if (algunoOk && algunoError) return "parcial";
   if (algunoOk) return "entregado";
   if (algunoError) return "error";
   if (algunoEnCurso) return "enviando";
+  if (algunoSimulado) return "simulado";
   return "pendiente";
 }
 
@@ -330,25 +354,37 @@ async function responderVistaOrdenes(body: Record<string, unknown>) {
     }
   }
 
-  // Necesitamos el email del cliente para saber si "no aplica" cuando nunca hubo intento.
-  // Lo tomamos del propio registro de envío de email si existe; si un canal nunca tuvo
-  // intento, no tenemos forma barata de saber si el cliente tiene email sin otra consulta.
-  const idsSinEmailIntento = idsArr.filter(id => !porOrden.get(id)!.email.length);
-  const emailPorOrden = new Map<string, string | null>();
-  if (idsSinEmailIntento.length > 0) {
+  // Necesitamos email_solicitado (canal pedido para ESA orden) y el email del
+  // cliente (destino a mostrar / fallback legacy) para clasificar el canal
+  // Email correctamente incluso cuando nunca hubo ningún intento.
+  const datosOrdenPorId = new Map<string, { emailSolicitado: boolean | null; clienteEmail: string | null }>();
+  if (idsArr.length > 0) {
     const { data: ords } = await supabase
       .from("tarot_ordenes")
-      .select("id, tarot_clientes(email)")
+      .select("id, email_solicitado, tarot_clientes(email)")
       // deno-lint-ignore no-explicit-any
-      .in("id", idsSinEmailIntento) as { data: any[] | null };
-    for (const o of ords ?? []) emailPorOrden.set(o.id, o.tarot_clientes?.email ?? null);
+      .in("id", idsArr) as { data: any[] | null };
+    for (const o of ords ?? []) {
+      datosOrdenPorId.set(o.id, {
+        emailSolicitado: o.email_solicitado ?? null,
+        clienteEmail: o.tarot_clientes?.email ?? null,
+      });
+    }
   }
 
   let resumenes = idsArr.map((id) => {
     const g = porOrden.get(id)!;
-    const waResumen = resumirCanal(g.wa, null, (e) => ESTADOS_EXITOSOS_WA.has(e));
-    const destinoEmailDefault = g.email.length ? null : emailPorOrden.get(id) ?? null;
-    const emailResumen = resumirCanal(g.email, destinoEmailDefault, (e) => ESTADOS_EXITOSOS_EMAIL.has(e));
+    const datosOrden = datosOrdenPorId.get(id) ?? { emailSolicitado: null, clienteEmail: null };
+
+    const waBase = construirResumen(g.wa, null);
+    const waClasif = clasificarWA(waBase);
+    const waResumen: CanalResumen = { ...waBase, clasificacion: waClasif };
+
+    const destinoEmailDefault = g.email.length ? null : datosOrden.clienteEmail;
+    const emailBase = construirResumen(g.email, destinoEmailDefault);
+    const emailClasif = clasificarEmail(emailBase, datosOrden.emailSolicitado, datosOrden.clienteEmail != null);
+    const emailResumen: CanalResumen = { ...emailBase, clasificacion: emailClasif };
+
     const ultimaActividad = [waResumen.ultimo_envio_at, emailResumen.ultimo_envio_at]
       .filter((x): x is string => !!x)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
@@ -359,7 +395,7 @@ async function responderVistaOrdenes(body: Record<string, unknown>) {
       whatsapp: waResumen,
       email: emailResumen,
       ultima_actividad_at: ultimaActividad,
-      estado_general: calcularEstadoGeneral(waResumen, emailResumen),
+      estado_general: calcularEstadoGeneral(waClasif, emailClasif),
       reenvio_pendiente: (solicitudesActivas.get(id) ?? 0) > 0,
       tiene_reenvio_historico: waResumen.tiene_reenvio_historico || emailResumen.tiene_reenvio_historico,
     };

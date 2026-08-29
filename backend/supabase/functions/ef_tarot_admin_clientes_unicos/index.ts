@@ -64,7 +64,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // una orden "pagada" es la que llegó al menos a pago_confirmado.
 const ESTADOS_PAGADO = [
   "pago_confirmado", "generando_lectura", "lectura_lista",
-  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado",
+  "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado",
 ];
 
 // ============================================================================

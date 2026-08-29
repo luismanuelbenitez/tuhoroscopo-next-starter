@@ -57,6 +57,7 @@ const ESTADO_ORDEN: Record<string, { label: string; cls: string }> = {
   pdf_listo:            { label: "PDF listo",     cls: "bg-violet-900/50 text-violet-300" },
   enviando_whatsapp:    { label: "Enviando WA",   cls: "bg-amber-900/50 text-amber-300" },
   entregado:            { label: "Entregado",     cls: "bg-emerald-900/50 text-emerald-300" },
+  entregado_simulado:   { label: "Entregado (simulado)", cls: "bg-violet-900/50 text-violet-300" },
   error_lectura:        { label: "Error lectura", cls: "bg-red-900/50 text-red-300" },
   error_pdf:            { label: "Error PDF",     cls: "bg-red-900/50 text-red-300" },
   error_whatsapp:       { label: "Error WA",      cls: "bg-red-900/50 text-red-300" },
@@ -218,6 +219,7 @@ export default function TarotOrdenesPage() {
             <option value="lectura_lista">Lectura lista</option>
             <option value="pdf_listo">PDF listo</option>
             <option value="entregado">Entregado</option>
+            <option value="entregado_simulado">Entregado (simulado)</option>
             <option value="error_lectura">Error lectura</option>
             <option value="error_pdf">Error PDF</option>
             <option value="error_critico">Error crítico</option>

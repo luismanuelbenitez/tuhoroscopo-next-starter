@@ -8,7 +8,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
-import { normalizarTelefono } from "../_shared/tarot-identidad.ts";
+import { normalizarTelefono, normalizarEmailIdentidad } from "../_shared/tarot-identidad.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -109,6 +109,7 @@ serve(async (req) => {
     hora_nacimiento,
     lugar_nacimiento,
     email,
+    email_solicitado,
     pregunta_usuario,
     tema,
     moneda,
@@ -146,6 +147,16 @@ serve(async (req) => {
       error: "TELEFONO_INVALIDO",
       hint: "Usá el formato +598XXXXXXXX para Uruguay o +54XXXXXXXXXX para Argentina",
     }, 400);
+  }
+
+  // Canal email: opcional en general, pero si el comprador lo solicitó
+  // explícitamente para esta orden, el email pasa a ser obligatorio y válido.
+  const emailSolicitadoBool = email_solicitado === true;
+  const emailNorm = normalizarEmailIdentidad(typeof email === "string" ? email : null);
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (emailSolicitadoBool && (!emailNorm || !EMAIL_RE.test(emailNorm))) {
+    return json({ ok: false, error: "EMAIL_REQUERIDO_PARA_CANAL_SOLICITADO" }, 400);
   }
 
   // Normalizar tema y moneda con fallback
@@ -227,30 +238,91 @@ serve(async (req) => {
     }
   }
 
-  // ── 4. Crear o recuperar cliente ─────────────────────────
+  // ── 4. Resolver identidad canónica del cliente ───────────
+  // Identidad = teléfono normalizado y/o email normalizado — misma regla que
+  // ef_tarot_admin_clientes_unicos (ver _shared/tarot-identidad.ts, "Regla 3").
+  // El nombre NUNCA identifica. Reemplaza el hash nombre+teléfono+fecha_nacimiento
+  // anterior: ese hash creaba un cliente nuevo ante cualquier variación de
+  // nombre/fecha, dejando el registro previo con datos incompletos (ej: email
+  // null) sin nunca completarse en compras posteriores de la misma persona
+  // (ver auditoría "Juan Felipe González", 2026-08-28).
   const hash = await hashCliente(nombre_completo as string, telefono, (fecha_nacimiento as string) ?? "");
   const ahora = new Date().toISOString();
 
-  const { data: clienteExistente } = await supabase
+  const { data: porTelefono } = await supabase
     .from("tarot_clientes")
-    .select("id")
-    .eq("hash_verificacion", hash)
+    .select("id, telefono, email")
+    .eq("telefono", telefono)
     .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
+
+  let clienteExistente = porTelefono;
+  let matchPor: "telefono" | "email" | null = porTelefono ? "telefono" : null;
+
+  if (!clienteExistente && emailNorm) {
+    const { data: porEmail } = await supabase
+      .from("tarot_clientes")
+      .select("id, telefono, email")
+      .ilike("email", emailNorm)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    clienteExistente = porEmail;
+    matchPor = porEmail ? "email" : null;
+  }
 
   let clienteId: string;
 
   if (clienteExistente?.id) {
     clienteId = clienteExistente.id;
+    const emailActual = normalizarEmailIdentidad(clienteExistente.email);
+    const merge: Record<string, unknown> = {};
+
+    if (emailNorm && !emailActual) {
+      // Caso A: cliente sin email, esta compra trae uno nuevo válido → completar.
+      merge.email = emailNorm;
+    } else if (emailNorm && emailActual && emailNorm !== emailActual) {
+      // Caso C: email en conflicto con el ya registrado. NO sobrescribir
+      // silenciosamente — no existe todavía un mecanismo canónico de
+      // resolución de conflictos de identidad. Se conserva el email
+      // existente y se deja constancia para revisión manual.
+      await registrarLog(null, clienteId, "cliente_email_conflicto", "warning",
+        "El email recibido difiere del ya registrado en el cliente — se conserva el existente, no se sobrescribe",
+        { email_existente: emailActual, email_recibido: emailNorm }, ip);
+    }
+    // Caso B (mismo email): sin acción, nada que completar.
+
+    if (matchPor === "email" && clienteExistente.telefono !== telefono) {
+      // Coincidió por email pero con un teléfono distinto al de este pedido:
+      // se actualiza al teléfono más reciente (mismo criterio que
+      // "telefono_principal" en ef_tarot_admin_clientes_unicos — el teléfono
+      // es el canal de entrega obligatorio y debe reflejar el último dato
+      // real que dio la persona; a diferencia del email, acá no hay riesgo
+      // de colisión: si este teléfono ya perteneciera a otro cliente, la
+      // búsqueda por teléfono de arriba ya lo habría encontrado primero).
+      merge.telefono = telefono;
+    }
+
+    if (Object.keys(merge).length > 0) {
+      merge.updated_at = ahora;
+      await supabase.from("tarot_clientes").update(merge).eq("id", clienteId);
+      await registrarLog(null, clienteId, "cliente_datos_completados", "info",
+        "Datos de cliente existente completados/actualizados desde una nueva orden", merge, ip);
+    }
+
     await registrarLog(null, clienteId, "cliente_recuperado", "info",
-      "Cliente existente recuperado por hash", { hash }, ip);
+      "Cliente existente recuperado por identidad canónica (teléfono y/o email)",
+      { match_por: matchPor, telefono, email_recibido: emailNorm }, ip);
   } else {
     const { data: nuevoCliente, error: errCliente } = await supabase
       .from("tarot_clientes")
       .insert({
         nombre_completo: (nombre_completo as string).trim(),
         telefono,
-        email: email ?? null,
+        email: emailNorm,
         fecha_nacimiento: fecha_nacimiento ?? null,
         hora_nacimiento: hora_nacimiento ?? null,
         lugar_nacimiento: lugar_nacimiento ?? null,
@@ -287,6 +359,7 @@ serve(async (req) => {
       mazo_id: mazoId,
       estado: "formulario_completo",
       external_reference: externalReference,
+      email_solicitado: emailSolicitadoBool,
       pregunta_usuario: pregunta_usuario ?? null,
       tema: temaNorm,
       precio_cobrado: precio,
@@ -359,7 +432,7 @@ serve(async (req) => {
       },
     ],
     external_reference: externalReference,
-    payer: (email && typeof email === "string") ? { email } : undefined,
+    payer: emailNorm ? { email: emailNorm } : undefined,
     back_urls: {
       success: `${backBase}?ref=${externalReference}&estado=exitoso`,
       pending: `${backBase}?ref=${externalReference}&estado=pendiente`,
