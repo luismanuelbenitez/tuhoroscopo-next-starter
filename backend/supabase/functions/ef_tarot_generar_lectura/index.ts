@@ -226,7 +226,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   // 1. Fetch orden + slug del mazo (necesario para pasar deck al PDF EF)
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, funnel_session_id, external_reference, tarot_mazos(slug)")
+    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, funnel_session_id, external_reference, nombre_snapshot, fecha_nacimiento_snapshot, hora_nacimiento_snapshot, lugar_nacimiento_snapshot, tarot_mazos(slug)")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -290,6 +290,19 @@ async function generarLectura(ordenId: string): Promise<void> {
       "Cliente no encontrado para la orden");
     return;
   }
+
+  // Fuente de verdad de identidad para ESTA lectura: el snapshot congelado
+  // en la orden al momento de comprar (ef_tarot_crear_orden), NUNCA el
+  // perfil mutable de tarot_clientes — ese perfil puede pertenecer a un
+  // cliente existente encontrado por coincidencia de teléfono/email, con
+  // datos de otra compra o de otra persona (bug real "QA Identidad Uno",
+  // ver docs/product/DECISIONS.md 2026-08-31, "Cliente canónico != snapshot
+  // de orden"). cliente.* solo se usa como fallback para órdenes legacy sin
+  // snapshot (anteriores a 2026-08-31) — nunca para órdenes nuevas.
+  const nombreFinal = orden.nombre_snapshot ?? cliente.nombre_completo;
+  const fechaFinal  = orden.fecha_nacimiento_snapshot ?? cliente.fecha_nacimiento;
+  const horaFinal   = orden.hora_nacimiento_snapshot ?? cliente.hora_nacimiento;
+  const lugarFinal  = orden.lugar_nacimiento_snapshot ?? cliente.lugar_nacimiento;
 
   // 6. Fetch posiciones de la tirada
   const { data: posiciones } = await supabase
@@ -416,10 +429,10 @@ async function generarLectura(ordenId: string): Promise<void> {
 
   const promptSistema = productoConfig.prompt_sistema;
   const promptUsuario = interpolarTemplate(productoConfig.prompt_usuario_template, {
-    nombre:             cliente.nombre_completo,
-    fecha_nacimiento:   cliente.fecha_nacimiento,
-    hora_nacimiento:    cliente.hora_nacimiento ?? null,
-    lugar_nacimiento:   cliente.lugar_nacimiento ?? null,
+    nombre:             nombreFinal,
+    fecha_nacimiento:   fechaFinal,
+    hora_nacimiento:    horaFinal ?? null,
+    lugar_nacimiento:   lugarFinal ?? null,
     tema:               orden.tema,
     pregunta:           preguntaFinal,
     tipo_tirada:        tiradaNombre,
@@ -555,8 +568,8 @@ async function generarLectura(ordenId: string): Promise<void> {
 
     const contenidoJson = {
       producto:                   "Tu Tirada",
-      nombre:                     cliente.nombre_completo,
-      fecha_nacimiento:           cliente.fecha_nacimiento,
+      nombre:                     nombreFinal,
+      fecha_nacimiento:           fechaFinal,
       fecha_lectura:              fechaLectura,
       tipo_tirada:                tiradaNombre,
       tema:                       orden.tema,

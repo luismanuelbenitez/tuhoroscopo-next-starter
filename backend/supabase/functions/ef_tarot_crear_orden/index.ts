@@ -249,9 +249,11 @@ serve(async (req) => {
   const hash = await hashCliente(nombre_completo as string, telefono, (fecha_nacimiento as string) ?? "");
   const ahora = new Date().toISOString();
 
+  const CAMPOS_CLIENTE = "id, telefono, email, nombre_completo, fecha_nacimiento, hora_nacimiento, lugar_nacimiento";
+
   const { data: porTelefono } = await supabase
     .from("tarot_clientes")
-    .select("id, telefono, email")
+    .select(CAMPOS_CLIENTE)
     .eq("telefono", telefono)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -264,7 +266,7 @@ serve(async (req) => {
   if (!clienteExistente && emailNorm) {
     const { data: porEmail } = await supabase
       .from("tarot_clientes")
-      .select("id, telefono, email")
+      .select(CAMPOS_CLIENTE)
       .ilike("email", emailNorm)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -304,6 +306,31 @@ serve(async (req) => {
       // de colisión: si este teléfono ya perteneciera a otro cliente, la
       // búsqueda por teléfono de arriba ya lo habría encontrado primero).
       merge.telefono = telefono;
+    }
+
+    // Nombre y datos de nacimiento son descriptivos, NUNCA identidad (el
+    // teléfono/email ya decidieron que es la misma persona) — pero SÍ son
+    // los datos que la lectura y el PDF de ESTA orden van a mostrar y usar
+    // para personalizar. Sincronizarlos con lo que el comprador acaba de
+    // escribir evita que un cliente encontrado por coincidencia (ej. un
+    // registro viejo, de prueba, o de otra visita) le imponga a esta orden
+    // un nombre o fecha de nacimiento ajenos — bug real detectado 2026-08-31:
+    // un cliente de QA ("QA Identidad Uno") retuvo el email real de un
+    // comprador desde una prueba anterior; al coincidir por email, la
+    // lectura y el PDF de una compra real mostraron el nombre de la fila de
+    // QA porque nunca se sincronizaba. Ver docs/product/DECISIONS.md 2026-08-31.
+    const nombreNuevo = typeof nombre_completo === "string" ? nombre_completo.trim() : "";
+    if (nombreNuevo && nombreNuevo !== clienteExistente.nombre_completo) {
+      merge.nombre_completo = nombreNuevo;
+    }
+    if (fecha_nacimiento && fecha_nacimiento !== clienteExistente.fecha_nacimiento) {
+      merge.fecha_nacimiento = fecha_nacimiento;
+    }
+    if (hora_nacimiento && hora_nacimiento !== clienteExistente.hora_nacimiento) {
+      merge.hora_nacimiento = hora_nacimiento;
+    }
+    if (lugar_nacimiento && lugar_nacimiento !== clienteExistente.lugar_nacimiento) {
+      merge.lugar_nacimiento = lugar_nacimiento;
     }
 
     if (Object.keys(merge).length > 0) {
@@ -360,6 +387,19 @@ serve(async (req) => {
       estado: "formulario_completo",
       external_reference: externalReference,
       email_solicitado: emailSolicitadoBool,
+      // Snapshot inmutable de identidad para ESTA orden (2026-08-31): lo que
+      // se acaba de validar/normalizar en este mismo request, nunca lo que
+      // haya quedado guardado en tarot_clientes (que puede pertenecer a un
+      // cliente existente encontrado por coincidencia de teléfono/email —
+      // ver bug real "QA Identidad Uno" en docs/product/DECISIONS.md
+      // 2026-08-31). ef_tarot_generar_lectura debe leer esto, no el perfil
+      // mutable del cliente.
+      nombre_snapshot: (nombre_completo as string).trim(),
+      fecha_nacimiento_snapshot: fecha_nacimiento ?? null,
+      hora_nacimiento_snapshot: hora_nacimiento ?? null,
+      lugar_nacimiento_snapshot: lugar_nacimiento ?? null,
+      telefono_snapshot: telefono,
+      email_snapshot: emailNorm,
       pregunta_usuario: pregunta_usuario ?? null,
       tema: temaNorm,
       precio_cobrado: precio,
