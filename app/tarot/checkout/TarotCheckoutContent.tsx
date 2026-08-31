@@ -408,9 +408,29 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
 
                 {/* Email (opcional, requerido solo si se pide como canal) */}
                 <div>
-                  <label htmlFor="email" className="block text-sm text-white/80 mb-1">
-                    Email <span className="text-white/35">{emailSolicitado ? '(requerido — la pediste como canal extra)' : '(opcional)'}</span>
-                  </label>
+                  <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+                    <label htmlFor="email" className="text-sm text-white/80">
+                      Email <span className="text-white/35">{emailSolicitado ? '(requerido)' : '(opcional)'}</span>
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={emailSolicitado}
+                      aria-label="También quiero recibir mi lectura por email"
+                      onClick={() => setEmailSolicitado(v => !v)}
+                      disabled={isLoading}
+                      className="flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                    >
+                      <span className="text-[11px] text-white/45 whitespace-nowrap">Recibir por email</span>
+                      <span
+                        className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${emailSolicitado ? 'bg-amber-400' : 'bg-white/15'}`}
+                      >
+                        <span
+                          className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${emailSolicitado ? 'translate-x-3.5' : 'translate-x-0.5'}`}
+                        />
+                      </span>
+                    </button>
+                  </div>
                   <input
                     id="email"
                     name="email"
@@ -422,16 +442,6 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                     disabled={isLoading}
                     required={emailSolicitado}
                   />
-                  <label className="mt-2 flex items-start gap-2 text-xs text-white/60 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={emailSolicitado}
-                      onChange={e => setEmailSolicitado(e.target.checked)}
-                      disabled={isLoading}
-                      className="mt-0.5 accent-amber-400 shrink-0"
-                    />
-                    <span>También quiero recibir mi lectura por email</span>
-                  </label>
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
