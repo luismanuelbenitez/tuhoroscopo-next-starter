@@ -134,8 +134,8 @@ serve(async (req: Request) => {
     wordLimits = {
       interpretacion: Number(cfgRow.max_words_interpretacion ?? 70),
       consejo:        Number(cfgRow.max_words_consejo        ?? 25),
-      resumen:        Number(cfgRow.max_words_resumen        ?? 90),
-      mensaje_final:  Number(cfgRow.max_words_mensaje_final  ?? 55),
+      resumen:        Number(cfgRow.max_words_resumen        ?? 130),
+      mensaje_final:  Number(cfgRow.max_words_mensaje_final  ?? 100),
       proximo_paso:   Number(cfgRow.max_words_proximo_paso   ?? 30),
     };
     if (!body.ia_modelo     && cfgRow.ia_modelo)             iaModelo     = cfgRow.ia_modelo as string;

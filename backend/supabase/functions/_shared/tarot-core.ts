@@ -198,11 +198,11 @@ export function buildLecturaTool(w: WordLimits): Record<string, any> {
         },
         resumen_lectura: {
           type: "string",
-          description: `Síntesis de la tirada completa. Cómo las 5 cartas dialogan entre sí. Máximo ${w.resumen} palabras.`,
+          description: `Síntesis narrativa de las 5 cartas como UNA historia (no "carta 1 dice... carta 2 dice..."): qué cuentan juntas sobre la situación del consultante — tensión central, contradicciones o progresión entre posiciones, qué está realmente en juego. Responde "¿qué dicen las cinco cartas juntas?", no "¿qué significa esto para vos?" (eso es mensaje_final — no lo adelantes acá). Máximo ${w.resumen} palabras: con más espacio disponible, profundizá la integración entre cartas en vez de acortar.`,
         },
         mensaje_final: {
           type: "string",
-          description: `Mensaje final cálido y motivador para el consultante. Máximo ${w.mensaje_final} palabras.`,
+          description: `Cierre humano y personal de la lectura, dirigido directamente al consultante. Toma la comprensión construida por resumen_lectura y la aterriza en su experiencia — qué tensión merece mirar con honestidad, qué puede estar dependiendo de él/ella, una invitación a reflexionar sin decirle qué decidir. Responde "¿qué puede significar esto PARA VOS?", nunca repite ni resume lo ya dicho en resumen_lectura — si ambos campos podrían intercambiarse sin que se note, están mal. Máximo ${w.mensaje_final} palabras: con más espacio disponible, desarrollá el cierre en vez de cortarlo antes de tiempo.`,
         },
         proximos_pasos: {
           type: "array",

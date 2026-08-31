@@ -171,6 +171,29 @@ const P3: P3Layout = {
 
 };
 
+// Centro óptico real de cada ícono de "Claves prácticas" (2026-08-31): medido
+// por detección de píxeles oscuros sobre un render real de summary-bg.jpg con
+// texto ya compuesto — los 3 íconos quedaron en template_px≈2196.7 / 2391.7 /
+// 2583.3 (espaciado ~193px, consistente entre sí). El centrado vertical de
+// verticalCenterOffset() usa el punto medio de (topY, botY) como centro del
+// bloque de texto — si ese punto medio no coincide con el centro real del
+// ícono, el texto queda visualmente descentrado aunque el cálculo interno sea
+// matemáticamente correcto. Estas extensiones de techo (mismo mecanismo que
+// RESUMEN_SAFE_TOP_EXTENSION_PX/MENSAJE_SAFE_TOP_EXTENSION_PX en addPage3)
+// desplazan el punto medio calculado hasta calzar con el ícono real:
+// topExt = pp.y + pp.minY - 2*centroIconoReal.
+// A nivel de módulo (no local a addPage3) porque addDebugOverlayP3 también
+// las necesita para dibujar la grilla de calibración con las mismas cifras
+// que usa el render real — evita que ambas queden desincronizadas.
+const CLAVES_PASO1_SAFE_TOP_EXTENSION_PX = 95;  // pp.y=2150, pp.minY=2330, icono≈2196.7 → 87px por fórmula; se mantiene 95 (diferencia de 8px, dentro del margen de medición, ya calibrado en el sprint de fitting anterior)
+const CLAVES_PASO2_SAFE_TOP_EXTENSION_PX = 47;  // pp.y=2350, pp.minY=2480, icono≈2391.7 → 46.6px
+const CLAVES_PASO3_SAFE_TOP_EXTENSION_PX = 83;  // pp.y=2550, pp.minY=2700, icono≈2583.3 → 83.4px
+const CLAVES_TOP_EXTENSIONS_PX = [
+  CLAVES_PASO1_SAFE_TOP_EXTENSION_PX,
+  CLAVES_PASO2_SAFE_TOP_EXTENSION_PX,
+  CLAVES_PASO3_SAFE_TOP_EXTENSION_PX,
+];
+
 // ── Interfaces ───────────────────────────────────────────────
 interface Fonts { bold: PDFFont; reg: PDFFont; ita: PDFFont; bita: PDFFont; claves: PDFFont; }
 type Rgb = ReturnType<typeof rgb>;
@@ -580,7 +603,7 @@ function addDebugOverlayP3(page: PDFPage, f: Fonts) {
 
   for (let i = 0; i < P3.proximosPasos.length; i++) {
     const pp    = P3.proximosPasos[i];
-    const ppY   = pY(pp.y);
+    const ppY   = pY(pp.y - CLAVES_TOP_EXTENSIONS_PX[i]);
     const ppMin = pY(pp.minY);
     drawDebugBox(page, f, {
       x: pX(pp.x), y: ppMin,
@@ -773,7 +796,8 @@ function addPage3(
   // el yStart declarado en P3.
   const RESUMEN_SAFE_TOP_EXTENSION_PX  = 108; // techo real medido ≈ref 662px (159pt); yStart=780px → 118px libres, uso 108 (cushion ~10px)
   const MENSAJE_SAFE_TOP_EXTENSION_PX  = 137; // techo real medido ≈ref 1413px (339pt); yStart=1560px → 147px libres, uso 137 (cushion ~10px)
-  const CLAVES_PASO1_SAFE_TOP_EXTENSION_PX = 95; // techo real medido ≈ref 2045px (491pt); paso1.y=2150px → 105px libres, uso 95 (cushion ~10px). Solo paso1 está pegado al encabezado; paso2/paso3 ya miden bien.
+  // Extensiones de las claves (CLAVES_PASO{1,2,3}_SAFE_TOP_EXTENSION_PX,
+  // CLAVES_TOP_EXTENSIONS_PX) están a nivel de módulo — ver comentario junto a P3.
 
   // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
@@ -819,10 +843,11 @@ function addPage3(
     const pp        = L.proximosPasos[i];
     const pasoTxt   = sanitize(paso);
     const pasoMaxW  = pX(pp.width);
-    // Solo paso1 está pegado al encabezado "Claves prácticas para tu camino"
-    // y necesita la misma extensión hacia arriba que resumen/mensaje.
-    // paso2/paso3 ya miden bien contra su propio espacio real (sin extensión).
-    const pasoTopExt = i === 0 ? CLAVES_PASO1_SAFE_TOP_EXTENSION_PX : 0;
+    // Cada clave se centra contra el centro óptico real de SU PROPIO ícono
+    // (ver CLAVES_TOP_EXTENSIONS_PX arriba) — los 3 íconos están espaciados de
+    // forma irregular en el arte (cajas declaradas de 180/130/150px), así que
+    // cada slot necesita su propia extensión, nunca un offset único compartido.
+    const pasoTopExt = CLAVES_TOP_EXTENSIONS_PX[i];
     const pasoTopY  = pY(pp.y - pasoTopExt);
     const pasoBotY  = pY(pp.minY);
     const LH_PASO   = 1.35;
