@@ -1201,22 +1201,35 @@ async function generarPDF(
     const urlExpiraAt = new Date(Date.now() + expSeg * 1000).toISOString();
     const ahoraNow    = new Date().toISOString();
 
-    if (!debug) {
-      await supabase.from("tarot_pdfs").update({
-        estado: "listo",
-        storage_path: storagePath, storage_bucket: bucket, storage_url: urlFirmada,
-        url_expira_at: urlExpiraAt, tamano_bytes: bytes.length,
-        paginas: 3, generado_at: ahoraNow, updated_at: ahoraNow,
-      }).eq("id", pdfId);
+    // Persistencia del PDF en tarot_pdfs — UNA sola escritura para ambos modos
+    // (2026-08-31: antes debug/no-debug duplicaban esta llamada con un campo
+    // `estado` distinto cada una). `estado: "debug"` violaba silenciosamente
+    // tarot_pdfs_estado_check (solo permite pendiente/generando/generado/listo/
+    // error_generacion/error/invalidado — "debug" nunca estuvo en esa lista) y
+    // ninguna de las dos ramas comprobaba `error`, así que la fila quedaba
+    // clavada en 'generando' para siempre sin que nada lo reportara. El modo
+    // debug ya se distingue sin necesidad de un estado propio: storage_path
+    // termina en "_debug.pdf" (ver arriba) y numero_intento avanza igual que
+    // en producción — "generado" (valor ya válido) alcanza y sobra.
+    const { error: pdfUpdateErr } = await supabase.from("tarot_pdfs").update({
+      estado: debug ? "generado" : "listo",
+      storage_path: storagePath, storage_bucket: bucket, storage_url: urlFirmada,
+      url_expira_at: urlExpiraAt, tamano_bytes: bytes.length,
+      paginas: 3, generado_at: ahoraNow, updated_at: ahoraNow,
+    }).eq("id", pdfId);
 
+    if (pdfUpdateErr) {
+      // Storage ya tiene el archivo real y accesible en este punto — pero sin
+      // persistir esto en tarot_pdfs no hay forma de declarar la generación
+      // exitosa de verdad. Se propaga al catch existente (mismo mecanismo que
+      // cualquier otro fallo de esta función) en vez de tragarse el error o
+      // devolver éxito con una fila desactualizada.
+      throw new Error("tarot_pdfs update: " + pdfUpdateErr.message);
+    }
+
+    if (!debug) {
       await supabase.from("tarot_ordenes")
         .update({ estado: "pdf_listo", updated_at: ahoraNow }).eq("id", ordenId);
-    } else {
-      await supabase.from("tarot_pdfs").update({
-        estado: "debug",
-        storage_path: storagePath, storage_bucket: bucket, storage_url: urlFirmada,
-        tamano_bytes: bytes.length, generado_at: ahoraNow, updated_at: ahoraNow,
-      }).eq("id", pdfId);
     }
 
     const durMs = Date.now() - t0;
@@ -1306,14 +1319,26 @@ async function generarPDF(
     const errMsg   = String(err);
     const ahoraNow = new Date().toISOString();
 
-    await supabase.from("tarot_pdfs").update({
+    const { error: pdfErrorUpdateErr } = await supabase.from("tarot_pdfs").update({
       estado: "error", error_codigo: "PDF_ERROR",
       error_mensaje: errMsg.substring(0, 500), updated_at: ahoraNow,
     }).eq("id", pdfId);
+    if (pdfErrorUpdateErr) {
+      console.error("tarot_pdfs update (estado=error) falló:", pdfErrorUpdateErr.message);
+    }
 
+    // Debug nunca toca el estado de la orden — ni en éxito (ver arriba) ni acá
+    // en el catch. Antes esta rama sí lo tocaba incondicionalmente, la única
+    // razón por la que nunca se notó es que la escritura de tarot_pdfs en modo
+    // debug jamás llegaba a un error observable (fallaba silenciosamente sin
+    // lanzar) — al agregar el chequeo de error de arriba, un debug que
+    // realmente falle ahora cae acá, y sin esta guarda habría empezado a
+    // mutar el estado de una orden real sin que el modo debug lo pidiera.
     const estadoOrden = (!force && intento >= maxR) ? "error_critico" : "error_pdf";
-    await supabase.from("tarot_ordenes")
-      .update({ estado: estadoOrden, updated_at: ahoraNow }).eq("id", ordenId);
+    if (!debug) {
+      await supabase.from("tarot_ordenes")
+        .update({ estado: estadoOrden, updated_at: ahoraNow }).eq("id", ordenId);
+    }
 
     void dispararAlerta(supabase, "error_pdf", {
       ordenId:  ordenId,
@@ -1324,23 +1349,25 @@ async function generarPDF(
     const durMs = Date.now() - t0;
     await log(ordenId, "pdf_error", "error",
       "Error generando PDF v7 (intento " + intento + "/" + maxR + ")",
-      { error: errMsg, pdf_id: pdfId, intento, estado_orden: estadoOrden, duracion_ms: durMs },
+      { error: errMsg, pdf_id: pdfId, intento, estado_orden: debug ? null : estadoOrden, debug, duracion_ms: durMs },
       durMs);
 
-    await logFunnelEvent({
-      order_id:   ordenId,
-      session_id: orden.funnel_session_id ?? null,
-      event_name: "pdf_generation_failed",
-      metadata: {
-        external_reference: orden.external_reference ?? null,
-        error_code:    "PDF_ERROR",
-        error_message: errMsg.substring(0, 200),
-        pdf_id:        pdfId,
-        intento,
-        estado_orden:  estadoOrden,
-        duracion_ms:   durMs,
-      },
-    });
+    if (!debug) {
+      await logFunnelEvent({
+        order_id:   ordenId,
+        session_id: orden.funnel_session_id ?? null,
+        event_name: "pdf_generation_failed",
+        metadata: {
+          external_reference: orden.external_reference ?? null,
+          error_code:    "PDF_ERROR",
+          error_message: errMsg.substring(0, 200),
+          pdf_id:        pdfId,
+          intento,
+          estado_orden:  estadoOrden,
+          duracion_ms:   durMs,
+        },
+      });
+    }
   }
 }
 
