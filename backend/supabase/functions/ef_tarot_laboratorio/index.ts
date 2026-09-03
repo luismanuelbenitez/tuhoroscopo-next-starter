@@ -83,7 +83,7 @@ serve(async (req: Request) => {
   let promptTemplate     = "";
   let promptVersionId: string | null = null;
   let promptVersionLabel = "Manual";
-  let wordLimits: WordLimits = { interpretacion: 70, consejo: 25, resumen: 90, mensaje_final: 55, proximo_paso: 30 };
+  let wordLimits: WordLimits = { interpretacion: 70, consejo: 25, resumen: 240, mensaje_final: 55, proximo_paso: 30 };
   let iaModelo           = (body.ia_modelo as string) ?? "claude-sonnet-4-6";
   let iaMaxTokens        = Number(body.ia_max_tokens ?? 4000);
   let iaTemperatura      = Number(body.ia_temperatura ?? 0.8);
@@ -134,7 +134,7 @@ serve(async (req: Request) => {
     wordLimits = {
       interpretacion: Number(cfgRow.max_words_interpretacion ?? 70),
       consejo:        Number(cfgRow.max_words_consejo        ?? 25),
-      resumen:        Number(cfgRow.max_words_resumen        ?? 130),
+      resumen:        Number(cfgRow.max_words_resumen        ?? 240),
       mensaje_final:  Number(cfgRow.max_words_mensaje_final  ?? 100),
       proximo_paso:   Number(cfgRow.max_words_proximo_paso   ?? 30),
     };

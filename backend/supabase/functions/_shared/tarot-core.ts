@@ -161,6 +161,28 @@ export function interpolarTemplate(
   return result.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// Regla compartida por resumen_lectura y mensaje_final (2026-09-03): la
+// consulta del consultante conserva siempre su autoridad. Antes se intentó
+// prohibir la fórmula "la verdadera pregunta es..." por lista de frases
+// exactas — el modelo la esquivó con variantes semánticamente idénticas
+// ("la pregunta más útil es...", "la pregunta no es X, sino Y"). La regla
+// tiene que ser el PRINCIPIO, no una lista de frases: cualquier estructura
+// retórica que sustituya, corrija, invalide o jerarquice la consulta por
+// otra pregunta cae acá, use las palabras que use. Definida una sola vez
+// (cero duplicación) porque aplica igual a ambos campos.
+const AUTORIDAD_CONSULTA =
+  `Si el consultante trajo una pregunta concreta, esa consulta conserva siempre su autoridad: la lectura puede responderla, ampliarla, matizarla o revelar dimensiones adicionales, pero nunca sustituirla por otra pregunta, presentarla como equivocada o menos importante, ni declarar otra pregunta como más verdadera, real o útil — cualquier estructura retórica que la desplace cae en esto, aunque no use esas palabras exactas. Una dimensión adicional siempre se presenta como complemento ("además...", "alrededor de esto también aparece...", "hay una dimensión adicional que vale la pena considerar..."), nunca como corrección o reemplazo de lo que el consultante preguntó.`;
+
+// Extensión SOLO de resumen_lectura (2026-09-03): el QA detectó que el
+// modelo esquivaba AUTORIDAD_CONSULTA hablando de "conflicto/tensión
+// central" en vez de "pregunta" — "el conflicto central no es si la
+// relación vale la pena, sino si puede evaluarla con claridad" nunca dice
+// "pregunta real", pero el efecto es idéntico: cita la consulta y la
+// declara no-central. mensaje_final no tuvo este problema en el QA — se
+// deja sin este agregado para no tocar lo que ya funciona.
+const EJE_CONSULTA_RESUMEN =
+  `Esto aplica igual si la síntesis habla de "conflicto central" o "tensión central" en vez de "pregunta": nunca declarés, ni cites la consulta original para señalar, que esa consulta no es el verdadero asunto, no es el conflicto o la tensión central, o es secundaria frente a otra cosa — subordinar así la pregunta la invalida igual que reformularla. La tensión, el conflicto o la dimensión que descubra la tirada siempre se conecta ADITIVAMENTE con la consulta ("al preguntarte X, las cartas ponen énfasis en Y que puede influir en esa respuesta"), nunca reemplazándola ("el conflicto central no es X, sino Y").`;
+
 // deno-lint-ignore no-explicit-any
 export function buildLecturaTool(w: WordLimits): Record<string, any> {
   return {
@@ -198,11 +220,11 @@ export function buildLecturaTool(w: WordLimits): Record<string, any> {
         },
         resumen_lectura: {
           type: "string",
-          description: `Síntesis narrativa de las 5 cartas como UNA historia (no "carta 1 dice... carta 2 dice..."): qué cuentan juntas sobre la situación del consultante — tensión central, contradicciones o progresión entre posiciones, qué está realmente en juego. Responde "¿qué dicen las cinco cartas juntas?", no "¿qué significa esto para vos?" (eso es mensaje_final — no lo adelantes acá). Máximo ${w.resumen} palabras: con más espacio disponible, profundizá la integración entre cartas en vez de acortar.`,
+          description: `Síntesis narrativa de las 5 cartas como UNA historia (no "carta 1 dice... carta 2 dice..."): qué cuentan juntas sobre la situación del consultante — tensión central, contradicciones o progresión entre posiciones, qué está realmente en juego. Responde "¿qué dicen las cinco cartas juntas?", no "¿qué significa esto para vos?" (eso es mensaje_final — no lo adelantes acá). ${AUTORIDAD_CONSULTA} ${EJE_CONSULTA_RESUMEN} Máximo ${w.resumen} palabras: con más espacio disponible, profundizá la integración entre cartas en vez de acortar.`,
         },
         mensaje_final: {
           type: "string",
-          description: `Cierre humano y personal de la lectura, dirigido directamente al consultante. Toma la comprensión construida por resumen_lectura y la aterriza en su experiencia — qué tensión merece mirar con honestidad, qué puede estar dependiendo de él/ella, una invitación a reflexionar sin decirle qué decidir. Responde "¿qué puede significar esto PARA VOS?", nunca repite ni resume lo ya dicho en resumen_lectura — si ambos campos podrían intercambiarse sin que se note, están mal. Máximo ${w.mensaje_final} palabras: con más espacio disponible, desarrollá el cierre en vez de cortarlo antes de tiempo.`,
+          description: `Cierre humano y personal de la lectura, dirigido directamente al consultante. Toma la comprensión construida por resumen_lectura y la aterriza en su experiencia — qué tensión merece mirar con honestidad, qué puede estar dependiendo de él/ella, una invitación a reflexionar sin decirle qué decidir. Responde "¿qué puede significar esto PARA VOS?", nunca repite ni resume lo ya dicho en resumen_lectura — si ambos campos podrían intercambiarse sin que se note, están mal. ${AUTORIDAD_CONSULTA} Máximo ${w.mensaje_final} palabras: con más espacio disponible, desarrollá el cierre en vez de cortarlo antes de tiempo.`,
         },
         proximos_pasos: {
           type: "array",

@@ -157,17 +157,17 @@ const P2_BLOCKS: P2Block[] = [
 // ─────────────────────────────────────────────────────────────
 const P3: P3Layout = {
   // Box 1 — Resumen de tu Tirada
-  resumen:      { x: 280, yStart:  780, width: 1900, minY: 1400, fontSize: 40 },
+  resumen:      { x: 280, yStart:  760, width: 1890, minY: 1750, fontSize: 40 },
 
   // Box 2 — Mensaje personal para [Nombre]
-  mensajeFinal: { x: 280, yStart: 1560, width: 1950, minY: 2050, fontSize: 40 },
+  mensajeFinal: { x: 280, yStart: 1950, width: 1890, minY: 2400, fontSize: 40 },
 
   // Box 3 — Claves prácticas (3 ítems, íconos quemados a la izq)
-  proximosPasos: [
-    { x: 420, y: 2150, width: 1900, minY: 2330 },
-    { x: 420, y: 2350, width: 1900, minY: 2480 },
-    { x: 420, y: 2550, width: 1900, minY: 2700 },
-  ],
+proximosPasos: [
+  { x: 380, y: 2650, width: 1900, minY: 2710 }, // 155 px
+  { x: 380, y: 2800, width: 1900, minY: 2910 }, // 157 px
+  { x: 380, y: 3050, width: 1900, minY: 3120 }, // 153 px
+],
 
 };
 
@@ -614,6 +614,62 @@ function addDebugOverlayP3(page: PDFPage, f: Fonts) {
 
 }
 
+// ─────────────────────────────────────────────────────────────
+// MODO DEBUG VISUAL (debugLayout) — 2026-09-01
+// Instrumentación específica para recalibrar Página 3 contra el
+// template nuevo. Deliberadamente separado de `debug`/addDebugOverlayP3
+// (grilla de coordenadas cada 50pt + cajas de las 3 páginas, usado para
+// el sprint de fitting anterior) — mezclar ambas semánticas habría hecho
+// que activar una arrastrara la otra sin pedirlo. `debugLayout` es un
+// flag independiente: dibuja overlays semitransparentes SOLO sobre las
+// 5 áreas de texto dinámico de Página 3 (resumen, mensaje, claves 1-3),
+// con la caja matemática REAL — los mismos topY/botY/x/width que
+// fitTextToBox()/verticalCenterOffset() usan para el fitting real, no
+// una aproximación — y las imprime en pequeño (x/y/w/h en píxeles del
+// template, mismo sistema de unidades que el resto de este archivo).
+// El contenido real sigue renderizándose debajo, sin reemplazarlo por
+// cajas vacías. Por defecto false: cero overlays, cero cambios visuales,
+// cero cambios de comportamiento en producción normal.
+// ─────────────────────────────────────────────────────────────
+interface DebugLayoutArea {
+  label: string;
+  xPx: number; topPx: number; wPx: number; hPx: number;
+  color: Rgb;
+}
+
+function addDebugLayoutOverlayP3(page: PDFPage, f: Fonts, areas: DebugLayoutArea[]) {
+  for (const a of areas) {
+    const xPt = pX(a.xPx);
+    const yTopPt = pY(a.topPx);
+    const wPt = pX(a.wPx);
+    const hPt = pX(a.hPx);
+    const yBotPt = yTopPt - hPt;
+
+    // Relleno semitransparente + borde sólido — la caja matemática real,
+    // no una aproximación visual.
+    page.drawRectangle({
+      x: xPt, y: yBotPt, width: wPt, height: hPt,
+      color: a.color, opacity: 0.22,
+      borderColor: a.color, borderWidth: 1.5, borderOpacity: 0.9,
+    });
+
+    const lines = [
+      a.label,
+      `x=${Math.round(a.xPx)}`,
+      `y=${Math.round(a.topPx)}`,
+      `w=${Math.round(a.wPx)}`,
+      `h=${Math.round(a.hPx)}`,
+    ];
+    const labelSize = 7;
+    const labelLH   = 8.5;
+    let ly = yTopPt - labelSize - 2;
+    for (const line of lines) {
+      page.drawText(line, { x: xPt + 3, y: ly, font: f.reg, size: labelSize, color: a.color });
+      ly -= labelLH;
+    }
+  }
+}
+
 // ── Página 1: Tirada visual ───────────────────────────────────
 function addPage1(
   pdfDoc: PDFDocument,
@@ -760,6 +816,7 @@ function addPage3(
   c: Json,
   f: Fonts,
   debug: boolean,
+  debugLayout = false,
 ) {
   const p = pdfDoc.addPage([PW, PH]);
 
@@ -770,6 +827,12 @@ function addPage3(
   }
 
   const L = P3;
+
+  // Cajas reales capturadas para el overlay de debugLayout (ver
+  // addDebugLayoutOverlayP3) — se llenan más abajo, a medida que cada
+  // bloque calcula su propio topY/botY real. Vacío y sin costo si
+  // debugLayout=false.
+  const debugAreas: DebugLayoutArea[] = [];
 
   // Buffers de seguridad (2026-08-26): QA con textos deliberadamente largos
   // detectó que el minY declarado de "resumen" y "mensajeFinal" es más
@@ -799,6 +862,15 @@ function addPage3(
   // Extensiones de las claves (CLAVES_PASO{1,2,3}_SAFE_TOP_EXTENSION_PX,
   // CLAVES_TOP_EXTENSIONS_PX) están a nivel de módulo — ver comentario junto a P3.
 
+  // Top-align (2026-09-02): Resumen y Mensaje dejaron de centrarse
+  // verticalmente (verticalCenterOffset) — ahora arrancan a una distancia
+  // fija del techo del área segura (resumenTopY/mensajeTopY, sin cambios) y
+  // crecen hacia abajo. El fitting (fitTextToBox, más abajo) sigue intacto:
+  // solo reduce el tamaño si el texto realmente no entra en la caja. Claves
+  // prácticas no se toca — sigue centrada con verticalCenterOffset.
+  const RESUMEN_TOP_PADDING_PX  = 35;
+  const MENSAJE_TOP_PADDING_PX  = 35;
+
   // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
   const resumenMaxW  = pX(L.resumen.width);
@@ -808,14 +880,20 @@ function addPage3(
   const LH_RESUMEN   = 1.40;
   const resumenSize  = fitTextToBox(resumenText, f.reg,
     resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
-  // Centrado vertical dentro del mismo área (resumenTopY/resumenBotY sin
-  // cambios) — no mueve ni redimensiona el bloque, solo dónde arranca el texto.
-  const resumenOffset = verticalCenterOffset(resumenText, f.reg, resumenSize,
-    resumenMaxW, resumenSize * LH_RESUMEN, resumenTopY, resumenBotY);
-  const resumenDrawY = resumenTopY - resumenOffset - resumenSize * 0.75;
+  // Top-align: arranca a RESUMEN_TOP_PADDING_PX del techo del área segura,
+  // no en el centro. resumenTopY/resumenBotY sin cambios — no mueve ni
+  // redimensiona la caja, solo dónde arranca el texto dentro de ella.
+  const resumenDrawY = resumenTopY - pX(RESUMEN_TOP_PADDING_PX) - resumenSize * 0.75;
   drawWrapped(p, resumenText,
     pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, C_BODY,
     resumenMaxW, resumenSize * LH_RESUMEN, resumenBotY);
+  debugAreas.push({
+    label: "RESUMEN", xPx: L.resumen.x,
+    topPx: L.resumen.yStart - RESUMEN_SAFE_TOP_EXTENSION_PX,
+    wPx: L.resumen.width,
+    hPx: (L.resumen.minY - RESUMEN_SAFE_BOTTOM_BUFFER_PX) - (L.resumen.yStart - RESUMEN_SAFE_TOP_EXTENSION_PX),
+    color: rgb(0.9, 0.1, 0.1),
+  });
 
   // Box 2 — Mensaje personal: misma tipografía que "Resumen de tu Tirada"
   // (f.reg — antes f.ita) para coherencia visual entre ambos bloques.
@@ -828,12 +906,19 @@ function addPage3(
   const LH_MENSAJE   = 1.45;
   const mensajeSize  = fitTextToBox(mensajeText, f.reg,
     mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
-  const mensajeOffset = verticalCenterOffset(mensajeText, f.reg, mensajeSize,
-    mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeTopY, mensajeBotY);
-  const mensajeDrawY = mensajeTopY - mensajeOffset - mensajeSize * 0.75;
+  // Top-align: mismo criterio que Resumen — arranca a MENSAJE_TOP_PADDING_PX
+  // del techo del área segura. mensajeTopY/mensajeBotY sin cambios.
+  const mensajeDrawY = mensajeTopY - pX(MENSAJE_TOP_PADDING_PX) - mensajeSize * 0.75;
   drawWrapped(p, mensajeText,
     pX(L.mensajeFinal.x), mensajeDrawY, f.reg, mensajeSize, C_MENSAJE,
     mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeBotY);
+  debugAreas.push({
+    label: "MENSAJE", xPx: L.mensajeFinal.x,
+    topPx: L.mensajeFinal.yStart - MENSAJE_SAFE_TOP_EXTENSION_PX,
+    wPx: L.mensajeFinal.width,
+    hPx: (L.mensajeFinal.minY - MENSAJE_SAFE_BOTTOM_BUFFER_PX) - (L.mensajeFinal.yStart - MENSAJE_SAFE_TOP_EXTENSION_PX),
+    color: rgb(0.9, 0.5, 0.0),
+  });
 
   // Box 3 — Claves prácticas: bold para máxima escaneabilidad y contraste narrativo
   const pasos: string[] = Array.isArray(c.proximos_pasos) ? c.proximos_pasos : [];
@@ -859,9 +944,16 @@ function addPage3(
     drawWrapped(p, pasoTxt,
       pX(pp.x), pasoDrawY, f.claves, pasoSize, C_DARK_BROWN,
       pasoMaxW, pasoSize * LH_PASO, pasoBotY);
+    debugAreas.push({
+      label: `CLAVE ${i + 1}`, xPx: pp.x,
+      topPx: pp.y - pasoTopExt, wPx: pp.width,
+      hPx: pp.minY - (pp.y - pasoTopExt),
+      color: rgb(0.0, 0.55, 0.2),
+    });
   }
 
   if (debug) addDebugOverlayP3(p, f);
+  if (debugLayout) addDebugLayoutOverlayP3(p, f, debugAreas);
 }
 
 // ── Mazo por defecto ─────────────────────────────────────────
@@ -940,7 +1032,7 @@ async function loadFonts(pdfDoc: PDFDocument): Promise<Fonts> {
 // ── Lógica principal ─────────────────────────────────────────
 async function generarPDF(
   ordenId: string, lecturaIdParam?: string, force = false, debug = false,
-  mazoId: string = DEFAULT_MAZO_ID,
+  mazoId: string = DEFAULT_MAZO_ID, debugLayout = false,
 ): Promise<void> {
   const t0 = Date.now();
 
@@ -1172,7 +1264,7 @@ async function generarPDF(
 
     addPage1(pdfDoc, bgP1, cardImages, contenido, fonts, debug);
     addPage2(pdfDoc, bgP2, cardImages, contenido, fonts, debug);
-    addPage3(pdfDoc, bgP3, contenido, fonts, debug);
+    addPage3(pdfDoc, bgP3, contenido, fonts, debug, debugLayout);
 
     const bytes = await pdfDoc.save();
 
@@ -1395,14 +1487,20 @@ serve(async (req) => {
       { status: 400, headers: { "Content-Type": "application/json" } });
   }
 
-  const lecturaId = body?.lectura_id ? String(body.lectura_id) : undefined;
-  const force     = body?.force === true;
-  const debug     = body?.debug === true;
-  const deckSlug  = body?.deck ? String(body.deck).trim().toLowerCase() : null;
+  const lecturaId   = body?.lectura_id ? String(body.lectura_id) : undefined;
+  const force       = body?.force === true;
+  const debug       = body?.debug === true;
+  // debugLayout: instrumentación visual de Página 3 (overlays semitransparentes
+  // sobre resumen/mensaje/claves 1-3 con su caja real x/y/w/h) — independiente
+  // de `debug` a propósito, para no mezclar esta semántica con la de `debug`
+  // (que además salta estado de orden, entrega y usa estado='generado').
+  // Se puede combinar con debug:true para calibrar sin tocar producción.
+  const debugLayout = body?.debugLayout === true;
+  const deckSlug    = body?.deck ? String(body.deck).trim().toLowerCase() : null;
 
   const { mazoId, deckUsado, warning: deckWarning } = await resolveDeck(deckSlug, ordenId);
 
-  generarPDF(ordenId, lecturaId, force, debug, mazoId).catch((err) => {
+  generarPDF(ordenId, lecturaId, force, debug, mazoId, debugLayout).catch((err) => {
     console.error(FN + " fatal para orden " + ordenId + ":", err);
   });
 
@@ -1410,6 +1508,7 @@ serve(async (req) => {
     ok:     true,
     mensaje: debug ? "Generando PDF (modo debug)" : "Generando PDF",
     deck:   deckUsado,
+    debug_layout: debugLayout,
   };
   if (deckWarning) respuesta.deck_warning = deckWarning;
 
