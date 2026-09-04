@@ -862,28 +862,19 @@ function addPage3(
   // Extensiones de las claves (CLAVES_PASO{1,2,3}_SAFE_TOP_EXTENSION_PX,
   // CLAVES_TOP_EXTENSIONS_PX) están a nivel de módulo — ver comentario junto a P3.
 
-  // Top-align (2026-09-02): Resumen y Mensaje dejaron de centrarse
-  // verticalmente (verticalCenterOffset) — ahora arrancan a una distancia
-  // fija del techo del área segura (resumenTopY/mensajeTopY, sin cambios) y
-  // crecen hacia abajo. El fitting (fitTextToBox, más abajo) sigue intacto:
-  // solo reduce el tamaño si el texto realmente no entra en la caja. Claves
-  // prácticas no se toca — sigue centrada con verticalCenterOffset.
-  const RESUMEN_TOP_PADDING_PX  = 35;
-  const MENSAJE_TOP_PADDING_PX  = 35;
-
   // Box 1 — Resumen: cuerpo editorial limpio, sereno, interlineado generoso
   const resumenText  = sanitize(c.resumen_lectura ?? "");
   const resumenMaxW  = pX(L.resumen.width);
-  const resumenTopY  = pY(L.resumen.yStart - RESUMEN_SAFE_TOP_EXTENSION_PX);
+  const resumenTopY = pY(L.resumen.yStart);
   const resumenBotY  = pY(L.resumen.minY - RESUMEN_SAFE_BOTTOM_BUFFER_PX);
   const resumenMaxS  = pX(L.resumen.fontSize);
   const LH_RESUMEN   = 1.40;
   const resumenSize  = fitTextToBox(resumenText, f.reg,
     resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
-  // Top-align: arranca a RESUMEN_TOP_PADDING_PX del techo del área segura,
-  // no en el centro. resumenTopY/resumenBotY sin cambios — no mueve ni
-  // redimensiona la caja, solo dónde arranca el texto dentro de ella.
-  const resumenDrawY = resumenTopY - pX(RESUMEN_TOP_PADDING_PX) - resumenSize * 0.75;
+  // Centrado vertical dentro del mismo área (resumenTopY/resumenBotY sin
+  // cambios) — no mueve ni redimensiona el bloque, solo dónde arranca el texto.
+
+  const resumenDrawY = resumenTopY - resumenSize * 0.75;
   drawWrapped(p, resumenText,
     pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, C_BODY,
     resumenMaxW, resumenSize * LH_RESUMEN, resumenBotY);
@@ -900,15 +891,13 @@ function addPage3(
   // Color ciruela cálido sin cambios — momento emocional de cierre.
   const mensajeText  = sanitize(c.mensaje_final ?? "");
   const mensajeMaxW  = pX(L.mensajeFinal.width);
-  const mensajeTopY  = pY(L.mensajeFinal.yStart - MENSAJE_SAFE_TOP_EXTENSION_PX);
+  const mensajeTopY = pY(L.mensajeFinal.yStart);
   const mensajeBotY  = pY(L.mensajeFinal.minY - MENSAJE_SAFE_BOTTOM_BUFFER_PX);
   const mensajeMaxS  = pX(L.mensajeFinal.fontSize);
   const LH_MENSAJE   = 1.45;
   const mensajeSize  = fitTextToBox(mensajeText, f.reg,
     mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
-  // Top-align: mismo criterio que Resumen — arranca a MENSAJE_TOP_PADDING_PX
-  // del techo del área segura. mensajeTopY/mensajeBotY sin cambios.
-  const mensajeDrawY = mensajeTopY - pX(MENSAJE_TOP_PADDING_PX) - mensajeSize * 0.75;
+const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;  
   drawWrapped(p, mensajeText,
     pX(L.mensajeFinal.x), mensajeDrawY, f.reg, mensajeSize, C_MENSAJE,
     mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeBotY);
