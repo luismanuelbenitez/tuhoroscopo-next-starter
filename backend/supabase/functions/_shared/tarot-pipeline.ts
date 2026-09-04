@@ -4,6 +4,9 @@
 // Pasos comunes a ef_tarot_webhook_mp (approved) y
 // ef_tarot_confirmar_cobro_manual:
 //   1. Transición tarot_ordenes → pago_confirmado
+//   1.5. Registro administrativo interno de la venta (idempotente por
+//        constraint de BD, ver _shared/tarot-facturacion.ts — NO es un
+//        comprobante fiscal)
 //   2. Alerta nueva_venta (fire-and-forget)
 //   3. Analytics funnel_events (event_name parametrizado)
 //   4. Dispatch ef_tarot_generar_lectura (fire-and-forget)
@@ -14,6 +17,7 @@
 // ============================================================
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "./tarot-alertas.ts";
+import { crearRegistroFacturacion } from "./tarot-facturacion.ts";
 
 export interface PipelineEnv {
   supabaseUrl:    string;
@@ -89,6 +93,11 @@ export async function ejecutarPipelinePostCobro(
     .from("tarot_ordenes")
     .update({ estado: "pago_confirmado", updated_at: ahora })
     .eq("id", ordenId);
+
+  // 1.5. Registro administrativo interno de la venta — awaited (no
+  // fire-and-forget) porque es barato y queremos que exista apenas termine
+  // el pipeline, pero internamente nunca lanza ni bloquea nada más abajo.
+  await crearRegistroFacturacion(supabase, ordenId);
 
   // 2. Fetch cliente para la alerta
   const { data: cliente } = await supabase

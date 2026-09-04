@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Mail,
   PauseCircle,
+  Receipt,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
@@ -263,6 +264,56 @@ function CardErrores({ m }: { m: MetricasTTC | null }) {
           <p className="text-xs text-gray-600 mt-1">
             <a href="/admin/tarot/ordenes" className="text-amber-400/70 hover:text-amber-400 underline">
               Ver órdenes →
+            </a>
+          </p>
+        </div>
+      )}
+    </MetricCard>
+  );
+}
+
+// ============================================================================
+// Facturación — widget autónomo (fetch propio, no depende de MetricasTTC)
+// ============================================================================
+
+interface FacturacionResumen { ventas_registradas: number; facturacion_neta: number; comprobantes_pendientes: number }
+
+function CardFacturacion() {
+  const [datos, setDatos] = useState<FacturacionResumen | null>(null);
+
+  const cargar = useCallback(async () => {
+    try {
+      const desde = new Date();
+      desde.setDate(desde.getDate() - 30);
+      const res = await fetch(`/api/admin/tarot/facturacion?fecha_desde=${desde.toISOString()}&limit=1`, { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok && data.kpis) {
+        setDatos({
+          ventas_registradas: data.kpis.ventas_registradas,
+          facturacion_neta: data.kpis.facturacion_neta,
+          comprobantes_pendientes: data.kpis.comprobantes_pendientes,
+        });
+      }
+    } catch { /* silencioso — widget secundario */ }
+  }, []);
+  usePollingRefresh(cargar);
+
+  return (
+    <MetricCard
+      iconColor="text-amber-400"
+      borderColor="border-amber-800/40"
+      hoverBorderColor="hover:border-amber-700/60"
+      icon={<Receipt size={20} />}
+      valor={datos ? `$ ${datos.facturacion_neta.toLocaleString("es-UY")}` : "—"}
+      titulo="Facturación neta (30 días)"
+    >
+      {datos && (
+        <div className="flex flex-col gap-1.5 text-sm">
+          <Row label="Ventas registradas" valor={datos.ventas_registradas} />
+          <Row label="Comprobantes pendientes" valor={datos.comprobantes_pendientes} />
+          <p className="text-xs text-gray-600 mt-1">
+            <a href="/admin/tarot/facturacion" className="text-amber-400/70 hover:text-amber-400 underline">
+              Ver facturación →
             </a>
           </p>
         </div>
@@ -746,6 +797,7 @@ export default function TarotDashboardPage() {
           <CardPdfs m={metricas} />
           <CardClientes m={metricas} />
           <CardErrores m={metricas} />
+          <CardFacturacion />
         </div>
 
         <SeccionAlertas eventos={alertas} cargandoInicial={cargandoInicial} />
