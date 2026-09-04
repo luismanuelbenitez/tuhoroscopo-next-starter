@@ -55,20 +55,55 @@ function texto(v: unknown, max = 200): string | null {
   return t ? t : null;
 }
 
+// Mismos valores que BUCKET_ASSETS/IMAGE_SIGNED_TTL_SEG en
+// _shared/tarot-imagen-whatsapp.ts — no se importan desde ahí para no
+// tener que redesplegar ef_tarot_enviar_whatsapp (bundlea ese shared) por
+// un cambio que es puramente de lectura de estado, no de generación.
+const BUCKET_ASSETS = "tarot-assets";
+const IMAGE_SIGNED_TTL_SEG = 24 * 3600;
+
 interface AccesoRow {
   estado: string;
   created_at: string;
   expira_at: string;
   opened_count: number;
+  last_opened_at: string | null;
 }
 
 async function leerAcceso(ordenId: string): Promise<AccesoRow | null> {
   const { data } = await supabase
     .from("tarot_accesos_web")
-    .select("estado, created_at, expira_at, opened_count")
+    .select("estado, created_at, expira_at, opened_count, last_opened_at")
     .eq("orden_id", ordenId)
     .maybeSingle();
   return (data as AccesoRow | null) ?? null;
+}
+
+// Solo lee si el PNG ya existe en Storage (list, sin generar) y, si existe,
+// firma una URL — nunca compone la imagen. Mismo storagePath que usa
+// generarImagenWhatsapp(); no se llama a esa función acá para no disparar
+// una generación real solo por abrir el detalle de la orden.
+async function leerImagenEstado(ordenId: string): Promise<{ existe: boolean; signedUrl: string | null }> {
+  const { data: existente } = await supabase.storage.from(BUCKET_ASSETS).list("tarot/whatsapp", {
+    search: `${ordenId}.png`,
+  });
+  if (!existente || existente.length === 0) return { existe: false, signedUrl: null };
+  const { data: signed } = await supabase.storage
+    .from(BUCKET_ASSETS)
+    .createSignedUrl(`tarot/whatsapp/${ordenId}.png`, IMAGE_SIGNED_TTL_SEG);
+  return { existe: true, signedUrl: signed?.signedUrl ?? null };
+}
+
+async function leerEmail(ordenId: string, emailSolicitado: boolean | null): Promise<{ aplica: boolean; estado: string | null }> {
+  const { data } = await supabase
+    .from("tarot_envios_email")
+    .select("estado")
+    .eq("orden_id", ordenId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const estado = (data as { estado: string } | null)?.estado ?? null;
+  return { aplica: Boolean(emailSolicitado) || estado !== null, estado };
 }
 
 serve(async (req) => {
@@ -89,15 +124,25 @@ serve(async (req) => {
 
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id")
+    .select("id, nombre_snapshot, email_solicitado")
     .eq("id", ordenId)
     .maybeSingle();
   if (errOrden || !orden) return jsonResponse({ ok: false, motivo: "orden_no_encontrada" }, 404);
 
   switch (accion) {
     case "estado": {
-      const acceso = await leerAcceso(ordenId);
-      return jsonResponse({ ok: true, acceso });
+      const [acceso, imagen, email] = await Promise.all([
+        leerAcceso(ordenId),
+        leerImagenEstado(ordenId),
+        leerEmail(ordenId, orden.email_solicitado as boolean | null),
+      ]);
+      return jsonResponse({
+        ok: true,
+        nombre_snapshot: orden.nombre_snapshot as string | null,
+        acceso,
+        imagen,
+        email,
+      });
     }
 
     case "generar_acceso": {

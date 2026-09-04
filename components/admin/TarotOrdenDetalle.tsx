@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, RefreshCw, Check, Ban } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -76,6 +76,17 @@ interface AccesoWeb {
   created_at: string;
   expira_at: string;
   opened_count: number;
+  last_opened_at: string | null;
+}
+
+interface ImagenEstado {
+  existe: boolean;
+  signedUrl: string | null;
+}
+
+interface EmailEstado {
+  aplica: boolean;
+  estado: string | null;
 }
 
 // ============================================================================
@@ -147,6 +158,34 @@ const ESTADO_PDF: Record<string, { label: string; cls: string }> = {
   invalidado:       { label: "Invalidado",     cls: "bg-gray-800 text-gray-400" },
 };
 
+// Checklist "Estado resumido de experiencia" (item 4) — deriva todo de
+// datos ya cargados por el componente, no agrega ninguna tabla ni fetch
+// nuevo aparte de lo que ya trae ef_tarot_admin_orden_experiencia.
+type ChecklistTono = "ok" | "pendiente" | "error";
+
+function ChecklistBadge({ label, tono }: { label: string; tono: ChecklistTono }) {
+  const cls = tono === "ok"
+    ? "bg-emerald-900/40 text-emerald-300 border-emerald-800/60"
+    : tono === "error"
+      ? "bg-red-900/40 text-red-300 border-red-800/60"
+      : "bg-gray-800/60 text-gray-400 border-gray-700/60";
+  const Icono = tono === "ok" ? CheckCircle2 : tono === "error" ? Ban : Loader2;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border whitespace-nowrap ${cls}`}>
+      <Icono size={12} className={tono === "pendiente" ? "opacity-60" : ""} />
+      {label}
+    </span>
+  );
+}
+
+function whatsappChecklist(estadoOrden: string): { label: string; tono: ChecklistTono } {
+  if (estadoOrden === "entregado") return { label: "WhatsApp: enviado", tono: "ok" };
+  if (estadoOrden === "entregado_simulado") return { label: "WhatsApp: simulado", tono: "ok" };
+  if (estadoOrden === "enviando_whatsapp") return { label: "WhatsApp: enviando…", tono: "pendiente" };
+  if (estadoOrden === "error_whatsapp" || estadoOrden === "error_critico") return { label: "WhatsApp: error", tono: "error" };
+  return { label: "WhatsApp: pendiente", tono: "pendiente" };
+}
+
 function accesoBadge(info: AccesoWeb | null): { label: string; cls: string } {
   if (!info) return { label: "Sin generar", cls: "bg-gray-800 text-gray-400" };
   if (info.estado === "revocado") return { label: "Revocado", cls: "bg-red-900/50 text-red-300" };
@@ -195,9 +234,13 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
   // la sesión del admin en pantalla. Nunca se renderiza como texto visible.
   const [accesoInfo, setAccesoInfo] = useState<AccesoWeb | null>(null);
   const [tokenActual, setTokenActual] = useState<string | null>(null);
+  const [nombreSnapshot, setNombreSnapshot] = useState<string | null>(null);
+  const [imagenEstado, setImagenEstado] = useState<ImagenEstado | null>(null);
+  const [imagenUrl, setImagenUrl] = useState<string | null>(null);
+  const [emailEstado, setEmailEstado] = useState<EmailEstado | null>(null);
   const [expAccion, setExpAccion] = useState<"" | "generar_acceso" | "ver_imagen" | "regenerar_imagen">("");
   const [expError, setExpError] = useState<string | null>(null);
-  const [copiado, setCopiado] = useState<"" | "lectura" | "pdf">("");
+  const [copiado, setCopiado] = useState<"" | "lectura" | "pdf" | "datos">("");
 
   useEffect(() => {
     async function fetchRelated() {
@@ -205,6 +248,7 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
       setErrorRelated(null);
       setTokenActual(null);
       setExpError(null);
+      setImagenUrl(null);
       try {
         const [rLect, rPdfs, rPagos, rAcceso] = await Promise.all([
           fetch(`/api/admin/tarot/lecturas?orden_id=${orden.id}&limit=10`),
@@ -222,6 +266,16 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
         setPdfs(dPdfs.pdfs ?? []);
         setPagos(dPagos.pagos ?? []);
         setAccesoInfo(dAcceso.ok ? (dAcceso.acceso ?? null) : null);
+        setNombreSnapshot(dAcceso.ok ? (dAcceso.nombre_snapshot ?? null) : null);
+        setImagenEstado(dAcceso.ok ? (dAcceso.imagen ?? null) : null);
+        setEmailEstado(dAcceso.ok ? (dAcceso.email ?? null) : null);
+        // El cabezal, si ya existe, se re-firma automáticamente para mostrar
+        // la preview sin un click extra — esto NO regenera nada (solo firma
+        // una URL fresca del PNG ya guardado). Si todavía no existe, no se
+        // dispara nada acá: el admin decide con el botón "Generar cabezal".
+        if (dAcceso.ok && dAcceso.imagen?.existe && dAcceso.imagen?.signedUrl) {
+          setImagenUrl(dAcceso.imagen.signedUrl as string);
+        }
       } catch (e: unknown) {
         setErrorRelated(e instanceof Error ? e.message : "Error al cargar datos relacionados");
       } finally {
@@ -258,7 +312,8 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
         setTokenActual(data.token as string);
         setAccesoInfo((data.acceso as AccesoWeb | null) ?? null);
       } else {
-        window.open(data.signedUrl as string, "_blank", "noopener,noreferrer");
+        setImagenUrl(data.signedUrl as string);
+        setImagenEstado({ existe: true, signedUrl: data.signedUrl as string });
       }
     } catch {
       setExpError("Error de red");
@@ -277,14 +332,39 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
     window.open(`/api/lectura/${tokenActual}/pdf`, "_blank", "noopener,noreferrer");
   }
 
+  function urlLecturaCliente(): string {
+    return `${window.location.origin}/lectura/${tokenActual}`;
+  }
+
+  function urlPdfCliente(): string {
+    return `${window.location.origin}/api/lectura/${tokenActual}/pdf`;
+  }
+
   async function copiarLinkCliente(tipo: "lectura" | "pdf") {
     if (!tokenActual) return;
-    const url = tipo === "lectura"
-      ? `${window.location.origin}/lectura/${tokenActual}`
-      : `${window.location.origin}/api/lectura/${tokenActual}/pdf`;
+    const url = tipo === "lectura" ? urlLecturaCliente() : urlPdfCliente();
     try {
       await navigator.clipboard.writeText(url);
       setCopiado(tipo);
+      setTimeout(() => setCopiado(""), 2000);
+    } catch {
+      setExpError("No se pudo copiar al portapapeles");
+    }
+  }
+
+  // QA manual: solo lo mínimo para verificar la entrega — nunca teléfono,
+  // email, fecha de nacimiento, pregunta ni el token aislado.
+  async function copiarDatosEntrega() {
+    if (!tokenActual) return;
+    const texto = [
+      `Nombre: ${nombreSnapshot ?? orden.cliente_nombre ?? "—"}`,
+      `Lectura: ${urlLecturaCliente()}`,
+      `PDF: ${urlPdfCliente()}`,
+      `Vence: ${fmt(accesoInfo?.expira_at)}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado("datos");
       setTimeout(() => setCopiado(""), 2000);
     } catch {
       setExpError("No se pudo copiar al portapapeles");
@@ -478,85 +558,162 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
           {/* Experiencia del cliente — preview real, mismo link/token que recibe el comprador */}
           <Sect title="Experiencia del cliente">
             <p className="text-xs text-gray-500 mb-3">
-              Mismo link y token que recibirá el comprador por WhatsApp — no una URL de preview alternativa.
+              Mismo link, token y cabezal que recibirá el comprador por WhatsApp — no una URL de preview alternativa.
             </p>
 
-            <DataRow label="Acceso web" value={<Badge text={accesoBadge(accesoInfo).label} cls={accesoBadge(accesoInfo).cls} />} />
-            {accesoInfo && (
-              <>
-                <DataRow label="Creado" value={fmt(accesoInfo.created_at)} />
-                <DataRow label="Vence" value={fmt(accesoInfo.expira_at)} />
-                <DataRow label="Aperturas" value={accesoInfo.opened_count} />
-              </>
+            {/* Checklist resumido (item 4) */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              <ChecklistBadge
+                label={lectura?.estado === "completada" ? "Lectura generada" : "Lectura pendiente"}
+                tono={lectura?.estado === "completada" ? "ok" : lectura?.estado === "error" ? "error" : "pendiente"}
+              />
+              <ChecklistBadge
+                label={pdf?.estado === "generado" ? "PDF generado" : "PDF pendiente"}
+                tono={pdf?.estado === "generado" ? "ok" : pdf?.estado === "error_generacion" ? "error" : "pendiente"}
+              />
+              <ChecklistBadge
+                label={accesoBadge(accesoInfo).label === "Activo" ? "Acceso web activo" : "Acceso web " + accesoBadge(accesoInfo).label.toLowerCase()}
+                tono={accesoBadge(accesoInfo).label === "Activo" ? "ok" : accesoInfo ? "error" : "pendiente"}
+              />
+              <ChecklistBadge
+                label={imagenEstado?.existe ? "Cabezal generado" : "Cabezal pendiente"}
+                tono={imagenEstado?.existe ? "ok" : "pendiente"}
+              />
+              {(() => { const wa = whatsappChecklist(orden.estado); return <ChecklistBadge label={wa.label} tono={wa.tono} />; })()}
+              {emailEstado?.aplica && (
+                <ChecklistBadge
+                  label={emailEstado.estado === "enviado" ? "Email enviado" : "Email pendiente"}
+                  tono={emailEstado.estado === "enviado" ? "ok" : emailEstado.estado === "error" ? "error" : "pendiente"}
+                />
+              )}
+            </div>
+
+            {/* "Así recibirá su tirada" — cabezal + nombre + acceso + accesos directos */}
+            <div className="rounded-xl border border-gray-700/60 bg-gray-950/50 p-3 mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2.5">Así recibirá su tirada</p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Preview del cabezal — 2:1, responsive, click abre el original */}
+                <div className="w-full sm:w-56 shrink-0">
+                  {imagenUrl ? (
+                    <a href={imagenUrl} target="_blank" rel="noopener noreferrer" className="block">
+                      <img
+                        src={imagenUrl}
+                        alt="Cabezal WhatsApp"
+                        className="w-full h-auto aspect-[2/1] object-cover rounded-lg border border-gray-700/60 bg-gray-900 hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  ) : (
+                    <div className="w-full aspect-[2/1] rounded-lg border border-dashed border-gray-700/60 bg-gray-900/60 flex items-center justify-center px-2">
+                      <p className="text-xs text-gray-500 text-center">
+                        {imagenEstado?.existe === false ? "Cabezal aún no generado" : "Cargando preview…"}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <button
+                      onClick={() => ejecutarExperiencia("ver_imagen")}
+                      disabled={expAccion !== ""}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {expAccion === "ver_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                      {imagenEstado?.existe ? "Actualizar preview" : "Generar cabezal"}
+                    </button>
+                    {imagenEstado?.existe && (
+                      <button
+                        onClick={() => ejecutarExperiencia("regenerar_imagen")}
+                        disabled={expAccion !== ""}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {expAccion === "regenerar_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                        Regenerar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Nombre + acceso + accesos directos */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{nombreSnapshot ?? orden.cliente_nombre ?? "—"}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <Badge text={accesoBadge(accesoInfo).label} cls={accesoBadge(accesoInfo).cls} />
+                    <span className="text-xs text-gray-500">vence {fmt(accesoInfo?.expira_at)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    <button
+                      onClick={abrirLecturaMovil}
+                      disabled={!tokenActual}
+                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ExternalLink size={13} /> Abrir lectura
+                    </button>
+                    <button
+                      onClick={abrirPdfCliente}
+                      disabled={!tokenActual}
+                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ExternalLink size={13} /> Abrir PDF
+                    </button>
+                  </div>
+                  {!tokenActual && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Generá el acceso web (abajo) para habilitar estos botones en esta sesión.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Acceso web: detalle + generar/regenerar */}
+            <DataRow label="Creado" value={accesoInfo ? fmt(accesoInfo.created_at) : "—"} />
+            <DataRow label="Vence" value={accesoInfo ? fmt(accesoInfo.expira_at) : "—"} />
+            <DataRow label="Aperturas" value={accesoInfo ? accesoInfo.opened_count : "—"} />
+            <DataRow label="Última apertura" value={accesoInfo?.last_opened_at ? fmt(accesoInfo.last_opened_at) : "—"} />
+
+            {orden.estado === "entregado" && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-sm text-red-300 mt-3">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>Esta orden ya tuvo una entrega REAL por WhatsApp. Regenerar el acceso invalida el link que ese cliente ya tiene.</span>
+              </div>
             )}
 
-            <div className="flex flex-wrap gap-2 mt-3 mb-2">
+            <div className="flex flex-wrap gap-2 mt-2">
               <button
                 onClick={() => ejecutarExperiencia("generar_acceso")}
                 disabled={expAccion !== ""}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={
+                  accesoInfo
+                    ? "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-red-700/70 bg-red-900/30 hover:bg-red-800/40 text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                }
               >
                 {expAccion === "generar_acceso" ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                {accesoInfo ? "Regenerar acceso web" : "Generar acceso web"}
+                {accesoInfo ? "Regenerar acceso web (invalida el anterior)" : "Generar acceso web"}
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-2">
-              <button
-                onClick={abrirLecturaMovil}
-                disabled={!tokenActual}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ExternalLink size={13} /> Ver lectura móvil
-              </button>
+            {/* Copiado — QA manual */}
+            <div className="flex flex-wrap gap-2 mt-3">
               <button
                 onClick={() => copiarLinkCliente("lectura")}
                 disabled={!tokenActual}
                 className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Copy size={13} /> {copiado === "lectura" ? "¡Copiado!" : "Copiar link lectura móvil"}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-2">
-              <button
-                onClick={abrirPdfCliente}
-                disabled={!tokenActual}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ExternalLink size={13} /> Ver PDF
+                {copiado === "lectura" ? <Check size={13} /> : <Copy size={13} />} {copiado === "lectura" ? "¡Copiado!" : "Copiar link lectura"}
               </button>
               <button
                 onClick={() => copiarLinkCliente("pdf")}
                 disabled={!tokenActual}
                 className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Copy size={13} /> {copiado === "pdf" ? "¡Copiado!" : "Copiar link PDF"}
-              </button>
-            </div>
-
-            {!tokenActual && (
-              <p className="text-xs text-gray-500 mb-3">
-                {accesoInfo ? "Regenerá" : "Generá"} el acceso web para habilitar estos links en esta sesión — el token no se puede recuperar una vez generado.
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => ejecutarExperiencia("ver_imagen")}
-                disabled={expAccion !== ""}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {expAccion === "ver_imagen" ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
-                Ver imagen/cabezal WhatsApp
+                {copiado === "pdf" ? <Check size={13} /> : <Copy size={13} />} {copiado === "pdf" ? "¡Copiado!" : "Copiar link PDF"}
               </button>
               <button
-                onClick={() => ejecutarExperiencia("regenerar_imagen")}
-                disabled={expAccion !== ""}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={copiarDatosEntrega}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {expAccion === "regenerar_imagen" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                Regenerar imagen WhatsApp
+                {copiado === "datos" ? <Check size={13} /> : <Copy size={13} />} {copiado === "datos" ? "¡Copiado!" : "Copiar datos de entrega"}
               </button>
             </div>
 
