@@ -8,8 +8,12 @@
 // Estados: pdf_listo | error_whatsapp → enviando_whatsapp → entregado
 //          Si supera max_reintentos_wa: → error_critico
 //
-// Sandbox: simula el envío (no llama a la API real), actualiza a entregado.
-// Producción: llama a Meta WhatsApp Cloud API con mensaje tipo documento.
+// Sandbox: simula el envío (no llama a la API real). NUNCA marca la orden
+// como 'entregado' real — usa el estado 'simulado'/'entregado_simulado'.
+// Producción: llama a Meta WhatsApp Cloud API con un mensaje tipo template
+// (header imagen personalizada + botones "Ver mi tirada"/"PDF de tu tirada",
+// ver bloque 6.5 y 7 más abajo) — si el token de acceso web o la imagen no
+// se pudieron generar, se degrada al mensaje tipo documento anterior.
 //
 // GOBERNANZA DE ENTREGA:
 //   Si ya existe un envío exitoso previo para esta orden, NINGÚN
@@ -24,6 +28,8 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 import { verificarPermisoEnvio } from "../_shared/tarot-entregas.ts";
+import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
+import { generarImagenWhatsapp } from "../_shared/tarot-imagen-whatsapp.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -143,7 +149,8 @@ serve(async (req) => {
       .from("tarot_configuracion")
       .select("clave, valor")
       .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa",
-                     "canal_entrega_principal", "fallback_email_si_falla_whatsapp", "envio_email_activo"]);
+                     "canal_entrega_principal", "fallback_email_si_falla_whatsapp", "envio_email_activo",
+                     "whatsapp_template_lectura_nombre", "whatsapp_template_lectura_idioma"]);
 
     const cfg: ConfigMap = Object.fromEntries(
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
@@ -158,6 +165,16 @@ serve(async (req) => {
     canalPrincipal = cfg.canal_entrega_principal ?? "both";
     fallbackMail   = cfg.fallback_email_si_falla_whatsapp !== "false";
     emailActivo    = cfg.envio_email_activo !== "false";
+    // Template de WhatsApp para "Tu Tirada" (header imagen + body {{1}} nombre +
+    // 2 botones URL dinámicos). Debe existir y estar APROBADO en Meta Business
+    // Manager con este nombre/idioma exactos antes de que whatsapp_modo pase a
+    // "production" — este código no puede verificar eso, solo lo asume. Se
+    // asume además que el botón "Ver mi tirada" está configurado en Meta como
+    // `https://tuoraculo.uy/lectura/{{1}}` y "PDF de tu tirada" como
+    // `https://tuoraculo.uy/api/lectura/{{1}}/pdf` — si el template real usa
+    // otra estructura de URL, ajustar acá.
+    const templateNombre  = cfg.whatsapp_template_lectura_nombre ?? "tirada_lista";
+    const templateIdioma  = cfg.whatsapp_template_lectura_idioma ?? "es";
 
     // ── 2. Orden ─────────────────────────────────────────────────
     const { data: orden } = await supabase
@@ -291,6 +308,37 @@ serve(async (req) => {
       });
     }
 
+    // ── 6.5 Experiencia mobile: token de acceso web + imagen personalizada ──
+    // Se generan siempre (también en sandbox) — el envío real de WhatsApp es
+    // lo único que se simula en sandbox; el link "Ver mi tirada" y la imagen
+    // deben poder probarse igual durante QA. Un fallo acá NO aborta el envío:
+    // se degrada al mensaje anterior (documento suelto) más abajo.
+    let accesoToken: string | null = null;
+    try {
+      const acceso = await crearAccesoWeb(supabase, ordenId);
+      accesoToken = acceso.token;
+      await logFunnelEvent({
+        order_id: ordenId, session_id: orden.funnel_session_id ?? null,
+        event_name: "mobile_reading_created",
+      });
+    } catch (e) {
+      await log(ordenId, "wa_acceso_web_error", "warning",
+        "No se pudo crear el acceso web de la lectura — se degrada al mensaje sin link mobile",
+        { error: String(e) });
+    }
+
+    let imagenHeaderUrl: string | null = null;
+    try {
+      const imagen = await generarImagenWhatsapp(supabase, ordenId);
+      imagenHeaderUrl = imagen?.signedUrl ?? null;
+    } catch (e) {
+      await log(ordenId, "wa_imagen_whatsapp_error", "warning",
+        "No se pudo generar la imagen personalizada — se degrada al mensaje sin template",
+        { error: String(e) });
+    }
+
+    const puedeUsarTemplate = Boolean(accesoToken && imagenHeaderUrl);
+
     // ── 7. Envío ───────────────────────────────────────────────────
     let waMessageId: string | null = null;
     let envioOk     = false;
@@ -298,40 +346,69 @@ serve(async (req) => {
     let errorMsg:    string | null = null;
     let respuestaRaw: unknown = null;
 
+    const nombrePila = cliente.nombre_completo?.split(" ")[0] ?? "aquí";
+
+    // Payload "nuevo": template con header imagen + body {{1}} nombre + 2
+    // botones URL dinámicos (suffix = token). Requiere que `templateNombre`
+    // exista y esté aprobado en Meta con esta estructura — ver comentario
+    // donde se lee whatsapp_template_lectura_nombre más arriba.
+    function buildWaBodyTemplate() {
+      return {
+        messaging_product: "whatsapp",
+        to: telefonoDest,
+        type: "template",
+        template: {
+          name: templateNombre,
+          language: { code: templateIdioma },
+          components: [
+            { type: "header", parameters: [{ type: "image", image: { link: imagenHeaderUrl } }] },
+            { type: "body", parameters: [{ type: "text", text: nombrePila }] },
+            { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: accesoToken }] },
+            { type: "button", sub_type: "url", index: "1", parameters: [{ type: "text", text: accesoToken }] },
+          ],
+        },
+      };
+    }
+
+    // Payload "anterior": documento suelto con el PDF adjunto — se mantiene
+    // como fallback si el token o la imagen no pudieron generarse.
+    function buildWaBodyDocumento() {
+      const caption =
+        `¡Hola ${nombrePila}! ✨ Tu lectura de tarot personalizada está lista. ` +
+        `Encontrarás la interpretación completa de tus 5 cartas en el PDF adjunto. ` +
+        `Que resuene con vos. 🔮`;
+      return {
+        messaging_product: "whatsapp",
+        to: telefonoDest,
+        type: "document",
+        document: { link: pdf!.storage_url, filename: `Tu Tirada - ${nombrePila}.pdf`, caption },
+      };
+    }
+
     if (waEsSandbox || bloqueadoPorNumero) {
       waMessageId  = `sandbox_${crypto.randomUUID()}`;
       envioOk      = true;
+      const wouldSend = puedeUsarTemplate ? buildWaBodyTemplate() : buildWaBodyDocumento();
       if (bloqueadoPorNumero) {
-        respuestaRaw = { sandbox: true, bloqueado: true, motivo: "numero_no_autorizado" };
+        respuestaRaw = { sandbox: true, bloqueado: true, motivo: "numero_no_autorizado", habria_enviado: wouldSend };
         await log(ordenId, "whatsapp_real_bloqueado_por_numero_no_autorizado", "warning",
           "Modo prueba controlada: número de destino no autorizado — envío simulado (sin WA real)",
           { modo_controlado: true, destino_match: false });
       } else {
-        respuestaRaw = { sandbox: true, simulado: true };
+        respuestaRaw = { sandbox: true, simulado: true, habria_enviado: wouldSend };
         await log(ordenId, "wa_sandbox_simulado", "info",
-          "Modo sandbox: envío simulado exitoso (no se llamó a la API real)");
+          `Modo sandbox: envío simulado exitoso (no se llamó a la API real) — tipo=${wouldSend.type}`);
       }
     } else {
       if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
         throw new Error("WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados en env vars");
       }
 
-      const nombrePila = cliente.nombre_completo?.split(" ")[0] ?? "aquí";
-      const caption =
-        `¡Hola ${nombrePila}! ✨ Tu lectura de tarot personalizada está lista. ` +
-        `Encontrarás la interpretación completa de tus 5 cartas en el PDF adjunto. ` +
-        `Que resuene con vos. 🔮`;
-
-      const waBody = {
-        messaging_product: "whatsapp",
-        to: telefonoDest,
-        type: "document",
-        document: {
-          link: pdf.storage_url,
-          filename: `Tu Tirada - ${nombrePila}.pdf`,
-          caption,
-        },
-      };
+      const waBody = puedeUsarTemplate ? buildWaBodyTemplate() : buildWaBodyDocumento();
+      if (!puedeUsarTemplate) {
+        await log(ordenId, "wa_fallback_documento", "warning",
+          "Token de acceso o imagen no disponibles — se envía el documento suelto en vez del template nuevo");
+      }
 
       const waRes = await fetch(
         `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
