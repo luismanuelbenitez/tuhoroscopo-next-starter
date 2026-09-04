@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import Image from 'next/image';
@@ -99,6 +99,22 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   const [emailSolicitado, setEmailSolicitado] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
   const [error, setError]                   = useState<string | null>(null);
+
+  // Auto-activación del checkbox "recibir por email" (sprint de auditoría de
+  // entrega, 2026-09-04): cuando el email pasa de inválido/vacío a válido, se
+  // activa solo — pero deja de intentarlo en cuanto el usuario toca el switch
+  // con la mano, en cualquier dirección, para no pelear contra una elección
+  // manual en cada tecla (ver docs/product/DECISIONS.md).
+  const emailEraValidoRef = useRef(false);
+  const [emailEligioManualmente, setEmailEligioManualmente] = useState(false);
+  useEffect(() => {
+    const esValido = EMAIL_RE.test(form.email.trim());
+    if (esValido && !emailEraValidoRef.current && !emailEligioManualmente) {
+      setEmailSolicitado(true);
+    }
+    emailEraValidoRef.current = esValido;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.email]);
 
   // Descuento
   const [codigoCampo, setCodigoCampo]         = useState('');
@@ -417,7 +433,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                       role="switch"
                       aria-checked={emailSolicitado}
                       aria-label="También quiero recibir mi lectura por email"
-                      onClick={() => setEmailSolicitado(v => !v)}
+                      onClick={() => {
+                        setEmailEligioManualmente(true);
+                        setEmailSolicitado(v => !v);
+                      }}
                       disabled={isLoading}
                       className="flex items-center gap-1.5 shrink-0 disabled:opacity-50"
                     >

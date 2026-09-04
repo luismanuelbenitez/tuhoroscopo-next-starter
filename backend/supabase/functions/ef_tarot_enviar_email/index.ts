@@ -1,10 +1,11 @@
 ﻿// ============================================================
-// ef_tarot_enviar_email v5 (+ puerta de entrada a la experiencia mobile/cabezal)
+// ef_tarot_enviar_email v6 (+ auditoría de entrega — sin adjunto PDF)
 // Email de ENTREGA: cabezal personalizado (mismo PNG de WhatsApp) + CTA
 // principal a /lectura/<token> (misma experiencia mobile temporal, mismo
-// token, 30 días) + CTA secundario al mismo PDF (también adjunto) — no
-// reproduce contenido narrativo de la lectura (ver sección "Template HTML"
-// más abajo y docs/product/DECISIONS.md 2026-09-04).
+// token, 30 días) + CTA secundario al mismo PDF vía link — NO lleva el PDF
+// adjunto (2026-09-04: se sacó el adjunto — ver sprint de auditoría de
+// entrega por email en docs/product/DECISIONS.md). No reproduce contenido
+// narrativo de la lectura (ver sección "Template HTML" más abajo).
 // Invocado fire-and-forget desde ef_tarot_generar_pdf.
 //
 // Input: { orden_id, autorizacion_id?, token? }
@@ -25,9 +26,14 @@
 //   reenvío autorizada por un admin, consumible una sola vez). La decisión
 //   vive en _shared/tarot-entregas.ts (verificarPermisoEnvio) — único punto
 //   canónico, compartido con ef_tarot_enviar_whatsapp.
+//
+// LOGGING (sprint de auditoría, 2026-09-04): tarot_logs registra etapas
+// técnicas del envío (preparado → intentando → aceptado/error por el
+// proveedor) sin PII — nunca el email completo, nombre, pregunta, token ni
+// HTML. `estado: "enviado"` en tarot_envios_email SOLO se escribe después
+// de que Resend confirma aceptación (`res.ok`) — nunca antes.
 // ============================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
-import { encode as encodeBase64 } from "https://deno.land/std@0.192.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 import { verificarPermisoEnvio } from "../_shared/tarot-entregas.ts";
@@ -104,7 +110,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   // 1. Orden
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("id, cliente_id, nombre_snapshot")
+    .select("id, cliente_id, nombre_snapshot, email_solicitado")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -153,6 +159,14 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
     await log(ordenId, "email_sin_pdf", "error", "No hay PDF listo para esta orden");
     return { ok: false, motivo: "sin_pdf" };
   }
+
+  // 3.c Etapa "preparado": las verificaciones previas (orden, permiso, cliente
+  // con email, PDF listo) pasaron — el envío va a intentarse. Sin PII: ni el
+  // email ni el nombre viajan acá, solo el booleano/canal que pidió la orden.
+  await log(ordenId, "email_preparado", "info", "Envío de email preparado — verificaciones previas OK", {
+    email_solicitado: (orden as { email_solicitado?: boolean | null }).email_solicitado ?? null,
+    canal: "email",
+  });
 
   // 3.b Guarda anti-duplicado: si ya hay un envío en curso muy reciente para
   // esta orden (carrera de doble clic / retry concurrente), no arrancar uno
@@ -243,21 +257,10 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
       { error: String(e) });
   }
 
-  // 5. Adjuntar PDF como base64 (sin cambios: fetch directo del storage_url,
-  // interno, nunca visible para el cliente).
-  let pdfBase64: string | null = null;
-  try {
-    const pdfResp = await fetch(pdfStorageUrl, { signal: AbortSignal.timeout(15_000) });
-    if (pdfResp.ok) {
-      const bytes = new Uint8Array(await pdfResp.arrayBuffer());
-      pdfBase64   = encodeBase64(bytes.buffer);
-    }
-  } catch (err) {
-    await log(ordenId, "email_pdf_fetch_warning", "warning",
-      "No se pudo adjuntar el PDF — se envía solo el link", { error: String(err) });
-  }
-
-  // 6. Construir email
+  // 5. Construir email — SIN adjunto (2026-09-04: se sacó el PDF adjunto,
+  // ver header del archivo y docs/product/DECISIONS.md). `pdfStorageUrl` ya
+  // no se descarga acá: el CTA "Ver / descargar PDF" (pdfCtaUrl, 4.b) es el
+  // único acceso al PDF desde el email, igual que en WhatsApp.
   const html = buildHtmlEntregaEmail({ nombreCorto, cabezalUrl, lecturaUrl, pdfUrl: pdfCtaUrl, expiraLecturaStr });
 
   const emailPayload: Record<string, unknown> = {
@@ -266,13 +269,6 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
     subject: `✨ Tu Tirada está lista, ${nombreCorto}`,
     html,
   };
-
-  if (pdfBase64) {
-    emailPayload.attachments = [{
-      filename: `Tu Tirada - ${nombreCorto}.pdf`,
-      content:  pdfBase64,
-    }];
-  }
 
   // 6.b Registrar intento (persistencia estructurada — antes solo existía tarot_logs).
   // La constraint UNIQUE(orden_id, numero_intento) en tarot_envios_email es la
@@ -317,6 +313,12 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   }
 
   // 7. Enviar
+  await log(ordenId, "email_intentando_envio", "info", "Invocando proveedor de email", {
+    envio_id: envioEmail?.id ?? null,
+    intento: numeroIntento,
+    proveedor: "resend",
+  });
+
   const res = await fetch("https://api.resend.com/emails", {
     method:  "POST",
     headers: {
@@ -338,9 +340,20 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
         updated_at: new Date().toISOString(),
       }).eq("id", envioEmail.id);
     }
+    // Sin PII: ni el email del cliente ni el body crudo del proveedor viajan acá
+    // (el body ya queda persistido en tarot_envios_email.respuesta_raw, protegido
+    // por RLS, no en tarot_logs). Solo lo técnico: status, envío, código/mensaje
+    // de error acotado.
     await log(ordenId, "email_error", "error",
       `Resend respondió ${res.status}`,
-      { email: cliente.email, status: res.status, body: resData });
+      {
+        envio_id: envioEmail?.id ?? null,
+        intento: numeroIntento,
+        proveedor: "resend",
+        http_status: res.status,
+        error_code: typeof resData?.name === "string" ? resData.name : null,
+        error_message: typeof resData?.message === "string" ? resData.message.substring(0, 200) : null,
+      });
     // Alerta: error de email al cliente (fire-and-forget)
     dispararAlerta(supabase, "error_email_cliente", {
       ordenId,
@@ -360,9 +373,17 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
     }).eq("id", envioEmail.id);
   }
 
+  // Sin PII: sin email del cliente — el estado "aceptado por proveedor" ya
+  // queda asociado a la orden vía orden_id, no hace falta el email acá.
   await log(ordenId, "email_enviado", "info",
-    `Email enviado a ${cliente.email}${pdfBase64 ? " con PDF adjunto" : " (solo link)"}`,
-    { email_id: resData?.id, email: cliente.email, pdf_adjunto: !!pdfBase64 });
+    "Proveedor aceptó el envío",
+    {
+      envio_id: envioEmail?.id ?? null,
+      intento: numeroIntento,
+      proveedor: "resend",
+      http_status: res.status,
+      proveedor_message_id: resData?.id ?? null,
+    });
 
   return {
     ok: true, estado: "enviado",

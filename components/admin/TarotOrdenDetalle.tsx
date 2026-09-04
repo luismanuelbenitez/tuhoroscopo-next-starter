@@ -611,7 +611,11 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               {(() => { const wa = whatsappChecklist(orden.estado); return <ChecklistBadge label={wa.label} tono={wa.tono} />; })()}
               {emailEstado?.aplica && (
                 <ChecklistBadge
-                  label={emailEstado.estado === "enviado" ? "Email enviado" : "Email pendiente"}
+                  label={
+                    emailEstado.estado === "enviado" ? "Email enviado"
+                    : emailEstado.estado === "error" ? "Email: error del proveedor"
+                    : "Email pendiente"
+                  }
                   tono={emailEstado.estado === "enviado" ? "ok" : emailEstado.estado === "error" ? "error" : "pendiente"}
                 />
               )}
