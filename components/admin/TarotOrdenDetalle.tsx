@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2 } from "lucide-react";
+import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, Image as ImageIcon, RefreshCw } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -69,6 +69,13 @@ interface Pago {
   moneda: string | null;
   webhook_received_at: string | null;
   warnings: string[];
+}
+
+interface AccesoWeb {
+  estado: string;
+  created_at: string;
+  expira_at: string;
+  opened_count: number;
 }
 
 // ============================================================================
@@ -140,6 +147,13 @@ const ESTADO_PDF: Record<string, { label: string; cls: string }> = {
   invalidado:       { label: "Invalidado",     cls: "bg-gray-800 text-gray-400" },
 };
 
+function accesoBadge(info: AccesoWeb | null): { label: string; cls: string } {
+  if (!info) return { label: "Sin generar", cls: "bg-gray-800 text-gray-400" };
+  if (info.estado === "revocado") return { label: "Revocado", cls: "bg-red-900/50 text-red-300" };
+  if (new Date(info.expira_at).getTime() < Date.now()) return { label: "Expirado", cls: "bg-red-900/50 text-red-300" };
+  return { label: "Activo", cls: "bg-emerald-900/50 text-emerald-300" };
+}
+
 const ESTADO_PAGO: Record<string, { label: string; cls: string }> = {
   pending:      { label: "Pendiente",    cls: "bg-amber-900/50 text-amber-300" },
   approved:     { label: "Aprobado",    cls: "bg-emerald-900/50 text-emerald-300" },
@@ -175,24 +189,39 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
   const [accionEstado, setAccionEstado] = useState<AccionEstado>("idle");
   const [accionMsg, setAccionMsg] = useState<string | null>(null);
 
+  // Experiencia del cliente: acceso web (token) + imagen de WhatsApp.
+  // El token en texto plano NUNCA se persiste server-side (mismo diseño que
+  // el resto del proyecto) — solo vive en este estado local, mientras dura
+  // la sesión del admin en pantalla. Nunca se renderiza como texto visible.
+  const [accesoInfo, setAccesoInfo] = useState<AccesoWeb | null>(null);
+  const [tokenActual, setTokenActual] = useState<string | null>(null);
+  const [expAccion, setExpAccion] = useState<"" | "generar_acceso" | "ver_imagen" | "regenerar_imagen">("");
+  const [expError, setExpError] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState<"" | "lectura" | "pdf">("");
+
   useEffect(() => {
     async function fetchRelated() {
       setLoadingRelated(true);
       setErrorRelated(null);
+      setTokenActual(null);
+      setExpError(null);
       try {
-        const [rLect, rPdfs, rPagos] = await Promise.all([
+        const [rLect, rPdfs, rPagos, rAcceso] = await Promise.all([
           fetch(`/api/admin/tarot/lecturas?orden_id=${orden.id}&limit=10`),
           fetch(`/api/admin/tarot/pdfs?orden_id=${orden.id}&limit=5`),
           fetch(`/api/admin/tarot/pagos?orden_id=${orden.id}&limit=5`),
+          fetch(`/api/admin/tarot/ordenes/${orden.id}/experiencia-cliente`),
         ]);
-        const [dLect, dPdfs, dPagos] = await Promise.all([
+        const [dLect, dPdfs, dPagos, dAcceso] = await Promise.all([
           rLect.json().catch(() => ({})),
           rPdfs.json().catch(() => ({})),
           rPagos.json().catch(() => ({})),
+          rAcceso.json().catch(() => ({})),
         ]);
         setLecturas(dLect.lecturas ?? []);
         setPdfs(dPdfs.pdfs ?? []);
         setPagos(dPagos.pagos ?? []);
+        setAccesoInfo(dAcceso.ok ? (dAcceso.acceso ?? null) : null);
       } catch (e: unknown) {
         setErrorRelated(e instanceof Error ? e.message : "Error al cargar datos relacionados");
       } finally {
@@ -201,6 +230,66 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
     }
     fetchRelated();
   }, [orden.id]);
+
+  async function ejecutarExperiencia(accion: "generar_acceso" | "ver_imagen" | "regenerar_imagen") {
+    if (accion === "generar_acceso" && accesoInfo) {
+      const advertenciaReal = orden.estado === "entregado"
+        ? "\n\n⚠️ Esta orden ya tuvo una entrega REAL por WhatsApp. Regenerar invalida el link que recibió el cliente."
+        : "";
+      const confirmar = window.confirm(
+        `Ya existe un acceso web para esta orden. Regenerarlo invalida el link anterior (no se puede recuperar).${advertenciaReal}\n\n¿Continuar?`,
+      );
+      if (!confirmar) return;
+    }
+    setExpAccion(accion);
+    setExpError(null);
+    try {
+      const res = await fetch(`/api/admin/tarot/ordenes/${orden.id}/experiencia-cliente`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setExpError(data.motivo ?? "Error al ejecutar la acción");
+        return;
+      }
+      if (accion === "generar_acceso") {
+        setTokenActual(data.token as string);
+        setAccesoInfo((data.acceso as AccesoWeb | null) ?? null);
+      } else {
+        window.open(data.signedUrl as string, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      setExpError("Error de red");
+    } finally {
+      setExpAccion("");
+    }
+  }
+
+  function abrirLecturaMovil() {
+    if (!tokenActual) return;
+    window.open(`/lectura/${tokenActual}`, "_blank", "noopener,noreferrer");
+  }
+
+  function abrirPdfCliente() {
+    if (!tokenActual) return;
+    window.open(`/api/lectura/${tokenActual}/pdf`, "_blank", "noopener,noreferrer");
+  }
+
+  async function copiarLinkCliente(tipo: "lectura" | "pdf") {
+    if (!tokenActual) return;
+    const url = tipo === "lectura"
+      ? `${window.location.origin}/lectura/${tokenActual}`
+      : `${window.location.origin}/api/lectura/${tokenActual}/pdf`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(tipo);
+      setTimeout(() => setCopiado(""), 2000);
+    } catch {
+      setExpError("No se pudo copiar al portapapeles");
+    }
+  }
 
   async function ejecutarAccion(accion: "reintentar_lectura" | "reintentar_pdf" | "reintentar_whatsapp") {
     setAccionEstado("enviando");
@@ -383,6 +472,98 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               </>
             ) : (
               <p className="text-sm text-gray-500">Sin PDF generado aún.</p>
+            )}
+          </Sect>
+
+          {/* Experiencia del cliente — preview real, mismo link/token que recibe el comprador */}
+          <Sect title="Experiencia del cliente">
+            <p className="text-xs text-gray-500 mb-3">
+              Mismo link y token que recibirá el comprador por WhatsApp — no una URL de preview alternativa.
+            </p>
+
+            <DataRow label="Acceso web" value={<Badge text={accesoBadge(accesoInfo).label} cls={accesoBadge(accesoInfo).cls} />} />
+            {accesoInfo && (
+              <>
+                <DataRow label="Creado" value={fmt(accesoInfo.created_at)} />
+                <DataRow label="Vence" value={fmt(accesoInfo.expira_at)} />
+                <DataRow label="Aperturas" value={accesoInfo.opened_count} />
+              </>
+            )}
+
+            <div className="flex flex-wrap gap-2 mt-3 mb-2">
+              <button
+                onClick={() => ejecutarExperiencia("generar_acceso")}
+                disabled={expAccion !== ""}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {expAccion === "generar_acceso" ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                {accesoInfo ? "Regenerar acceso web" : "Generar acceso web"}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-2">
+              <button
+                onClick={abrirLecturaMovil}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ExternalLink size={13} /> Ver lectura móvil
+              </button>
+              <button
+                onClick={() => copiarLinkCliente("lectura")}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Copy size={13} /> {copiado === "lectura" ? "¡Copiado!" : "Copiar link lectura móvil"}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-2">
+              <button
+                onClick={abrirPdfCliente}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ExternalLink size={13} /> Ver PDF
+              </button>
+              <button
+                onClick={() => copiarLinkCliente("pdf")}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Copy size={13} /> {copiado === "pdf" ? "¡Copiado!" : "Copiar link PDF"}
+              </button>
+            </div>
+
+            {!tokenActual && (
+              <p className="text-xs text-gray-500 mb-3">
+                {accesoInfo ? "Regenerá" : "Generá"} el acceso web para habilitar estos links en esta sesión — el token no se puede recuperar una vez generado.
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => ejecutarExperiencia("ver_imagen")}
+                disabled={expAccion !== ""}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {expAccion === "ver_imagen" ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+                Ver imagen/cabezal WhatsApp
+              </button>
+              <button
+                onClick={() => ejecutarExperiencia("regenerar_imagen")}
+                disabled={expAccion !== ""}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {expAccion === "regenerar_imagen" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Regenerar imagen WhatsApp
+              </button>
+            </div>
+
+            {expError && (
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                <AlertCircle size={14} className="shrink-0" /> {expError}
+              </div>
             )}
           </Sect>
 
