@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, RefreshCw, Check, Ban } from "lucide-react";
+import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, RefreshCw, Check, Ban, Mail } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -238,7 +238,7 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
   const [imagenEstado, setImagenEstado] = useState<ImagenEstado | null>(null);
   const [imagenUrl, setImagenUrl] = useState<string | null>(null);
   const [emailEstado, setEmailEstado] = useState<EmailEstado | null>(null);
-  const [expAccion, setExpAccion] = useState<"" | "generar_acceso" | "ver_imagen" | "regenerar_imagen">("");
+  const [expAccion, setExpAccion] = useState<"" | "generar_acceso" | "ver_imagen" | "regenerar_imagen" | "preview_email">("");
   const [expError, setExpError] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<"" | "lectura" | "pdf" | "datos">("");
 
@@ -368,6 +368,35 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
       setTimeout(() => setCopiado(""), 2000);
     } catch {
       setExpError("No se pudo copiar al portapapeles");
+    }
+  }
+
+  // Previsualizar el HTML real del email de entrega — nunca envía nada.
+  // Si ya generaste el acceso web en esta sesión, el preview usa ese token
+  // para mostrar links funcionales; si no, muestra la misma degradación
+  // que vería un envío real sin acceso disponible (sin CTA de lectura).
+  async function previsualizarEmail() {
+    setExpAccion("preview_email");
+    setExpError(null);
+    try {
+      const res = await fetch(`/api/admin/tarot/ordenes/${orden.id}/experiencia-cliente`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "preview_email", ...(tokenActual ? { token: tokenActual } : {}) }),
+      });
+      const data = await res.json();
+      if (!data.ok || typeof data.html !== "string") {
+        setExpError(data.motivo ?? "Error al generar el preview");
+        return;
+      }
+      const blob = new Blob([data.html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setExpError("Error de red");
+    } finally {
+      setExpAccion("");
     }
   }
 
@@ -715,7 +744,21 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               >
                 {copiado === "datos" ? <Check size={13} /> : <Copy size={13} />} {copiado === "datos" ? "¡Copiado!" : "Copiar datos de entrega"}
               </button>
+              <button
+                onClick={previsualizarEmail}
+                disabled={expAccion !== ""}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Abre el HTML real del email en una pestaña nueva — nunca envía nada"
+              >
+                {expAccion === "preview_email" ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                Previsualizar email
+              </button>
             </div>
+            {!tokenActual && (
+              <p className="text-xs text-gray-500 mt-2">
+                El preview de email funciona sin acceso generado (misma degradación que un envío real sin token), pero los CTA de lectura/PDF no serán clickeables hasta que generes el acceso.
+              </p>
+            )}
 
             {expError && (
               <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">

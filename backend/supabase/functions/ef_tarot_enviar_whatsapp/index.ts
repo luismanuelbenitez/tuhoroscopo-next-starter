@@ -313,10 +313,18 @@ serve(async (req) => {
     // lo único que se simula en sandbox; el link "Ver mi tirada" y la imagen
     // deben poder probarse igual durante QA. Un fallo acá NO aborta el envío:
     // se degrada al mensaje anterior (documento suelto) más abajo.
+    // Si ef_tarot_generar_pdf ya despachó WhatsApp y Email juntos (canal
+    // "both"), el acceso web se crea UNA sola vez ahí y llega acá por
+    // body.token — evita que ambos canales, despachados en paralelo sin
+    // esperarse, llamen a crearAccesoWeb() cada uno por su cuenta y se
+    // pisen el token del otro (la tabla solo admite un acceso vigente por
+    // orden). Sin token compartido (p.ej. un reenvío de WhatsApp en
+    // solitario vía ef_tarot_autorizar_reenvio, donde no hay carrera
+    // posible), se crea acá mismo como siempre.
+    const tokenCompartido = typeof body.token === "string" && body.token.trim() ? body.token.trim() : null;
     let accesoToken: string | null = null;
     try {
-      const acceso = await crearAccesoWeb(supabase, ordenId);
-      accesoToken = acceso.token;
+      accesoToken = tokenCompartido ?? (await crearAccesoWeb(supabase, ordenId)).token;
       await logFunnelEvent({
         order_id: ordenId, session_id: orden.funnel_session_id ?? null,
         event_name: "mobile_reading_created",

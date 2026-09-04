@@ -26,6 +26,7 @@ import {
   StandardFonts, rgb,
 } from "https://esm.sh/pdf-lib@1.17.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
+import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -1367,6 +1368,27 @@ async function generarPDF(
           { canal, wa_activo: waActivo, email_activo: emailActivo });
       }
 
+      // Acceso web compartido: si al menos un canal se va a despachar, se
+      // crea UNA sola vez acá y se pasa por body a ambos. WhatsApp y Email
+      // se despachan en paralelo más abajo (fetch sin await) — sin este
+      // paso, cada uno llamaría a crearAccesoWeb() por su cuenta y el que
+      // termina último pisaría el token del otro (un solo acceso vigente
+      // por orden, el texto plano nunca se persiste — ver
+      // _shared/tarot-accesos.ts). Cada EF de canal solo crea su propio
+      // acceso como fallback si no le llega token acá (reenvío de un solo
+      // canal vía ef_tarot_autorizar_reenvio, donde no hay carrera posible).
+      let accesoToken: string | null = null;
+      if (debeWa || debeEmail) {
+        try {
+          const acceso = await crearAccesoWeb(supabase, ordenId);
+          accesoToken = acceso.token;
+        } catch (e) {
+          await log(ordenId, "entrega_acceso_web_error", "warning",
+            "No se pudo crear el acceso web compartido — cada canal intentará crear el suyo por separado",
+            { error: String(e) });
+        }
+      }
+
       if (debeWa) {
         // Regenerar el PDF (force=true) NUNCA implica autorización de reenvío.
         // ef_tarot_enviar_whatsapp decide por sí mismo, vía verificarPermisoEnvio()
@@ -1375,7 +1397,7 @@ async function generarPDF(
         await log(ordenId, "entrega_whatsapp_despachada", "info", "Despachando envío WhatsApp");
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
           method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId }),
+          body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
         }).catch(() => {});
       } else {
         await log(ordenId, "entrega_whatsapp_omitida_por_config", "info",
@@ -1387,7 +1409,7 @@ async function generarPDF(
         await log(ordenId, "entrega_email_despachada", "info", "Despachando envío Email");
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
           method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId }),
+          body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
         }).catch(() => {});
       } else {
         await log(ordenId, "entrega_email_omitida_por_config", "info",

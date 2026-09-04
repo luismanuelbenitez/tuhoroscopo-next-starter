@@ -12,7 +12,11 @@ function getEnvOrError(): { supabaseUrl: string; internalKey: string; serviceRol
   return { supabaseUrl, internalKey, serviceRoleKey };
 }
 
-async function proxy(accion: string, ordenId: string, operador: string, env: { supabaseUrl: string; internalKey: string; serviceRoleKey: string }) {
+async function proxy(
+  accion: string, ordenId: string, operador: string,
+  env: { supabaseUrl: string; internalKey: string; serviceRoleKey: string },
+  extra: Record<string, unknown> = {},
+) {
   const res = await fetch(`${env.supabaseUrl}/functions/v1/ef_tarot_admin_orden_experiencia`, {
     method: "POST",
     headers: {
@@ -20,7 +24,7 @@ async function proxy(accion: string, ordenId: string, operador: string, env: { s
       Authorization: `Bearer ${env.serviceRoleKey}`,
       "x-internal-key": env.internalKey,
     },
-    body: JSON.stringify({ orden_id: ordenId, accion, operador }),
+    body: JSON.stringify({ orden_id: ordenId, accion, operador, ...extra }),
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({ ok: false, motivo: "respuesta_invalida" }));
@@ -42,7 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-// Acciones: generar_acceso | ver_imagen | regenerar_imagen
+// Acciones: generar_acceso | ver_imagen | regenerar_imagen | preview_email
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -58,12 +62,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const accion = typeof body.accion === "string" ? body.accion : "";
-  if (!["generar_acceso", "ver_imagen", "regenerar_imagen"].includes(accion)) {
+  if (!["generar_acceso", "ver_imagen", "regenerar_imagen", "preview_email"].includes(accion)) {
     return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
   }
 
+  // preview_email admite un token opcional (ya generado en esta sesión por
+  // el propio admin vía "generar_acceso") para mostrar links funcionales —
+  // nunca se crea un acceso nuevo acá.
+  const extra = accion === "preview_email" && typeof body.token === "string" ? { token: body.token } : {};
+
   try {
-    return await proxy(accion, params.id, session.admin?.usuario ?? "admin", env);
+    return await proxy(accion, params.id, session.admin?.usuario ?? "admin", env, extra);
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "fetch_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }

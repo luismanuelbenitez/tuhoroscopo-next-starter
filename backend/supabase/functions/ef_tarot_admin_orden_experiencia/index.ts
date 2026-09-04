@@ -23,6 +23,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
 import { generarImagenWhatsapp } from "../_shared/tarot-imagen-whatsapp.ts";
+import { buildHtmlEntregaEmail } from "../_shared/tarot-email-entrega.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -163,6 +164,46 @@ serve(async (req) => {
         path: resultado.path,
         acceso,
       });
+    }
+
+    case "preview_email": {
+      // Preview de admin — NUNCA envía nada ni crea un acceso web nuevo.
+      // `token` es opcional: si el admin ya generó un acceso en esta misma
+      // sesión (acción "generar_acceso"), lo pasa acá para ver el email con
+      // links reales y funcionales; sin token, el preview muestra
+      // exactamente la misma degradación que vería un envío real sin
+      // acceso disponible (sin CTA "Ver mi tirada", solo cabezal + PDF).
+      const tokenPreview = texto(body.token, 200);
+
+      const [imagen, pdfRow, accesoRow] = await Promise.all([
+        leerImagenEstado(ordenId),
+        supabase.from("tarot_pdfs").select("storage_url")
+          .eq("orden_id", ordenId).eq("estado", "listo")
+          .order("generado_at", { ascending: false }).limit(1).maybeSingle(),
+        tokenPreview
+          ? supabase.from("tarot_accesos_web").select("expira_at").eq("orden_id", ordenId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const nombreCorto = ((orden.nombre_snapshot as string | null) ?? "consultante").split(" ")[0];
+      const lecturaUrl = tokenPreview ? `https://tuoraculo.uy/lectura/${tokenPreview}` : null;
+      const pdfUrl = tokenPreview
+        ? `https://tuoraculo.uy/api/lectura/${tokenPreview}/pdf`
+        : ((pdfRow.data as { storage_url: string } | null)?.storage_url ?? "#");
+      const expiraLecturaStr = (accesoRow.data as { expira_at?: string } | null)?.expira_at
+        ? new Date((accesoRow.data as { expira_at: string }).expira_at)
+          .toLocaleDateString("es-UY", { day: "numeric", month: "long", year: "numeric" })
+        : null;
+
+      const html = buildHtmlEntregaEmail({
+        nombreCorto,
+        cabezalUrl: imagen.signedUrl,
+        lecturaUrl,
+        pdfUrl,
+        expiraLecturaStr,
+      });
+
+      return jsonResponse({ ok: true, html, sinToken: !tokenPreview });
     }
 
     case "ver_imagen":

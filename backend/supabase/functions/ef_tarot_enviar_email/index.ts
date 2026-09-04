@@ -1,11 +1,16 @@
 ﻿// ============================================================
-// ef_tarot_enviar_email v4 (+ persistencia estructurada + gobernanza de entregas)
-// Email de ENTREGA con PDF adjunto — no reproduce contenido narrativo de la
-// lectura (el PDF es el artefacto principal de la experiencia, ver sección
-// "Template HTML" más abajo y docs/product/DECISIONS.md 2026-08-16).
+// ef_tarot_enviar_email v5 (+ puerta de entrada a la experiencia mobile/cabezal)
+// Email de ENTREGA: cabezal personalizado (mismo PNG de WhatsApp) + CTA
+// principal a /lectura/<token> (misma experiencia mobile temporal, mismo
+// token, 30 días) + CTA secundario al mismo PDF (también adjunto) — no
+// reproduce contenido narrativo de la lectura (ver sección "Template HTML"
+// más abajo y docs/product/DECISIONS.md 2026-09-04).
 // Invocado fire-and-forget desde ef_tarot_generar_pdf.
 //
-// Input: { orden_id, autorizacion_id? }
+// Input: { orden_id, autorizacion_id?, token? }
+//   `token`: acceso web ya creado por ef_tarot_generar_pdf cuando despachó
+//   WhatsApp y Email juntos (mismo acceso compartido, ver "4.a" abajo). Sin
+//   `token`, esta función crea el suyo (reenvío de email en solitario).
 //
 // Secrets requeridos:
 //   RESEND_API_KEY            → API key de resend.com
@@ -26,6 +31,9 @@ import { encode as encodeBase64 } from "https://deno.land/std@0.192.0/encoding/b
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 import { verificarPermisoEnvio } from "../_shared/tarot-entregas.ts";
+import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
+import { generarImagenWhatsapp } from "../_shared/tarot-imagen-whatsapp.ts";
+import { buildHtmlEntregaEmail } from "../_shared/tarot-email-entrega.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -33,6 +41,15 @@ const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const RESEND_API_KEY            = Deno.env.get("RESEND_API_KEY") ?? "";
 const RESEND_FROM               = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";
 const FN                        = "ef_tarot_enviar_email";
+
+// Mismo bucket que _shared/tarot-imagen-whatsapp.ts (no se importa la
+// constante de ahí para no tener que redesplegar ef_tarot_enviar_whatsapp
+// por un cambio ajeno a la generación del cabezal — mismo criterio ya
+// aplicado en ef_tarot_admin_orden_experiencia).
+const BUCKET_ASSETS   = "tarot-assets";
+// TTL propio del cabezal en el email — ver _shared/tarot-email-entrega.ts
+// y el comentario junto a su uso más abajo para el razonamiento completo.
+const EMAIL_IMG_TTL_SEG = 30 * 24 * 3600;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -55,98 +72,14 @@ async function log(
 
 // ── Template HTML ─────────────────────────────────────────────────────────────
 //
-// DECISIÓN DE PRODUCTO (2026-08-16, ver docs/product/DECISIONS.md):
-// el PDF es el artefacto principal de la experiencia Tu Tirada — el momento de
-// descubrir la lectura ocurre ahí, no en el email. Este email es exclusivamente
-// una pieza de entrega/transición: identifica el envío, confirma que la lectura
-// está lista, y da un CTA claro al PDF. NUNCA reproduce contenido narrativo
-// (resumen, mensaje final, nombres de cartas, pregunta) — eso sería spoilear
-// la revelación que el PDF está diseñado para dar.
-
-function buildHtml(opts: {
-  nombreCorto:  string;
-  pdfUrl:       string;
-  expiraStr:    string;
-}): string {
-  const { nombreCorto, pdfUrl, expiraStr } = opts;
-
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>Tu Tirada · Tu Oráculo</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0d0820;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
-
-  <!-- Wrapper -->
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0d0820;min-height:100vh;">
-    <tr>
-      <td align="center" style="padding:32px 16px 48px;">
-
-        <!-- Card -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
-
-          <!-- Header -->
-          <tr>
-            <td style="padding-bottom:32px;text-align:center;">
-              <!-- Gold top line -->
-              <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.45),transparent);margin-bottom:28px;"></div>
-
-              <img src="https://tuoraculo.uy/img/logo/logo-isotipo.png" alt="Tu Oráculo" width="64" height="64" style="display:block;margin:0 auto 12px;border:0;outline:none;text-decoration:none;" />
-              <p style="margin:0 0 18px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.30);">Tu Oráculo</p>
-
-              <h1 style="margin:0;font-family:Georgia,serif;font-size:26px;font-weight:normal;color:#ffffff;line-height:1.30;">
-                Tu Tirada<br>está lista, <strong>${nombreCorto}</strong>.
-              </h1>
-            </td>
-          </tr>
-
-          <!-- CTA -->
-          <tr>
-            <td style="background:rgba(255,255,255,0.03);border:1px solid rgba(251,191,36,0.20);border-radius:14px;padding:28px 24px;text-align:center;">
-              <p style="margin:0 0 22px;font-family:Georgia,serif;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">
-                Tus 5 cartas ya fueron interpretadas.<br>Buscá unos minutos de tranquilidad para leerla.
-              </p>
-              <a href="${pdfUrl}"
-                 style="display:inline-block;background:linear-gradient(135deg,#c9930a,#f5c842);color:#0f0820;font-weight:700;font-size:15px;padding:15px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;">
-                Abrir mi lectura →
-              </a>
-              <p style="margin:16px 0 0;font-size:11px;color:rgba(255,255,255,0.25);">
-                El PDF también está adjunto a este email.<br>
-                El enlace expira el ${expiraStr}.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Spacer -->
-          <tr><td style="height:36px;"></td></tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:24px;">
-              <p style="margin:0 0 10px;font-size:11px;color:rgba(255,255,255,0.22);line-height:1.65;">
-                Esta lectura es generada con inteligencia artificial aplicando simbología del tarot tradicional.<br>
-                No constituye una predicción del futuro ni reemplaza consejo profesional de ningún tipo.
-              </p>
-              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.20);">
-                Tu Oráculo &nbsp;·&nbsp;
-                <a href="https://tuoraculo.uy" style="color:rgba(251,191,36,0.40);text-decoration:none;">tuoraculo.uy</a>
-              </p>
-              <!-- Gold bottom line -->
-              <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.25),transparent);margin-top:24px;"></div>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-
-</body>
-</html>`;
-}
+// DECISIÓN DE PRODUCTO (2026-09-04, ver docs/product/DECISIONS.md): el email
+// ahora es una PUERTA de entrada a la misma experiencia que WhatsApp — cabezal
+// personalizado + CTA principal a /lectura/<token> (misma lectura mobile
+// temporal, mismo token, mismos 30 días) + CTA secundario al mismo PDF. Sigue
+// sin reproducir contenido narrativo (resumen, mensaje final, nombres de
+// cartas, pregunta) — eso es lo que el CTA revela, no el email. El HTML en sí
+// vive en _shared/tarot-email-entrega.ts (buildHtmlEntregaEmail), compartido
+// con el preview de admin — no se reimplementa acá.
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 
@@ -162,7 +95,7 @@ export type ResultadoEnvioEmail =
   | { ok: true; estado: "enviado"; envioId: string; email: string; numeroIntento: number; esReenvio: boolean }
   | { ok: false; motivo: string; detalle?: string };
 
-async function enviarEmail(ordenId: string, autorizacionId: string | null): Promise<ResultadoEnvioEmail> {
+async function enviarEmail(ordenId: string, autorizacionId: string | null, tokenCompartido: string | null): Promise<ResultadoEnvioEmail> {
   if (!RESEND_API_KEY) {
     await log(ordenId, "email_sin_key", "warning", "RESEND_API_KEY no configurada — email omitido");
     return { ok: false, motivo: "sin_key" };
@@ -171,7 +104,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   // 1. Orden
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("id, cliente_id")
+    .select("id, cliente_id, nombre_snapshot")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -196,7 +129,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   // 2. Cliente
   const { data: cliente } = await supabase
     .from("tarot_clientes")
-    .select("nombre_completo, email")
+    .select("email")
     .eq("id", orden.cliente_id)
     .maybeSingle();
 
@@ -243,21 +176,81 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   }
 
   // 4. Datos de presentación
-  const nombreCorto = (cliente.nombre_completo ?? "consultante").split(" ")[0];
-  const pdfUrl      = pdfRow.storage_url;
-  const expiraStr   = pdfRow.url_expira_at
-    ? new Date(pdfRow.url_expira_at).toLocaleDateString("es-UY", {
-        day: "numeric", month: "long", year: "numeric",
-      })
-    : "48 horas";
+  // Nombre desde el snapshot de la orden, NUNCA el perfil mutable del
+  // cliente — mismo principio "cliente canónico ≠ snapshot" ya aplicado en
+  // el cabezal de WhatsApp (antes este email usaba cliente.nombre_completo).
+  const nombreCorto = ((orden as { nombre_snapshot?: string | null }).nombre_snapshot ?? "consultante").split(" ")[0];
 
-  // 5. Adjuntar PDF como base64
+  // 4.a Acceso web: MISMO mecanismo canónico que WhatsApp
+  // (_shared/tarot-accesos.ts), nunca un token/página paralela. Si
+  // ef_tarot_generar_pdf ya despachó WhatsApp y Email juntos, el token
+  // compartido llega por parámetro y NO se vuelve a crear acá — evita
+  // pisar el acceso que WhatsApp ya está usando (un solo acceso vigente
+  // por orden). Sin token compartido (reenvío de email en solitario, sin
+  // carrera posible), se crea acá mismo. Si falla, el email igual sale:
+  // se omite el CTA "Ver mi tirada" en vez de mandar un link roto.
+  let accesoToken: string | null = tokenCompartido;
+  if (!accesoToken) {
+    try {
+      accesoToken = (await crearAccesoWeb(supabase, ordenId)).token;
+    } catch (e) {
+      await log(ordenId, "email_acceso_web_error", "warning",
+        "No se pudo crear el acceso web de la lectura — el email se envía sin CTA 'Ver mi tirada'",
+        { error: String(e) });
+    }
+  }
+
+  let expiraLecturaStr: string | null = null;
+  if (accesoToken) {
+    const { data: accesoRow } = await supabase
+      .from("tarot_accesos_web").select("expira_at").eq("orden_id", ordenId).maybeSingle();
+    if (accesoRow?.expira_at) {
+      expiraLecturaStr = new Date(accesoRow.expira_at)
+        .toLocaleDateString("es-UY", { day: "numeric", month: "long", year: "numeric" });
+    }
+  }
+  const lecturaUrl = accesoToken ? `https://tuoraculo.uy/lectura/${accesoToken}` : null;
+
+  // 4.b PDF: mismo PDF existente, mismo mecanismo de acceso por token que ya
+  // usa el segundo botón de WhatsApp (/api/lectura/<token>/pdf, siempre
+  // firma una URL fresca) — más durable que el storage_url crudo (TTL 48h).
+  // Sin token disponible, cae al mecanismo anterior (storage_url directo)
+  // para que el CTA de PDF nunca quede roto.
+  const pdfStorageUrl = pdfRow.storage_url;
+  const pdfCtaUrl = accesoToken ? `https://tuoraculo.uy/api/lectura/${accesoToken}/pdf` : pdfStorageUrl;
+
+  // 4.c Cabezal: el MISMO PNG real que genera/usa WhatsApp — nunca una
+  // imagen distinta. generarImagenWhatsapp() reusa el archivo si ya existe
+  // o lo compone si falta (idéntico a como lo hace WhatsApp); acá solo se
+  // firma una URL propia con más vida (ver EMAIL_IMG_TTL_SEG arriba): la
+  // señal por defecto dura 24h porque WhatsApp/Meta la descarga apenas se
+  // envía, pero un email puede abrirse días después de recibido — con 24h
+  // la imagen se rompería. Mismo archivo, mismo bucket privado, no se hace
+  // público ni se genera una segunda versión. Si falla, el email sale
+  // igual sin la imagen (CTA + PDF intactos).
+  let cabezalUrl: string | null = null;
+  try {
+    const cabezal = await generarImagenWhatsapp(supabase, ordenId);
+    if (cabezal) {
+      const { data: signed } = await supabase.storage
+        .from(BUCKET_ASSETS)
+        .createSignedUrl(`tarot/whatsapp/${ordenId}.png`, EMAIL_IMG_TTL_SEG);
+      cabezalUrl = signed?.signedUrl ?? null;
+    }
+  } catch (e) {
+    await log(ordenId, "email_cabezal_error", "warning",
+      "No se pudo generar/firmar el cabezal — el email se envía sin imagen",
+      { error: String(e) });
+  }
+
+  // 5. Adjuntar PDF como base64 (sin cambios: fetch directo del storage_url,
+  // interno, nunca visible para el cliente).
   let pdfBase64: string | null = null;
   try {
-    const pdfResp = await fetch(pdfUrl, { signal: AbortSignal.timeout(15_000) });
+    const pdfResp = await fetch(pdfStorageUrl, { signal: AbortSignal.timeout(15_000) });
     if (pdfResp.ok) {
       const bytes = new Uint8Array(await pdfResp.arrayBuffer());
-      pdfBase64   = encodeBase64(bytes);
+      pdfBase64   = encodeBase64(bytes.buffer);
     }
   } catch (err) {
     await log(ordenId, "email_pdf_fetch_warning", "warning",
@@ -265,7 +258,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null): Prom
   }
 
   // 6. Construir email
-  const html = buildHtml({ nombreCorto, pdfUrl, expiraStr });
+  const html = buildHtmlEntregaEmail({ nombreCorto, cabezalUrl, lecturaUrl, pdfUrl: pdfCtaUrl, expiraLecturaStr });
 
   const emailPayload: Record<string, unknown> = {
     from:    RESEND_FROM,
@@ -407,6 +400,12 @@ serve(async (req) => {
     ? body.autorizacion_id.trim()
     : null;
 
+  // Token de acceso web compartido con WhatsApp, cuando ef_tarot_generar_pdf
+  // despachó ambos canales juntos — ver "4.a Acceso web" en enviarEmail().
+  const tokenCompartido = typeof body.token === "string" && body.token.trim()
+    ? body.token.trim()
+    : null;
+
   // CRÍTICO (2026-08-27): antes esto era `enviarEmail(...).catch(...)` SIN
   // await, seguido de un `return` inmediato. Supabase Edge Runtime no
   // garantiza que una tarea en segundo plano termine después de que la
@@ -422,7 +421,7 @@ serve(async (req) => {
   // ese patrón, ya probado, en vez de introducir un mecanismo nuevo.
   let resultado: ResultadoEnvioEmail;
   try {
-    resultado = await enviarEmail(ordenId, autorizacionId);
+    resultado = await enviarEmail(ordenId, autorizacionId, tokenCompartido);
   } catch (err) {
     console.error(`${FN} — error para orden ${ordenId}:`, err);
     resultado = { ok: false, motivo: "error_inesperado", detalle: String(err) };
