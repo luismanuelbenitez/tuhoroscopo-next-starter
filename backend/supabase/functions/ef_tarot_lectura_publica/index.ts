@@ -166,7 +166,7 @@ serve(async (req) => {
     .maybeSingle();
 
   const contenido = lectura?.contenido_json as {
-    cartas?: Array<{ posicion: number; nombre_posicion: string; nombre_carta: string; orientacion: string; interpretacion: string; consejo: string }>;
+    cartas?: Array<{ posicion: number; nombre_posicion: string; carta_id: string; nombre_carta: string; orientacion: string; interpretacion: string; consejo: string }>;
     resumen_lectura?: string;
     mensaje_final?: string;
     proximos_pasos?: string[];
@@ -175,20 +175,27 @@ serve(async (req) => {
 
   if (!contenido) return json({ ok: false, motivo: "lectura_no_disponible" }, 409);
 
-  const nombresCartas = (contenido.cartas ?? []).map((c) => c.nombre_carta);
-  const { data: cartasImg } = nombresCartas.length
-    ? await supabase.from("tarot_cartas").select("nombre_es, imagen_storage_path, imagen_url").in("nombre_es", nombresCartas)
-    : { data: [] as Array<{ nombre_es: string; imagen_storage_path: string | null; imagen_url: string | null }> };
+  // Resolución por carta_id (fijado por ef_tarot_generar_lectura al momento
+  // del sorteo, mismo campo que ya usa _shared/tarot-imagen-whatsapp.ts) —
+  // NO por nombre_es. Hay dos mazos ACTIVOS simultáneamente (rws-thc,
+  // rws-classic) y comparten nombres de carta ("El Loco", "As de Bastos",
+  // etc.), así que buscar por nombre podía traer la imagen del mazo
+  // equivocado. carta_id es la clave primaria de tarot_cartas — exacta,
+  // sin ambigüedad posible entre mazos.
+  const idsCartas = (contenido.cartas ?? []).map((c) => c.carta_id).filter(Boolean);
+  const { data: cartasImg } = idsCartas.length
+    ? await supabase.from("tarot_cartas").select("id, imagen_storage_path, imagen_url").in("id", idsCartas)
+    : { data: [] as Array<{ id: string; imagen_storage_path: string | null; imagen_url: string | null }> };
 
-  const pathPorNombre = new Map<string, string>();
+  const pathPorId = new Map<string, string>();
   for (const c of cartasImg ?? []) {
     const path = c.imagen_storage_path ?? c.imagen_url ?? "";
-    if (path) pathPorNombre.set(c.nombre_es, path);
+    if (path) pathPorId.set(c.id, path);
   }
 
   const cartas = await Promise.all(
     (contenido.cartas ?? []).map(async (c) => {
-      const path = pathPorNombre.get(c.nombre_carta) ?? null;
+      const path = pathPorId.get(c.carta_id) ?? null;
       let imagenUrl: string | null = null;
       if (path) {
         const { data: signed } = await supabase.storage
