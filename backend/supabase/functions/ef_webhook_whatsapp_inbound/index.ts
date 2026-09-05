@@ -459,6 +459,127 @@ async function enviarMensajeTextoWA(to, cuerpo) {
   }
 }
 // ============================================================================
+// Bandeja de WhatsApp Tarot (2026-09-05) — tarot_whatsapp_conversaciones /
+// tarot_whatsapp_mensajes. Ver docs/modules/whatsapp-inbox.md.
+//
+// Independiente de upsertConversacion() (wa_conversaciones, más abajo) —
+// esa tabla sigue existiendo tal cual, compartida con Horóscopo, sin
+// cambios. Esta es la fuente para la bandeja del Admin, con modelo
+// relacional (conversación + mensajes) y asociación a orden.
+// ============================================================================
+
+// Resuelve qué orden asociar a un cliente Tarot conocido. Nunca inventa:
+// sin órdenes → null; una sola → esa; 2+ pero la más y segunda más reciente
+// separadas por 24h o más → la más reciente (regla segura porque cliente_id
+// ya es la identidad canónica, no un match por nombre); 2+ dentro de la
+// misma ventana de 24h → ambigüedad genuina, no se asocia (se loguea aparte).
+async function resolverOrdenParaCliente(clienteId) {
+  const { data: ordenes } = await supabase
+    .from("tarot_ordenes")
+    .select("id, created_at")
+    .eq("cliente_id", clienteId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (!ordenes || ordenes.length === 0) return { ordenId: null, ambigua: false };
+  if (ordenes.length === 1) return { ordenId: ordenes[0].id, ambigua: false };
+
+  const masReciente = new Date(ordenes[0].created_at).getTime();
+  const segunda = new Date(ordenes[1].created_at).getTime();
+  const horasEntreAmbas = Math.abs(masReciente - segunda) / (1000 * 60 * 60);
+  if (horasEntreAmbas < 24) {
+    return { ordenId: null, ambigua: true };
+  }
+  return { ordenId: ordenes[0].id, ambigua: false };
+}
+
+const PREVIEW_POR_TIPO = {
+  image: "📷 Imagen",
+  document: "📄 Documento",
+  audio: "🎵 Audio",
+  video: "🎬 Video",
+  sticker: "😀 Sticker",
+  location: "📍 Ubicación",
+  contact: "👤 Contacto",
+  interactive: "Respuesta a botón/lista",
+  unknown: "Mensaje no reconocido",
+};
+
+// Único punto de escritura hacia tarot_whatsapp_conversaciones/mensajes.
+// Dedup real: inserta el mensaje primero (whatsapp_message_id UNIQUE); si
+// choca (23505), el mensaje ya existía (reintento de Meta o webhook
+// repetido) — no se toca el contador no_leidos ni el resumen. Solo si el
+// insert fue genuinamente nuevo se incrementa no_leidos (atómico, ver
+// tarot_wa_registrar_mensaje_inbound en la migración).
+async function registrarMensajeTarotInbound(params) {
+  const { tarotCliente, numeroE164, parsed } = params;
+
+  const { ordenId, ambigua } = await resolverOrdenParaCliente(tarotCliente.id);
+  if (ambigua) {
+    await registrarLogTarot(tarotCliente.id, "wa_inbound_orden_ambigua", "info",
+      "Múltiples órdenes recientes del mismo cliente — no se asocia orden automáticamente",
+      { numeroE164 });
+  }
+
+  const { data: conversacionId, error: errConv } = await supabase.rpc(
+    "tarot_wa_obtener_o_crear_conversacion",
+    {
+      p_telefono: numeroE164,
+      p_cliente_id: tarotCliente.id,
+      p_orden_id: ordenId,
+      p_wa_contact_name: parsed.contactProfileName ?? null,
+    },
+  );
+  if (errConv || !conversacionId) {
+    await registrarLogTarot(tarotCliente.id, "wa_inbound_conversacion_error", "error",
+      "No se pudo crear/obtener la conversación de WhatsApp",
+      { numeroE164, error: errConv?.message });
+    return { registrado: false };
+  }
+
+  if (!parsed.msgId) {
+    // Sin id de mensaje no hay forma de deduplicar — no se persiste el
+    // mensaje individual (no debería pasar con payloads reales de Meta).
+    return { registrado: false, conversacionId };
+  }
+
+  const { error: errMsg } = await supabase.from("tarot_whatsapp_mensajes").insert({
+    conversacion_id: conversacionId,
+    whatsapp_message_id: parsed.msgId,
+    direccion: "inbound",
+    tipo: parsed.tipo,
+    texto: parsed.textBody ? parsed.textBody.slice(0, 4000) : null,
+    media_id: parsed.mediaId ?? null,
+    mime_type: parsed.mimeType ?? null,
+    filename: parsed.filename ?? null,
+    payload_meta: parsed.payloadMeta ?? null,
+    timestamp_whatsapp: parsed.timestampUTC,
+  });
+
+  if (errMsg) {
+    if (errMsg.code === "23505") {
+      // Mensaje ya procesado — dedup por whatsapp_message_id. No es un
+      // error: es exactamente el comportamiento esperado ante un reintento
+      // de Meta o un webhook repetido.
+      return { registrado: false, conversacionId, duplicado: true };
+    }
+    await registrarLogTarot(tarotCliente.id, "wa_inbound_mensaje_error", "error",
+      "No se pudo persistir el mensaje de WhatsApp",
+      { numeroE164, msgId: parsed.msgId, error: errMsg.message });
+    return { registrado: false, conversacionId };
+  }
+
+  const preview = (parsed.textBody ?? PREVIEW_POR_TIPO[parsed.tipo] ?? "Mensaje").slice(0, 200);
+  await supabase.rpc("tarot_wa_registrar_mensaje_inbound", {
+    p_conversacion_id: conversacionId,
+    p_timestamp: parsed.timestampUTC,
+    p_preview: preview,
+  });
+
+  return { registrado: true, conversacionId, ordenId };
+}
+
+// ============================================================================
 // Registro unificado de mensajes entrantes en wa_conversaciones
 // ============================================================================
 async function upsertConversacion(params) {
@@ -504,28 +625,47 @@ async function registrarLog(resultado, detalle = {}, exito = true) {
     console.error(`[${FUNCION}] Error al registrar log`, e);
   }
 }
-function extraerMensajeEntrante(rawBody) {
+// messageIndex: qué mensaje de value.messages[] procesar — CAPA 1
+// (ef_webhook_whatsapp_events) llama una vez por mensaje cuando Meta entrega
+// varios en un mismo webhook (sprint 2026-09-05). Default 0 preserva el
+// comportamiento anterior para el caso común (1 mensaje por webhook).
+//
+// Tipos soportados (2026-09-05): antes solo text/reaction eran
+// "procesables" — todo lo demás (imagen/documento/audio/video/sticker/
+// ubicación/contacto/interactivo) se descartaba en silencio, ANTES de
+// siquiera intentar identificar al remitente. Ahora todo tipo reconocido
+// por el schema oficial de Cloud API es procesable — la lógica de
+// suscriptores de Horóscopo (BAJA/menú/confirmación) sigue intacta porque
+// ya estaba gateada por `tipo === "text"` en cada punto donde importa (ver
+// más abajo); estos tipos nuevos solo habilitan la persistencia para Tarot.
+function extraerMensajeEntrante(rawBody, messageIndex = 0) {
   const payload = rawBody?.payload ?? rawBody;
   const entry = Array.isArray(payload?.entry) ? payload.entry[0] : null;
   const change = entry?.changes?.[0];
   const value = change?.value;
   const messages = Array.isArray(value?.messages) ? value.messages : null;
-  if (!messages || messages.length === 0) {
+  if (!messages || messages.length === 0 || !messages[messageIndex]) {
     return {
       esMensajeProcesable: false,
       motivo: "no_messages"
     };
   }
-  const msg = messages[0];
+  const msg = messages[messageIndex];
   const type = typeof msg?.type === "string" ? msg.type : null;
   const from = msg?.from ?? value?.contacts?.[0]?.wa_id ?? null;
   const msgId = msg?.id ?? null;
   const tsRaw = (typeof msg?.timestamp !== "undefined" ? msg.timestamp : undefined) ?? entry?.time ?? null;
+  const contactProfileName = typeof value?.contacts?.[0]?.profile?.name === "string" ? value.contacts[0].profile.name : null;
   const base = {
     from: typeof from === "string" ? from : null,
     msgId,
     timestampEpoch: tsRaw,
-    timestampUTC: epochToUTCISO(tsRaw)
+    timestampUTC: epochToUTCISO(tsRaw),
+    contactProfileName,
+    mediaId: null,
+    mimeType: null,
+    filename: null,
+    payloadMeta: null
   };
   // ---- TEXT
   if (type === "text") {
@@ -552,11 +692,81 @@ function extraerMensajeEntrante(rawBody) {
       reactionToMessageId: messageId
     };
   }
-  // ---- Unsupported
+  // ---- IMAGE / DOCUMENT / AUDIO / VIDEO / STICKER — media (metadata mínima, sin descargar)
+  if (["image", "document", "audio", "video", "sticker"].includes(type)) {
+    const media = msg?.[type] ?? {};
+    return {
+      esMensajeProcesable: true,
+      tipo: type,
+      ...base,
+      textBody: typeof media?.caption === "string" ? media.caption : null,
+      mediaId: typeof media?.id === "string" ? media.id : null,
+      mimeType: typeof media?.mime_type === "string" ? media.mime_type : null,
+      filename: typeof media?.filename === "string" ? media.filename : null,
+      reactionEmoji: null,
+      reactionToMessageId: null
+    };
+  }
+  // ---- LOCATION
+  if (type === "location") {
+    const loc = msg?.location ?? {};
+    return {
+      esMensajeProcesable: true,
+      tipo: "location",
+      ...base,
+      textBody: null,
+      payloadMeta: {
+        latitude: typeof loc.latitude === "number" ? loc.latitude : null,
+        longitude: typeof loc.longitude === "number" ? loc.longitude : null,
+        name: typeof loc.name === "string" ? loc.name : null,
+        address: typeof loc.address === "string" ? loc.address : null,
+      },
+      reactionEmoji: null,
+      reactionToMessageId: null
+    };
+  }
+  // ---- CONTACT (contacts[])
+  if (type === "contacts") {
+    const primero = Array.isArray(msg?.contacts) ? msg.contacts[0] : null;
+    return {
+      esMensajeProcesable: true,
+      tipo: "contact",
+      ...base,
+      textBody: null,
+      payloadMeta: {
+        nombre: primero?.name?.formatted_name ?? null,
+        telefono: Array.isArray(primero?.phones) ? primero.phones[0]?.phone ?? null : null,
+      },
+      reactionEmoji: null,
+      reactionToMessageId: null
+    };
+  }
+  // ---- INTERACTIVE (respuesta a botón/lista)
+  if (type === "interactive") {
+    const inter = msg?.interactive ?? {};
+    const reply = inter?.button_reply ?? inter?.list_reply ?? null;
+    return {
+      esMensajeProcesable: true,
+      tipo: "interactive",
+      ...base,
+      textBody: typeof reply?.title === "string" ? reply.title : null,
+      payloadMeta: {
+        interactive_type: typeof inter?.type === "string" ? inter.type : null,
+        reply_id: reply?.id ?? null,
+      },
+      reactionEmoji: null,
+      reactionToMessageId: null
+    };
+  }
+  // ---- UNKNOWN — nunca falla el webhook, se persiste igual (solo Tarot).
   return {
-    esMensajeProcesable: false,
-    motivo: "unsupported_type",
-    rawType: type
+    esMensajeProcesable: true,
+    tipo: "unknown",
+    ...base,
+    textBody: null,
+    payloadMeta: type ? { rawType: type } : null,
+    reactionEmoji: null,
+    reactionToMessageId: null
   };
 }
 // ============================================================================
@@ -820,12 +1030,14 @@ serve(async (req)=>{
     }, 400);
   }
   // Si viene desde CAPA 1, puede venir envuelto:
-  // { payload: <evento_whatsapp>, id_evento: <id whatsapp_webhook_events> }
+  // { payload: <evento_whatsapp>, id_evento: <id whatsapp_webhook_events>, message_index }
   const id_evento = body?.id_evento ?? null;
+  const messageIndex = Number.isInteger(body?.message_index) ? body.message_index : 0;
   // -------------------------------------------------------------------------
-  // 2) Extraer mensaje (text/reaction)
+  // 2) Extraer mensaje (índice `messageIndex` de value.messages[] — CAPA 1
+  //    llama una vez por mensaje cuando Meta entrega varios en un webhook)
   // -------------------------------------------------------------------------
-  const parsed = extraerMensajeEntrante(body);
+  const parsed = extraerMensajeEntrante(body, messageIndex);
   if (!parsed.esMensajeProcesable) {
     await registrarLog("evento_sin_mensaje_procesable", {
       motivo: parsed.motivo,
@@ -851,6 +1063,54 @@ serve(async (req)=>{
     return jsonResponse({
       resultado: "error",
       mensaje: "No se pudo determinar el número de WhatsApp"
+    }, 200);
+  }
+  // -------------------------------------------------------------------------
+  // 3.b) Tipos SIN lógica de Horóscopo (2026-09-05)
+  // -------------------------------------------------------------------------
+  // image/document/audio/video/sticker/location/contact/interactive/unknown
+  // NUNCA tuvieron lógica de suscriptores (BAJA/menú/confirmación) — antes
+  // de este sprint, directamente se descartaban arriba (esMensajeProcesable
+  // = false) sin llegar a este punto. Para no correr ningún riesgo de que
+  // ahora, al volverse "procesables", empiecen a interactuar con el flujo
+  // de confirmación de Horóscopo (que hoy NO filtra por tipo en varios
+  // puntos — ver sección 6/7 más abajo), se resuelven acá mismo, antes de
+  // buscar `suscriptor`, y NUNCA entran al resto de esta función. Solo
+  // afecta a clientes de Tarot — un número que sea suscriptor de Horóscopo
+  // enviando una imagen simplemente no genera ninguna acción, igual que
+  // antes de este sprint.
+  const esTipoConLogicaHoroscopo = parsed.tipo === "text" || parsed.tipo === "reaction";
+  if (!esTipoConLogicaHoroscopo) {
+    const { data: tarotClienteNoTexto } = await supabase
+      .from("tarot_clientes")
+      .select("id, nombre_completo")
+      .eq("telefono", numeroE164)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!tarotClienteNoTexto) {
+      await registrarLog("mensaje_no_texto_numero_no_registrado", {
+        numeroE164, tipo: parsed.tipo, msgId: parsed.msgId, id_evento
+      }, true);
+      return jsonResponse({ resultado: "sin_accion", motivo: "numero_no_registrado" }, 200);
+    }
+
+    const resultado = await registrarMensajeTarotInbound({
+      tarotCliente: tarotClienteNoTexto,
+      numeroE164,
+      parsed,
+    });
+
+    await registrarLog("tarot_cliente_inbound_no_texto", {
+      tarot_cliente_id: tarotClienteNoTexto.id,
+      numeroE164, tipo: parsed.tipo, msgId: parsed.msgId, id_evento,
+      registrado: resultado.registrado, duplicado: !!resultado.duplicado,
+    }, true);
+
+    return jsonResponse({
+      resultado: "ok",
+      accion: resultado.duplicado ? "mensaje_duplicado_ignorado" : "tarot_mensaje_no_texto_registrado",
+      tarot_cliente_id: tarotClienteNoTexto.id,
     }, 200);
   }
   // -------------------------------------------------------------------------
@@ -970,7 +1230,8 @@ serve(async (req)=>{
       );
     }
 
-    // Registro en wa_conversaciones (visible en panel admin)
+    // Registro en wa_conversaciones (visible en panel admin) — SIN cambios,
+    // se mantiene tal cual (tabla compartida con Horóscopo).
     await upsertConversacion({
       wamid:            parsed.msgId,
       numero_wa:        numeroE164,
@@ -984,6 +1245,12 @@ serve(async (req)=>{
       respuesta_texto:  respuestaEnv,
     });
 
+    // Bandeja de WhatsApp Tarot (2026-09-05) — asociación a orden + modelo
+    // conversación/mensajes para el Admin. Ver registrarMensajeTarotInbound().
+    const resultadoBandeja = await registrarMensajeTarotInbound({
+      tarotCliente, numeroE164, parsed,
+    });
+
     // Trazabilidad cruzada en log_funciones
     await registrarLog("tarot_cliente_inbound", {
       tarot_cliente_id: tarotCliente.id,
@@ -993,7 +1260,9 @@ serve(async (req)=>{
       textBody: texto.slice(0, 200),
       rateLimited,
       estadoConv,
-      id_evento
+      id_evento,
+      bandeja_registrado: resultadoBandeja.registrado,
+      bandeja_duplicado: !!resultadoBandeja.duplicado,
     }, true);
 
     return jsonResponse({

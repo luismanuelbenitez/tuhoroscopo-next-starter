@@ -18,11 +18,33 @@
 // ---------------------------------------------------------------------------
 // - NO rompe el flujo si falla DB o falla CAPA 2.
 // - SIEMPRE responde 200 OK a Meta en POST.
-// - NO implementa deduplicación.
-// - NO implementa validación de firma.
+// - NO implementa deduplicación acá (la dedup real vive en CAPA 2, por
+//   whatsapp_message_id — ver tarot_whatsapp_mensajes.whatsapp_message_id
+//   UNIQUE, sprint 2026-09-05).
 // - NO implementa correlation_id.
 // - NO implementa fingerprint.
 // - Es una versión conservadora para MVP.
+//
+// VALIDACIÓN DE FIRMA (2026-09-05, sprint bandeja WhatsApp inbound):
+// ---------------------------------------------------------------------------
+// Si WHATSAPP_APP_SECRET está configurada, se valida el header
+// `x-hub-signature-256` (HMAC-SHA256 del body crudo, formato Meta oficial:
+// https://developers.facebook.com/docs/graph-api/webhooks/getting-started#validate-payloads).
+// Firma inválida o ausente con el secret configurado → 401, no se persiste
+// ni se llama a CAPA 2. Sin WHATSAPP_APP_SECRET configurada (todavía no
+// aprovisionada), NO se verifica nada — comportamiento idéntico al de antes
+// de este sprint, para no romper el webhook real en producción mientras el
+// secret no esté cargado en Supabase.
+//
+// MÚLTIPLES MENSAJES POR WEBHOOK (2026-09-05): Meta puede entregar más de
+// un mensaje en `value.messages[]` en un solo POST. Antes, esta función solo
+// resumía/reenviaba el primero. Ahora reenvía a CAPA 2 UNA VEZ POR MENSAJE
+// (con `message_index`), sin cambiar el contrato de CAPA 2 (sigue
+// procesando un mensaje a la vez — más simple y no toca su lógica interna).
+// El resumen guardado en whatsapp_webhook_events sigue describiendo solo el
+// primer mensaje (tabla de auditoría técnica, no la fuente de verdad de
+// Tarot) — el payload crudo completo, con todos los mensajes, se guarda
+// igual en la columna payload.
 //
 // REQUISITOS DE ENTORNO:
 // ---------------------------------------------------------------------------
@@ -36,6 +58,7 @@
 // - SUPABASE_FUNCTIONS_URL
 // - ANON_KEY_SUPABASE        (si CAPA 2 exige verify_jwt=true)
 // - SUPABASE_ANON_KEY        (fallback si usás este nombre)
+// - WHATSAPP_APP_SECRET      (validación de firma — ver arriba)
 //
 // TABLAS USADAS:
 // ---------------------------------------------------------------------------
@@ -67,6 +90,8 @@ const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 // SUPABASE_ANON_KEY: auto-inyectada por Supabase (siempre válida, publishable key vigente)
 // ANON_KEY_SUPABASE: secret manual legacy (fallback)
 const INTERNAL_JWT = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
+// Validación de firma Meta (opcional — ver header del archivo).
+const WHATSAPP_APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") ?? "";
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -92,6 +117,35 @@ function headersToObject(req) {
   } catch  {
     return {};
   }
+}
+// ============================================================================
+// VALIDACIÓN DE FIRMA META (x-hub-signature-256)
+// ============================================================================
+// HMAC-SHA256 del body crudo (bytes exactos recibidos, antes de cualquier
+// parseo) con WHATSAPP_APP_SECRET como clave. Formato del header:
+// "sha256=<hex>". Comparación en tiempo constante (evita timing attacks).
+function bytesToHex(bytes) {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function compararEnTiempoConstante(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+async function firmaEsValida(rawBody, headerFirma, secret) {
+  if (!headerFirma || !headerFirma.startsWith("sha256=")) return false;
+  const firmaRecibida = headerFirma.slice("sha256=".length);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const firmaCalculadaBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const firmaCalculada = bytesToHex(new Uint8Array(firmaCalculadaBuf));
+  return compararEnTiempoConstante(firmaCalculada, firmaRecibida);
 }
 // ============================================================================
 // LOGGER A log_funciones
@@ -232,7 +286,8 @@ async function llamarInbound(params) {
     headers,
     body: JSON.stringify({
       payload: params.payload,
-      id_evento: params.id_evento
+      id_evento: params.id_evento,
+      message_index: params.message_index ?? 0
     })
   });
   const txt = await r.text();
@@ -290,9 +345,28 @@ serve(async (req)=>{
   // Regla de oro:
   // Meta debe recibir 200 OK aunque algo falle internamente.
   // --------------------------------------------------------------------------
+  // Body crudo primero (necesario para validar la firma byte-a-byte antes
+  // de parsear) — ver firmaEsValida() más arriba.
+  const rawBody = await req.text().catch(() => "");
+
+  if (WHATSAPP_APP_SECRET) {
+    const firmaHeader = req.headers.get("x-hub-signature-256");
+    const valida = await firmaEsValida(rawBody, firmaHeader, WHATSAPP_APP_SECRET).catch(() => false);
+    if (!valida) {
+      // Log best-effort — si SUPABASE_URL falta, se pierde el log pero igual rechazamos.
+      if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        const supabaseLog = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        await registrarLog(supabaseLog, "firma_invalida_rechazado", {
+          tiene_header: !!firmaHeader,
+        }, false);
+      }
+      return new Response("Forbidden", { status: 401, headers: { "Content-Type": "text/plain" } });
+    }
+  }
+
   let body = null;
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch  {
     body = null;
   }
@@ -385,52 +459,64 @@ serve(async (req)=>{
         resumen
       }, false);
     } else {
-      try {
-        const resInbound = await llamarInbound({
-          url: WHATSAPP_INBOUND_FUNCTION_URL,
-          internalKey: WHATSAPP_INTERNAL_KEY,
-          payload: body,
-          id_evento: idEvento
-        });
-        // --------------------------------------------------------------
-        // Actualizamos el registro principal con el resultado de inbound
-        // --------------------------------------------------------------
-        if (idEvento) {
-          await supabase.from("whatsapp_webhook_events").update({
-            inbound_called: true,
-            inbound_url: WHATSAPP_INBOUND_FUNCTION_URL,
-            inbound_http_status: resInbound.http_status,
-            inbound_response: resInbound.body,
-            processing_status: resInbound.ok ? "inbound_ok" : "inbound_error",
-            processing_error: resInbound.ok ? null : JSON.stringify(resInbound.body)
-          }).eq("id", idEvento);
+      // Meta puede entregar más de un mensaje en value.messages[] en un
+      // solo POST — se llama a CAPA 2 una vez POR MENSAJE (message_index),
+      // sin cambiar su contrato de "un mensaje a la vez". whatsapp_webhook_events
+      // sigue guardando un único resumen (el del primer mensaje) más abajo,
+      // como ya hacía antes de este cambio.
+      const cantidadMensajes = (() => {
+        try {
+          const entry = Array.isArray(body?.entry) ? body.entry[0] : null;
+          const value = entry?.changes?.[0]?.value;
+          return Array.isArray(value?.messages) ? value.messages.length : 1;
+        } catch {
+          return 1;
         }
-        await registrarLog(supabase, resInbound.ok ? "inbound_llamado_ok" : "inbound_llamado_error", {
-          idEvento,
-          resumen,
-          http_status: resInbound.http_status,
-          respuesta_inbound: resInbound.body
-        }, resInbound.ok);
-      } catch (e) {
-        // Si CAPA 2 explota, dejamos evidencia tanto en la tabla principal
-        // como en log_funciones, pero igual respondemos 200 a Meta.
-        if (idEvento) {
-          await supabase.from("whatsapp_webhook_events").update({
-            inbound_called: true,
-            inbound_url: WHATSAPP_INBOUND_FUNCTION_URL,
-            inbound_http_status: 500,
-            inbound_response: {
-              error: String(e?.message || e)
-            },
-            processing_status: "inbound_error",
-            processing_error: String(e?.message || e)
-          }).eq("id", idEvento);
+      })();
+
+      let ultimoResultado = null;
+      for (let i = 0; i < cantidadMensajes; i++) {
+        try {
+          const resInbound = await llamarInbound({
+            url: WHATSAPP_INBOUND_FUNCTION_URL,
+            internalKey: WHATSAPP_INTERNAL_KEY,
+            payload: body,
+            id_evento: idEvento,
+            message_index: i
+          });
+          ultimoResultado = resInbound;
+          await registrarLog(supabase, resInbound.ok ? "inbound_llamado_ok" : "inbound_llamado_error", {
+            idEvento,
+            resumen,
+            message_index: i,
+            cantidadMensajes,
+            http_status: resInbound.http_status,
+            respuesta_inbound: resInbound.body
+          }, resInbound.ok);
+        } catch (e) {
+          ultimoResultado = { ok: false, http_status: 500, body: { error: String(e?.message || e) } };
+          await registrarLog(supabase, "error_llamando_inbound", {
+            idEvento,
+            resumen,
+            message_index: i,
+            cantidadMensajes,
+            error: String(e?.message || e)
+          }, false);
         }
-        await registrarLog(supabase, "error_llamando_inbound", {
-          idEvento,
-          resumen,
-          error: String(e?.message || e)
-        }, false);
+      }
+
+      // Resumen final en la tabla principal — refleja el último mensaje
+      // procesado del batch (auditoría técnica, no la fuente de verdad de
+      // Tarot, que ya quedó persistida mensaje a mensaje en CAPA 2).
+      if (idEvento && ultimoResultado) {
+        await supabase.from("whatsapp_webhook_events").update({
+          inbound_called: true,
+          inbound_url: WHATSAPP_INBOUND_FUNCTION_URL,
+          inbound_http_status: ultimoResultado.http_status,
+          inbound_response: ultimoResultado.body,
+          processing_status: ultimoResultado.ok ? "inbound_ok" : "inbound_error",
+          processing_error: ultimoResultado.ok ? null : JSON.stringify(ultimoResultado.body)
+        }).eq("id", idEvento);
       }
     }
   } else {

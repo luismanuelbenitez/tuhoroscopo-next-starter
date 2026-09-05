@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Send,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -50,6 +51,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/lecturas", icon: BookOpen,     label: "Lecturas" },
       { href: "/admin/tarot/pdfs",     icon: FileText,     label: "PDFs" },
       { href: "/admin/tarot/entregas", icon: Send,         label: "Entregas" },
+      { href: "/admin/tarot/whatsapp", icon: MessageCircle, label: "WhatsApp" },
       { href: "/admin/tarot/pagos",    icon: CreditCard,   label: "Pagos" },
       { href: "/admin/tarot/facturacion", icon: Receipt,   label: "Facturación" },
       { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
@@ -81,6 +83,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed]           = useState(false);
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [noLeidas, setNoLeidas]             = useState(0);
+  const [noLeidasWhatsapp, setNoLeidasWhatsapp] = useState(0);
   const pathname = usePathname();
 
   // Poll unread alert count from DB — cada 30s + al recuperar visibilidad
@@ -95,6 +98,19 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
     } catch { /* silencioso */ }
   }, []);
   usePollingRefresh(pollNoLeidas);
+
+  // Mismo mecanismo de polling, para el badge de conversaciones de WhatsApp
+  // sin leer (no necesita tiempo real — ver docs/modules/whatsapp-inbox.md).
+  const pollNoLeidasWhatsapp = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/tarot/whatsapp?solo_contador=true", { cache: "no-store" });
+      if (res.ok) {
+        const d = await res.json();
+        setNoLeidasWhatsapp(d.conversaciones_no_leidas ?? 0);
+      }
+    } catch { /* silencioso */ }
+  }, []);
+  usePollingRefresh(pollNoLeidasWhatsapp);
 
   async function handleLogout() {
     setCerrandoSesion(true);
@@ -140,6 +156,11 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                   const isActive = exact
                     ? pathname === href
                     : pathname.startsWith(href);
+                  const badgeCount = href === "/admin/tarot/alertas" ? noLeidas
+                    : href === "/admin/tarot/whatsapp" ? noLeidasWhatsapp
+                    : 0;
+                  const badgeCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-500" : "bg-amber-500";
+                  const dotCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-400" : "bg-amber-400";
                   return (
                     <Link
                       key={href}
@@ -153,16 +174,16 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                     >
                       <span className="relative shrink-0">
                         <Icon size={16} className={isActive ? "text-amber-400" : ""} />
-                        {collapsed && href === "/admin/tarot/alertas" && noLeidas > 0 && (
-                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
+                        {collapsed && badgeCount > 0 && (
+                          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${dotCls}`} />
                         )}
                       </span>
                       {!collapsed && (
                         <span className="text-sm truncate flex-1">{label}</span>
                       )}
-                      {!collapsed && href === "/admin/tarot/alertas" && noLeidas > 0 && (
-                        <span className="ml-auto text-xs bg-amber-500 text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center">
-                          {noLeidas > 99 ? "99+" : noLeidas}
+                      {!collapsed && badgeCount > 0 && (
+                        <span className={`ml-auto text-xs ${badgeCls} text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center`}>
+                          {badgeCount > 99 ? "99+" : badgeCount}
                         </span>
                       )}
                     </Link>
