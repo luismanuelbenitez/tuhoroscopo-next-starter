@@ -46,6 +46,21 @@
 // Tarot) — el payload crudo completo, con todos los mensajes, se guarda
 // igual en la columna payload.
 //
+// STATUSES OUTBOUND (2026-09-06, sprint "responder desde Admin"): antes de
+// este sprint, un evento `statuses[]` (sent/delivered/read/failed) solo se
+// guardaba en whatsapp_webhook_events — nunca se propagaba a ningún lado.
+// (ef_webhook_whatsapp_status, otra función ya desplegada, resultó ser un
+// stub "Hello World" nunca completado — no es el webhook real de Meta, que
+// es ESTA función; no se construyó sobre ese stub). Ahora, cuando llega un
+// status, se intenta actualizar DOS estructuras de forma explícita e
+// idempotente (0 filas afectadas si no hay match, sin error):
+//   - tarot_whatsapp_mensajes (por whatsapp_message_id, solo direccion=outbound)
+//     — conversación del Admin.
+//   - tarot_envios_whatsapp (por wa_message_id) — entrega real de "Tu
+//     Tirada" (pipeline de producto, sin relación con la bandeja del Admin).
+// Son conceptos distintos y siguen siéndolo — un mismo evento de Meta puede
+// (o no) tener match en cualquiera de las dos, cero, o eventualmente una.
+//
 // REQUISITOS DE ENTORNO:
 // ---------------------------------------------------------------------------
 // - SUPABASE_URL
@@ -199,6 +214,8 @@ function resumirEventoWhatsApp(body) {
   let meta_timestamp_utc = null;
   let esEventoDeMensaje = false;
   let esEventoDeStatus = false;
+  let status_error_code = null;
+  let status_error_message = null;
   try {
     const entry = Array.isArray(body?.entry) ? body.entry[0] : null;
     const change = entry?.changes?.[0];
@@ -222,6 +239,13 @@ function resumirEventoWhatsApp(body) {
       status = typeof st?.status === "string" ? st.status : status;
       meta_timestamp_utc = epochToUTCISO(st?.timestamp) ?? meta_timestamp_utc;
       if (!tipo_evento) tipo_evento = "statuses";
+      // Solo relevante cuando status === "failed" — código/mensaje técnico
+      // de Meta, acotado, sin volcar el objeto de error completo.
+      const err = Array.isArray(st?.errors) ? st.errors[0] : null;
+      if (err) {
+        status_error_code = err?.code != null ? String(err.code) : null;
+        status_error_message = typeof err?.title === "string" ? err.title.substring(0, 200) : null;
+      }
     }
     // ------------------------------------------------------------------------
     // Evento messages[]
@@ -257,8 +281,71 @@ function resumirEventoWhatsApp(body) {
     meta_timestamp_utc,
     received_at_utc: nowUTCISO(),
     esEventoDeMensaje,
-    esEventoDeStatus
+    esEventoDeStatus,
+    status_error_code,
+    status_error_message
   };
+}
+// ============================================================================
+// PROPAGACIÓN DE STATUSES OUTBOUND (2026-09-06 — ver comentario del header)
+// ============================================================================
+// Mapeo de vocabulario Meta -> tarot_whatsapp_mensajes.estado (esa tabla ya
+// usa palabras en español para todo lo demás — preparando/enviado/error).
+// tarot_envios_whatsapp.wa_status, en cambio, ya guardaba el vocabulario de
+// Meta tal cual desde antes de este sprint (ver ef_tarot_enviar_whatsapp) —
+// se mantiene así, sin inventar una traducción nueva ahí.
+const ESTADO_MENSAJE_POR_STATUS = {
+  sent: "enviado",
+  delivered: "entregado",
+  read: "leido",
+  failed: "error"
+};
+async function actualizarPorStatus(supabase, resumen) {
+  if (!resumen.wamid || !resumen.status) return { mensajes_actualizados: 0, envios_actualizados: 0 };
+  const nuevoEstadoMensaje = ESTADO_MENSAJE_POR_STATUS[resumen.status];
+  let mensajesActualizados = 0;
+  let enviosActualizados = 0;
+  // 1) tarot_whatsapp_mensajes — solo outbound (un status jamás debe tocar
+  // un mensaje inbound, que no tiene sentido que lo reciba).
+  if (nuevoEstadoMensaje) {
+    try {
+      const patchMensaje = {
+        estado: nuevoEstadoMensaje,
+        error_code: resumen.status === "failed" ? resumen.status_error_code : undefined,
+        error_detalle: resumen.status === "failed" ? resumen.status_error_message : undefined,
+      };
+      const { data } = await supabase
+        .from("tarot_whatsapp_mensajes")
+        .update(patchMensaje)
+        .eq("whatsapp_message_id", resumen.wamid)
+        .eq("direccion", "outbound")
+        .select("id");
+      mensajesActualizados = Array.isArray(data) ? data.length : 0;
+    } catch (e) {
+      await registrarLog(supabase, "status_update_mensajes_error", { wamid: resumen.wamid, status: resumen.status, error: String(e?.message || e) }, false);
+    }
+  }
+  // 2) tarot_envios_whatsapp — entrega de producto, tabla y semántica
+  // propias, sin relación con la bandeja del Admin. Nunca se convierte en
+  // reemplazo de esta tabla ni viceversa.
+  try {
+    const patchEnvio = {
+      wa_status: resumen.status,
+      entregado_at: resumen.status === "delivered" ? (resumen.meta_timestamp_utc ?? nowUTCISO()) : undefined,
+      leido_at: resumen.status === "read" ? (resumen.meta_timestamp_utc ?? nowUTCISO()) : undefined,
+      wa_error_code: resumen.status === "failed" ? resumen.status_error_code : undefined,
+      wa_error_mensaje: resumen.status === "failed" ? resumen.status_error_message : undefined,
+    };
+    const { data } = await supabase
+      .from("tarot_envios_whatsapp")
+      .update(patchEnvio)
+      .eq("wa_message_id", resumen.wamid)
+      .select("id");
+    enviosActualizados = Array.isArray(data) ? data.length : 0;
+  } catch (e) {
+    await registrarLog(supabase, "status_update_envios_error", { wamid: resumen.wamid, status: resumen.status, error: String(e?.message || e) }, false);
+  }
+  return { mensajes_actualizados: mensajesActualizados, envios_actualizados: enviosActualizados };
 }
 // ============================================================================
 // LLAMADA A CAPA 2
@@ -532,6 +619,25 @@ serve(async (req)=>{
       resumen,
       motivo: resumen.esEventoDeStatus ? "evento_statuses" : "sin_messages"
     }, true);
+  }
+  // --------------------------------------------------------------------------
+  // 3.b) SI ES statuses[] -> PROPAGAR A tarot_whatsapp_mensajes / tarot_envios_whatsapp
+  // --------------------------------------------------------------------------
+  // Independiente del bloque de arriba (un status nunca llama a CAPA 2 —
+  // no es lógica de negocio de Horóscopo/confirmación, es solo tracking de
+  // entrega). Ver comentario "STATUSES OUTBOUND" en el header del archivo.
+  // --------------------------------------------------------------------------
+  if (resumen.esEventoDeStatus) {
+    try {
+      const resultadoStatus = await actualizarPorStatus(supabase, resumen);
+      await registrarLog(supabase, "status_propagado", {
+        idEvento, wamid: resumen.wamid, status: resumen.status, ...resultadoStatus
+      }, true);
+    } catch (e) {
+      await registrarLog(supabase, "status_propagacion_excepcion", {
+        idEvento, wamid: resumen.wamid, status: resumen.status, error: String(e?.message || e)
+      }, false);
+    }
   }
   // --------------------------------------------------------------------------
   // 4) RESPUESTA FINAL A META

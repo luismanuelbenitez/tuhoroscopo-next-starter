@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(data, { status: res.status });
 }
 
-// Acciones: marcar_leido | marcar_no_leido
+// Acciones: marcar_leido | marcar_no_leido | responder | reintentar
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -59,13 +59,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const accion = typeof body.accion === "string" ? body.accion : "";
-  if (!["marcar_leido", "marcar_no_leido"].includes(accion)) {
+  if (!["marcar_leido", "marcar_no_leido", "responder", "reintentar"].includes(accion)) {
     return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
   }
 
+  // "responder" admite texto; "reintentar" admite mensaje_id — el resto de
+  // los campos del body del cliente se ignoran (nunca se reenvía un
+  // teléfono arbitrario, eso lo resuelve la EF desde la conversación).
+  const extra: Record<string, unknown> = {};
+  if (accion === "responder" && typeof body.texto === "string") extra.texto = body.texto;
+  if (accion === "reintentar" && typeof body.mensaje_id === "string") extra.mensaje_id = body.mensaje_id;
+
   let res: Response;
   try {
-    res = await callEF(env, { accion, conversacion_id: params.id });
+    res = await callEF(env, { accion, conversacion_id: params.id, ...extra });
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "fetch_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }
