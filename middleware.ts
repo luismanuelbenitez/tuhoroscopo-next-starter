@@ -58,6 +58,13 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/admin")) {
     requestHeaders.set("x-is-admin", "1");
   }
+  // /lectura/[token] es una experiencia standalone (llega por WhatsApp/email,
+  // por posesión de link) — el header/footer de marketing del sitio
+  // rompían la sensación de "entré a mi lectura" duplicando el branding
+  // propio de la página y cerrando con links de navegación del sitio.
+  if (pathname.startsWith("/lectura/")) {
+    requestHeaders.set("x-hide-chrome", "1");
+  }
 
   // /mantenimiento solo accesible si el modo está activo; si no, redirige al home
   if (pathname === "/mantenimiento") {

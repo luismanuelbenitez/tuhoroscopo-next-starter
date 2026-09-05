@@ -28,41 +28,114 @@ const POSICIONES: Record<number, string> = {
 };
 
 const GOLD = "#FFCE4D";
+const MOON = "#EDE6D6";
+const SERIF_FONT = "var(--font-serif-editorial), serif";
+
+// Fondo compartido — mismo lenguaje visual (gradiente, dorado, grano,
+// estrellas discretas) que el cabezal dinámico de WhatsApp/email
+// (_shared/tarot-imagen-whatsapp.ts): "el fondo acompaña, nunca compite".
+// Todo position:fixed + pointer-events-none, una sola vez por página.
+function FondoCelestial() {
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+      {/* Halo dorado superior — eco del cabezal */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 90% 55% at 50% 0%, rgba(251,191,36,0.08), transparent)",
+        }}
+      />
+      {/* Insinuación celestial baja, hacia el cierre de la lectura */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 40% at 50% 68%, rgba(148,110,255,0.05), transparent)",
+        }}
+      />
+      {/* Estrellas discretas — misma técnica que --stars-1 en globals.css */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundSize: "170px 170px",
+          opacity: 0.35,
+        }}
+      />
+      {/* Grano casi imperceptible */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          backgroundSize: "140px 140px",
+          opacity: 0.025,
+        }}
+      />
+    </div>
+  );
+}
+
+function Ornamento() {
+  return (
+    <div className="flex items-center justify-center gap-3 py-6" aria-hidden="true">
+      <span className="h-px w-9" style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.4))" }} />
+      <span className="h-[5px] w-[5px] rotate-45" style={{ background: "rgba(255,206,77,0.55)" }} />
+      <span className="h-px w-9" style={{ background: "linear-gradient(90deg, rgba(255,206,77,0.4), transparent)" }} />
+    </div>
+  );
+}
+
+function OrnamentoCierre() {
+  return (
+    <div className="flex items-center justify-center gap-4 py-2" aria-hidden="true">
+      <span className="h-px w-16" style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.45))" }} />
+      <span className="text-[13px]" style={{ color: GOLD, opacity: 0.7 }}>✦</span>
+      <span className="h-px w-16" style={{ background: "linear-gradient(90deg, rgba(255,206,77,0.45), transparent)" }} />
+    </div>
+  );
+}
+
+function ErrorShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className={`${serif.variable} min-h-screen flex items-center justify-center px-6 py-16 text-center relative`} style={{ background: "linear-gradient(160deg, #130a2e 0%, #0d0820 55%, #0c0618 100%)" }}>
+      <FondoCelestial />
+      <div className="max-w-sm relative">{children}</div>
+    </main>
+  );
+}
 
 function ExpiradoView() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-16 text-center bg-[#0d0820]">
-      <div className="max-w-sm">
-        <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
-          Tu Oráculo
-        </p>
-        <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: "var(--font-serif-editorial), serif" }}>
-          Este acceso online expiró
-        </h1>
-        <p className="text-sm text-[#c9c4d6] leading-relaxed">
-          El acceso web a esta tirada estuvo disponible durante 30 días y ya no está activo.
-          Si guardaste el PDF, tu lectura sigue disponible ahí para siempre.
-        </p>
-      </div>
-    </main>
+    <ErrorShell>
+      <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
+        Tu Oráculo
+      </p>
+      <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: SERIF_FONT }}>
+        Este acceso online expiró
+      </h1>
+      <p className="text-sm text-[#c9c4d6] leading-relaxed">
+        El acceso web a esta tirada estuvo disponible durante 30 días y ya no está activo.
+        Si guardaste el PDF, tu lectura sigue disponible ahí para siempre.
+      </p>
+    </ErrorShell>
   );
 }
 
 function NoEncontradoView() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-16 text-center bg-[#0d0820]">
-      <div className="max-w-sm">
-        <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
-          Tu Oráculo
-        </p>
-        <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: "var(--font-serif-editorial), serif" }}>
-          No encontramos esta tirada
-        </h1>
-        <p className="text-sm text-[#c9c4d6] leading-relaxed">
-          Revisá que el enlace esté completo, tal como lo recibiste por WhatsApp.
-        </p>
-      </div>
-    </main>
+    <ErrorShell>
+      <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
+        Tu Oráculo
+      </p>
+      <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: SERIF_FONT }}>
+        No encontramos esta tirada
+      </h1>
+      <p className="text-sm text-[#c9c4d6] leading-relaxed">
+        Revisá que el enlace esté completo, tal como lo recibiste por WhatsApp.
+      </p>
+    </ErrorShell>
   );
 }
 
@@ -77,111 +150,149 @@ export default async function LecturaPage({ params }: { params: { token: string 
   const primerNombre = resultado.nombre?.trim().split(" ")[0] ?? "";
 
   return (
-    <main className={`${serif.variable} min-h-screen bg-[#0d0820] text-[#F0F1F5]`}>
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 90% 55% at 50% 0%, rgba(251,191,36,0.07), transparent)",
-        }}
-      />
+    <main
+      className={`${serif.variable} min-h-screen text-[#F0F1F5] relative`}
+      style={{ background: "linear-gradient(160deg, #130a2e 0%, #0d0820 55%, #0c0618 100%)" }}
+    >
+      <FondoCelestial />
 
-      <div className="relative max-w-md mx-auto px-5 pb-20">
+      <div className="relative max-w-md mx-auto px-5 pb-16">
         {/* Branding */}
-        <header className="pt-10 pb-8 text-center">
-          <p className="text-[11px] tracking-[0.3em] uppercase" style={{ color: GOLD }}>
-            Tu Oráculo
-          </p>
-          <p className="mt-1 text-[11px] tracking-[0.2em] uppercase text-[#8b84a3]">Tu Tirada</p>
+        <header className="pt-12 pb-8 text-center">
+          <div className="flex items-center justify-center gap-3 mb-2" aria-hidden="true">
+            <span className="h-[7px] w-[7px] rounded-full" style={{ background: MOON, opacity: 0.6 }} />
+            <p className="text-[11px] tracking-[0.35em] uppercase" style={{ color: GOLD }}>
+              Tu Oráculo
+            </p>
+            <span className="h-[7px] w-[7px] rounded-full" style={{ background: GOLD, opacity: 0.75 }} />
+          </div>
+          <p className="text-[11px] tracking-[0.2em] uppercase text-[#8b84a3]">Tu Tirada</p>
+          <div
+            className="mx-auto mt-5 h-px w-14"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.5), transparent)" }}
+          />
         </header>
 
         {/* Saludo + pregunta */}
-        <section className="text-center mb-10">
+        <section className="text-center mb-11 px-1">
           <h1
-            className="text-3xl leading-tight font-semibold mb-3"
-            style={{ fontFamily: "var(--font-serif-editorial), serif" }}
+            className="text-[2.05rem] leading-[1.15] font-semibold mb-4"
+            style={{ fontFamily: SERIF_FONT }}
           >
             Hola, {primerNombre}
           </h1>
           {resultado.pregunta && (
-            <p className="text-[15px] text-[#c9c4d6] italic leading-relaxed">
+            <p
+              className="text-[15.5px] text-[#c9c4d6] italic leading-relaxed max-w-[300px] mx-auto"
+              style={{ fontFamily: SERIF_FONT }}
+            >
               &ldquo;{resultado.pregunta}&rdquo;
             </p>
           )}
         </section>
 
-        {/* Las 5 cartas */}
-        <section className="space-y-6 mb-10">
-          {resultado.cartas.map((c) => (
-            <article
-              key={c.posicion}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
-            >
-              <p className="text-[11px] tracking-[0.15em] uppercase mb-3" style={{ color: GOLD }}>
-                {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
-              </p>
-
-              <div className="flex justify-center mb-4">
-                {c.imagen_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c.imagen_url}
-                    alt={c.nombre_carta}
-                    className={`h-64 w-auto rounded-lg shadow-[0_12px_30px_rgba(0,0,0,0.45)] ${
-                      c.orientacion === "invertida" ? "rotate-180" : ""
-                    }`}
-                  />
-                ) : (
-                  <div className="h-64 w-44 rounded-lg bg-white/5 flex items-center justify-center text-xs text-[#8b84a3]">
-                    {c.nombre_carta}
-                  </div>
-                )}
-              </div>
-
-              <h2
-                className="text-xl text-center mb-1 font-semibold"
-                style={{ fontFamily: "var(--font-serif-editorial), serif" }}
+        {/* Las 5 cartas, con ritmo entre posiciones */}
+        <section className="mb-2">
+          {resultado.cartas.flatMap((c, idx) => {
+            const nodos: React.ReactNode[] = [
+              <article
+                key={`carta-${c.posicion}`}
+                className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-7"
               >
-                {c.nombre_carta}
-                {c.orientacion === "invertida" && (
-                  <span className="text-sm font-normal text-[#8b84a3]"> · invertida</span>
-                )}
-              </h2>
+                <div className="flex items-center justify-center gap-2.5 mb-5" aria-hidden="true">
+                  <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
+                  <p className="text-[11px] tracking-[0.15em] uppercase" style={{ color: GOLD }}>
+                    {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
+                  </p>
+                  <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
+                </div>
 
-              <p className="text-[15px] leading-relaxed text-[#dcd8e8] mt-3">
-                {c.interpretacion}
-              </p>
-            </article>
-          ))}
+                <div className="flex justify-center mb-5">
+                  {c.imagen_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.imagen_url}
+                      alt={c.nombre_carta}
+                      loading={idx === 0 ? "eager" : "lazy"}
+                      className={`h-64 w-auto rounded-lg shadow-[0_14px_36px_rgba(0,0,0,0.5)] ${
+                        c.orientacion === "invertida" ? "rotate-180" : ""
+                      }`}
+                    />
+                  ) : (
+                    <div className="h-64 w-44 rounded-lg bg-white/5 flex items-center justify-center text-xs text-[#8b84a3]">
+                      {c.nombre_carta}
+                    </div>
+                  )}
+                </div>
+
+                <h2
+                  className="text-[1.4rem] text-center mb-2 font-semibold tracking-wide"
+                  style={{ fontFamily: SERIF_FONT }}
+                >
+                  {c.nombre_carta}
+                  {c.orientacion === "invertida" && (
+                    <span className="text-sm font-normal text-[#8b84a3]"> · invertida</span>
+                  )}
+                </h2>
+
+                <p className="text-[15px] leading-[1.75] text-[#dcd8e8] mt-3">
+                  {c.interpretacion}
+                </p>
+              </article>,
+            ];
+            if (idx < resultado.cartas.length - 1) {
+              nodos.push(<Ornamento key={`orn-${c.posicion}`} />);
+            }
+            return nodos;
+          })}
         </section>
 
-        {/* Resumen */}
-        <section className="mb-10">
-          <h2
-            className="text-xs tracking-[0.2em] uppercase mb-3"
-            style={{ color: GOLD }}
+        {/* Transición editorial hacia el cierre */}
+        <OrnamentoCierre />
+
+        {/* Resumen — más presencia visual que una interpretación individual */}
+        <section className="mt-6 mb-8">
+          <div
+            className="rounded-2xl border px-6 py-8"
+            style={{
+              borderColor: "rgba(255,206,77,0.22)",
+              background: "linear-gradient(165deg, rgba(255,206,77,0.07), rgba(255,206,77,0.01) 60%)",
+            }}
           >
-            Resumen de tu tirada
-          </h2>
-          <p className="text-[15px] leading-relaxed text-[#dcd8e8] whitespace-pre-line">
-            {resultado.resumen_lectura}
-          </p>
+            <h2 className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
+              Resumen de tu tirada
+            </h2>
+            <p className="text-[16px] leading-[1.85] text-[#eae7f2] whitespace-pre-line">
+              {resultado.resumen_lectura}
+            </p>
+          </div>
         </section>
 
-        {/* Mensaje personal */}
-        <section className="mb-10 rounded-2xl border border-[rgba(251,191,36,0.18)] bg-[rgba(251,191,36,0.05)] p-5">
-          <h2 className="text-xs tracking-[0.2em] uppercase mb-3" style={{ color: GOLD }}>
-            Mensaje personal
-          </h2>
-          <p className="text-[15px] leading-relaxed text-[#F0F1F5]">
-            {resultado.mensaje_final}
-          </p>
+        {/* Mensaje personal — cierre humano de la experiencia */}
+        <section className="mb-11">
+          <div
+            className="rounded-2xl border px-6 py-8"
+            style={{
+              borderColor: "rgba(251,191,36,0.24)",
+              background: "linear-gradient(160deg, rgba(251,191,36,0.09), rgba(251,191,36,0.02))",
+            }}
+          >
+            <p className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
+              Mensaje personal
+            </p>
+            <p
+              className="text-[16.5px] leading-[1.85] text-[#F8F5FF] text-center"
+              style={{ fontFamily: SERIF_FONT }}
+            >
+              {resultado.mensaje_final}
+            </p>
+          </div>
         </section>
 
         {/* Claves / próximos pasos */}
         {resultado.proximos_pasos?.length > 0 && (
           <section className="mb-12">
-            <h2 className="text-xs tracking-[0.2em] uppercase mb-4" style={{ color: GOLD }}>
+            <h2 className="text-xs tracking-[0.2em] uppercase mb-5 text-center" style={{ color: GOLD }}>
               Claves para avanzar
             </h2>
             <ol className="space-y-4">
@@ -200,21 +311,26 @@ export default async function LecturaPage({ params }: { params: { token: string 
           </section>
         )}
 
-        {/* CTA PDF */}
-        <a
-          href={`/api/lectura/${params.token}/pdf`}
-          className="block text-center rounded-full py-4 font-bold text-[15px] mb-6"
-          style={{
-            background: `linear-gradient(135deg, #c49008 0%, ${GOLD} 55%, #f2cc44 100%)`,
-            color: "#0c0618",
-          }}
-        >
-          Descargar mi PDF
-        </a>
+        {/* Cierre / PDF — utilidad, no CTA comercial */}
+        <section className="text-center">
+          <Ornamento />
+          <p className="text-[13px] tracking-[0.2em] uppercase mt-2 mb-1.5" style={{ color: GOLD }}>
+            Guardá tu tirada
+          </p>
+          <p className="text-[13px] text-[#9891ad] mb-6">
+            Tu PDF queda como tu versión para conservar.
+          </p>
+          <a
+            href={`/api/lectura/${params.token}/pdf`}
+            className="inline-block rounded-full px-8 py-3.5 text-[14px] font-semibold border border-white/15 bg-white/5 text-[#f0e9d8] transition-colors hover:bg-white/10 hover:border-white/25"
+          >
+            📜 Ver / descargar PDF
+          </a>
 
-        <p className="text-center text-xs text-[#8b84a3]">
-          Este acceso online estará disponible durante 30 días.
-        </p>
+          <p className="mt-6 text-center text-xs text-[#8b84a3]">
+            Este acceso online estará disponible durante 30 días.
+          </p>
+        </section>
       </div>
     </main>
   );
