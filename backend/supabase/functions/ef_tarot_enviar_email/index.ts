@@ -110,7 +110,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   // 1. Orden
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("id, cliente_id, nombre_snapshot, email_solicitado")
+    .select("id, cliente_id, nombre_snapshot, email_solicitado, email_snapshot")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -132,16 +132,27 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
     return { ok: false, motivo: permiso.motivo };
   }
 
-  // 2. Cliente
-  const { data: cliente } = await supabase
-    .from("tarot_clientes")
-    .select("email")
-    .eq("id", orden.cliente_id)
-    .maybeSingle();
+  // 2. Email destino — SIEMPRE el snapshot de ESTA orden (lo que el
+  // comprador tipeó en este checkout), nunca el perfil mutable del cliente.
+  // Mismo principio "cliente canónico ≠ snapshot" ya aplicado a
+  // nombre/teléfono en el resto del proyecto — tarot_clientes.email puede
+  // quedar desactualizado (typo corregido en una compra posterior, cambio
+  // de casilla, etc.) y un envío real terminó yéndose a una dirección
+  // vieja/inexistente por leer de ahí. Fallback a tarot_clientes.email solo
+  // para órdenes anteriores a la existencia de email_snapshot.
+  let emailDestino = (orden as { email_snapshot?: string | null }).email_snapshot ?? null;
+  if (!emailDestino) {
+    const { data: cliente } = await supabase
+      .from("tarot_clientes")
+      .select("email")
+      .eq("id", orden.cliente_id)
+      .maybeSingle();
+    emailDestino = cliente?.email ?? null;
+  }
 
-  if (!cliente?.email) {
+  if (!emailDestino) {
     await log(ordenId, "email_sin_email_cliente", "info",
-      "Cliente sin email — omitido", { cliente_id: orden.cliente_id });
+      "Orden sin email — omitido", { cliente_id: orden.cliente_id });
     return { ok: false, motivo: "sin_email_cliente" };
   }
 
@@ -265,7 +276,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
 
   const emailPayload: Record<string, unknown> = {
     from:    RESEND_FROM,
-    to:      [cliente.email],
+    to:      [emailDestino],
     subject: `✨ Tu Tirada está lista, ${nombreCorto}`,
     html,
   };
@@ -293,7 +304,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
       pdf_id: pdfRow.id,
       estado: "enviando",
       numero_intento: numeroIntento,
-      email_destino: cliente.email,
+      email_destino: emailDestino,
       proveedor_email: "resend",
       es_reenvio: permiso.esReenvio,
       solicitud_reenvio_id: permiso.esReenvio ? permiso.solicitudId : null,
@@ -387,7 +398,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
 
   return {
     ok: true, estado: "enviado",
-    envioId: envioEmail?.id ?? "", email: cliente.email,
+    envioId: envioEmail?.id ?? "", email: emailDestino,
     numeroIntento, esReenvio: permiso.esReenvio,
   };
 }
