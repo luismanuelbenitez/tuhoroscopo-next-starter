@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
+import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
+import { Reveal } from "@/components/lectura/Reveal";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -173,7 +175,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
           />
         </header>
 
-        {/* Saludo + pregunta */}
+        {/* Saludo + pregunta + audio ambiental */}
         <section className="text-center mb-11 px-1">
           <h1
             className="text-[2.05rem] leading-[1.15] font-semibold mb-4"
@@ -182,63 +184,68 @@ export default async function LecturaPage({ params }: { params: { token: string 
             Hola, {primerNombre}
           </h1>
           {resultado.pregunta && (
-            <p
-              className="text-[15.5px] text-[#c9c4d6] italic leading-relaxed max-w-[300px] mx-auto"
-              style={{ fontFamily: SERIF_FONT }}
-            >
-              &ldquo;{resultado.pregunta}&rdquo;
-            </p>
+            <div className="mb-7">
+              <p className="text-[11px] tracking-[0.25em] uppercase mb-2.5" style={{ color: GOLD, opacity: 0.85 }}>
+                Tu pregunta
+              </p>
+              <p
+                className="text-[15.5px] text-[#c9c4d6] italic leading-relaxed max-w-[300px] mx-auto"
+                style={{ fontFamily: SERIF_FONT }}
+              >
+                &ldquo;{resultado.pregunta}&rdquo;
+              </p>
+            </div>
           )}
+          <AmbientAudioControls />
         </section>
 
         {/* Las 5 cartas, con ritmo entre posiciones */}
         <section className="mb-2">
           {resultado.cartas.flatMap((c, idx) => {
             const nodos: React.ReactNode[] = [
-              <article
-                key={`carta-${c.posicion}`}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-7"
-              >
-                <div className="flex items-center justify-center gap-2.5 mb-5" aria-hidden="true">
-                  <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
-                  <p className="text-[11px] tracking-[0.15em] uppercase" style={{ color: GOLD }}>
-                    {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
+              <Reveal key={`carta-${c.posicion}`}>
+                <article className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-7">
+                  <div className="flex items-center justify-center gap-2.5 mb-5" aria-hidden="true">
+                    <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
+                    <p className="text-[11px] tracking-[0.15em] uppercase" style={{ color: GOLD }}>
+                      {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
+                    </p>
+                    <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
+                  </div>
+
+                  <div className="flex justify-center mb-5">
+                    {c.imagen_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.imagen_url}
+                        alt={c.nombre_carta}
+                        loading={idx === 0 ? "eager" : "lazy"}
+                        className={`h-64 w-auto rounded-lg shadow-[0_14px_36px_rgba(0,0,0,0.5)] ${
+                          c.orientacion === "invertida" ? "rotate-180" : ""
+                        }`}
+                      />
+                    ) : (
+                      <div className="h-64 w-44 rounded-lg bg-white/5 flex items-center justify-center text-xs text-[#8b84a3]">
+                        {c.nombre_carta}
+                      </div>
+                    )}
+                  </div>
+
+                  <h2
+                    className="text-[1.4rem] text-center mb-2 font-semibold tracking-wide"
+                    style={{ fontFamily: SERIF_FONT }}
+                  >
+                    {c.nombre_carta}
+                    {c.orientacion === "invertida" && (
+                      <span className="text-sm font-normal text-[#8b84a3]"> · invertida</span>
+                    )}
+                  </h2>
+
+                  <p className="text-[15px] leading-[1.75] text-[#dcd8e8] mt-3">
+                    {c.interpretacion}
                   </p>
-                  <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
-                </div>
-
-                <div className="flex justify-center mb-5">
-                  {c.imagen_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.imagen_url}
-                      alt={c.nombre_carta}
-                      loading={idx === 0 ? "eager" : "lazy"}
-                      className={`h-64 w-auto rounded-lg shadow-[0_14px_36px_rgba(0,0,0,0.5)] ${
-                        c.orientacion === "invertida" ? "rotate-180" : ""
-                      }`}
-                    />
-                  ) : (
-                    <div className="h-64 w-44 rounded-lg bg-white/5 flex items-center justify-center text-xs text-[#8b84a3]">
-                      {c.nombre_carta}
-                    </div>
-                  )}
-                </div>
-
-                <h2
-                  className="text-[1.4rem] text-center mb-2 font-semibold tracking-wide"
-                  style={{ fontFamily: SERIF_FONT }}
-                >
-                  {c.nombre_carta}
-                  {c.orientacion === "invertida" && (
-                    <span className="text-sm font-normal text-[#8b84a3]"> · invertida</span>
-                  )}
-                </h2>
-
-                <p className="text-[15px] leading-[1.75] text-[#dcd8e8] mt-3">
-                  {c.interpretacion}
-                </p>
-              </article>,
+                </article>
+              </Reveal>,
             ];
             if (idx < resultado.cartas.length - 1) {
               nodos.push(<Ornamento key={`orn-${c.posicion}`} />);
@@ -251,86 +258,94 @@ export default async function LecturaPage({ params }: { params: { token: string 
         <OrnamentoCierre />
 
         {/* Resumen — más presencia visual que una interpretación individual */}
-        <section className="mt-6 mb-8">
-          <div
-            className="rounded-2xl border px-6 py-8"
-            style={{
-              borderColor: "rgba(255,206,77,0.22)",
-              background: "linear-gradient(165deg, rgba(255,206,77,0.07), rgba(255,206,77,0.01) 60%)",
-            }}
-          >
-            <h2 className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
-              Resumen de tu tirada
-            </h2>
-            <p className="text-[16px] leading-[1.85] text-[#eae7f2] whitespace-pre-line">
-              {resultado.resumen_lectura}
-            </p>
-          </div>
-        </section>
+        <Reveal className="block">
+          <section className="mt-6 mb-8">
+            <div
+              className="rounded-2xl border px-6 py-8"
+              style={{
+                borderColor: "rgba(255,206,77,0.22)",
+                background: "linear-gradient(165deg, rgba(255,206,77,0.07), rgba(255,206,77,0.01) 60%)",
+              }}
+            >
+              <h2 className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
+                Resumen de tu tirada
+              </h2>
+              <p className="text-[16px] leading-[1.85] text-[#eae7f2] whitespace-pre-line">
+                {resultado.resumen_lectura}
+              </p>
+            </div>
+          </section>
+        </Reveal>
 
         {/* Mensaje personal — cierre humano de la experiencia */}
-        <section className="mb-11">
-          <div
-            className="rounded-2xl border px-6 py-8"
-            style={{
-              borderColor: "rgba(251,191,36,0.24)",
-              background: "linear-gradient(160deg, rgba(251,191,36,0.09), rgba(251,191,36,0.02))",
-            }}
-          >
-            <p className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
-              Mensaje personal
-            </p>
-            <p
-              className="text-[16.5px] leading-[1.85] text-[#F8F5FF] text-center"
-              style={{ fontFamily: SERIF_FONT }}
+        <Reveal className="block">
+          <section className="mb-11">
+            <div
+              className="rounded-2xl border px-6 py-8"
+              style={{
+                borderColor: "rgba(251,191,36,0.24)",
+                background: "linear-gradient(160deg, rgba(251,191,36,0.09), rgba(251,191,36,0.02))",
+              }}
             >
-              {resultado.mensaje_final}
-            </p>
-          </div>
-        </section>
+              <p className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
+                Mensaje personal
+              </p>
+              <p
+                className="text-[16.5px] leading-[1.85] text-[#F8F5FF] text-center"
+                style={{ fontFamily: SERIF_FONT }}
+              >
+                {resultado.mensaje_final}
+              </p>
+            </div>
+          </section>
+        </Reveal>
 
         {/* Claves / próximos pasos */}
         {resultado.proximos_pasos?.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-xs tracking-[0.2em] uppercase mb-5 text-center" style={{ color: GOLD }}>
-              Claves para avanzar
-            </h2>
-            <ol className="space-y-4">
-              {resultado.proximos_pasos.map((paso, i) => (
-                <li key={i} className="flex gap-3">
-                  <span
-                    className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
-                    style={{ background: "rgba(251,191,36,0.15)", color: GOLD }}
-                  >
-                    {i + 1}
-                  </span>
-                  <p className="text-[15px] leading-relaxed text-[#dcd8e8]">{paso}</p>
-                </li>
-              ))}
-            </ol>
-          </section>
+          <Reveal className="block">
+            <section className="mb-12">
+              <h2 className="text-xs tracking-[0.2em] uppercase mb-5 text-center" style={{ color: GOLD }}>
+                Claves para avanzar
+              </h2>
+              <ol className="space-y-4">
+                {resultado.proximos_pasos.map((paso, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span
+                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+                      style={{ background: "rgba(251,191,36,0.15)", color: GOLD }}
+                    >
+                      {i + 1}
+                    </span>
+                    <p className="text-[15px] leading-relaxed text-[#dcd8e8]">{paso}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </Reveal>
         )}
 
         {/* Cierre / PDF — utilidad, no CTA comercial */}
-        <section className="text-center">
-          <Ornamento />
-          <p className="text-[13px] tracking-[0.2em] uppercase mt-2 mb-1.5" style={{ color: GOLD }}>
-            Guardá tu tirada
-          </p>
-          <p className="text-[13px] text-[#9891ad] mb-6">
-            Tu PDF queda como tu versión para conservar.
-          </p>
-          <a
-            href={`/api/lectura/${params.token}/pdf`}
-            className="inline-block rounded-full px-8 py-3.5 text-[14px] font-semibold border border-white/15 bg-white/5 text-[#f0e9d8] transition-colors hover:bg-white/10 hover:border-white/25"
-          >
-            📜 Ver / descargar PDF
-          </a>
+        <Reveal className="block">
+          <section className="text-center">
+            <Ornamento />
+            <p className="text-[13px] tracking-[0.2em] uppercase mt-2 mb-1.5" style={{ color: GOLD }}>
+              Guardá tu tirada
+            </p>
+            <p className="text-[13px] text-[#9891ad] mb-6">
+              Tu PDF queda como tu versión para conservar.
+            </p>
+            <a
+              href={`/api/lectura/${params.token}/pdf`}
+              className="inline-block rounded-full px-8 py-3.5 text-[14px] font-semibold border border-white/15 bg-white/5 text-[#f0e9d8] transition-colors hover:bg-white/10 hover:border-white/25"
+            >
+              📜 Ver / descargar PDF
+            </a>
 
-          <p className="mt-6 text-center text-xs text-[#8b84a3]">
-            Este acceso online estará disponible durante 30 días.
-          </p>
-        </section>
+            <p className="mt-6 text-center text-xs text-[#8b84a3]">
+              Este acceso online estará disponible durante 30 días.
+            </p>
+          </section>
+        </Reveal>
       </div>
     </main>
   );

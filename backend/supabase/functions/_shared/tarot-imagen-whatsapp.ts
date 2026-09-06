@@ -8,24 +8,34 @@
 // Chromium no corre ahí. https://supabase.com/docs/guides/functions/examples/og-image
 //
 // Dimensiones: 1600×800 (2:1), diseño base aprobado del sprint de cabezal
-// dinámico (2026-09-04). Reemplaza el formato 1080×1080 (1:1) del sprint
-// anterior de imagen de WhatsApp.
+// dinámico (2026-09-04).
 //
 // SAFE AREA: WhatsApp puede recortar visualmente los laterales según
 // dispositivo/preview. Todo contenido crítico (branding, cartas, nombre)
 // vive dentro de [SAFE_LEFT, SAFE_RIGHT] = [160, 1440] — los 160px de cada
-// borde solo llevan decoración (luna, sol, estrellas), nunca información.
-// Ver LAYOUT más abajo para las constantes exactas y docs/modules/
-// mobile-delivery-experience-reference.md § "Cabezal dinámico WhatsApp"
-// para el diagrama completo.
+// borde solo llevan decoración del FONDO FIJO, nunca información dinámica.
+// Ver LAYOUT más abajo para las constantes exactas.
 //
-// Fondo: NO se usa un PNG fijo — no hay ningún asset de fondo aprobado
-// disponible en este entorno para incorporar. En su lugar, la capa de
-// fondo (gradiente + luna/sol/estrellas/líneas ornamentales) se compone en
-// JSX igual que el resto, pero deliberadamente aislada en su propio
-// subárbol sin ningún dato de la orden — es "fondo fijo" en el sentido de
-// que no depende de nada dinámico, y puede reemplazarse por una imagen real
-// más adelante cambiando solo esa función, sin tocar las capas dinámicas.
+// FONDO FIJO (sprint 2026-09-06, "experiencia inmersiva + fondo fijo del
+// cabezal"): antes el fondo (gradiente + luna/sol/estrellas/líneas) se
+// componía en JSX igual que el resto. Ahora es UNA imagen fija —
+// _shared/assets/tarot-cabezal-fondo.jpg, embebida como data URI en
+// _shared/tarot-cabezal-fondo-data.ts (ver ese archivo y
+// _shared/assets/generar-fondo-data.mjs para cómo se regenera cuando se
+// reemplaza el asset) — renderizada como un <img> a pantalla completa,
+// misma técnica ya probada para las cartas (descargarCartaComoDataUri):
+// Satori necesita los bytes ya resueltos en el árbol JSX, no puede hacer
+// fetch a una ruta local ni a una URL pública en este runtime. Sobre esa
+// imagen solo se renderiza lo que varía por orden: branding, nombre y las
+// 5 cartas — nada de lo ambiental (cielo, nebulosa, estrellas principales,
+// luna, sol) se vuelve a dibujar por código.
+//
+// SIN MARCO EN LAS CARTAS (mismo sprint): el mazo nuevo ya trae marco
+// dorado, número romano y título impresos en cada carta. El borde dorado
+// que este archivo dibujaba antes alrededor de cada carta (para separarla
+// visualmente del fondo plano anterior) se sacó por completo — dibujarlo
+// ahora sería un doble marco. La carta se renderiza tal cual está
+// almacenada, sin decoración adicional.
 //
 // Formato PNG: salida nativa de ImageResponse, sin paso de encoding extra.
 // Se evaluó JPG (Task K) — @vercel/og no expone un encoder JPEG sin
@@ -33,17 +43,18 @@
 // de WhatsApp (5MB, recomendado <1MB) — medido en QA real: ~800-870KB por
 // imagen, ~2.4-2.7s de generación. No se justificó el cambio de formato.
 //
-// PERFORMANCE — hallazgo real de este sprint: un `boxShadow` en las 5
-// cartas (pensado para darles profundidad) hacía que la función excediera
-// WORKER_RESOURCE_LIMIT en el runtime real de Supabase (confirmado
-// deployado, no en teoría) — Satori/resvg rasterizan el blur de box-shadow
-// de forma cara. Se sacó por completo; el borde dorado ya separa
-// visualmente la carta del fondo sin ese costo. Evitar reintroducir
-// box-shadow en este archivo sin volver a medir contra el runtime real.
+// PERFORMANCE — hallazgo real de un sprint anterior: un `boxShadow` en las
+// 5 cartas (pensado para darles profundidad) hacía que la función
+// excediera WORKER_RESOURCE_LIMIT en el runtime real de Supabase
+// (confirmado deployado, no en teoría) — Satori/resvg rasterizan el blur
+// de box-shadow de forma cara. Evitar reintroducir box-shadow en este
+// archivo sin volver a medir contra el runtime real (vía
+// ef_tarot_debug_imagen_whatsapp).
 // ============================================================
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { ImageResponse } from "npm:@vercel/og@^0";
 import React from "npm:react@^19";
+import { FONDO_CABEZAL_DATA_URI } from "./tarot-cabezal-fondo-data.ts";
 
 const h = React.createElement;
 
@@ -221,62 +232,24 @@ async function descargarCartaComoDataUri(
   return `data:${mime};base64,${toBase64(bytes)}`;
 }
 
-// ── Capa de fondo (estática, sin datos de la orden) ──────────────────
-function celestialCircle(props: { left?: number; right?: number; top: number; size: number; color: string; opacity?: number }) {
-  return h("div", {
-    style: {
-      display: "flex", position: "absolute", top: props.top,
-      ...(props.left !== undefined ? { left: props.left } : { right: props.right }),
-      width: props.size, height: props.size, borderRadius: props.size,
-      background: props.color, opacity: props.opacity ?? 1,
-    },
-  });
-}
-
-function estrella(top: number, left: number, size: number, opacity: number) {
-  return h("div", {
-    style: {
-      display: "flex", position: "absolute", top, left, width: size, height: size,
-      borderRadius: size, background: "#F0E6FF", opacity,
-    },
-  });
-}
-
+// ── Capa de fondo (imagen fija, sin datos de la orden) ────────────────
+// Un solo <img> a pantalla completa con el asset embebido — misma técnica
+// que descargarCartaComoDataUri() de más abajo, ya probada contra el
+// runtime real. Reemplaza toda la composición JSX de gradiente/luna/sol/
+// estrellas/líneas del sprint anterior (ver header del archivo).
 function capaFondo() {
-  const estrellas: React.ReactElement[] = [];
-  // Estrellas solo en los márgenes laterales (fuera de SAFE_LEFT/SAFE_RIGHT)
-  // y en la franja superior — si WhatsApp recorta los laterales, no se
-  // pierde nada crítico, ver comentario de SAFE AREA arriba.
-  const posicionesEstrellas: Array<[number, number, number, number]> = [
-    [40, 45, 5, 0.55], [90, 90, 3, 0.4], [150, 55, 4, 0.5], [210, 100, 3, 0.35],
-    [60, 1500, 4, 0.5], [120, 1545, 3, 0.4], [180, 1510, 5, 0.55], [230, 1470, 3, 0.35],
-    [30, 300, 3, 0.3], [28, 700, 3, 0.28], [26, 900, 3, 0.25], [30, 1300, 3, 0.3],
-  ];
-  for (const [top, left, size, opacity] of posicionesEstrellas) {
-    estrellas.push(estrella(top, left, size, opacity));
-  }
-
+  // position:absolute vive en el div wrapper, nunca directo en el <img> —
+  // mismo patrón que usan las cartas más abajo (un div posicionado con un
+  // <img> simple adentro). Satori no garantiza position:absolute aplicado
+  // directamente sobre un elemento <img>.
   return h(
     "div",
     { style: { display: "flex", position: "absolute", top: 0, left: 0, width: LAYOUT.CANVAS_WIDTH, height: LAYOUT.CANVAS_HEIGHT } },
-    // Luna — margen izquierdo
-    celestialCircle({ left: 62, top: 46, size: 88, color: "#EDE6D6", opacity: 0.9 }),
-    celestialCircle({ left: 92, top: 40, size: 88, color: "#130a2e", opacity: 0.55 }),
-    // Sol — margen derecho
-    celestialCircle({ right: 62, top: 46, size: 88, color: "#FFCE4D", opacity: 0.85 }),
-    ...estrellas,
-    // Líneas ornamentales finas, dentro de zona segura, bajo el branding
-    h("div", {
-      style: {
-        display: "flex", position: "absolute", top: 152, left: LAYOUT.SAFE_LEFT + 60,
-        width: 420, height: 1, background: "rgba(255,206,77,0.35)",
-      },
-    }),
-    h("div", {
-      style: {
-        display: "flex", position: "absolute", top: 152, right: LAYOUT.SAFE_LEFT + 60,
-        width: 420, height: 1, background: "rgba(255,206,77,0.35)",
-      },
+    h("img", {
+      src: FONDO_CABEZAL_DATA_URI,
+      width: LAYOUT.CANVAS_WIDTH,
+      height: LAYOUT.CANVAS_HEIGHT,
+      style: { width: LAYOUT.CANVAS_WIDTH, height: LAYOUT.CANVAS_HEIGHT, objectFit: "cover" },
     }),
   );
 }
@@ -424,8 +397,11 @@ export async function generarImagenWhatsapp(
             display: "flex",
             width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
             marginLeft: i === 0 ? 0 : -LAYOUT.CARD_OVERLAP,
-            borderRadius: 12, overflow: "hidden",
-            border: "3px solid rgba(255,206,77,0.45)",
+            // Sin marco/borde propio (Task del sprint "fondo fijo del
+            // cabezal", 2026-09-06): el mazo nuevo ya trae marco dorado,
+            // número romano y título impresos en la carta — agregar un
+            // borde acá sería un doble marco. background solo es fallback
+            // para el caso sin imagen (más abajo).
             background: "#1a1030",
             // Satori solo acepta "transform" con una función real — "none"
             // no parsea (a diferencia de un navegador real), por eso la
