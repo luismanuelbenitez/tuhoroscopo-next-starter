@@ -101,7 +101,7 @@ export function AmbientAudioControls() {
           type="button"
           onClick={toggle}
           disabled={estado === "cargando"}
-          className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2 text-[12px] tracking-wide text-[#c9c4d6] transition-colors hover:bg-white/10 hover:border-white/25 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,206,77,0.35)] bg-[#1c1140]/80 px-5 py-2 text-[12px] tracking-wide text-[#c9c4d6] shadow-[0_4px_16px_rgba(0,0,0,0.35)] backdrop-blur transition-colors hover:bg-[#241751] hover:border-[rgba(255,206,77,0.55)] disabled:opacity-60"
         >
           <span style={{ color: GOLD }}>{reproduciendo ? "❚❚" : "♪"}</span>
           <span>
