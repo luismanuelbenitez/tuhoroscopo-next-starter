@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 
 // Audio ambiental OPCIONAL para /lectura/[token] — ver sprint "experiencia
 // inmersiva de lectura" (2026-09-06). Reglas clave:
-//   - NUNCA autoplay: solo arranca por click explícito del usuario.
+//   - Intenta autoplay al entrar; la mayoría de navegadores mobile (Safari
+//     iOS en particular) lo bloquean sin gesto previo del usuario — en ese
+//     caso se degrada en silencio al flujo manual (botón "Ambientar mi
+//     lectura"), nunca se muestra como error.
 //   - Fade-in de ~2.5s a volumen bajo al reproducir; pausa limpia sin fade.
 //   - Sin controles nativos, sin timeline/duración/nombre de archivo.
 //   - Si el archivo no existe o falla la carga, la lectura sigue funcionando
@@ -32,6 +35,32 @@ export function AmbientAudioControls() {
       if (fadeRef.current) cancelAnimationFrame(fadeRef.current);
       audioRef.current?.pause();
     };
+  }, []);
+
+  // Intento silencioso de autoplay al entrar. Si el navegador lo bloquea
+  // (lo más común en mobile sin gesto previo), no se muestra ningún error:
+  // el botón queda en "idle" listo para el click manual, como si el
+  // intento nunca hubiera pasado.
+  useEffect(() => {
+    let cancelado = false;
+    async function intentarAutoplay() {
+      try {
+        const audio = new Audio(AUDIO_SRC);
+        audio.loop = true;
+        audio.preload = "none";
+        await audio.play();
+        if (cancelado) { audio.pause(); return; }
+        audioRef.current = audio;
+        fadeIn(audio);
+        setEstado("reproduciendo");
+      } catch {
+        // Bloqueado por política de autoplay o archivo no disponible —
+        // se degrada en silencio, sin tocar audioRef ni el estado.
+      }
+    }
+    intentarAutoplay();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

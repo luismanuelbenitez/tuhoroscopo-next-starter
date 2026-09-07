@@ -3,6 +3,7 @@ import { Cormorant_Garamond } from "next/font/google";
 import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { Reveal } from "@/components/lectura/Reveal";
+import { LogoIcon } from "@/components/logo-icon";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -161,6 +162,9 @@ export default async function LecturaPage({ params }: { params: { token: string 
       <div className="relative max-w-md mx-auto px-5 pb-16">
         {/* Branding */}
         <header className="pt-12 pb-8 text-center">
+          <div className="mb-3 flex justify-center">
+            <LogoIcon size={44} />
+          </div>
           <div className="flex items-center justify-center gap-3 mb-2" aria-hidden="true">
             <span className="h-[7px] w-[7px] rounded-full" style={{ background: MOON, opacity: 0.6 }} />
             <p className="text-[11px] tracking-[0.35em] uppercase" style={{ color: GOLD }}>
