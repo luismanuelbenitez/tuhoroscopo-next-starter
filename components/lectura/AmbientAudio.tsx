@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 // Asset esperado: /public/audio/tarot-ambiente.mp3 (ver "ASSETS QUE MANUEL
 // DEBE SUBIR" en el reporte del sprint para la ruta y specs exactas).
 const AUDIO_SRC = "/audio/tarot-ambiente.mp3";
-const VOLUMEN_OBJETIVO = 0.35;
+const VOLUMEN_OBJETIVO = 0.25;
 const FADE_IN_MS = 2600;
 const GOLD = "#FFCE4D";
 
@@ -48,7 +48,7 @@ export function AmbientAudioControls() {
     const t0 = performance.now();
     audio.volume = 0;
     function paso(now: number) {
-      const progreso = Math.min(1, (now - t0) / FADE_IN_MS);
+      const progreso = Math.min(1, Math.max(0, (now - t0) / FADE_IN_MS));
       audio.volume = progreso * VOLUMEN_OBJETIVO;
       if (progreso < 1) {
         fadeRef.current = requestAnimationFrame(paso);
@@ -118,8 +118,8 @@ export function AmbientAudioControls() {
         <button
           type="button"
           onClick={toggle}
-          aria-label={estado === "reproduciendo" ? "Pausar ambiente" : "Reanudar ambiente"}
-          className="fixed bottom-5 right-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-[#150c2e]/90 text-base shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur transition-colors hover:bg-[#1c1140]"
+          aria-label={estado === "reproduciendo" ? "Silenciar ambiente" : "Activar ambiente"}
+          className="fixed bottom-5 right-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(255,206,77,0.45)] bg-[#150c2e]/90 text-base shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur transition-colors hover:bg-[#1c1140] hover:border-[rgba(255,206,77,0.65)]"
           style={{ color: GOLD }}
         >
           {estado === "reproduciendo" ? "❚❚" : "♪"}
