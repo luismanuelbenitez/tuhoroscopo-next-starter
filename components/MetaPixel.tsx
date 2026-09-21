@@ -13,6 +13,20 @@ import { metaPageView } from '@/lib/metaPixel';
  * Snippet oficial mínimo de Meta (sin SDK pesado). Sin Advanced Matching —
  * decisión explícita, no se pasan datos de identidad (email/teléfono) al
  * init del Pixel.
+ *
+ * SIN <noscript><img></noscript> de fallback (removido 2026-09-21, auditoría
+ * de PageView duplicado): confirmado empíricamente contra un build de
+ * producción real que, en este proyecto, React hidrata ese <noscript>
+ * construyendo el DOM vía APIs de JS (no re-parseando HTML crudo), lo que
+ * hace que el navegador SÍ pida el <img> aunque JavaScript esté habilitado
+ * y funcionando — provocando un segundo PageView real e independiente del
+ * SDK en cada carga de página. Probado también con HTML estático puro (sin
+ * React): el mismo markup ahí NO dispara el <img> con JS habilitado,
+ * confirmando que es una incompatibilidad de este stack, no un
+ * comportamiento general de navegador. Costo de sacarlo: cero — el único
+ * escenario que cubría (usuario con JavaScript deshabilitado) ya no recibe
+ * ninguna otra funcionalidad del sitio tampoco, así que no se pierde
+ * cobertura real. Ver docs/product/DECISIONS.md 2026-09-21.
  */
 export function MetaPixel({ pixelId }: { pixelId: string }) {
   const pathname = usePathname();
@@ -30,35 +44,23 @@ export function MetaPixel({ pixelId }: { pixelId: string }) {
   }, [pathname]);
 
   return (
-    <>
-      <Script
-        id="meta-pixel-base"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            !function(f,b,e,v,n,t,s)
-            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-            n.queue=[];t=b.createElement(e);t.async=!0;
-            t.src=v;s=b.getElementsByTagName(e)[0];
-            s.parentNode.insertBefore(t,s)}(window, document,'script',
-            'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${pixelId}');
-            fbq('track', 'PageView');
-          `,
-        }}
-      />
-      <noscript>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          height="1"
-          width="1"
-          style={{ display: 'none' }}
-          src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
-          alt=""
-        />
-      </noscript>
-    </>
+    <Script
+      id="meta-pixel-base"
+      strategy="afterInteractive"
+      dangerouslySetInnerHTML={{
+        __html: `
+          !function(f,b,e,v,n,t,s)
+          {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+          n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+          n.queue=[];t=b.createElement(e);t.async=!0;
+          t.src=v;s=b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t,s)}(window, document,'script',
+          'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', '${pixelId}');
+          fbq('track', 'PageView');
+        `,
+      }}
+    />
   );
 }

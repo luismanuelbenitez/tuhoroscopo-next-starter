@@ -1,5 +1,19 @@
 ﻿import { NextResponse } from 'next/server';
 
+// LIMITACIÓN CONOCIDA, documentada explícitamente (auditoría Meta Pixel,
+// 2026-09-21) — no rediseñada, solo dejada por escrito: `can_fire_purchase:
+// true` (y el UPDATE atómico que marca `analytics_purchase_sent_at`)
+// significa en la práctica "el backend concedió el claim para INTENTAR
+// enviar Purchase una sola vez", no "Meta confirmó haber recibido el
+// evento". Con Browser Pixel solamente (sin Conversions API) no existe
+// confirmación real de entrega del lado del servidor — si el navegador del
+// cliente falla en enviar el evento (red, bloqueador de anuncios, pestaña
+// cerrada antes de que el pixel cargue), el claim ya se consumió y no se
+// vuelve a conceder para esa orden. Es el trade-off inherente de un
+// tracking 100% client-side; resolverlo de raíz requeriría Meta Conversions
+// API (servidor → Meta), evaluado y NO implementado todavía — ver informe
+// de la auditoría de Meta Pixel, 2026-09-21.
+
 // Mismo set que ESTADOS_PAGADO en /api/admin/tarot/metricas, /adquisicion y
 // ef_tarot_admin_clientes_unicos — una orden "pagada" es la que llegó al
 // menos a pago_confirmado. Corregido 2026-08-22: antes tenía nombres de

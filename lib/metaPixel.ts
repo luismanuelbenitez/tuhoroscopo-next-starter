@@ -17,9 +17,19 @@
  */
 import { PRODUCTS } from '@/lib/analytics';
 
+interface FbqStub {
+  (...args: unknown[]): void;
+  callMethod?: (...args: unknown[]) => void;
+  queue: unknown[][];
+  loaded: boolean;
+  version: string;
+  push: FbqStub;
+}
+
 declare global {
   interface Window {
-    fbq?: (...args: unknown[]) => void;
+    fbq?: FbqStub;
+    _fbq?: FbqStub;
   }
 }
 
@@ -27,6 +37,54 @@ declare global {
 // cliente sin prop-drilling. Mismo valor que ya lee app/layout.tsx para
 // decidir si monta <MetaPixel>.
 const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+
+/**
+ * Garantiza que window.fbq exista como el stub de cola oficial de Meta y
+ * que fbevents.js esté cargándose — el MISMO bootstrap que ya trae el
+ * <Script> inline de components/MetaPixel.tsx, con el mismo guard
+ * `if (f.fbq) return` que usa Meta — así que da igual cuál de los dos
+ * corra primero: el segundo en ejecutarse encuentra `window.fbq` ya
+ * definido y no hace nada (no recarga fbevents.js, no crea un segundo
+ * stub, no duplica nada).
+ *
+ * Por qué hace falta ACÁ también, no solo en el <Script> del layout
+ * (hallazgo real, 2026-09-21): no hay garantía de orden entre el
+ * useEffect de un componente cualquiera (p.ej. TarotEstadoContent
+ * disparando metaPurchase() casi al montar /tarot/gracias) y el
+ * scheduling de un <Script strategy="afterInteractive"> de OTRO
+ * componente (MetaPixel, montado en el layout raíz) — son colas
+ * independientes de Next.js/React. Confirmado en una orden real: el gate
+ * atómico del servidor concedía el claim de Purchase correctamente, pero
+ * si `window.fbq` todavía no existía en el instante exacto de la llamada,
+ * fbqCall() lo descartaba en silencio (sin cola, sin reintento) — el
+ * evento se perdía para siempre, porque el claim de backend ya no se
+ * vuelve a conceder. Con este bootstrap, aunque fbevents.js todavía no
+ * haya terminado de cargar, `window.fbq` ya es una función real (el stub
+ * de cola) y el evento se encola correctamente hasta que el SDK real
+ * esté listo para procesarlo — nunca se pierde por timing.
+ */
+function ensurePixelBootstrap(): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (window.fbq) return; // ya bootstrapeado — por este mismo código o por <MetaPixel>
+
+  const stub = function (this: FbqStub, ...args: unknown[]) {
+    if (stub.callMethod) stub.callMethod(...args);
+    else stub.queue.push(args);
+  } as FbqStub;
+  stub.queue = [];
+  stub.loaded = true;
+  stub.version = '2.0';
+  stub.push = stub;
+
+  window.fbq = stub;
+  if (!window._fbq) window._fbq = stub;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+  const firstScript = document.getElementsByTagName('script')[0];
+  firstScript?.parentNode?.insertBefore(script, firstScript);
+}
 
 /**
  * Confirmado en producción (2026-08-22, evidencia real de Meta Test
@@ -43,11 +101,22 @@ const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
  * a releer document.location antes de cada evento. Se hace acá, en el
  * único punto por el que pasan todos los track() de nuestro código, en
  * vez de en cada call site — una sola implementación, no un wrapper nuevo.
+ *
+ * Reconfirmado 2026-09-21 (auditoría de Purchase): NO se elimina este
+ * re-init por evento. Quitarlo reintroduciría exactamente el bug de URL
+ * incorrecta ya demostrado con evidencia real de Meta Test Events el
+ * 2026-08-22 (afectaba a PageView Y a InitiateCheckout, no solo a
+ * PageView) — no es una precaución teórica, es un fix ya comprobado. El
+ * costo de mantenerlo es nulo: re-invocar init con el mismo Pixel ID no
+ * recarga el SDK ni duplica eventos (ensurePixelBootstrap() de arriba ya
+ * es lo único responsable de eso, y corre como mucho una vez).
  */
 function fbqCall(...args: unknown[]): void {
   try {
-    if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-      if (PIXEL_ID) window.fbq('init', PIXEL_ID);
+    if (typeof window === 'undefined' || !PIXEL_ID) return;
+    ensurePixelBootstrap();
+    if (typeof window.fbq === 'function') {
+      window.fbq('init', PIXEL_ID);
       window.fbq(...args);
     }
   } catch { /* best-effort */ }
