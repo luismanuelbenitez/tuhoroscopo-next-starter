@@ -110,18 +110,40 @@ let fontRegularCache: ArrayBuffer | null = null;
 // se extrae la URL del archivo TTF con una regex, y se descarga el binario.
 // Fuente controlada por Google Fonts (no un archivo propio del proyecto) —
 // evaluado en Task I: se prefirió no incrustar un binario de fuente en el
-// repo por ahora; si Google Fonts alguna vez no responde, la generación
+// repo por ahora; si Google Fonts responde con un ERROR, la generación
 // falla de forma controlada (try/catch en generarImagenWhatsapp) y el
 // pipeline se degrada al mensaje sin template — nunca rompe la entrega.
+//
+// TIMEOUT EXPLÍCITO (hallazgo real, 2026-09-18): un fetch sin timeout que
+// nunca recibe respuesta (no es un error, es simplemente ausencia de
+// respuesta) no lanza excepción — se queda colgado hasta que la plataforma
+// mata la función entera por su propio límite de ejecución, sin ejecutar
+// ningún catch ni dejar ningún log. Eso dejó una orden real trabada en
+// 'enviando_whatsapp'/tarot_envios_whatsapp.estado='enviando' de forma
+// indefinida, sin ningún log de error — ver docs/product/DECISIONS.md.
+// El try/catch de más arriba solo cubre errores reales de red/DNS/TLS, no
+// esta clase de cuelgue silencioso.
+const FONT_FETCH_TIMEOUT_MS = 8000;
+
+async function fetchConTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FONT_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function descargarFuenteTTF(pesoCss: string): Promise<ArrayBuffer> {
-  const cssRes = await fetch(
+  const cssRes = await fetchConTimeout(
     `https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@${pesoCss}&display=swap`,
     { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 6.1)" } },
   );
   const css = await cssRes.text();
   const match = css.match(/src: url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/);
   if (!match) throw new Error("No se pudo resolver la URL de la fuente TTF");
-  const fontRes = await fetch(match[1]);
+  const fontRes = await fetchConTimeout(match[1]);
   return await fontRes.arrayBuffer();
 }
 

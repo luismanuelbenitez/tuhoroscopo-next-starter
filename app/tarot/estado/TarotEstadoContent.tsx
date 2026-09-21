@@ -2,14 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Cormorant_Garamond } from "next/font/google";
 import { trackPurchase } from "@/lib/analytics";
 import { metaPurchase } from "@/lib/metaPixel";
 import confetti from "canvas-confetti";
-import { Loader2, Layers, Eye, Lightbulb, FileText } from "lucide-react";
+import { Loader2, Layers, Eye, Lightbulb, FileText, MessageCircle } from "lucide-react";
+
+// Mismo lenguaje editorial que /lectura/[token] — serif para los títulos,
+// para que la continuidad visual del "ritual" no se corte al llegar acá.
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-serif-editorial",
+});
+const SERIF_FONT = "var(--font-serif-editorial), serif";
+const GOLD = "#FFCE4D";
+
+function EstrellasYNebulosa() {
+  // Decorativo, no interactivo — reusa las variables --stars-1/2 y
+  // --nebula-* ya definidas en globals.css (nunca las redefine ni toca el
+  // fondo global del body, que esta página ya desactiva explícitamente más
+  // abajo con su propio <style jsx global>).
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+      style={{
+        backgroundImage: "var(--stars-1), var(--stars-2), var(--nebula-3)",
+        backgroundSize: "180px 180px, 220px 220px, auto",
+        backgroundPosition: "0 0, 40px 60px, center",
+        backgroundRepeat: "repeat, repeat, no-repeat",
+        opacity: 0.5,
+      }}
+    />
+  );
+}
 
 function CheckIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-16 h-16 text-emerald-400">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={GOLD} className="w-16 h-16">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </svg>
   );
@@ -125,9 +156,10 @@ export default function TarotEstadoContent() {
       `}</style>
 
       <div
-        className="min-h-screen text-white relative z-[1]"
+        className={`${serif.variable} min-h-screen text-white relative z-[1] overflow-hidden`}
         style={{ background: "linear-gradient(180deg, #110927 0%, #0d0820 55%, #0e0b22 100%)" }}
       >
+        <EstrellasYNebulosa />
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-72"
           style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(88,28,180,0.13), transparent)", zIndex: 0 }}
@@ -138,8 +170,8 @@ export default function TarotEstadoContent() {
           {/* Cargando */}
           {uiStatus === "idle" && (
             <div className="space-y-6 flex flex-col items-center">
-              <Loader2 className="w-12 h-12 text-violet-400 animate-spin" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-white/80">
+              <Loader2 className="w-12 h-12 animate-spin" style={{ color: GOLD }} />
+              <h1 className="text-2xl sm:text-3xl font-semibold text-white/80" style={{ fontFamily: SERIF_FONT }}>
                 Procesando tu pago…
               </h1>
             </div>
@@ -149,20 +181,26 @@ export default function TarotEstadoContent() {
           {uiStatus === "ok" && (
             <div className="space-y-6 flex flex-col items-center">
               <div className="relative flex items-center justify-center">
-                <div className="absolute w-28 h-28 rounded-full blur-2xl" style={{ background: "rgba(52,211,153,0.15)" }} />
+                <div className="absolute w-28 h-28 rounded-full blur-2xl" style={{ background: "rgba(255,206,77,0.18)" }} />
                 <CheckIcon />
               </div>
 
-              <div className="inline-block px-3 py-1 rounded-full border border-violet-500/25 bg-violet-900/30 text-violet-300 text-xs tracking-widest uppercase -mt-2">
+              <div
+                className="inline-block px-3 py-1 rounded-full text-xs tracking-widest uppercase -mt-2"
+                style={{ border: "1px solid rgba(255,206,77,0.3)", background: "rgba(255,206,77,0.08)", color: GOLD }}
+              >
                 ✦ Pago confirmado
               </div>
 
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white -mt-2">
+              <h1
+                className="text-3xl sm:text-4xl font-semibold text-white -mt-2"
+                style={{ fontFamily: SERIF_FONT }}
+              >
                 ¡{nombre ? `${nombre}, tu` : "Tu"} tirada está en camino!
               </h1>
 
               <p className="text-white/70 text-base -mt-2 leading-relaxed">
-                Estamos preparando tu lectura personalizada. En los próximos minutos la recibirás por WhatsApp en el número que registraste.
+                Las cartas ya fueron reveladas para vos. En los próximos minutos, tu lectura completa llega por WhatsApp al número que registraste.
               </p>
 
               <div
@@ -224,28 +262,35 @@ export default function TarotEstadoContent() {
                   const text = encodeURIComponent('Pedí una lectura de tarot en Tu Oráculo y fue increíble 🔮 tuoraculo.uy/tarot');
                   window.open(`https://wa.me/?text=${text}`, '_blank');
                 }}
-                className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98]"
-                style={{ background: 'rgba(37,211,102,0.10)', border: '1px solid rgba(37,211,102,0.22)', color: 'rgba(37,211,102,0.80)' }}
+                className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                style={{ background: 'rgba(255,206,77,0.07)', border: '1px solid rgba(255,206,77,0.25)', color: GOLD }}
               >
-                Compartí con una amiga · WhatsApp
+                <MessageCircle size={15} />
+                Compartí con una amiga
               </button>
+
+              {/* Separador — marca que lo de abajo es contenido aparte, no
+                  parte del mismo momento de "tu pago se confirmó" */}
+              <div className="w-full flex items-center gap-3 pt-2 opacity-40" aria-hidden="true">
+                <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)" }} />
+              </div>
 
               {/* Cross-sell horóscopo */}
               <div
-                className="w-full rounded-2xl border border-violet-500/20 p-5 text-left"
-                style={{ background: "rgba(88,28,180,0.08)" }}
+                className="w-full rounded-2xl border border-white/8 p-5 text-left"
+                style={{ background: "rgba(255,255,255,0.02)" }}
               >
-                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(167,139,250,0.65)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-white/40">
                   Mientras esperás tu lectura
                 </p>
-                <p className="text-white/85 text-sm font-semibold mb-1">Horóscopo diario por WhatsApp</p>
-                <p className="text-white/50 text-xs leading-relaxed mb-4">
+                <p className="text-white/70 text-sm font-semibold mb-1">Horóscopo diario por WhatsApp</p>
+                <p className="text-white/40 text-xs leading-relaxed mb-4">
                   Cada mañana tu guía personalizada: horóscopo por signo, foco del día y número de la suerte — directo a tu WhatsApp.
                 </p>
                 <a
                   href="/horoscopo"
                   className="inline-block rounded-xl px-5 py-2.5 text-sm font-bold transition-all active:scale-[0.98]"
-                  style={{ background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.32)', color: 'rgba(167,139,250,0.90)' }}
+                  style={{ background: 'rgba(139,92,246,0.14)', border: '1px solid rgba(139,92,246,0.26)', color: 'rgba(167,139,250,0.80)' }}
                 >
                   Ver planes →
                 </a>
@@ -257,7 +302,7 @@ export default function TarotEstadoContent() {
           {uiStatus === "warn" && (
             <div className="space-y-6 flex flex-col items-center">
               <ClockIcon />
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-amber-400">
+              <h1 className="text-3xl sm:text-4xl font-semibold text-amber-400" style={{ fontFamily: SERIF_FONT }}>
                 Tu pago está en proceso.
               </h1>
               <p className="text-white/70 text-base leading-relaxed">
@@ -286,7 +331,7 @@ export default function TarotEstadoContent() {
           {uiStatus === "error" && (
             <div className="space-y-6 flex flex-col items-center">
               <ErrorIcon />
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white">
+              <h1 className="text-3xl sm:text-4xl font-semibold text-white" style={{ fontFamily: SERIF_FONT }}>
                 Algo salió mal.
               </h1>
               <p className="text-white/70 text-base leading-relaxed">

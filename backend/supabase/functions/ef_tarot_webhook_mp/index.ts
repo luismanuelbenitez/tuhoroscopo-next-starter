@@ -17,9 +17,42 @@ import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const MP_ACCESS_TOKEN           = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
+// Tokens propios de Tarot/TTC, separados del de Horóscopo/THC
+// (MERCADOPAGO_ACCESS_TOKEN, que sigue usando ef_webhook_mp) y, desde
+// 2026-09-18, separados también entre sandbox y producción -- cuál se usa
+// se decide en cada request según tarot_configuracion.mp_modo (ver
+// resolverTokenMPTarot() más abajo). Sin fallback entre sí ni al token
+// de THC por diseño.
+const MP_ACCESS_TOKEN_TEST      = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_TEST") ?? "";
+const MP_ACCESS_TOKEN_PROD      = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_PROD") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_webhook_mp";
+
+// Mismo criterio que ef_tarot_crear_orden: valor ausente → "sandbox"
+// (default ya existente), valor presente pero no reconocido → null (error
+// explícito, nunca se asume un ambiente ante un dato ambiguo).
+type ModoMP = "sandbox" | "production";
+
+function normalizarModoMP(valorCrudo: string | undefined): ModoMP | null {
+  const modo = (valorCrudo ?? "sandbox").toLowerCase().trim();
+  if (modo === "sandbox" || modo === "production") return modo;
+  return null;
+}
+
+type ResolverTokenResultado =
+  | { ok: true; token: string }
+  | { ok: false; errorCode: string; envVar: string };
+
+function resolverTokenMPTarot(modo: ModoMP): ResolverTokenResultado {
+  if (modo === "production") {
+    return MP_ACCESS_TOKEN_PROD
+      ? { ok: true, token: MP_ACCESS_TOKEN_PROD }
+      : { ok: false, errorCode: "MP_TOKEN_TAROT_PROD_MISSING", envVar: "MERCADOPAGO_TAROT_ACCESS_TOKEN_PROD" };
+  }
+  return MP_ACCESS_TOKEN_TEST
+    ? { ok: true, token: MP_ACCESS_TOKEN_TEST }
+    : { ok: false, errorCode: "MP_TOKEN_TAROT_TEST_MISSING", envVar: "MERCADOPAGO_TAROT_ACCESS_TOKEN_TEST" };
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -143,12 +176,34 @@ function montoCoherente(
 async function procesarPago(paymentId: string, ip?: string): Promise<void> {
   const t0 = Date.now();
 
-  // 1) Consultar el pago real en la API de MP
-  //    Nunca confiamos ciegamente en el payload del webhook.
-  if (!MP_ACCESS_TOKEN) {
-    console.error("MERCADOPAGO_ACCESS_TOKEN no configurado");
+  // 1) Resolver ambiente activo (tarot_configuracion.mp_modo) y el token
+  //    correspondiente. Mismo criterio que ef_tarot_crear_orden — un
+  //    mp_modo no reconocido detiene el procesamiento sin asumir ambiente.
+  const { data: cfgRow } = await supabase
+    .from("tarot_configuracion")
+    .select("valor")
+    .eq("clave", "mp_modo")
+    .eq("activo", true)
+    .maybeSingle();
+
+  const modoMP = normalizarModoMP(cfgRow?.valor);
+  if (!modoMP) {
+    await registrarLog(null, "mp_modo_invalido", "critical",
+      `tarot_configuracion.mp_modo tiene un valor no reconocido ("${cfgRow?.valor}") — se esperaba "sandbox" o "production". No se pudo verificar el pago.`,
+      { payment_id: paymentId, mp_modo_crudo: cfgRow?.valor ?? null }, ip);
     return;
   }
+
+  // 2) Consultar el pago real en la API de MP, con el token del ambiente activo.
+  //    Nunca confiamos ciegamente en el payload del webhook.
+  const tokenMP = resolverTokenMPTarot(modoMP);
+  if (!tokenMP.ok) {
+    await registrarLog(null, "mp_token_tarot_faltante", "critical",
+      `${tokenMP.envVar} no está configurado en Supabase Secrets (mp_modo=${modoMP}) — no se pudo verificar el pago`,
+      { payment_id: paymentId, mp_modo: modoMP }, ip);
+    return;
+  }
+  const MP_ACCESS_TOKEN = tokenMP.token;
 
   const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },

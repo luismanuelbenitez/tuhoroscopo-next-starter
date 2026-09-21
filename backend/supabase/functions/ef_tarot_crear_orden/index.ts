@@ -12,7 +12,18 @@ import { normalizarTelefono, normalizarEmailIdentidad } from "../_shared/tarot-i
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") ?? "";
+// Tarot/TTC usa sus propios tokens de Mercado Pago, separados del de
+// Horóscopo/THC (que sigue usando MERCADOPAGO_ACCESS_TOKEN) — así se puede
+// pasar cada módulo a producción de forma independiente. Desde 2026-09-18,
+// además, TEST y PROD son secrets distintos (antes un solo
+// MERCADOPAGO_TAROT_ACCESS_TOKEN que había que reemplazar a mano al pasar a
+// producción): cuál se usa depende exclusivamente de tarot_configuracion.
+// mp_modo, resuelto por request en resolverTokenMPTarot() más abajo. Sin
+// fallback a MERCADOPAGO_ACCESS_TOKEN (el de THC) ni al MERCADOPAGO_TAROT_
+// ACCESS_TOKEN legacy — si falta el token del ambiente activo, la orden no
+// se crea (ver paso 7).
+const MP_ACCESS_TOKEN_TEST = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_TEST") ?? "";
+const MP_ACCESS_TOKEN_PROD = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_PROD") ?? "";
 // URL base a donde redirigir al usuario tras el pago (back_urls de MP)
 // Ejemplo: https://tuhoroscopocosmico.com/tarot/estado/
 const FN = "ef_tarot_crear_orden";
@@ -71,6 +82,41 @@ async function registrarLog(
   } catch (e) {
     console.error("FATAL: tarot_logs insert falló:", e);
   }
+}
+
+// ── Resolución de ambiente/token de Mercado Pago ─────────────
+//
+// Única fuente de verdad: tarot_configuracion.mp_modo. Un valor ausente
+// se trata como "sandbox" (mismo default que ya usaba el resto de la EF,
+// ver "usarSandbox" abajo); un valor presente pero no reconocido (typo,
+// mayúsculas raras después de normalizar, etc.) es un error explícito
+// -- nunca se asume un ambiente por default cuando el dato es ambiguo,
+// mismo criterio que ya se usa para precio_base_uyu/ars.
+type ModoMP = "sandbox" | "production";
+
+function normalizarModoMP(valorCrudo: string | undefined): ModoMP | null {
+  const modo = (valorCrudo ?? "sandbox").toLowerCase().trim();
+  if (modo === "sandbox" || modo === "production") return modo;
+  return null;
+}
+
+// Resuelve qué secret de Mercado Pago corresponde al ambiente activo.
+// Sin fallback a MERCADOPAGO_ACCESS_TOKEN (token de THC) ni entre
+// TEST/PROD entre sí -- cargar el token equivocado en el ambiente
+// equivocado es exactamente el escenario que esta separación evita.
+type ResolverTokenResultado =
+  | { ok: true; token: string }
+  | { ok: false; errorCode: string; envVar: string };
+
+function resolverTokenMPTarot(modo: ModoMP): ResolverTokenResultado {
+  if (modo === "production") {
+    return MP_ACCESS_TOKEN_PROD
+      ? { ok: true, token: MP_ACCESS_TOKEN_PROD }
+      : { ok: false, errorCode: "MP_TOKEN_TAROT_PROD_MISSING", envVar: "MERCADOPAGO_TAROT_ACCESS_TOKEN_PROD" };
+  }
+  return MP_ACCESS_TOKEN_TEST
+    ? { ok: true, token: MP_ACCESS_TOKEN_TEST }
+    : { ok: false, errorCode: "MP_TOKEN_TAROT_TEST_MISSING", envVar: "MERCADOPAGO_TAROT_ACCESS_TOKEN_TEST" };
 }
 
 // Hash SHA-256 para deduplicación suave de clientes
@@ -195,8 +241,17 @@ serve(async (req) => {
   let precio = precioSegunMoneda[monedaNorm];
   const mazoId = cfg.mazo_default;
   const tiradaId = cfg.tipo_tirada_default;
-  // sandbox_init_point si estamos en sandbox
-  const usarSandbox = (cfg.mp_modo ?? "sandbox").toLowerCase() !== "production";
+
+  // Ambiente de Mercado Pago: valida temprano, igual que el precio —
+  // un mp_modo no reconocido no debe dejar crear ni cliente ni orden.
+  const modoMP = normalizarModoMP(cfg.mp_modo);
+  if (!modoMP) {
+    await registrarLog(null, null, "mp_modo_invalido", "critical",
+      `tarot_configuracion.mp_modo tiene un valor no reconocido ("${cfg.mp_modo}") — se esperaba "sandbox" o "production". Orden NO creada.`,
+      { mp_modo_crudo: cfg.mp_modo ?? null }, ip);
+    return json({ ok: false, error: "MP_MODO_INVALIDO" }, 503);
+  }
+  const usarSandbox = modoMP === "sandbox"; // sandbox_init_point vs init_point, más abajo
 
   if (precio === null) {
     await registrarLog(null, null, "precio_config_invalido", "critical",
@@ -444,13 +499,16 @@ serve(async (req) => {
     moneda: monedaNorm,
   });
 
-  // ── 7. Validar token MP ──────────────────────────────────
-  if (!MP_ACCESS_TOKEN) {
-    await registrarLog(ordenId, clienteId, "mp_token_faltante", "critical",
-      "MERCADOPAGO_ACCESS_TOKEN no está configurado", {}, ip);
+  // ── 7. Validar token MP de Tarot (según ambiente activo) ──
+  const tokenMP = resolverTokenMPTarot(modoMP);
+  if (!tokenMP.ok) {
+    await registrarLog(ordenId, clienteId, "mp_token_tarot_faltante", "critical",
+      `${tokenMP.envVar} no está configurado en Supabase Secrets (mp_modo=${modoMP})`,
+      { mp_modo: modoMP }, ip);
     await supabase.from("tarot_ordenes").update({ estado: "error_critico" }).eq("id", ordenId);
-    return json({ ok: false, error: "MP_TOKEN_NO_CONFIGURADO" }, 500);
+    return json({ ok: false, error: tokenMP.errorCode }, 500);
   }
+  const MP_ACCESS_TOKEN = tokenMP.token;
 
   // ── 8. Crear preferencia en Mercado Pago ─────────────────
   const webhookUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_webhook_mp`;
