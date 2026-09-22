@@ -12,7 +12,7 @@ export default async function TerminosServicio() {
   const SECTIONS = [
     {
       title: '1. Descripción del servicio',
-      content: 'Tu Oráculo ofrece dos productos: (a) una suscripción mensual de mensajes diarios personalizados entregados vía WhatsApp ("Guía Diaria"), y (b) lecturas de tarot individuales generadas por inteligencia artificial y entregadas vía WhatsApp ("Tarot"). Ambos productos son de uso personal y no comercial.',
+      content: 'Tu Oráculo ofrece dos productos: (a) una suscripción mensual de mensajes diarios personalizados entregados vía WhatsApp ("Guía Diaria"), y (b) lecturas de tarot individuales generadas por inteligencia artificial y entregadas vía WhatsApp ("Tarot"). Ambos productos son de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
     },
     {
       title: '2. Condiciones de uso',

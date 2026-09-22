@@ -3,7 +3,7 @@ import StaticPageLayout from '@/components/StaticPageLayout';
 const SECTIONS = [
   {
     title: '1. Datos que recopilamos',
-    content: 'Al suscribirte recopilamos: tu nombre, tu signo zodiacal, tu número de WhatsApp, tu preferencia de contenido (amor, trabajo, bienestar o general). Estos son los únicos datos personales que solicitamos directamente. La información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
+    content: 'El responsable de Tu Oráculo es Luis Manuel Benítez Rodríguez, RUT 214998320016, Uruguay. Al suscribirte recopilamos: tu nombre, tu signo zodiacal, tu número de WhatsApp, tu preferencia de contenido (amor, trabajo, bienestar o general). Estos son los únicos datos personales que solicitamos directamente. La información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
   },
   {
     title: '2. Para qué usamos tu información',
