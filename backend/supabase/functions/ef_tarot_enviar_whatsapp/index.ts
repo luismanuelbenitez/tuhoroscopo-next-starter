@@ -169,10 +169,16 @@ serve(async (req) => {
     // 2 botones URL dinámicos). Debe existir y estar APROBADO en Meta Business
     // Manager con este nombre/idioma exactos antes de que whatsapp_modo pase a
     // "production" — este código no puede verificar eso, solo lo asume. Se
-    // asume además que el botón "Ver mi tirada" está configurado en Meta como
-    // `https://tuoraculo.uy/lectura/{{1}}` y "PDF de tu tirada" como
-    // `https://tuoraculo.uy/api/lectura/{{1}}/pdf` — si el template real usa
-    // otra estructura de URL, ajustar acá.
+    // asume además que el botón "Leer mi tirada" está configurado en Meta como
+    // `https://tuoraculo.uy/lectura/{{1}}` y "Descargar PDF" como
+    // `https://tuoraculo.uy/pdf/{{1}}` — en AMBOS casos {{1}} debe ser el
+    // SUFIJO final de la URL (requisito de WhatsApp Cloud API para dynamic
+    // URL buttons: el parámetro que este código envía por botón se concatena
+    // al final de la URL base configurada en el template, nunca en el medio)
+    // — corregido 2026-09-22, ver docs/product/DECISIONS.md: el botón de PDF
+    // usaba antes `/api/lectura/{{1}}/pdf` (token en el medio, no al final),
+    // lo cual no es válido para un dynamic URL button. Si el template real
+    // usa otra estructura de URL, ajustar acá.
     const templateNombre  = cfg.whatsapp_template_lectura_nombre ?? "tirada_lista";
     const templateIdioma  = cfg.whatsapp_template_lectura_idioma ?? "es";
 
