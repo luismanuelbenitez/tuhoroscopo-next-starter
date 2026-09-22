@@ -1,0 +1,36 @@
+-- ============================================================
+-- Una sola lectura vigente por orden (constraint de integridad)
+--
+-- CONTEXTO (ver docs/product/DECISIONS.md 2026-09-22):
+-- ef_tarot_webhook_mp tiene una guarda de idempotencia check-then-act (lee
+-- tarot_ordenes.estado, luego lo actualiza a pago_confirmado) que no es
+-- atómica. Si Mercado Pago envía dos notificaciones casi simultáneas para
+-- el mismo pago -- comportamiento conocido de MP -- ambas pueden leer el
+-- estado previo a pago_confirmado antes de que la primera lo actualice, y
+-- las dos disparan ef_tarot_generar_lectura para la misma orden.
+--
+-- ef_tarot_generar_lectura marca las lecturas previas como es_vigente=false
+-- al INICIO de cada invocación, pero al terminar marca únicamente SU PROPIA
+-- fila (por id) como vigente -- nunca vuelve a invalidar la fila "hermana"
+-- de una invocación concurrente. Dos invocaciones en carrera terminan
+-- ambas con es_vigente=true para la misma orden.
+--
+-- Consecuencia real observada: ef_tarot_lectura_publica y
+-- ef_tarot_generar_pdf consultan tarot_lecturas con
+-- .eq("es_vigente", true).maybeSingle() -- que falla cuando encuentra más
+-- de una fila. El error se descarta silenciosamente (no se revisa
+-- `error`), así que la función responde "no disponible" pese a que el pago
+-- y la generación fueron exitosos. Visible para el cliente como "No
+-- encontramos esta tirada" en /lectura/[token]. 3 órdenes afectadas el
+-- 2026-09-21, corregidas manualmente antes de esta migración.
+--
+-- Este índice único parcial hace que la base de datos rechace directamente
+-- el segundo UPDATE que intente dejar dos filas vigentes para la misma
+-- orden, en vez de permitir el estado inconsistente. El código que hace
+-- ese UPDATE (ef_tarot_generar_lectura, paso 15) fue actualizado en el
+-- mismo cambio para manejar el rechazo (23505) como "esta invocación
+-- perdió la carrera, se descarta" en vez de tratarlo como un error real.
+-- ============================================================
+create unique index if not exists tarot_lecturas_una_vigente_por_orden
+  on public.tarot_lecturas (orden_id)
+  where es_vigente = true;

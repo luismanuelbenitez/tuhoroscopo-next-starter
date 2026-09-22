@@ -593,8 +593,18 @@ async function generarLectura(ordenId: string): Promise<void> {
 
     const ahoraNow = new Date().toISOString();
 
-    // 15. Actualizar lectura como completada
-    await supabase.from("tarot_lecturas").update({
+    // 15. Actualizar lectura como completada.
+    //
+    // tarot_lecturas tiene un índice único parcial UNIQUE(orden_id) WHERE
+    // es_vigente=true (migración 2026-09-22, ver docs/product/DECISIONS.md)
+    // que existe exactamente para este caso: si otra invocación concurrente
+    // de esta misma función para la MISMA orden (ej. dos webhooks de MP
+    // casi simultáneos) ya ganó la carrera y marcó su propia fila como
+    // vigente, este UPDATE viola esa constraint y falla con 23505. Es
+    // esperado y NO es un error real — se descarta este intento duplicado
+    // sin tocar tarot_ordenes ni disparar alertas, para no pisar el
+    // resultado (correcto) de la invocación que sí ganó.
+    const { error: errCompletar } = await supabase.from("tarot_lecturas").update({
       estado:           "completada",
       es_vigente:       true,
       prompt_sistema:   promptSistema,
@@ -608,6 +618,16 @@ async function generarLectura(ordenId: string): Promise<void> {
       generado_at:       ahoraNow,
       updated_at:        ahoraNow,
     }).eq("id", lecturaId);
+
+    if (errCompletar) {
+      if (errCompletar.code === "23505") {
+        await registrarLog(ordenId, "lectura_descartada_concurrencia", "warning",
+          "Otra invocación concurrente ya generó la lectura vigente para esta orden — se descarta este intento duplicado",
+          { lectura_id: lecturaId, error: errCompletar.message });
+        return;
+      }
+      throw new Error(`No se pudo guardar la lectura completada: ${errCompletar.message}`);
+    }
 
     // 16. Insertar tarot_lecturas_cartas (descomposición relacional)
     const registrosCartas = cartasSeleccionadas.map((carta, i) => ({
