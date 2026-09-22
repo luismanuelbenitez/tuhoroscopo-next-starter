@@ -45,7 +45,7 @@ export function buildHtmlEntregaEmail(datos: DatosEmailEntrega): string {
   const ctaPrincipalBlock = lecturaUrl ? `
               <a href="${lecturaUrl}"
                  style="display:inline-block;background:linear-gradient(135deg,#c9930a,#f5c842);color:#0f0820;font-weight:700;font-size:16px;padding:16px 40px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;">
-                🔮 Ver mi tirada
+                🔮 Leer mi tirada
               </a>
               <p style="margin:14px 0 0;font-size:12px;color:rgba(255,255,255,0.35);">
                 Tu lectura online estará disponible durante 30 días${expiraLecturaStr ? ` (hasta el ${expiraLecturaStr})` : ""}.
@@ -91,7 +91,7 @@ ${cabezalBlock}
 ${ctaPrincipalBlock}
               <a href="${pdfUrl}"
                  style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:#f0e9d8;font-weight:600;font-size:14px;padding:13px 32px;border-radius:10px;text-decoration:none;letter-spacing:0.02em;">
-                📜 Ver / descargar PDF
+                📜 Descargar PDF
               </a>
               <p style="margin:14px 0 0;font-size:11px;color:rgba(255,255,255,0.25);">
                 El PDF queda como tu versión para conservar.
