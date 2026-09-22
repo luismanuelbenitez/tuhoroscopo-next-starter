@@ -33,6 +33,11 @@ icons: {
   ],
   apple: { url: "/img/logo/logo-isotipo.png", sizes: "180x180", type: "image/png" },
 },
+  verification: {
+    other: {
+      "facebook-domain-verification": "up4qomfp1o0te6emdp58buogl9ckug",
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
