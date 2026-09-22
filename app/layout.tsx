@@ -35,7 +35,7 @@ icons: {
 },
   verification: {
     other: {
-      "facebook-domain-verification": "up4qomfp1o0te6emdp58buogl9ckug",
+      "facebook-domain-verification": "up4qonfp1o0te6emdp58buogl9ckug",
     },
   },
 };
