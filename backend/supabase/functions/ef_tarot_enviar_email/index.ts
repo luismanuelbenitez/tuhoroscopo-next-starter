@@ -237,12 +237,15 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   const lecturaUrl = accesoToken ? `https://tuoraculo.uy/lectura/${accesoToken}` : null;
 
   // 4.b PDF: mismo PDF existente, mismo mecanismo de acceso por token que ya
-  // usa el segundo botón de WhatsApp (/api/lectura/<token>/pdf, siempre
-  // firma una URL fresca) — más durable que el storage_url crudo (TTL 48h).
-  // Sin token disponible, cae al mecanismo anterior (storage_url directo)
-  // para que el CTA de PDF nunca quede roto.
+  // usa el segundo botón de WhatsApp — ruta canónica /pdf/<token> (proxy,
+  // ver app/pdf/[token]/route.ts, 2026-09-22), siempre firma una URL fresca
+  // internamente — más durable que el storage_url crudo (TTL 48h). La ruta
+  // histórica /api/lectura/<token>/pdf sigue viva por compatibilidad, pero
+  // ya no se usa como CTA visible en ningún canal. Sin token disponible,
+  // cae al mecanismo anterior (storage_url directo) para que el CTA de PDF
+  // nunca quede roto.
   const pdfStorageUrl = pdfRow.storage_url;
-  const pdfCtaUrl = accesoToken ? `https://tuoraculo.uy/api/lectura/${accesoToken}/pdf` : pdfStorageUrl;
+  const pdfCtaUrl = accesoToken ? `https://tuoraculo.uy/pdf/${accesoToken}` : pdfStorageUrl;
 
   // 4.c Cabezal: el MISMO PNG real que genera/usa WhatsApp — nunca una
   // imagen distinta. generarImagenWhatsapp() reusa el archivo si ya existe

@@ -187,8 +187,11 @@ serve(async (req) => {
 
       const nombreCorto = ((orden.nombre_snapshot as string | null) ?? "consultante").split(" ")[0];
       const lecturaUrl = tokenPreview ? `https://tuoraculo.uy/lectura/${tokenPreview}` : null;
+      // Ruta canónica /pdf/<token> (proxy, ver app/pdf/[token]/route.ts,
+      // 2026-09-22) — mismo CTA que ahora usa el email real, para que el
+      // preview de admin muestre exactamente lo que verá el cliente.
       const pdfUrl = tokenPreview
-        ? `https://tuoraculo.uy/api/lectura/${tokenPreview}/pdf`
+        ? `https://tuoraculo.uy/pdf/${tokenPreview}`
         : ((pdfRow.data as { storage_url: string } | null)?.storage_url ?? "#");
       const expiraLecturaStr = (accesoRow.data as { expira_at?: string } | null)?.expira_at
         ? new Date((accesoRow.data as { expira_at: string }).expira_at)
