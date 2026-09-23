@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     description: "Claridad cuando más la necesitás.",
     url: "https://tuoraculo.uy",
     siteName: "Tu Oráculo",
-    images: [{ url: "/img/whatsapp/og.jpg", width: 1200, height: 630, alt: "Tu Oráculo" }],
+    images: [{ url: "/img/whatsapp/og.jpg", width: 1672, height: 941, alt: "Tu Oráculo" }],
     locale: "es_UY",
     type: "website",
   },
