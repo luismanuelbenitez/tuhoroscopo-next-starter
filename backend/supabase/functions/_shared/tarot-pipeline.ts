@@ -19,6 +19,11 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1
 import { dispararAlerta } from "./tarot-alertas.ts";
 import { crearRegistroFacturacion } from "./tarot-facturacion.ts";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 export interface PipelineEnv {
   supabaseUrl:    string;
   serviceRoleKey: string;
@@ -132,17 +137,26 @@ export async function ejecutarPipelinePostCobro(
   });
 
   // 5. Fire-and-forget: generar lectura
-  fetch(`${env.supabaseUrl}/functions/v1/ef_tarot_generar_lectura`, {
-    method: "POST",
-    headers: {
-      "Content-Type":   "application/json",
-      Authorization:    `Bearer ${env.serviceRoleKey}`,
-      "x-internal-key": env.internalKey,
-    },
-    body: JSON.stringify({ orden_id: ordenId }),
-  }).catch((err: unknown) => {
-    console.warn(`[${env.funcionOrigen}] lectura_dispatch_error`, { error: String(err) });
-  });
+  // EdgeRuntime.waitUntil() (2026-09-24): este es el disparador real de TODA
+  // la cadena de entrega (webhook_mp y confirmar_cobro_manual solo llegan
+  // hasta acá). Envolver la promesa del caller en waitUntil() no alcanza —
+  // ese wrapper solo protege la promesa de ejecutarPipelinePostCobro() en
+  // sí, y esta función retorna casi inmediatamente después de este fetch()
+  // sin esperarlo, dejándolo huérfano igual. Mismo bug, la raíz real esta
+  // vez. Ver docs/product/DECISIONS.md.
+  EdgeRuntime.waitUntil(
+    fetch(`${env.supabaseUrl}/functions/v1/ef_tarot_generar_lectura`, {
+      method: "POST",
+      headers: {
+        "Content-Type":   "application/json",
+        Authorization:    `Bearer ${env.serviceRoleKey}`,
+        "x-internal-key": env.internalKey,
+      },
+      body: JSON.stringify({ orden_id: ordenId }),
+    }).catch((err: unknown) => {
+      console.warn(`[${env.funcionOrigen}] lectura_dispatch_error`, { error: String(err) });
+    }),
+  );
 
   // 6. Fire-and-forget: aplicar código de descuento si hay uno reservado
   const { data: usoReservado } = await supabase
@@ -153,16 +167,18 @@ export async function ejecutarPipelinePostCobro(
     .maybeSingle();
 
   if (usoReservado?.id) {
-    fetch(`${env.supabaseUrl}/functions/v1/ef_tarot_aplicar_codigo`, {
-      method: "POST",
-      headers: {
-        "Content-Type":   "application/json",
-        Authorization:    `Bearer ${env.serviceRoleKey}`,
-        "x-internal-key": env.internalKey,
-      },
-      body: JSON.stringify({ uso_id: usoReservado.id, mp_payment_id: mpPaymentId }),
-    }).catch((err: unknown) => {
-      console.warn(`[${env.funcionOrigen}] aplicar_codigo_dispatch_error`, { error: String(err) });
-    });
+    EdgeRuntime.waitUntil(
+      fetch(`${env.supabaseUrl}/functions/v1/ef_tarot_aplicar_codigo`, {
+        method: "POST",
+        headers: {
+          "Content-Type":   "application/json",
+          Authorization:    `Bearer ${env.serviceRoleKey}`,
+          "x-internal-key": env.internalKey,
+        },
+        body: JSON.stringify({ uso_id: usoReservado.id, mp_payment_id: mpPaymentId }),
+      }).catch((err: unknown) => {
+        console.warn(`[${env.funcionOrigen}] aplicar_codigo_dispatch_error`, { error: String(err) });
+      }),
+    );
   }
 }

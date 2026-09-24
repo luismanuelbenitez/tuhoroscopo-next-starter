@@ -683,24 +683,32 @@ async function generarLectura(ordenId: string): Promise<void> {
     });
 
     // 18. Disparar ef_tarot_generar_pdf (fire-and-forget)
+    // EdgeRuntime.waitUntil() (2026-09-24): generarLectura() en sí ya corre
+    // dentro de un waitUntil() del caller (ver serve() más abajo), pero eso
+    // solo protege la promesa de generarLectura() — este fetch() nunca fue
+    // esperado por generarLectura(), así que queda huérfano igual en cuanto
+    // generarLectura() termina. Mismo bug, un nivel más adentro — ver
+    // docs/product/DECISIONS.md.
     const pdfUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_pdf`;
-    fetch(pdfUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type":   "application/json",
-        Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "x-internal-key": TAROT_INTERNAL_KEY,
-      },
-      body: JSON.stringify({
-        orden_id:   ordenId,
-        lectura_id: lecturaId,
-        deck: (orden as unknown as { tarot_mazos?: { slug?: string } }).tarot_mazos?.slug ?? null,
+    EdgeRuntime.waitUntil(
+      fetch(pdfUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type":   "application/json",
+          Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({
+          orden_id:   ordenId,
+          lectura_id: lecturaId,
+          deck: (orden as unknown as { tarot_mazos?: { slug?: string } }).tarot_mazos?.slug ?? null,
+        }),
+      }).catch(async (err) => {
+        await registrarLog(ordenId, "pdf_dispatch_error", "warning",
+          "No se pudo disparar ef_tarot_generar_pdf",
+          { error: String(err), lectura_id: lecturaId });
       }),
-    }).catch(async (err) => {
-      await registrarLog(ordenId, "pdf_dispatch_error", "warning",
-        "No se pudo disparar ef_tarot_generar_pdf",
-        { error: String(err), lectura_id: lecturaId });
-    });
+    );
 
   } catch (err) {
     const errMsg   = String(err);

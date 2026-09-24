@@ -879,8 +879,13 @@ function addPage3(
     resumenMaxW, resumenTopY - resumenBotY - resumenMaxS * 0.75, resumenMaxS, 7.0, LH_RESUMEN);
   // Centrado vertical dentro del mismo área (resumenTopY/resumenBotY sin
   // cambios) — no mueve ni redimensiona el bloque, solo dónde arranca el texto.
-
-  const resumenDrawY = resumenTopY - resumenSize * 0.75;
+  // (2026-09-24) Antes este bloque no se centraba — quedaba pegado a
+  // resumenTopY, y con textos más cortos que el máximo quedaba visualmente
+  // muy arriba, con hueco vacío abajo. Mismo mecanismo ya usado en "Claves
+  // prácticas" (Box 3, más abajo).
+  const resumenOffset = verticalCenterOffset(resumenText, f.reg, resumenSize,
+    resumenMaxW, resumenSize * LH_RESUMEN, resumenTopY, resumenBotY);
+  const resumenDrawY = resumenTopY - resumenOffset - resumenSize * 0.75;
   drawWrapped(p, resumenText,
     pX(L.resumen.x), resumenDrawY, f.reg, resumenSize, C_BODY,
     resumenMaxW, resumenSize * LH_RESUMEN, resumenBotY);
@@ -903,7 +908,10 @@ function addPage3(
   const LH_MENSAJE   = 1.45;
   const mensajeSize  = fitTextToBox(mensajeText, f.reg,
     mensajeMaxW, mensajeTopY - mensajeBotY - mensajeMaxS * 0.75, mensajeMaxS, 7.0, LH_MENSAJE);
-const mensajeDrawY = mensajeTopY - mensajeSize * 0.75;  
+  // Mismo centrado vertical que el bloque "Resumen" arriba — ver comentario ahí.
+  const mensajeOffset = verticalCenterOffset(mensajeText, f.reg, mensajeSize,
+    mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeTopY, mensajeBotY);
+  const mensajeDrawY = mensajeTopY - mensajeOffset - mensajeSize * 0.75;
   drawWrapped(p, mensajeText,
     pX(L.mensajeFinal.x), mensajeDrawY, f.reg, mensajeSize, C_MENSAJE,
     mensajeMaxW, mensajeSize * LH_MENSAJE, mensajeBotY);
@@ -1400,10 +1408,20 @@ async function generarPDF(
         // (_shared/tarot-entregas.ts), si esto es una primera entrega o un
         // reintento legítimo — y bloquea silenciosamente si ya hubo éxito previo.
         await log(ordenId, "entrega_whatsapp_despachada", "info", "Despachando envío WhatsApp");
-        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
-          method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
-        }).catch(() => {});
+        // EdgeRuntime.waitUntil() (2026-09-24): esta función YA corre dentro de
+        // un waitUntil() del caller (ver serve() más abajo), pero eso solo
+        // protege la promesa de generarPDF() en sí — un fetch() sin await
+        // lanzado adentro y nunca esperado por generarPDF() queda huérfano
+        // igual en cuanto generarPDF() termina. Es el mismo bug, un nivel más
+        // adentro. Ver docs/product/DECISIONS.md.
+        EdgeRuntime.waitUntil(
+          fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
+            method: "POST", headers: internalHeaders,
+            body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
+          }).catch((err) => {
+            console.error(`${FN} fatal despachando WhatsApp para orden ${ordenId}:`, err);
+          }),
+        );
       } else {
         await log(ordenId, "entrega_whatsapp_omitida_por_config", "info",
           `WhatsApp omitido — canal: ${canal}, wa_activo: ${waActivo}`,
@@ -1412,10 +1430,15 @@ async function generarPDF(
 
       if (debeEmail) {
         await log(ordenId, "entrega_email_despachada", "info", "Despachando envío Email");
-        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
-          method: "POST", headers: internalHeaders,
-          body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
-        }).catch(() => {});
+        // Ver comentario junto al despacho de WhatsApp, arriba.
+        EdgeRuntime.waitUntil(
+          fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+            method: "POST", headers: internalHeaders,
+            body: JSON.stringify({ orden_id: ordenId, token: accesoToken }),
+          }).catch((err) => {
+            console.error(`${FN} fatal despachando email para orden ${ordenId}:`, err);
+          }),
+        );
       } else {
         await log(ordenId, "entrega_email_omitida_por_config", "info",
           `Email omitido — canal: ${canal}, email_activo: ${emailActivo}`,
