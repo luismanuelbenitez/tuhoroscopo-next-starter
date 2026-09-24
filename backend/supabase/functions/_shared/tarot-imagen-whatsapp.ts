@@ -78,13 +78,16 @@ export const LAYOUT = {
   // (_shared/assets/tarot-cabezal-fondo.jpg) — la zona plana y legible de la
   // cinta de pergamino (excluyendo los extremos enrollados y el pequeño
   // emblema ornamental impreso en el borde superior/inferior de la cinta)
-  // va de y≈96 a y≈166, centrada en x=800. NAME_SCROLL_MAX_WIDTH se dejó
-  // más angosto que el ancho medido (≈455px) a propósito, como margen de
-  // seguridad contra esos bordes.
-  NAME_SCROLL_CENTER_Y: 132,
-  NAME_SCROLL_MAX_WIDTH: 380,
-  NAME_SCROLL_MAX_FONT: 42,
-  NAME_SCROLL_MIN_FONT: 24,
+  // va de y≈52 a y≈108, centrada en x≈798, ancho medido ≈518px. Estas
+  // coordenadas son propias de ESTE asset — si se reemplaza el fondo otra
+  // vez, hay que volver a medir (no son una propiedad del diseño en
+  // general, son geometría de esta imagen puntual). NAME_SCROLL_MAX_WIDTH
+  // se dejó más angosto que el ancho medido a propósito, como margen de
+  // seguridad contra los bordes curvos.
+  NAME_SCROLL_CENTER_Y: 80,
+  NAME_SCROLL_MAX_WIDTH: 420,
+  NAME_SCROLL_MAX_FONT: 38,
+  NAME_SCROLL_MIN_FONT: 22,
 
   // Fecha de nacimiento (opcional — solo si el cliente la cargó en el
   // checkout, ver fecha_nacimiento_snapshot). Debajo del pergamino, ya
