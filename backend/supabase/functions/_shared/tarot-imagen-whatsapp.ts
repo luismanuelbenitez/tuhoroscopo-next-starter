@@ -107,7 +107,7 @@ export const LAYOUT = {
   // Fila recta y ordenada (2026-09-24): sin rotación ni solapamiento — el abanico
   // tapaba arte/títulos y chocaba con el diseño simétrico del marco. 5×214 +
   // 4×20 = 1150px, dentro de SAFE_WIDTH (1280).
-  CARD_GAP: 20,
+  CARD_GAP: 32,
   BADGE_SIZE: 44, // alto de la franja reservada para el número bajo cada carta
   MARCADOR_NUMERO: true, // punto guía donde el fondo lleva el número (poner en false al integrarlo)
 
@@ -506,7 +506,7 @@ export async function generarImagenWhatsapp(
         ),
         // Punto guía donde va cada número (1–5): el usuario inserta los números como
         // parte del fondo y usa estos puntos para alinearlos. Centro de cada punto:
-        // x = 332, 566, 800, 1034, 1268; y = 642. Sacar (MARCADOR_NUMERO=false) al
+        // x = 308, 554, 800, 1046, 1292; y = 642. Sacar (MARCADOR_NUMERO=false) al
         // integrar los números en el fondo.
         LAYOUT.MARCADOR_NUMERO
           ? h("div", { style: { display: "flex", position: "absolute", top: LAYOUT.CARD_HEIGHT + 14 + (LAYOUT.BADGE_SIZE - 12) / 2, left: (LAYOUT.CARD_WIDTH - 12) / 2, width: 12, height: 12, borderRadius: 6, background: "#FFCE4D" } })
