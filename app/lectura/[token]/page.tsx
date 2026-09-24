@@ -188,7 +188,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
                   )}
                   <span
                     className="mx-auto mt-1.5 flex items-center justify-center rounded-full text-[13px] font-bold"
-                    style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT }}
+                    style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
                   >
                     {c.posicion}
                   </span>
@@ -280,7 +280,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
                   <li key={i} className="flex gap-3">
                     <span
                       className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT }}
+                      style={{ background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
                     >
                       {i + 1}
                     </span>
@@ -314,13 +314,13 @@ export default async function LecturaPage({ params }: { params: { token: string 
               Este acceso online estará disponible durante 30 días.
             </p>
 
-            <div className="relative mt-10 pt-8 flex justify-center">
+            <div className="relative mt-8" style={{ height: 132 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/cristales-izq.png`} alt="" aria-hidden="true" width={110} height={110} loading="lazy" className="absolute left-[-8px] bottom-[-10px]" style={{ width: 110, height: 110 }} />
+              <img src={`${IMG}/marca-dorada.svg`} alt="Tu Oráculo" width={150} height={17} loading="lazy" className="mx-auto block" style={{ width: 150, height: "auto" }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/cristales-der.png`} alt="" aria-hidden="true" width={110} height={110} loading="lazy" className="absolute right-[-8px] bottom-[-10px]" style={{ width: 110, height: 110 }} />
+              <img src={`${IMG}/cristales-izq.png`} alt="" aria-hidden="true" width={88} height={88} loading="lazy" className="absolute left-0 bottom-0" style={{ width: 88, height: 88 }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/marca-dorada.svg`} alt="Tu Oráculo" width={170} height={19} loading="lazy" style={{ width: 170, height: "auto" }} />
+              <img src={`${IMG}/cristales-der.png`} alt="" aria-hidden="true" width={88} height={88} loading="lazy" className="absolute right-0 bottom-0" style={{ width: 88, height: 88 }} />
             </div>
           </section>
         </Reveal>
