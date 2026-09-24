@@ -92,26 +92,29 @@ export const LAYOUT = {
   // Fecha de nacimiento (opcional — solo si el cliente la cargó en el
   // checkout, ver fecha_nacimiento_snapshot). Debajo del pergamino, ya
   // sobre el fondo oscuro.
-  BIRTHDATE_TOP: 206,
+  BIRTHDATE_TOP: 176,
 
-  CARDS_WRAPPER_TOP: 258,
+  CARDS_WRAPPER_TOP: 231,
   CARDS_WRAPPER_HEIGHT: 380,
-  CARD_WIDTH: 200,
-  CARD_HEIGHT: 345, // ratio ≈0.579, igual que las cartas reales del mazo
+  CARD_WIDTH: 214,
+  CARD_HEIGHT: 370, // ratio ≈0.579, igual que las cartas reales del mazo
   // Reducido de 26 a 10 (2026-09-24, ajuste "premium"): con 26px las cartas
   // de los extremos perdían texto real del título impreso (ej. "CABALLERO
   // DE ORO" sin la S final) y parte del arte — 10px conserva el efecto
   // abanico/solapado sin cortar contenido legible. Hay margen de sobra:
   // con 10px el ancho total de las 5 cartas (968px) sigue muy por debajo
   // de SAFE_WIDTH (1280px).
-  CARD_OVERLAP: 10,
-  CARD_ROTATIONS: [-7, -3.5, 0, 3.5, 7] as const, // grados, carta 1→5
+  // Fila recta y ordenada (2026-09-24): sin rotación ni solapamiento — el abanico
+  // tapaba arte/títulos y chocaba con el diseño simétrico del marco. 5×214 +
+  // 4×20 = 1150px, dentro de SAFE_WIDTH (1280).
+  CARD_GAP: 20,
+  BADGE_SIZE: 44, // círculo dorado con el número de posición (1–5) bajo cada carta
 
   // Marca al pie (2026-09-24): antes "TU ORÁCULO / TU TIRADA" era el título
   // principal, arriba de todo. Con el nombre ahora protagonista dentro del
   // pergamino, la marca pasa a un rol secundario de cierre, debajo de las
   // cartas.
-  BRAND_FOOTER_TOP: 686,
+  BRAND_FOOTER_TOP: 706,
 } as const;
 
 // Decisión (Task G): esta imagen NO imprime labels de posición bajo cada
@@ -311,10 +314,10 @@ function capaDebug(nombreBoxWidth: number) {
     style: { display: "flex", position: "absolute", left: x, top: y, width: w, height: h_, border: `2px solid ${color}` },
   });
   const cardsBoxes: React.ReactElement[] = [];
-  const totalCardsWidth = LAYOUT.CARD_WIDTH + 4 * (LAYOUT.CARD_WIDTH - LAYOUT.CARD_OVERLAP);
+  const totalCardsWidth = 5 * LAYOUT.CARD_WIDTH + 4 * LAYOUT.CARD_GAP;
   const cardsStartX = (LAYOUT.CANVAS_WIDTH - totalCardsWidth) / 2;
   for (let i = 0; i < 5; i++) {
-    const x = cardsStartX + i * (LAYOUT.CARD_WIDTH - LAYOUT.CARD_OVERLAP);
+    const x = cardsStartX + i * (LAYOUT.CARD_WIDTH + LAYOUT.CARD_GAP);
     cardsBoxes.push(caja(x, LAYOUT.CARDS_WRAPPER_TOP + (LAYOUT.CARDS_WRAPPER_HEIGHT - LAYOUT.CARD_HEIGHT) / 2, LAYOUT.CARD_WIDTH, LAYOUT.CARD_HEIGHT, "rgba(255,0,120,0.8)"));
   }
   return h(
@@ -434,7 +437,7 @@ export async function generarImagenWhatsapp(
       })
     : null;
 
-  const totalCardsWidth = LAYOUT.CARD_WIDTH + 4 * (LAYOUT.CARD_WIDTH - LAYOUT.CARD_OVERLAP);
+  const totalCardsWidth = 5 * LAYOUT.CARD_WIDTH + 4 * LAYOUT.CARD_GAP;
 
   const cardsRow = h(
     "div",
@@ -445,7 +448,6 @@ export async function generarImagenWhatsapp(
       },
     },
     ...cartas.map((c, i) => {
-      const rotacion = LAYOUT.CARD_ROTATIONS[i] ?? 0;
       const esProtagonista = i === 2;
       return h(
         "div",
@@ -455,7 +457,7 @@ export async function generarImagenWhatsapp(
             display: "flex",
             position: "relative", // ancla la sombra y el glow (absolute) más abajo
             width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
-            marginLeft: i === 0 ? 0 : -LAYOUT.CARD_OVERLAP,
+            marginLeft: i === 0 ? 0 : LAYOUT.CARD_GAP,
             // Sin marco/borde propio (Task del sprint "fondo fijo del
             // cabezal", 2026-09-06): el mazo nuevo ya trae marco dorado,
             // número romano y título impresos en la carta — agregar un
@@ -468,9 +470,7 @@ export async function generarImagenWhatsapp(
             // transform. Bug ya encontrado y documentado en el sprint
             // anterior — se repite la misma regla acá para la rotación del
             // abanico y para la inversión de la carta.
-            ...((rotacion !== 0 || esProtagonista)
-              ? { transform: `rotate(${rotacion}deg)${esProtagonista ? " scale(1.06)" : ""}` }
-              : {}),
+            ...(esProtagonista ? { transform: "scale(1.06)" } : {}),
             zIndex: esProtagonista ? 10 : i,
           },
         },
@@ -488,7 +488,7 @@ export async function generarImagenWhatsapp(
         h("div", {
           style: {
             display: "flex", position: "absolute",
-            top: 12, left: 0,
+            top: 10, left: 0,
             width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
             background: "rgba(4,2,12,0.55)",
           },
@@ -505,6 +505,17 @@ export async function generarImagenWhatsapp(
             ? h("img", { src: dataUris[i] as string, width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT, style: { objectFit: "cover" } })
             : h("div", { style: { display: "flex", width: "100%", height: "100%" } }),
         ),
+        // Número de posición (1–5), círculo dorado bajo la carta: comunica orden
+        // de lectura y es legible a tamaño celular (~0.22x). Sin gradientes ni
+        // sombras difusas (riesgo de WORKER_RESOURCE_LIMIT).
+        h("div", {
+          style: {
+            display: "flex", position: "absolute", alignItems: "center", justifyContent: "center",
+            top: LAYOUT.CARD_HEIGHT + 14, left: (LAYOUT.CARD_WIDTH - LAYOUT.BADGE_SIZE) / 2,
+            width: LAYOUT.BADGE_SIZE, height: LAYOUT.BADGE_SIZE, borderRadius: LAYOUT.BADGE_SIZE / 2,
+            background: "#E8C46A", border: "2px solid #7a5a1c",
+          },
+        }, h("span", { style: { fontSize: 30, fontWeight: 700, color: "#291408", fontFamily: "Cormorant Garamond", lineHeight: 1 } }, String(i + 1))),
       );
     }),
   );
@@ -564,7 +575,7 @@ export async function generarImagenWhatsapp(
       ? h(
           "div",
           { style: { display: "flex", position: "absolute", top: LAYOUT.BIRTHDATE_TOP, width: LAYOUT.CANVAS_WIDTH, justifyContent: "center" } },
-          h("span", { style: { fontSize: 24, color: "#c9bfa8", letterSpacing: 2, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
+          h("span", { style: { fontSize: 32, color: "#EBD49A", letterSpacing: 2, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
         )
       : null,
     // Cartas
@@ -621,7 +632,7 @@ export async function generarImagenWhatsapp(
         h("div", { style: { display: "flex", width: 10, height: 10, marginLeft: 16, marginRight: 16, background: "rgba(255,206,77,0.9)", transform: "rotate(45deg)" } }),
         h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0.85), rgba(255,206,77,0))" } }),
       ),
-      h("span", { style: { fontSize: 22, letterSpacing: 9, color: "#FFCE4D", fontFamily: "Cormorant Garamond", fontWeight: 700 } }, "TU ORÁCULO"),
+      h("span", { style: { fontSize: 28, letterSpacing: 9, color: "#FFCE4D", fontFamily: "Cormorant Garamond", fontWeight: 700 } }, "TU ORÁCULO"),
     ),
     opts.debugLayout ? capaDebug(LAYOUT.NAME_SCROLL_MAX_WIDTH) : null,
   );
