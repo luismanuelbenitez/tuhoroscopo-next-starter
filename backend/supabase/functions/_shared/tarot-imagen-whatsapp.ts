@@ -592,19 +592,10 @@ export async function generarImagenWhatsapp(
       // cada invocación — eso sacaría el costo del runtime por completo.
       cardsRow,
     ),
-    // Veladura de unificación (2026-09-24) — degradé plano (sin blur) sobre
-    // la fila de cartas: las 5 cartas tienen paletas muy distintas entre sí
-    // (cielo celeste, oscuros, dorados) y quedaban como imágenes sueltas
-    // pegadas al fondo. Un lavado cálido muy sutil arriba/abajo (transparente
-    // en el centro, para no tapar el arte) las liga tonalmente con el
-    // navy/dorado del fondo fijo.
-    h("div", {
-      style: {
-        display: "flex", position: "absolute", top: LAYOUT.CARDS_WRAPPER_TOP, width: LAYOUT.CANVAS_WIDTH,
-        height: LAYOUT.CARDS_WRAPPER_HEIGHT,
-        background: "linear-gradient(180deg, rgba(255,206,77,0.07) 0%, rgba(255,206,77,0) 20%, rgba(255,206,77,0) 80%, rgba(8,4,20,0.22) 100%)",
-      },
-    }),
+    // (2026-09-24) Se eliminó la "veladura de unificación" (degradé de lado a
+    // lado sobre la fila de cartas): sobre el fondo con textura del rediseño
+    // se veía como una franja borrosa con borde duro atravesando todo el
+    // ancho del cabezal. Las cartas no la necesitan (mismo estilo de arte).
     // Marca, al pie (2026-09-24) — antes era el título principal arriba de
     // todo ("TU ORÁCULO / TU TIRADA"); con el nombre ahora protagonista
     // dentro del pergamino, la marca pasa a un cierre discreto debajo de
