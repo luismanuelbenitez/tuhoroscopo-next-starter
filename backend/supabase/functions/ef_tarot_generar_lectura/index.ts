@@ -27,6 +27,11 @@ import {
 } from "../_shared/tarot-core.ts";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
@@ -795,9 +800,26 @@ serve(async (req) => {
     });
   }
 
-  generarLectura(ordenId).catch((err) => {
-    console.error(`${FN} fatal para orden ${ordenId}:`, err);
-  });
+  // CRÍTICO (2026-09-24, mismo bug ya encontrado en ef_tarot_enviar_email
+  // el 2026-08-27): esto era `generarLectura(ordenId).catch(...)` SIN await
+  // ni EdgeRuntime.waitUntil(). Supabase Edge Runtime NO garantiza que una
+  // tarea en segundo plano termine después de que la response ya fue
+  // devuelta — sin waitUntil(), el runtime puede cortar la ejecución a
+  // mitad de camino. Confirmado con una orden real (2026-09-24): un
+  // webhook duplicado de MP disparó esta función dos veces, ambas
+  // respondieron 202 (status confirmado en function_edge_logs), pero
+  // NINGUNA de las dos dejó un solo log ni una fila en tarot_lecturas — la
+  // orden quedó trabada en pago_confirmado indefinidamente, pago ya
+  // cobrado, cero lectura generada, sin ningún rastro de error. Con
+  // EdgeRuntime.waitUntil() el runtime mantiene viva la instancia hasta que
+  // la promesa termina, preservando el diseño original (responder 202
+  // rápido, sin bloquear al caller) pero garantizando que el trabajo real
+  // se complete. Ver docs/product/DECISIONS.md.
+  EdgeRuntime.waitUntil(
+    generarLectura(ordenId).catch((err) => {
+      console.error(`${FN} fatal para orden ${ordenId}:`, err);
+    }),
+  );
 
   return new Response(JSON.stringify({ ok: true, mensaje: "Procesando lectura" }), {
     status: 202,
