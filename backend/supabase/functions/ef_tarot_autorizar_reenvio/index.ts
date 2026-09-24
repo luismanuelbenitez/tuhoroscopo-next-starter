@@ -35,6 +35,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_autorizar_reenvio";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const EF_POR_CANAL: Record<string, string> = {
@@ -108,16 +113,26 @@ serve(async (req) => {
 
   // 2. Dispatch fire-and-forget del envío real. La EF de canal consume la
   //    autorización de un solo uso vía verificarPermisoEnvio(). Nunca `forzar`.
+  //    EdgeRuntime.waitUntil() (2026-09-24, mismo bug encontrado ese día en
+  //    ef_tarot_enviar_email, ef_tarot_generar_lectura, ef_tarot_generar_pdf
+  //    y ef_tarot_webhook_mp): sin esto, el runtime no garantiza que este
+  //    fetch() termine después de que ya se envió la respuesta — dejaría la
+  //    autorización consumida sin que el envío real llegue a dispararse.
+  //    Ver docs/product/DECISIONS.md.
   const efNombre = EF_POR_CANAL[solicitud.canal];
-  fetch(`${SUPABASE_URL}/functions/v1/${efNombre}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "x-internal-key": TAROT_INTERNAL_KEY,
-    },
-    body: JSON.stringify({ orden_id: solicitud.orden_id, autorizacion_id: solicitud.id }),
-  }).catch(() => {});
+  EdgeRuntime.waitUntil(
+    fetch(`${SUPABASE_URL}/functions/v1/${efNombre}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "x-internal-key": TAROT_INTERNAL_KEY,
+      },
+      body: JSON.stringify({ orden_id: solicitud.orden_id, autorizacion_id: solicitud.id }),
+    }).catch((err) => {
+      console.error(`${FN} fatal despachando ${efNombre} para orden ${solicitud.orden_id}:`, err);
+    }),
+  );
 
   return jsonResponse({
     ok: true,

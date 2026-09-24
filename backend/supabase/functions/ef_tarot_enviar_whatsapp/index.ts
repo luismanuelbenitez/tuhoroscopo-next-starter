@@ -44,6 +44,11 @@ const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? 
 const WHATSAPP_TAROT_TOKEN_PROD   = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") ?? "";
 const FN = "ef_tarot_enviar_whatsapp";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function now() { return new Date().toISOString(); }
@@ -606,15 +611,23 @@ serve(async (req) => {
           credencialInvalida
             ? "Fallback a email por credencial de WhatsApp inválida (código 190)"
             : `Fallback a email por fallo definitivo de WA (intento ${intento}/${maxReintentos})`);
-        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "x-internal-key": TAROT_INTERNAL_KEY,
-          },
-          body: JSON.stringify({ orden_id: ordenId }),
-        }).catch(() => {});
+        // EdgeRuntime.waitUntil() (2026-09-24, mismo bug encontrado ese día en
+        // otras EFs — ver docs/product/DECISIONS.md): sin esto, el runtime no
+        // garantiza que este fetch() termine después de enviar la respuesta,
+        // dejando al cliente sin WhatsApp NI email si el proceso se corta acá.
+        EdgeRuntime.waitUntil(
+          fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "x-internal-key": TAROT_INTERNAL_KEY,
+            },
+            body: JSON.stringify({ orden_id: ordenId }),
+          }).catch((err) => {
+            console.error(`${FN} fatal despachando fallback email para orden ${ordenId}:`, err);
+          }),
+        );
       }
 
       return json({
@@ -659,15 +672,19 @@ serve(async (req) => {
     if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
       await log(ordenId, "entrega_fallback_email_despachado", "info",
         "Fallback a email por excepción en ef_tarot_enviar_whatsapp");
-      fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-internal-key": TAROT_INTERNAL_KEY,
-        },
-        body: JSON.stringify({ orden_id: ordenId }),
-      }).catch(() => {});
+      EdgeRuntime.waitUntil(
+        fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "x-internal-key": TAROT_INTERNAL_KEY,
+          },
+          body: JSON.stringify({ orden_id: ordenId }),
+        }).catch((err) => {
+          console.error(`${FN} fatal despachando fallback email (catch) para orden ${ordenId}:`, err);
+        }),
+      );
     }
 
     return json({ ok: false, error: "EXCEPCION", mensaje: errMsg }, 500);

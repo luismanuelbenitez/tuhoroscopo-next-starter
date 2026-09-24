@@ -15,6 +15,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { ejecutarPipelinePostCobro } from "../_shared/tarot-pipeline.ts";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 // Tokens propios de Tarot/TTC, separados del de Horóscopo/THC
@@ -444,8 +449,19 @@ serve(async (req) => {
       const id    = idRaw.trim();
 
       // Solo procesamos topic=payment. Ignoramos preapproval y otros.
+      // EdgeRuntime.waitUntil() (2026-09-24, mismo fix ya aplicado a
+      // ef_tarot_generar_lectura ese mismo día): sin esto, el runtime no
+      // garantiza que procesarPago() termine después de que ya se envió
+      // "OK" a MP — y como MP ya recibió 200, NUNCA reintenta. Un corte a
+      // mitad de camino acá (antes de llegar siquiera a actualizar
+      // tarot_ordenes) dejaría un pago cobrado sin ningún rastro, para
+      // siempre. Ver docs/product/DECISIONS.md.
       if (topic === "payment") {
-        procesarPago(id, ip); // fire-and-forget: NO await
+        EdgeRuntime.waitUntil(
+          procesarPago(id, ip).catch((err) => {
+            console.error(`${FN} fatal en procesarPago (modo IPN) para payment_id ${id}:`, err);
+          }),
+        );
       }
 
       return new Response("OK"); // respuesta inmediata a MP
@@ -464,7 +480,12 @@ serve(async (req) => {
     const dataId = String((payload?.data as Record<string, unknown> | undefined)?.id ?? "").trim();
 
     if (type === "payment" && dataId) {
-      procesarPago(dataId, ip); // fire-and-forget: NO await
+      // ver comentario de EdgeRuntime.waitUntil() en el modo IPN, arriba
+      EdgeRuntime.waitUntil(
+        procesarPago(dataId, ip).catch((err) => {
+          console.error(`${FN} fatal en procesarPago (modo JSON) para payment_id ${dataId}:`, err);
+        }),
+      );
     }
 
     return new Response("OK"); // respuesta inmediata a MP

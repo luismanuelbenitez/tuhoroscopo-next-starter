@@ -28,6 +28,11 @@ import {
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
 
+// Global inyectado por el runtime de Supabase Edge Functions, no forma
+// parte de los tipos estándar de Deno — declaración ambiental mínima para
+// que TypeScript lo reconozca. https://supabase.com/docs/guides/functions/background-tasks
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
@@ -1511,9 +1516,17 @@ serve(async (req) => {
 
   const { mazoId, deckUsado, warning: deckWarning } = await resolveDeck(deckSlug, ordenId);
 
-  generarPDF(ordenId, lecturaId, force, debug, mazoId, debugLayout).catch((err) => {
-    console.error(FN + " fatal para orden " + ordenId + ":", err);
-  });
+  // EdgeRuntime.waitUntil() (2026-09-24, mismo bug encontrado ese día en
+  // ef_tarot_enviar_email 08-27, ef_tarot_generar_lectura y
+  // ef_tarot_webhook_mp): sin esto, el runtime no garantiza que
+  // generarPDF() termine después de que ya se envió la respuesta 202 —
+  // dejaría el PDF sin generar, y por lo tanto WhatsApp/email sin
+  // despachar, de forma silenciosa. Ver docs/product/DECISIONS.md.
+  EdgeRuntime.waitUntil(
+    generarPDF(ordenId, lecturaId, force, debug, mazoId, debugLayout).catch((err) => {
+      console.error(FN + " fatal para orden " + ordenId + ":", err);
+    }),
+  );
 
   const respuesta: Record<string, unknown> = {
     ok:     true,
