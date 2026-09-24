@@ -89,6 +89,10 @@ export function Divisor({ className = "" }: { className?: string }) {
   );
 }
 
+// Grosor visible del marco de carta en px CSS (la barra del PNG mide ~13px sobre
+// slice 16 → barra ≈ GROSOR × 0.8). Ajustar aquí; no hace falta tocar la imagen.
+const GROSOR_MARCO_CARTA = 5;
+
 /**
  * Carta con marco dorado PEGADO al borde: el marco (marco-carta.png, 540×900)
  * es una capa superpuesta; la caja usa su misma proporción (0.6) y el arte
@@ -118,7 +122,14 @@ export function CartaEnMarco({
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
-        style={{ backgroundImage: `url(${IMG}/marco-carta.png)`, backgroundSize: "100% 100%" }}
+        style={{
+          borderStyle: "solid",
+          borderWidth: GROSOR_MARCO_CARTA,
+          borderImageSource: `url(${IMG}/marco-carta.png)`,
+          borderImageSlice: 16,
+          borderImageWidth: `${GROSOR_MARCO_CARTA}px`,
+          borderImageRepeat: "stretch",
+        }}
       />
     </div>
   );

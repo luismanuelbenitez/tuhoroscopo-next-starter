@@ -123,17 +123,19 @@ export default async function LecturaPage({ params }: { params: { token: string 
       <div className="relative max-w-md mx-auto px-4 pb-10">
         {/* Portada: marca + pergamino con el nombre (texto HTML sobre la imagen) */}
         <header className="pt-5 pb-6 text-center relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${IMG}/sol.png`} alt="" aria-hidden="true" width={72} height={72} className="absolute left-0 top-3" style={{ width: 72, height: 72 }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${IMG}/luna.png`} alt="" aria-hidden="true" width={72} height={72} className="absolute right-0 top-3" style={{ width: 72, height: 72 }} />
-
-          <div className="flex justify-center pt-2 px-16">
+          <div className="flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${IMG}/marca-isotipo-dorada.svg`} alt="Tu Oráculo" width={190} height={25} style={{ width: 190, height: "auto" }} />
           </div>
 
-          <div className="relative mx-auto mt-5" style={{ width: "100%", maxWidth: 360 }}>
+          <div className="flex justify-between items-end px-1 mt-3" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/sol.png`} alt="" width={64} height={64} style={{ width: 64, height: 64 }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/luna.png`} alt="" width={64} height={64} style={{ width: 64, height: 64 }} />
+          </div>
+
+          <div className="relative mx-auto -mt-5" style={{ width: "100%", maxWidth: 360 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${IMG}/pergamino-titulo.png`} alt="" aria-hidden="true" width={512} height={189} style={{ width: "100%", height: "auto", display: "block" }} />
             <h1
