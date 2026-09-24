@@ -90,7 +90,7 @@ export default async function QuienesSomos() {
         >
           Activar mi guía diaria →
         </Link>
-        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · IVA incluido · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>

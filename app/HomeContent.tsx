@@ -86,7 +86,7 @@ export default function HomeContent() {
 
               <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm mb-8">
                 <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
-                  $U {precio}<span className="text-white/55 font-normal">/mes · IVA incluido</span>
+                  $U {precio}<span className="text-white/55 font-normal">/mes</span>
                 </span>
                 <span className="text-white/30">·</span>
                 <span className="text-white/65">Sin apps</span>
@@ -221,7 +221,7 @@ export default function HomeContent() {
             <p className="text-white/60 text-sm mb-2">Empezá hoy. Tu primer mensaje llega en minutos.</p>
             <div className="mb-6">
               <span className="text-3xl font-extrabold text-white">$U {precio}</span>
-              <span className="text-white/55 text-sm ml-1">/mes · IVA incluido</span>
+              <span className="text-white/55 text-sm ml-1">/mes</span>
             </div>
             <Link
               href="/checkout"

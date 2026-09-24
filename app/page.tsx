@@ -224,7 +224,7 @@ export default function HomePage() {
 
                 <p className="text-sm font-bold text-violet-300 mb-3">
                   $U {precioHoro}
-                  <span className="font-normal text-xs text-violet-300/50">/mes · IVA incluido</span>
+                  <span className="font-normal text-xs text-violet-300/50">/mes</span>
                 </p>
 
                 <p className="text-white/55 text-sm leading-relaxed mb-1.5">

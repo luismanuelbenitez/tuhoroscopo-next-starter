@@ -683,8 +683,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                             </>
                           ) : (
                             `$U ${PRECIO_BASE}`
-                          )}{' '}
-                          · IVA incluido
+                          )}
                         </span>
                         <span className="text-white/20">·</span>
                         <span>Pago único</span>
@@ -751,7 +750,6 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                         ) : (
                           <span className="text-2xl font-extrabold text-white">$U {PRECIO_BASE}</span>
                         )}
-                        <p className="text-[11px] text-white/40">IVA incluido</p>
                       </div>
                     </div>
                     {descuento && (

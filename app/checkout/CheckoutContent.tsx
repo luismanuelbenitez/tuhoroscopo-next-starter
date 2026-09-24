@@ -220,7 +220,7 @@ export default function CheckoutContent({ precioBase = 390 }: { precioBase?: num
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
             <span className="bg-violet-950/80 border border-violet-600/30 rounded-full px-4 py-1.5 font-bold text-white">
-              $U {precioBase}<span className="text-white/55 font-normal">/mes · IVA incluido</span>
+              $U {precioBase}<span className="text-white/55 font-normal">/mes</span>
             </span>
             <span className="text-white/30">·</span>
             <span className="text-white/65">Sin apps</span>
@@ -358,7 +358,7 @@ export default function CheckoutContent({ precioBase = 390 }: { precioBase?: num
                         <span>Procesado por <strong className="text-white/65 font-semibold">Mercado Pago</strong></span>
                       </span>
                       <span className="text-white/20">·</span>
-                      <span>{descuento ? `$U ${descuento.precio_aplicado}/mes · IVA inc.` : `$U ${precioBase}/mes · IVA inc.`}</span>
+                      <span>{descuento ? `$U ${descuento.precio_aplicado}/mes` : `$U ${precioBase}/mes`}</span>
                       <span className="text-white/20">·</span>
                       <span>Cancelás cuando quieras</span>
                     </div>

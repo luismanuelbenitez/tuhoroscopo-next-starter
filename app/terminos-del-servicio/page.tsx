@@ -20,11 +20,11 @@ export default async function TerminosServicio() {
     },
     {
       title: '3. Guía Diaria — Suscripción mensual',
-      content: `La Guía Diaria tiene un costo de $U ${precio} por mes, IVA incluido, con renovación automática mensual. Podés cancelar en cualquier momento desde tu perfil en Mercado Pago o escribiéndonos a hola@tuoraculo.uy. La cancelación detiene la renovación siguiente; no hay reembolso proporcional por el mes en curso salvo que la cancelación ocurra dentro de las primeras 24 horas del cargo.`,
+      content: `La Guía Diaria tiene un costo de $U ${precio} por mes, con renovación automática mensual. Podés cancelar en cualquier momento desde tu perfil en Mercado Pago o escribiéndonos a hola@tuoraculo.uy. La cancelación detiene la renovación siguiente; no hay reembolso proporcional por el mes en curso salvo que la cancelación ocurra dentro de las primeras 24 horas del cargo.`,
     },
     {
       title: '4. Tarot — Pago único',
-      content: `Las lecturas de tarot son un producto de pago único de $U ${precioTarot}, IVA incluido, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
+      content: `Las lecturas de tarot son un producto de pago único de $U ${precioTarot}, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
     },
     {
       title: '5. Contenido generado por inteligencia artificial',

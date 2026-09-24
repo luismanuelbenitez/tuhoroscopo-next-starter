@@ -672,7 +672,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', marginBottom: 32 }}>
-              IVA incluido · pago único · sin renovaciones
+              Pago único · sin renovaciones
             </p>
             <CtaLink size="lg" />
             <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: '6px 18px', justifyContent: 'center' }}>

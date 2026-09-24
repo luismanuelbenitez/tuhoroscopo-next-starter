@@ -21,7 +21,7 @@ export default async function FAQ() {
     },
     {
       q: '¿Cuánto cuesta?',
-      a: `La suscripción cuesta $U ${precio} por mes, IVA incluido. Sin cargos ocultos ni costos adicionales.`,
+      a: `La suscripción cuesta $U ${precio} por mes. Sin cargos ocultos ni costos adicionales.`,
     },
     {
       q: '¿Cómo se paga?',
@@ -117,7 +117,7 @@ export default async function FAQ() {
         >
           Activar mi guía diaria →
         </a>
-        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · IVA incluido · Sin apps · Cancelás cuando quieras</p>
+        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · Sin apps · Cancelás cuando quieras</p>
       </div>
 
     </StaticPageLayout>
