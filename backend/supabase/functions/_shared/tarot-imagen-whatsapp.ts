@@ -73,10 +73,25 @@ export const LAYOUT = {
   SAFE_RIGHT: 1440,
   SAFE_WIDTH: 1280,
 
-  BRANDING_TOP: 34,
-  BRANDING_HEIGHT: 96,
+  // Nombre dentro del pergamino (2026-09-24, rediseño "alineado con el PDF"):
+  // coordenadas medidas por muestreo de píxeles del asset real
+  // (_shared/assets/tarot-cabezal-fondo.jpg) — la zona plana y legible de la
+  // cinta de pergamino (excluyendo los extremos enrollados y el pequeño
+  // emblema ornamental impreso en el borde superior/inferior de la cinta)
+  // va de y≈96 a y≈166, centrada en x=800. NAME_SCROLL_MAX_WIDTH se dejó
+  // más angosto que el ancho medido (≈455px) a propósito, como margen de
+  // seguridad contra esos bordes.
+  NAME_SCROLL_CENTER_Y: 132,
+  NAME_SCROLL_MAX_WIDTH: 380,
+  NAME_SCROLL_MAX_FONT: 42,
+  NAME_SCROLL_MIN_FONT: 24,
 
-  CARDS_WRAPPER_TOP: 160,
+  // Fecha de nacimiento (opcional — solo si el cliente la cargó en el
+  // checkout, ver fecha_nacimiento_snapshot). Debajo del pergamino, ya
+  // sobre el fondo oscuro.
+  BIRTHDATE_TOP: 206,
+
+  CARDS_WRAPPER_TOP: 258,
   CARDS_WRAPPER_HEIGHT: 380,
   CARD_WIDTH: 200,
   CARD_HEIGHT: 345, // ratio ≈0.579, igual que las cartas reales del mazo
@@ -89,10 +104,11 @@ export const LAYOUT = {
   CARD_OVERLAP: 10,
   CARD_ROTATIONS: [-7, -3.5, 0, 3.5, 7] as const, // grados, carta 1→5
 
-  NAME_BLOCK_TOP: 566,
-  NAME_MAX_WIDTH: 1100, // dentro de SAFE_WIDTH (1280), con margen de respiro
-  NAME_MAX_FONT: 64,
-  NAME_MIN_FONT: 32,
+  // Marca al pie (2026-09-24): antes "TU ORÁCULO / TU TIRADA" era el título
+  // principal, arriba de todo. Con el nombre ahora protagonista dentro del
+  // pergamino, la marca pasa a un rol secundario de cierre, debajo de las
+  // cartas.
+  BRAND_FOOTER_TOP: 686,
 } as const;
 
 // Decisión (Task G): esta imagen NO imprime labels de posición bajo cada
@@ -210,9 +226,9 @@ function partirEnDosLineas(nombre: string): [string, string] {
 
 export function fitNameToWidth(
   nombreCrudo: string,
-  maxWidth = LAYOUT.NAME_MAX_WIDTH,
-  maxFont = LAYOUT.NAME_MAX_FONT,
-  minFont = LAYOUT.NAME_MIN_FONT,
+  maxWidth = LAYOUT.NAME_SCROLL_MAX_WIDTH,
+  maxFont = LAYOUT.NAME_SCROLL_MAX_FONT,
+  minFont = LAYOUT.NAME_SCROLL_MIN_FONT,
 ): NombreAjustado {
   // Normaliza espacios múltiples (no altera acentos/ñ/apostrofes/guiones —
   // son parte del texto real, se cuentan igual que cualquier otro caracter).
@@ -305,7 +321,7 @@ function capaDebug(nombreBoxWidth: number) {
     linea(LAYOUT.SAFE_RIGHT),
     caja(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT, "rgba(0,255,140,0.9)"),
     ...cardsBoxes,
-    caja((LAYOUT.CANVAS_WIDTH - nombreBoxWidth) / 2, LAYOUT.NAME_BLOCK_TOP, nombreBoxWidth, 170, "rgba(80,160,255,0.9)"),
+    caja((LAYOUT.CANVAS_WIDTH - nombreBoxWidth) / 2, LAYOUT.NAME_SCROLL_CENTER_Y - 50, nombreBoxWidth, 100, "rgba(80,160,255,0.9)"),
   );
 }
 
@@ -342,7 +358,7 @@ export async function generarImagenWhatsapp(
 
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("nombre_snapshot")
+    .select("nombre_snapshot, fecha_nacimiento_snapshot")
     .eq("id", ordenId)
     .maybeSingle();
   if (!orden?.nombre_snapshot) return null;
@@ -403,6 +419,17 @@ export async function generarImagenWhatsapp(
   // a la primera palabra los mostraría incompletos. fitNameToWidth()
   // maneja el caso en que igual sea muy largo.
   const nombreAjustado = fitNameToWidth(orden.nombre_snapshot);
+
+  // Fecha de nacimiento (2026-09-24, rediseño): opcional — el checkout no la
+  // exige (ver TarotCheckoutContent.tsx, campo "opcional — ayuda a
+  // personalizar"). Mismo formato ya usado en el resto del proyecto para
+  // fechas orientadas al cliente (ver ef_tarot_enviar_email.ts,
+  // ef_tarot_admin_orden_experiencia.ts): "es-UY", día + mes largo + año.
+  const fechaNacimientoTexto = orden.fecha_nacimiento_snapshot
+    ? new Date(`${orden.fecha_nacimiento_snapshot}T00:00:00`).toLocaleDateString("es-UY", {
+        day: "numeric", month: "long", year: "numeric",
+      })
+    : null;
 
   const totalCardsWidth = LAYOUT.CARD_WIDTH + 4 * (LAYOUT.CARD_WIDTH - LAYOUT.CARD_OVERLAP);
 
@@ -479,15 +506,21 @@ export async function generarImagenWhatsapp(
     }),
   );
 
+  // Color tinta oscura (2026-09-24, rediseño): el nombre ahora se dibuja
+  // DENTRO del pergamino del fondo, no sobre el cielo oscuro — el dorado
+  // claro (#FFCE4D) de antes perdería casi todo el contraste ahí. Mismo
+  // tono que usa el PDF para texto sobre pergamino (C_DARK_BROWN,
+  // ef_tarot_generar_pdf/index.ts) — "alineado con el PDF" es el pedido
+  // explícito de este rediseño.
   const nameLines = nombreAjustado.lineas.filter(Boolean).map((linea, i) =>
     h(
       "span",
       {
         key: i,
         style: {
-          fontSize: nombreAjustado.fontSize, color: "#FFCE4D", fontWeight: 700,
+          fontSize: nombreAjustado.fontSize, color: "#291408", fontWeight: 700,
           fontFamily: "Cormorant Garamond", lineHeight: 1.08,
-          marginTop: i === 0 ? 6 : 2,
+          marginTop: i === 0 ? 0 : 2,
         },
       },
       linea,
@@ -506,13 +539,31 @@ export async function generarImagenWhatsapp(
       },
     },
     capaFondo(),
-    // Branding
+    // Nombre, dentro del pergamino (2026-09-24) — reemplaza el título
+    // "TU ORÁCULO / TU TIRADA" + "Tirada realizada para" del diseño
+    // anterior. Wrapper de altura fija centrado en NAME_SCROLL_CENTER_Y:
+    // así 1 o 2 líneas quedan siempre centradas verticalmente en la zona
+    // plana y legible del pergamino, sin recalcular la altura del bloque.
     h(
       "div",
-      { style: { display: "flex", flexDirection: "column", alignItems: "center", position: "absolute", top: LAYOUT.BRANDING_TOP, width: LAYOUT.CANVAS_WIDTH } },
-      h("span", { style: { fontSize: 26, letterSpacing: 10, color: "#FFCE4D", fontFamily: "Cormorant Garamond", fontWeight: 700 } }, "TU ORÁCULO"),
-      h("span", { style: { fontSize: 48, color: "#F0F1F5", fontWeight: 700, marginTop: 8, fontFamily: "Cormorant Garamond" } }, "TU TIRADA"),
+      {
+        style: {
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          position: "absolute", top: LAYOUT.NAME_SCROLL_CENTER_Y - 50, height: 100, width: LAYOUT.CANVAS_WIDTH,
+        },
+      },
+      ...nameLines,
     ),
+    // Fecha de nacimiento (opcional) — debajo del pergamino, ya sobre el
+    // fondo oscuro. Se omite el bloque entero si la orden no la tiene
+    // cargada (campo opcional en el checkout).
+    fechaNacimientoTexto
+      ? h(
+          "div",
+          { style: { display: "flex", position: "absolute", top: LAYOUT.BIRTHDATE_TOP, width: LAYOUT.CANVAS_WIDTH, justifyContent: "center" } },
+          h("span", { style: { fontSize: 24, color: "#c9bfa8", letterSpacing: 2, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
+        )
+      : null,
     // Cartas
     h(
       "div",
@@ -551,24 +602,23 @@ export async function generarImagenWhatsapp(
         background: "linear-gradient(180deg, rgba(255,206,77,0.07) 0%, rgba(255,206,77,0) 20%, rgba(255,206,77,0) 80%, rgba(8,4,20,0.22) 100%)",
       },
     }),
-    // Nombre
+    // Marca, al pie (2026-09-24) — antes era el título principal arriba de
+    // todo ("TU ORÁCULO / TU TIRADA"); con el nombre ahora protagonista
+    // dentro del pergamino, la marca pasa a un cierre discreto debajo de
+    // las cartas. Remate ornamental (línea-diamante-línea dorado, mismo
+    // lenguaje visual que Ornamento() en app/lectura/[token]/page.tsx)
+    // arriba del wordmark en vez de flotar solo en el fondo vacío.
     h(
       "div",
       {
         style: {
           display: "flex", flexDirection: "column", alignItems: "center", position: "absolute",
-          top: LAYOUT.NAME_BLOCK_TOP, width: LAYOUT.CANVAS_WIDTH,
+          top: LAYOUT.BRAND_FOOTER_TOP, width: LAYOUT.CANVAS_WIDTH,
         },
       },
-      h("span", { style: { fontSize: 24, color: "#8b84a3", letterSpacing: 3, fontFamily: "Cormorant Garamond" } }, "Tirada realizada para"),
-      ...nameLines,
-      // Remate ornamental (2026-09-24) — mismo lenguaje visual que
-      // Ornamento() en app/lectura/[token]/page.tsx (línea-diamante-línea
-      // dorado): cierra la composición en vez de dejarla flotando en el
-      // fondo vacío entre el nombre y el borde inferior del canvas.
       h(
         "div",
-        { style: { display: "flex", alignItems: "center", marginTop: 26 } },
+        { style: { display: "flex", alignItems: "center", marginBottom: 18 } },
         h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0), rgba(255,206,77,0.85))" } }),
         // Rombo vía div rotado, no caracter Unicode ("✦") — Cormorant
         // Garamond no trae ese glifo y Satori no tiene fallback de fuente
@@ -577,8 +627,9 @@ export async function generarImagenWhatsapp(
         h("div", { style: { display: "flex", width: 10, height: 10, marginLeft: 16, marginRight: 16, background: "rgba(255,206,77,0.9)", transform: "rotate(45deg)" } }),
         h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0.85), rgba(255,206,77,0))" } }),
       ),
+      h("span", { style: { fontSize: 22, letterSpacing: 9, color: "#FFCE4D", fontFamily: "Cormorant Garamond", fontWeight: 700 } }, "TU ORÁCULO"),
     ),
-    opts.debugLayout ? capaDebug(LAYOUT.NAME_MAX_WIDTH) : null,
+    opts.debugLayout ? capaDebug(LAYOUT.NAME_SCROLL_MAX_WIDTH) : null,
   );
 
   const img = new ImageResponse(raiz, {
