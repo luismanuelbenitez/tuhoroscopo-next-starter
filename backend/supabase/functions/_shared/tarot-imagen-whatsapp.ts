@@ -550,7 +550,7 @@ export async function generarImagenWhatsapp(
       ? h(
           "div",
           { style: { display: "flex", position: "absolute", top: LAYOUT.BIRTHDATE_TOP, width: LAYOUT.CANVAS_WIDTH, justifyContent: "center" } },
-          h("span", { style: { fontSize: 32, color: "#EBD49A", letterSpacing: 2, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
+          h("span", { style: { fontSize: 32, color: "#F0C55A", fontWeight: 700, letterSpacing: 2, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
         )
       : null,
     // Cartas
