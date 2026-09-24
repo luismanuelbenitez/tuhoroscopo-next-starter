@@ -573,13 +573,25 @@ serve(async (req) => {
         updated_at: tsNow,
       }).eq("id", envio?.id);
 
-      const estadoOrden = intento >= maxReintentos ? "error_critico" : "error_whatsapp";
+      // Código 190 (OAuthException) de WhatsApp Cloud API = token de acceso
+      // inválido/expirado. NUNCA se resuelve reintentando con la misma
+      // credencial ya cargada — los 3 intentos dan exactamente el mismo
+      // resultado. Incidente real 2026-09-24: 3 intentos idénticos, ~11s
+      // perdidos, antes de llegar a error_critico — ver
+      // docs/product/DECISIONS.md. Se detecta y se salta directo a
+      // error_critico (+ fallback a email inmediato) desde el primer intento,
+      // en vez de agotar max_reintentos_wa sin ninguna chance real de éxito.
+      const credencialInvalida = errorCode === "190";
+      const esFalloDefinitivo = credencialInvalida || intento >= maxReintentos;
+      const estadoOrden = esFalloDefinitivo ? "error_critico" : "error_whatsapp";
       await supabase.from("tarot_ordenes")
         .update({ estado: estadoOrden, updated_at: tsNow }).eq("id", ordenId);
 
       await log(ordenId, "wa_error_envio", "error",
-        `Error enviando WhatsApp (intento ${intento}/${maxReintentos}) → orden: ${estadoOrden}`,
-        { error_code: errorCode, error_msg: errorMsg, respuesta: respuestaRaw, duracion_ms: durMs },
+        credencialInvalida
+          ? `Credencial de WhatsApp inválida (código 190) — no reintentable, orden marcada error_critico directamente (intento ${intento}/${maxReintentos})`
+          : `Error enviando WhatsApp (intento ${intento}/${maxReintentos}) → orden: ${estadoOrden}`,
+        { error_code: errorCode, error_msg: errorMsg, respuesta: respuestaRaw, duracion_ms: durMs, credencial_invalida: credencialInvalida },
         durMs);
 
       // Alerta: error de WhatsApp (fire-and-forget)
@@ -607,9 +619,11 @@ serve(async (req) => {
         });
       }
 
-      if (intento >= maxReintentos && canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
+      if (esFalloDefinitivo && canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
         await log(ordenId, "entrega_fallback_email_despachado", "info",
-          `Fallback a email por fallo definitivo de WA (intento ${intento}/${maxReintentos})`);
+          credencialInvalida
+            ? "Fallback a email por credencial de WhatsApp inválida (código 190)"
+            : `Fallback a email por fallo definitivo de WA (intento ${intento}/${maxReintentos})`);
         fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
           method: "POST",
           headers: {
