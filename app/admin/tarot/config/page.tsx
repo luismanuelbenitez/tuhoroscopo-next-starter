@@ -70,7 +70,7 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
     titulo: "MercadoPago",
     campos: [
       { clave: "mp_modo", label: "Modo", tipo: "select", opciones: ["sandbox", "production"],
-        helpText: 'Cambiá a "production" para cobros reales. También decide qué credencial de WhatsApp usa un envío real (token de test o de producción) cuando "Modo" de WhatsApp abajo está en "production".' },
+        helpText: 'Cambiá a "production" para cobros reales. Combinado con "Modo WA"="production", determina si el envío real de WhatsApp queda restringido a los "Números autorizados" (mp_modo=sandbox, modo controlado) o abierto a cualquier destino (mp_modo=production).' },
     ],
   },
   {

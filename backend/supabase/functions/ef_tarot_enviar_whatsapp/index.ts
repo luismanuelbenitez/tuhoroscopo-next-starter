@@ -35,15 +35,12 @@ const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
-// Access tokens de WhatsApp Cloud API, separados dev/producción — mismo
-// número (WHATSAPP_PHONE_NUMBER_ID) para ambos, mismo criterio que ya usa
-// Mercado Pago en este módulo: seleccionados por `mp_modo`, no por
-// `whatsapp_modo` (que sigue controlando únicamente si se simula o se envía
-// de verdad). Alcance deliberadamente acotado a este archivo — el resto del
-// sistema de WhatsApp (Horóscopo, WA Inbox de admin, descarga de media)
-// sigue compartiendo el WHATSAPP_TOKEN legacy sin cambios (2026-09-24, ver
-// docs/product/DECISIONS.md).
-const WHATSAPP_TAROT_TOKEN_TEST   = Deno.env.get("WHATSAPP_TAROT_TOKEN_TEST") ?? "";
+// Access token de WhatsApp Cloud API de Tarot, propio de este archivo
+// (2026-09-24) — el resto del sistema de WhatsApp (Horóscopo, WA Inbox de
+// admin, descarga de media) sigue compartiendo el WHATSAPP_TOKEN legacy sin
+// cambios, alcance acotado a este archivo, ver docs/product/DECISIONS.md.
+// Una sola credencial (no TEST/PROD) — ver comentario junto a
+// resolverTokenWATarot() más abajo para el porqué.
 const WHATSAPP_TAROT_TOKEN_PROD   = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") ?? "";
 const FN = "ef_tarot_enviar_whatsapp";
 
@@ -69,31 +66,23 @@ function parsearNumerosAutorizados(valorCrudo: string | undefined): string[] {
     .filter(Boolean);
 }
 
-// Mismo criterio que resolverTokenMPTarot() en ef_tarot_crear_orden/
-// ef_tarot_webhook_mp: valor ausente → "sandbox" (default ya existente),
-// valor presente pero no reconocido → null (error explícito, nunca se
-// asume un ambiente ante un dato ambiguo).
-type ModoMP = "sandbox" | "production";
-
-function normalizarModoMP(valorCrudo: string | undefined): ModoMP | null {
-  const modo = (valorCrudo ?? "sandbox").toLowerCase().trim();
-  if (modo === "sandbox" || modo === "production") return modo;
-  return null;
-}
-
+// Credencial única de WhatsApp de Tarot (2026-09-24, revisado el mismo
+// día): se evaluó separar TEST/PROD seleccionando por mp_modo, pero en la
+// práctica solo existe una cuenta real de WhatsApp Business — no hay un
+// WABA de desarrollo distinto para justificar dos credenciales. Un envío
+// real (whatsapp_modo=production) usa siempre WHATSAPP_TAROT_TOKEN_PROD.
+// La seguridad de "modo controlado" (mp_modo=sandbox + whatsapp_modo=
+// production) no depende de qué token se use — depende exclusivamente de
+// la restricción de destino (bloqueadoPorNumero, más abajo), que sigue
+// aplicando igual sin importar la credencial.
 type ResolverTokenWAResultado =
   | { ok: true; token: string }
   | { ok: false; errorCode: string; envVar: string };
 
-function resolverTokenWATarot(modo: ModoMP): ResolverTokenWAResultado {
-  if (modo === "production") {
-    return WHATSAPP_TAROT_TOKEN_PROD
-      ? { ok: true, token: WHATSAPP_TAROT_TOKEN_PROD }
-      : { ok: false, errorCode: "WHATSAPP_TOKEN_TAROT_PROD_MISSING", envVar: "WHATSAPP_TAROT_TOKEN_PROD" };
-  }
-  return WHATSAPP_TAROT_TOKEN_TEST
-    ? { ok: true, token: WHATSAPP_TAROT_TOKEN_TEST }
-    : { ok: false, errorCode: "WHATSAPP_TOKEN_TAROT_TEST_MISSING", envVar: "WHATSAPP_TAROT_TOKEN_TEST" };
+function resolverTokenWATarot(): ResolverTokenWAResultado {
+  return WHATSAPP_TAROT_TOKEN_PROD
+    ? { ok: true, token: WHATSAPP_TAROT_TOKEN_PROD }
+    : { ok: false, errorCode: "WHATSAPP_TOKEN_TAROT_PROD_MISSING", envVar: "WHATSAPP_TAROT_TOKEN_PROD" };
 }
 
 async function log(
@@ -474,16 +463,9 @@ serve(async (req) => {
         throw new Error("WHATSAPP_PHONE_NUMBER_ID no configurado en env vars");
       }
 
-      // Mismo criterio que Mercado Pago en este módulo: mp_modo decide qué
-      // credencial de WhatsApp se usa para un envío real (modoControlado =
-      // mp_modo sandbox → token de test; producción total → token de prod).
-      const modoMP = normalizarModoMP(cfg.mp_modo);
-      if (!modoMP) {
-        throw new Error(`mp_modo tiene un valor no reconocido ("${cfg.mp_modo}") — no se pudo determinar qué credencial de WhatsApp usar`);
-      }
-      const tokenWA = resolverTokenWATarot(modoMP);
+      const tokenWA = resolverTokenWATarot();
       if (!tokenWA.ok) {
-        throw new Error(`${tokenWA.envVar} no está configurado en Supabase Secrets (mp_modo=${modoMP}) — no se pudo enviar WhatsApp`);
+        throw new Error(`${tokenWA.envVar} no está configurado en Supabase Secrets — no se pudo enviar WhatsApp`);
       }
 
       const waBody = puedeUsarTemplate ? buildWaBodyTemplate() : buildWaBodyDocumento();
