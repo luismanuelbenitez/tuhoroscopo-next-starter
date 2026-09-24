@@ -89,28 +89,37 @@ export function Divisor({ className = "" }: { className?: string }) {
   );
 }
 
-/** Carta con marco dorado; conserva la relación 2:3 del arte y rota si está invertida. */
+/**
+ * Carta con marco dorado PEGADO al borde: el marco (marco-carta.png, 540×900)
+ * es una capa superpuesta; la caja usa su misma proporción (0.6) y el arte
+ * (2:3) se recorta con object-fit: cover ~5% por lado, oculto bajo el marco.
+ */
 export function CartaEnMarco({
   src, alt, invertida, eager,
 }: { src: string | null; alt: string; invertida: boolean; eager: boolean }) {
   return (
-    <div className="mx-auto" style={{ ...marco9(22), width: 256, background: "#0a0614", backgroundClip: "padding-box" }}>
+    <div className="relative mx-auto" style={{ width: 280, aspectRatio: "540 / 900", background: "#0a0614" }}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={alt}
-          width={200}
-          height={300}
+          width={280}
+          height={467}
           loading={eager ? "eager" : "lazy"}
           className={invertida ? "rotate-180" : ""}
-          style={{ display: "block", width: "100%", height: "auto", aspectRatio: "2 / 3", objectFit: "cover" }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (
-        <div className="flex items-center justify-center text-xs" style={{ aspectRatio: "2 / 3", color: "#8b84a3" }}>
+        <div className="absolute inset-0 flex items-center justify-center text-xs" style={{ color: "#8b84a3" }}>
           {alt}
         </div>
       )}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: `url(${IMG}/marco-carta.png)`, backgroundSize: "100% 100%" }}
+      />
     </div>
   );
 }
