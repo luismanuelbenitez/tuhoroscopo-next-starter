@@ -80,7 +80,13 @@ export const LAYOUT = {
   CARDS_WRAPPER_HEIGHT: 380,
   CARD_WIDTH: 200,
   CARD_HEIGHT: 345, // ratio ≈0.579, igual que las cartas reales del mazo
-  CARD_OVERLAP: 26, // superposición entre cartas adyacentes (efecto abanico)
+  // Reducido de 26 a 10 (2026-09-24, ajuste "premium"): con 26px las cartas
+  // de los extremos perdían texto real del título impreso (ej. "CABALLERO
+  // DE ORO" sin la S final) y parte del arte — 10px conserva el efecto
+  // abanico/solapado sin cortar contenido legible. Hay margen de sobra:
+  // con 10px el ancho total de las 5 cartas (968px) sigue muy por debajo
+  // de SAFE_WIDTH (1280px).
+  CARD_OVERLAP: 10,
   CARD_ROTATIONS: [-7, -3.5, 0, 3.5, 7] as const, // grados, carta 1→5
 
   NAME_BLOCK_TOP: 566,
@@ -417,6 +423,7 @@ export async function generarImagenWhatsapp(
           key: c.posicion,
           style: {
             display: "flex",
+            position: "relative", // ancla la sombra y el glow (absolute) más abajo
             width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
             marginLeft: i === 0 ? 0 : -LAYOUT.CARD_OVERLAP,
             // Sin marco/borde propio (Task del sprint "fondo fijo del
@@ -437,11 +444,30 @@ export async function generarImagenWhatsapp(
             zIndex: esProtagonista ? 10 : i,
           },
         },
+        // Glow detrás de la protagonista (2026-09-24) — gradiente radial
+        // plano, NUNCA blur/box-shadow (ver comentario de performance en
+        // el header del archivo: un blur real ya rompió WORKER_RESOURCE_LIMIT
+        // en este runtime). Un `background: radial-gradient` es solo
+        // interpolación de color, sin filtro — mismo costo que el
+        // gradiente ya usado en el fondo del canvas raíz, probado en
+        // producción sin problema.
+        // Sombra dura (2026-09-24) — rectángulo sólido sin blur, desplazado
+        // solo hacia abajo (independiente del solapamiento horizontal entre
+        // cartas). Da sensación de profundidad/cartas levantadas del fondo
+        // sin tocar box-shadow.
+        h("div", {
+          style: {
+            display: "flex", position: "absolute",
+            top: 12, left: 0,
+            width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
+            background: "rgba(4,2,12,0.55)",
+          },
+        }),
         h(
           "div",
           {
             style: {
-              display: "flex", width: "100%", height: "100%",
+              display: "flex", position: "relative", width: "100%", height: "100%",
               ...(c.invertida ? { transform: "rotate(180deg)" } : {}),
             },
           },
@@ -496,8 +522,35 @@ export async function generarImagenWhatsapp(
           height: LAYOUT.CARDS_WRAPPER_HEIGHT, alignItems: "center", justifyContent: "center",
         },
       },
+      // Glow detrás de la protagonista — EVALUADO Y DESCARTADO (2026-09-24).
+      // Se probaron 3 variantes (radial-gradient anidado dentro de la carta
+      // con transform:scale(); el mismo gradiente como hermano independiente
+      // en dos tamaños distintos) — dos de las tres causaron un crash real
+      // del runtime (WORKER_RESOURCE_LIMIT, status 546, confirmado en logs).
+      // La única variante que no rompió (340×300, sin overlap vertical con
+      // la carta) terminaba tapada casi por completo por las cartas vecinas
+      // y no se veía. Sin patrón claro y reproducible que distinga la
+      // variante segura de las que rompen — no vale el riesgo de dejar algo
+      // inestable en el pipeline real de entrega. Si se retoma esto en el
+      // futuro, mejor camino: un glow pre-renderizado como asset fijo (PNG
+      // con transparencia, mismo truco que el fondo del cabezal en
+      // tarot-cabezal-fondo-data.ts) en vez de un gradiente calculado en
+      // cada invocación — eso sacaría el costo del runtime por completo.
       cardsRow,
     ),
+    // Veladura de unificación (2026-09-24) — degradé plano (sin blur) sobre
+    // la fila de cartas: las 5 cartas tienen paletas muy distintas entre sí
+    // (cielo celeste, oscuros, dorados) y quedaban como imágenes sueltas
+    // pegadas al fondo. Un lavado cálido muy sutil arriba/abajo (transparente
+    // en el centro, para no tapar el arte) las liga tonalmente con el
+    // navy/dorado del fondo fijo.
+    h("div", {
+      style: {
+        display: "flex", position: "absolute", top: LAYOUT.CARDS_WRAPPER_TOP, width: LAYOUT.CANVAS_WIDTH,
+        height: LAYOUT.CARDS_WRAPPER_HEIGHT,
+        background: "linear-gradient(180deg, rgba(255,206,77,0.07) 0%, rgba(255,206,77,0) 20%, rgba(255,206,77,0) 80%, rgba(8,4,20,0.22) 100%)",
+      },
+    }),
     // Nombre
     h(
       "div",
@@ -509,6 +562,21 @@ export async function generarImagenWhatsapp(
       },
       h("span", { style: { fontSize: 24, color: "#8b84a3", letterSpacing: 3, fontFamily: "Cormorant Garamond" } }, "Tirada realizada para"),
       ...nameLines,
+      // Remate ornamental (2026-09-24) — mismo lenguaje visual que
+      // Ornamento() en app/lectura/[token]/page.tsx (línea-diamante-línea
+      // dorado): cierra la composición en vez de dejarla flotando en el
+      // fondo vacío entre el nombre y el borde inferior del canvas.
+      h(
+        "div",
+        { style: { display: "flex", alignItems: "center", marginTop: 26 } },
+        h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0), rgba(255,206,77,0.85))" } }),
+        // Rombo vía div rotado, no caracter Unicode ("✦") — Cormorant
+        // Garamond no trae ese glifo y Satori no tiene fallback de fuente
+        // del sistema como un navegador: rendereaba como un tofu box roto.
+        // Mismo truco que ya usa Ornamento() en app/lectura/[token]/page.tsx.
+        h("div", { style: { display: "flex", width: 10, height: 10, marginLeft: 16, marginRight: 16, background: "rgba(255,206,77,0.9)", transform: "rotate(45deg)" } }),
+        h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0.85), rgba(255,206,77,0))" } }),
+      ),
     ),
     opts.debugLayout ? capaDebug(LAYOUT.NAME_MAX_WIDTH) : null,
   );
