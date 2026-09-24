@@ -3,7 +3,9 @@ import { Cormorant_Garamond } from "next/font/google";
 import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { Reveal } from "@/components/lectura/Reveal";
-import { LogoIcon } from "@/components/logo-icon";
+import {
+  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, PanelPergamino, PlacaTitulo,
+} from "@/components/lectura/Marcos";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -31,78 +33,39 @@ const POSICIONES: Record<number, string> = {
 };
 
 const GOLD = "#FFCE4D";
-const MOON = "#EDE6D6";
 const SERIF_FONT = "var(--font-serif-editorial), serif";
 
-// Fondo compartido — mismo lenguaje visual (gradiente, dorado, grano,
-// estrellas discretas) que el cabezal dinámico de WhatsApp/email
-// (_shared/tarot-imagen-whatsapp.ts): "el fondo acompaña, nunca compite".
-// Todo position:fixed + pointer-events-none, una sola vez por página.
+// Fondo compartido: terciopelo repetible (public/img/lectura) + halo dorado
+// superior — mismo lenguaje visual que el cabezal y el PDF. "El fondo
+// acompaña, nunca compite". position:fixed + pointer-events-none.
 function FondoCelestial() {
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-      {/* Halo dorado superior — eco del cabezal */}
+    <div className="pointer-events-none fixed inset-0 overflow-hidden" style={FONDO_TERCIOPELO} aria-hidden="true">
       <div
         className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 90% 55% at 50% 0%, rgba(251,191,36,0.08), transparent)",
-        }}
+        style={{ background: "radial-gradient(ellipse 90% 45% at 50% 0%, rgba(240,197,90,0.10), transparent)" }}
       />
-      {/* Insinuación celestial baja, hacia el cierre de la lectura */}
       <div
         className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 40% at 50% 68%, rgba(148,110,255,0.05), transparent)",
-        }}
-      />
-      {/* Estrellas discretas — misma técnica que --stars-1 en globals.css */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "170px 170px",
-          opacity: 0.35,
-        }}
-      />
-      {/* Grano casi imperceptible */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-          backgroundSize: "140px 140px",
-          opacity: 0.025,
-        }}
+        style={{ background: "radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, rgba(6,3,14,0.55))" }}
       />
     </div>
   );
 }
 
-function Ornamento() {
-  return (
-    <div className="flex items-center justify-center gap-3 py-6" aria-hidden="true">
-      <span className="h-px w-9" style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.4))" }} />
-      <span className="h-[5px] w-[5px] rotate-45" style={{ background: "rgba(255,206,77,0.55)" }} />
-      <span className="h-px w-9" style={{ background: "linear-gradient(90deg, rgba(255,206,77,0.4), transparent)" }} />
-    </div>
-  );
-}
-
-function OrnamentoCierre() {
-  return (
-    <div className="flex items-center justify-center gap-4 py-2" aria-hidden="true">
-      <span className="h-px w-16" style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.45))" }} />
-      <span className="text-[13px]" style={{ color: GOLD, opacity: 0.7 }}>✦</span>
-      <span className="h-px w-16" style={{ background: "linear-gradient(90deg, rgba(255,206,77,0.45), transparent)" }} />
-    </div>
-  );
+// Tamaño del nombre dentro del pergamino según su largo (el pergamino tiene
+// un ancho fijo de zona de texto).
+function tamanoNombre(nombre: string): number {
+  const n = nombre.length;
+  if (n <= 12) return 32;
+  if (n <= 18) return 26;
+  if (n <= 24) return 21;
+  return 17;
 }
 
 function ErrorShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className={`${serif.variable} min-h-screen flex items-center justify-center px-6 py-16 text-center relative`} style={{ background: "linear-gradient(160deg, #130a2e 0%, #0d0820 55%, #0c0618 100%)" }}>
+    <main className={`${serif.variable} min-h-screen flex items-center justify-center px-6 py-16 text-center relative`} style={{ background: "#140a24" }}>
       <FondoCelestial />
       <div className="max-w-sm relative">{children}</div>
     </main>
@@ -150,50 +113,50 @@ export default async function LecturaPage({ params }: { params: { token: string 
     return <NoEncontradoView />;
   }
 
-  const primerNombre = resultado.nombre?.trim().split(" ")[0] ?? "";
+  const nombreCompleto = resultado.nombre?.trim() ?? "";
+  const primerNombre = nombreCompleto.split(" ")[0] ?? "";
 
   return (
-    <main
-      className={`${serif.variable} min-h-screen text-[#F0F1F5] relative`}
-      style={{ background: "linear-gradient(160deg, #130a2e 0%, #0d0820 55%, #0c0618 100%)" }}
-    >
+    <main className={`${serif.variable} min-h-screen text-[#F0F1F5] relative`} style={{ background: "#140a24" }}>
       <FondoCelestial />
 
-      <div className="relative max-w-md mx-auto px-5 pb-16">
-        {/* Branding */}
-        <header className="pt-12 pb-8 text-center">
-          <div className="mb-3 flex justify-center">
-            <LogoIcon size={44} />
+      <div className="relative max-w-md mx-auto px-4 pb-10">
+        {/* Portada: marca + pergamino con el nombre (texto HTML sobre la imagen) */}
+        <header className="pt-5 pb-6 text-center relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${IMG}/sol.png`} alt="" aria-hidden="true" width={72} height={72} className="absolute left-0 top-3" style={{ width: 72, height: 72 }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${IMG}/luna.png`} alt="" aria-hidden="true" width={72} height={72} className="absolute right-0 top-3" style={{ width: 72, height: 72 }} />
+
+          <div className="flex justify-center pt-2 px-16">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/marca-isotipo-dorada.svg`} alt="Tu Oráculo" width={190} height={25} style={{ width: 190, height: "auto" }} />
           </div>
-          <div className="flex items-center justify-center gap-3 mb-2" aria-hidden="true">
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: MOON, opacity: 0.6 }} />
-            <p className="text-[11px] tracking-[0.35em] uppercase" style={{ color: GOLD }}>
-              Tu Oráculo
-            </p>
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: GOLD, opacity: 0.75 }} />
+
+          <div className="relative mx-auto mt-5" style={{ width: "100%", maxWidth: 360 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/pergamino-titulo.png`} alt="" aria-hidden="true" width={512} height={189} style={{ width: "100%", height: "auto", display: "block" }} />
+            <h1
+              className="absolute inset-0 flex items-center justify-center text-center font-bold px-[17%] leading-tight"
+              style={{ fontFamily: SERIF_FONT, color: INK, fontSize: tamanoNombre(nombreCompleto || primerNombre) }}
+            >
+              {nombreCompleto || primerNombre}
+            </h1>
           </div>
-          <p className="text-[11px] tracking-[0.2em] uppercase text-[#8b84a3]">Tu Tirada</p>
-          <div
-            className="mx-auto mt-5 h-px w-14"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(255,206,77,0.5), transparent)" }}
-          />
+          <p className="mt-3 text-[12px] tracking-[0.3em] uppercase" style={{ color: GOLD_TINTA }}>
+            Tu tirada
+          </p>
         </header>
 
-        {/* Saludo + pregunta + audio ambiental */}
-        <section className="text-center mb-11 px-1">
-          <h1
-            className="text-[2.05rem] leading-[1.15] font-semibold mb-4"
-            style={{ fontFamily: SERIF_FONT }}
-          >
-            Hola, {primerNombre}
-          </h1>
+        {/* Pregunta + audio ambiental */}
+        <section className="text-center mb-6 px-1">
           {resultado.pregunta && (
-            <div className="mb-7">
-              <p className="text-[11px] tracking-[0.25em] uppercase mb-2.5" style={{ color: GOLD, opacity: 0.85 }}>
+            <div className="mb-6">
+              <p className="text-[11px] tracking-[0.25em] uppercase mb-2.5" style={{ color: GOLD, opacity: 0.9 }}>
                 Tu pregunta
               </p>
               <p
-                className="text-[15.5px] text-[#c9c4d6] italic leading-relaxed max-w-[300px] mx-auto"
+                className="text-[16px] text-[#d9d3e6] italic leading-relaxed max-w-[300px] mx-auto"
                 style={{ fontFamily: SERIF_FONT }}
               >
                 &ldquo;{resultado.pregunta}&rdquo;
@@ -203,124 +166,125 @@ export default async function LecturaPage({ params }: { params: { token: string 
           <AmbientAudioControls />
         </section>
 
+        {/* Tira de las 5 cartas: índice tocable */}
+        <nav aria-label="Tus cartas" className="mb-2">
+          <ul className="flex justify-between gap-2 px-1">
+            {resultado.cartas.map((c) => (
+              <li key={`nav-${c.posicion}`} className="flex-1 text-center">
+                <a href={`#carta-${c.posicion}`} className="block py-1">
+                  {c.imagen_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.imagen_url}
+                      alt={c.nombre_carta}
+                      width={60}
+                      height={90}
+                      loading="eager"
+                      className={`mx-auto rounded-[3px] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
+                      style={{ width: "100%", maxWidth: 58, height: "auto", aspectRatio: "2 / 3", objectFit: "cover", border: `1.5px solid ${GOLD_TINTA}` }}
+                    />
+                  ) : (
+                    <div className="mx-auto rounded-[3px]" style={{ width: 58, aspectRatio: "2 / 3", border: `1.5px solid ${GOLD_TINTA}` }} />
+                  )}
+                  <span
+                    className="mx-auto mt-1.5 flex items-center justify-center rounded-full text-[13px] font-bold"
+                    style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT }}
+                  >
+                    {c.posicion}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <Divisor />
+
         {/* Las 5 cartas, con ritmo entre posiciones */}
         <section className="mb-2">
           {resultado.cartas.flatMap((c, idx) => {
             const nodos: React.ReactNode[] = [
               <Reveal key={`carta-${c.posicion}`}>
-                <article className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-7">
-                  <div className="flex items-center justify-center gap-2.5 mb-5" aria-hidden="true">
-                    <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
-                    <p className="text-[11px] tracking-[0.15em] uppercase" style={{ color: GOLD }}>
-                      {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
-                    </p>
-                    <span className="h-px w-5" style={{ background: "rgba(255,206,77,0.4)" }} />
-                  </div>
+                <article
+                  id={`carta-${c.posicion}`}
+                  className="rounded-2xl px-4 pt-6 pb-7 scroll-mt-4"
+                  style={{ background: "rgba(10,6,20,0.55)", border: "1px solid rgba(240,197,90,0.14)" }}
+                >
+                  <PlacaTitulo className="mb-5">
+                    {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
+                  </PlacaTitulo>
 
-                  <div className="flex justify-center mb-5">
-                    {c.imagen_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={c.imagen_url}
-                        alt={c.nombre_carta}
-                        loading={idx === 0 ? "eager" : "lazy"}
-                        className={`h-64 w-auto rounded-lg shadow-[0_14px_36px_rgba(0,0,0,0.5)] ${
-                          c.orientacion === "invertida" ? "rotate-180" : ""
-                        }`}
-                      />
-                    ) : (
-                      <div className="h-64 w-44 rounded-lg bg-white/5 flex items-center justify-center text-xs text-[#8b84a3]">
-                        {c.nombre_carta}
-                      </div>
-                    )}
-                  </div>
+                  <CartaEnMarco
+                    src={c.imagen_url ?? null}
+                    alt={c.nombre_carta}
+                    invertida={c.orientacion === "invertida"}
+                    eager={idx === 0}
+                  />
 
                   <h2
-                    className="text-[1.4rem] text-center mb-2 font-semibold tracking-wide"
-                    style={{ fontFamily: SERIF_FONT }}
+                    className="text-[1.5rem] text-center mt-5 mb-1 font-semibold tracking-wide"
+                    style={{ fontFamily: SERIF_FONT, color: "#F8F2E0" }}
                   >
                     {c.nombre_carta}
                     {c.orientacion === "invertida" && (
-                      <span className="text-sm font-normal text-[#8b84a3]"> · invertida</span>
+                      <span className="text-sm font-normal text-[#a79fbd]"> · invertida</span>
                     )}
                   </h2>
 
-                  <p className="text-[15px] leading-[1.75] text-[#dcd8e8] mt-3">
+                  <p className="text-[16px] leading-[1.75] text-[#e6e2f0] mt-3">
                     {c.interpretacion}
                   </p>
                 </article>
               </Reveal>,
             ];
             if (idx < resultado.cartas.length - 1) {
-              nodos.push(<Ornamento key={`orn-${c.posicion}`} />);
+              nodos.push(<Divisor key={`orn-${c.posicion}`} />);
             }
             return nodos;
           })}
         </section>
 
-        {/* Transición editorial hacia el cierre */}
-        <OrnamentoCierre />
+        <Divisor />
 
-        {/* Resumen — más presencia visual que una interpretación individual */}
+        {/* Resumen — pergamino claro, como el PDF */}
         <Reveal className="block">
-          <section className="mt-6 mb-8">
-            <div
-              className="rounded-2xl border px-6 py-8"
-              style={{
-                borderColor: "rgba(255,206,77,0.22)",
-                background: "linear-gradient(165deg, rgba(255,206,77,0.07), rgba(255,206,77,0.01) 60%)",
-              }}
-            >
-              <h2 className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
-                Resumen de tu tirada
-              </h2>
-              <p className="text-[16px] leading-[1.85] text-[#eae7f2] whitespace-pre-line">
+          <section className="mt-2 mb-9">
+            <PlacaTitulo className="relative z-10 -mb-5">Resumen de tu tirada</PlacaTitulo>
+            <PanelPergamino className="px-4 pb-8 pt-11">
+              <p className="text-[16.5px] leading-[1.8] whitespace-pre-line" style={{ fontFamily: SERIF_FONT, fontWeight: 500 }}>
                 {resultado.resumen_lectura}
               </p>
-            </div>
+            </PanelPergamino>
           </section>
         </Reveal>
 
-        {/* Mensaje personal — cierre humano de la experiencia */}
+        {/* Mensaje personal — cierre humano */}
         <Reveal className="block">
-          <section className="mb-11">
-            <div
-              className="rounded-2xl border px-6 py-8"
-              style={{
-                borderColor: "rgba(251,191,36,0.24)",
-                background: "linear-gradient(160deg, rgba(251,191,36,0.09), rgba(251,191,36,0.02))",
-              }}
-            >
-              <p className="text-center text-[13px] tracking-[0.25em] uppercase mb-4 font-semibold" style={{ color: GOLD }}>
-                Mensaje personal
-              </p>
-              <p
-                className="text-[16.5px] leading-[1.85] text-[#F8F5FF] text-center"
-                style={{ fontFamily: SERIF_FONT }}
-              >
+          <section className="mb-10">
+            <PlacaTitulo className="relative z-10 -mb-5">Mensaje personal</PlacaTitulo>
+            <PanelPergamino className="px-4 pb-8 pt-11">
+              <p className="text-[17px] leading-[1.8] text-center" style={{ fontFamily: SERIF_FONT, fontWeight: 600 }}>
                 {resultado.mensaje_final}
               </p>
-            </div>
+            </PanelPergamino>
           </section>
         </Reveal>
 
         {/* Claves / próximos pasos */}
         {resultado.proximos_pasos?.length > 0 && (
           <Reveal className="block">
-            <section className="mb-12">
-              <h2 className="text-xs tracking-[0.2em] uppercase mb-5 text-center" style={{ color: GOLD }}>
-                Claves para avanzar
-              </h2>
+            <section className="mb-10">
+              <PlacaTitulo className="mb-6">Claves para avanzar</PlacaTitulo>
               <ol className="space-y-4">
                 {resultado.proximos_pasos.map((paso, i) => (
                   <li key={i} className="flex gap-3">
                     <span
-                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
-                      style={{ background: "rgba(251,191,36,0.15)", color: GOLD }}
+                      className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                      style={{ background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT }}
                     >
                       {i + 1}
                     </span>
-                    <p className="text-[15px] leading-relaxed text-[#dcd8e8]">{paso}</p>
+                    <p className="text-[16px] leading-relaxed text-[#e6e2f0]">{paso}</p>
                   </li>
                 ))}
               </ol>
@@ -330,24 +294,34 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
         {/* Cierre / PDF — utilidad, no CTA comercial */}
         <Reveal className="block">
-          <section className="text-center">
-            <Ornamento />
-            <p className="text-[13px] tracking-[0.2em] uppercase mt-2 mb-1.5" style={{ color: GOLD }}>
+          <section className="text-center relative pb-4">
+            <Divisor />
+            <p className="text-[13px] tracking-[0.2em] uppercase mt-1 mb-1.5" style={{ color: GOLD }}>
               Guardá tu tirada
             </p>
-            <p className="text-[13px] text-[#9891ad] mb-6">
+            <p className="text-[14px] text-[#b4adc7] mb-6">
               Tu PDF queda como tu versión para conservar.
             </p>
             <a
               href={`/api/lectura/${params.token}/pdf`}
-              className="inline-block rounded-full px-8 py-3.5 text-[14px] font-semibold border border-white/15 bg-white/5 text-[#f0e9d8] transition-colors hover:bg-white/10 hover:border-white/25"
+              className="inline-flex items-center justify-center rounded-full px-8 min-h-[48px] text-[15px] font-semibold transition-colors"
+              style={{ border: `1.5px solid ${GOLD_TINTA}`, background: "rgba(240,197,90,0.10)", color: "#F8F2E0" }}
             >
               📜 Ver / descargar PDF
             </a>
 
-            <p className="mt-6 text-center text-xs text-[#8b84a3]">
+            <p className="mt-6 text-center text-xs text-[#a79fbd]">
               Este acceso online estará disponible durante 30 días.
             </p>
+
+            <div className="relative mt-10 pt-8 flex justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${IMG}/cristales-izq.png`} alt="" aria-hidden="true" width={110} height={110} loading="lazy" className="absolute left-[-8px] bottom-[-10px]" style={{ width: 110, height: 110 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${IMG}/cristales-der.png`} alt="" aria-hidden="true" width={110} height={110} loading="lazy" className="absolute right-[-8px] bottom-[-10px]" style={{ width: 110, height: 110 }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`${IMG}/marca-dorada.svg`} alt="Tu Oráculo" width={170} height={19} loading="lazy" style={{ width: 170, height: "auto" }} />
+            </div>
           </section>
         </Reveal>
       </div>
