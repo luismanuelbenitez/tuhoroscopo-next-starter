@@ -45,15 +45,29 @@ const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? 
 // docs/product/DECISIONS.md).
 const WHATSAPP_TAROT_TOKEN_TEST   = Deno.env.get("WHATSAPP_TAROT_TOKEN_TEST") ?? "";
 const WHATSAPP_TAROT_TOKEN_PROD   = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") ?? "";
-// Número autorizado para recibir WA real en modo prueba controlada (mp_modo=sandbox + whatsapp_modo=production).
-// Solo se lee en Supabase Secrets — nunca expuesto al frontend.
-const TEST_WHATSAPP_ALLOWED_PHONE = Deno.env.get("TEST_WHATSAPP_ALLOWED_PHONE") ?? "";
-
 const FN = "ef_tarot_enviar_whatsapp";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function now() { return new Date().toISOString(); }
+
+// Lista de números autorizados a recibir WA real en modo prueba controlada
+// (mp_modo=sandbox + whatsapp_modo=production) — antes un único número fijo
+// en el Secret TEST_WHATSAPP_ALLOWED_PHONE, ahora una lista editable desde
+// /admin/tarot/config (tarot_configuracion.whatsapp_numeros_autorizados_prueba,
+// 2026-09-24) sin necesitar redeploy ni tocar Supabase Secrets para agregar
+// gente de confianza a la beta. No es una credencial — son números de
+// teléfono, por eso vive en config, no en Secrets.
+function normalizarTelefono(valor: string): string {
+  return valor.replace(/[^\d]/g, "").trim();
+}
+
+function parsearNumerosAutorizados(valorCrudo: string | undefined): string[] {
+  return (valorCrudo ?? "")
+    .split(",")
+    .map(normalizarTelefono)
+    .filter(Boolean);
+}
 
 // Mismo criterio que resolverTokenMPTarot() en ef_tarot_crear_orden/
 // ef_tarot_webhook_mp: valor ausente → "sandbox" (default ya existente),
@@ -186,7 +200,8 @@ serve(async (req) => {
       .select("clave, valor")
       .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa",
                      "canal_entrega_principal", "fallback_email_si_falla_whatsapp", "envio_email_activo",
-                     "whatsapp_template_lectura_nombre", "whatsapp_template_lectura_idioma"]);
+                     "whatsapp_template_lectura_nombre", "whatsapp_template_lectura_idioma",
+                     "whatsapp_numeros_autorizados_prueba"]);
 
     const cfg: ConfigMap = Object.fromEntries(
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
@@ -195,8 +210,12 @@ serve(async (req) => {
     const waEsSandbox    = (cfg.whatsapp_modo ?? cfg.mp_modo) !== "production";
     const mpEsSandbox    = (cfg.mp_modo ?? "sandbox") !== "production";
     // modoControlado: WA real (production) pero MP todavía en sandbox.
-    // En este modo solo se envía WA real al número autorizado en TEST_WHATSAPP_ALLOWED_PHONE.
+    // En este modo solo se envía WA real a los números de
+    // whatsapp_numeros_autorizados_prueba (lista editable desde
+    // /admin/tarot/config, 2026-09-24 — antes un único número fijo en el
+    // Secret TEST_WHATSAPP_ALLOWED_PHONE).
     const modoControlado = !waEsSandbox && mpEsSandbox;
+    const numerosAutorizadosPrueba = parsearNumerosAutorizados(cfg.whatsapp_numeros_autorizados_prueba);
     const maxReintentos = Number(cfg.max_reintentos_wa ?? 3);
     canalPrincipal = cfg.canal_entrega_principal ?? "both";
     fallbackMail   = cfg.fallback_email_si_falla_whatsapp !== "false";
@@ -272,10 +291,11 @@ serve(async (req) => {
     // Normalizar teléfono: "+598091234567" → "598091234567"
     const telefonoDest = cliente.telefono.replace(/^\+/, "");
 
-    // Modo prueba controlada: WA real solo llega al número autorizado en Supabase Secrets.
-    // Si TEST_WHATSAPP_ALLOWED_PHONE no está seteado, todos quedan bloqueados por seguridad.
-    const telefonoAutorizado = TEST_WHATSAPP_ALLOWED_PHONE.trim();
-    const bloqueadoPorNumero = modoControlado && telefonoDest !== telefonoAutorizado;
+    // Modo prueba controlada: WA real solo llega a los números autorizados
+    // (whatsapp_numeros_autorizados_prueba). Si la lista está vacía, todos
+    // quedan bloqueados por seguridad — mismo criterio que antes con el
+    // Secret único.
+    const bloqueadoPorNumero = modoControlado && !numerosAutorizadosPrueba.includes(normalizarTelefono(telefonoDest));
 
     // ── 5. Gobernanza de entrega: permiso canónico (_shared/tarot-entregas.ts) ────
     // Único punto de decisión. `forzar` ya NO tiene poder acá — solo un

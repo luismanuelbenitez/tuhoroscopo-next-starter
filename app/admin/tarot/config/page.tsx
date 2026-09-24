@@ -97,6 +97,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
     campos: [
       { clave: "whatsapp_modo",     label: "Modo WA",        tipo: "select", opciones: ["sandbox", "production"],
         helpText: 'Cambiá a "production" para envíos reales por WhatsApp.' },
+      { clave: "whatsapp_numeros_autorizados_prueba", label: "Números autorizados (modo controlado)", tipo: "text",
+        helpText: 'Solo aplica cuando Modo WA="production" y el Modo de MercadoPago sigue en "sandbox" (modo controlado). Lista de teléfonos separados por coma que SÍ reciben WhatsApp real — cualquier otro destino se simula. Formato: con o sin "+", ej: 59899863263, +59891234567.' },
       { clave: "wa_proveedor",      label: "Proveedor",      tipo: "text" },
       { clave: "max_reintentos_wa", label: "Reintentos WA",  tipo: "number", min: 1, max: 10,
         helpText: "Intentos TOTALES permitidos (no adicionales al primero). No hay retry automático — y nunca autoriza reenviar sobre una entrega ya exitosa (eso requiere gobernanza de reenvíos)." },
@@ -523,7 +525,7 @@ export default function TarotConfigPage() {
     const mpModo = configMap.mp_modo ?? "sandbox";
     const waModo = configMap.whatsapp_modo ?? "sandbox";
     if (mpModo !== "production" && waModo === "production" && debeWa)
-      warns.push("Modo prueba controlada activo: WhatsApp real solo se enviará al número autorizado (TEST_WHATSAPP_ALLOWED_PHONE en Supabase Secrets). Todos los demás recibirán envío simulado.");
+      warns.push('Modo prueba controlada activo: WhatsApp real solo se enviará a los números de la lista "Números autorizados (modo controlado)". Todos los demás recibirán envío simulado.');
     return warns;
   })();
 
