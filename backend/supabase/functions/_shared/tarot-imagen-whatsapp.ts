@@ -108,7 +108,8 @@ export const LAYOUT = {
   // tapaba arte/títulos y chocaba con el diseño simétrico del marco. 5×214 +
   // 4×20 = 1150px, dentro de SAFE_WIDTH (1280).
   CARD_GAP: 20,
-  BADGE_SIZE: 44, // círculo dorado con el número de posición (1–5) bajo cada carta
+  BADGE_SIZE: 44, // alto de la franja reservada para el número bajo cada carta
+  MARCADOR_NUMERO: true, // punto guía donde el fondo lleva el número (poner en false al integrarlo)
 
   // Marca al pie (2026-09-24): antes "TU ORÁCULO / TU TIRADA" era el título
   // principal, arriba de todo. Con el nombre ahora protagonista dentro del
@@ -448,8 +449,7 @@ export async function generarImagenWhatsapp(
       },
     },
     ...cartas.map((c, i) => {
-      const esProtagonista = i === 2;
-      return h(
+            return h(
         "div",
         {
           key: c.posicion,
@@ -470,8 +470,7 @@ export async function generarImagenWhatsapp(
             // transform. Bug ya encontrado y documentado en el sprint
             // anterior — se repite la misma regla acá para la rotación del
             // abanico y para la inversión de la carta.
-            ...(esProtagonista ? { transform: "scale(1.06)" } : {}),
-            zIndex: esProtagonista ? 10 : i,
+                        zIndex: i,
           },
         },
         // Glow detrás de la protagonista (2026-09-24) — gradiente radial
@@ -505,17 +504,13 @@ export async function generarImagenWhatsapp(
             ? h("img", { src: dataUris[i] as string, width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT, style: { objectFit: "cover" } })
             : h("div", { style: { display: "flex", width: "100%", height: "100%" } }),
         ),
-        // Número de posición (1–5), círculo dorado bajo la carta: comunica orden
-        // de lectura y es legible a tamaño celular (~0.22x). Sin gradientes ni
-        // sombras difusas (riesgo de WORKER_RESOURCE_LIMIT).
-        h("div", {
-          style: {
-            display: "flex", position: "absolute", alignItems: "center", justifyContent: "center",
-            top: LAYOUT.CARD_HEIGHT + 14, left: (LAYOUT.CARD_WIDTH - LAYOUT.BADGE_SIZE) / 2,
-            width: LAYOUT.BADGE_SIZE, height: LAYOUT.BADGE_SIZE, borderRadius: LAYOUT.BADGE_SIZE / 2,
-            background: "#E8C46A", border: "2px solid #7a5a1c",
-          },
-        }, h("span", { style: { fontSize: 30, fontWeight: 700, color: "#291408", fontFamily: "Cormorant Garamond", lineHeight: 1 } }, String(i + 1))),
+        // Punto guía donde va cada número (1–5): el usuario inserta los números como
+        // parte del fondo y usa estos puntos para alinearlos. Centro de cada punto:
+        // x = 332, 566, 800, 1034, 1268; y = 642. Sacar (MARCADOR_NUMERO=false) al
+        // integrar los números en el fondo.
+        LAYOUT.MARCADOR_NUMERO
+          ? h("div", { style: { display: "flex", position: "absolute", top: LAYOUT.CARD_HEIGHT + 14 + (LAYOUT.BADGE_SIZE - 12) / 2, left: (LAYOUT.CARD_WIDTH - 12) / 2, width: 12, height: 12, borderRadius: 6, background: "#FFCE4D" } })
+          : null,
       );
     }),
   );
