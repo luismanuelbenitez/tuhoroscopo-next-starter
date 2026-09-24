@@ -94,10 +94,10 @@ export const LAYOUT = {
   // sobre el fondo oscuro.
   BIRTHDATE_TOP: 176,
 
-  CARDS_WRAPPER_TOP: 231,
+  CARDS_WRAPPER_TOP: 235,
   CARDS_WRAPPER_HEIGHT: 380,
-  CARD_WIDTH: 214,
-  CARD_HEIGHT: 370, // ratio ≈0.579, igual que las cartas reales del mazo
+  CARD_WIDTH: 224,
+  CARD_HEIGHT: 380, // ratio ≈0.579, igual que las cartas reales del mazo
   // Reducido de 26 a 10 (2026-09-24, ajuste "premium"): con 26px las cartas
   // de los extremos perdían texto real del título impreso (ej. "CABALLERO
   // DE ORO" sin la S final) y parte del arte — 10px conserva el efecto
@@ -107,15 +107,13 @@ export const LAYOUT = {
   // Fila recta y ordenada (2026-09-24): sin rotación ni solapamiento — el abanico
   // tapaba arte/títulos y chocaba con el diseño simétrico del marco. 5×214 +
   // 4×20 = 1150px, dentro de SAFE_WIDTH (1280).
-  CARD_GAP: 32,
-  BADGE_SIZE: 44, // alto de la franja reservada para el número bajo cada carta
-  MARCADOR_NUMERO: true, // punto guía donde el fondo lleva el número (poner en false al integrarlo)
+  CARD_GAP: 16, // paso entre cartas 240px = paso de los marcos del fondo
+  CARDS_LEFT: 211, // x del borde izquierdo de la 1ra carta (marcos del fondo medidos por píxeles: líneas x=207,447,687,927,1167; y=231–619)
 
   // Marca al pie (2026-09-24): antes "TU ORÁCULO / TU TIRADA" era el título
   // principal, arriba de todo. Con el nombre ahora protagonista dentro del
   // pergamino, la marca pasa a un rol secundario de cierre, debajo de las
   // cartas.
-  BRAND_FOOTER_TOP: 706,
 } as const;
 
 // Decisión (Task G): esta imagen NO imprime labels de posición bajo cada
@@ -316,7 +314,7 @@ function capaDebug(nombreBoxWidth: number) {
   });
   const cardsBoxes: React.ReactElement[] = [];
   const totalCardsWidth = 5 * LAYOUT.CARD_WIDTH + 4 * LAYOUT.CARD_GAP;
-  const cardsStartX = (LAYOUT.CANVAS_WIDTH - totalCardsWidth) / 2;
+  const cardsStartX = LAYOUT.CARDS_LEFT;
   for (let i = 0; i < 5; i++) {
     const x = cardsStartX + i * (LAYOUT.CARD_WIDTH + LAYOUT.CARD_GAP);
     cardsBoxes.push(caja(x, LAYOUT.CARDS_WRAPPER_TOP + (LAYOUT.CARDS_WRAPPER_HEIGHT - LAYOUT.CARD_HEIGHT) / 2, LAYOUT.CARD_WIDTH, LAYOUT.CARD_HEIGHT, "rgba(255,0,120,0.8)"));
@@ -480,18 +478,7 @@ export async function generarImagenWhatsapp(
         // interpolación de color, sin filtro — mismo costo que el
         // gradiente ya usado en el fondo del canvas raíz, probado en
         // producción sin problema.
-        // Sombra dura (2026-09-24) — rectángulo sólido sin blur, desplazado
-        // solo hacia abajo (independiente del solapamiento horizontal entre
-        // cartas). Da sensación de profundidad/cartas levantadas del fondo
-        // sin tocar box-shadow.
-        h("div", {
-          style: {
-            display: "flex", position: "absolute",
-            top: 10, left: 0,
-            width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
-            background: "rgba(4,2,12,0.55)",
-          },
-        }),
+        // (sin sombra dura: taparía el marco dorado horneado en el fondo)
         h(
           "div",
           {
@@ -504,13 +491,6 @@ export async function generarImagenWhatsapp(
             ? h("img", { src: dataUris[i] as string, width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT, style: { objectFit: "cover" } })
             : h("div", { style: { display: "flex", width: "100%", height: "100%" } }),
         ),
-        // Punto guía donde va cada número (1–5): el usuario inserta los números como
-        // parte del fondo y usa estos puntos para alinearlos. Centro de cada punto:
-        // x = 308, 554, 800, 1046, 1292; y = 642. Sacar (MARCADOR_NUMERO=false) al
-        // integrar los números en el fondo.
-        LAYOUT.MARCADOR_NUMERO
-          ? h("div", { style: { display: "flex", position: "absolute", top: LAYOUT.CARD_HEIGHT + 14 + (LAYOUT.BADGE_SIZE - 12) / 2, left: (LAYOUT.CARD_WIDTH - 12) / 2, width: 12, height: 12, borderRadius: 6, background: "#FFCE4D" } })
-          : null,
       );
     }),
   );
@@ -578,8 +558,8 @@ export async function generarImagenWhatsapp(
       "div",
       {
         style: {
-          display: "flex", position: "absolute", top: LAYOUT.CARDS_WRAPPER_TOP, width: LAYOUT.CANVAS_WIDTH,
-          height: LAYOUT.CARDS_WRAPPER_HEIGHT, alignItems: "center", justifyContent: "center",
+          display: "flex", position: "absolute", top: LAYOUT.CARDS_WRAPPER_TOP, left: LAYOUT.CARDS_LEFT, width: 5 * LAYOUT.CARD_WIDTH + 4 * LAYOUT.CARD_GAP,
+          height: LAYOUT.CARDS_WRAPPER_HEIGHT, alignItems: "center", justifyContent: "flex-start",
         },
       },
       // Glow detrás de la protagonista — EVALUADO Y DESCARTADO (2026-09-24).
@@ -602,33 +582,9 @@ export async function generarImagenWhatsapp(
     // lado sobre la fila de cartas): sobre el fondo con textura del rediseño
     // se veía como una franja borrosa con borde duro atravesando todo el
     // ancho del cabezal. Las cartas no la necesitan (mismo estilo de arte).
-    // Marca, al pie (2026-09-24) — antes era el título principal arriba de
-    // todo ("TU ORÁCULO / TU TIRADA"); con el nombre ahora protagonista
-    // dentro del pergamino, la marca pasa a un cierre discreto debajo de
-    // las cartas. Remate ornamental (línea-diamante-línea dorado, mismo
-    // lenguaje visual que Ornamento() en app/lectura/[token]/page.tsx)
-    // arriba del wordmark en vez de flotar solo en el fondo vacío.
-    h(
-      "div",
-      {
-        style: {
-          display: "flex", flexDirection: "column", alignItems: "center", position: "absolute",
-          top: LAYOUT.BRAND_FOOTER_TOP, width: LAYOUT.CANVAS_WIDTH,
-        },
-      },
-      h(
-        "div",
-        { style: { display: "flex", alignItems: "center", marginBottom: 18 } },
-        h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0), rgba(255,206,77,0.85))" } }),
-        // Rombo vía div rotado, no caracter Unicode ("✦") — Cormorant
-        // Garamond no trae ese glifo y Satori no tiene fallback de fuente
-        // del sistema como un navegador: rendereaba como un tofu box roto.
-        // Mismo truco que ya usa Ornamento() en app/lectura/[token]/page.tsx.
-        h("div", { style: { display: "flex", width: 10, height: 10, marginLeft: 16, marginRight: 16, background: "rgba(255,206,77,0.9)", transform: "rotate(45deg)" } }),
-        h("div", { style: { display: "flex", width: 80, height: 2, background: "linear-gradient(90deg, rgba(255,206,77,0.85), rgba(255,206,77,0))" } }),
-      ),
-      h("span", { style: { fontSize: 28, letterSpacing: 9, color: "#FFCE4D", fontFamily: "Cormorant Garamond", fontWeight: 700 } }, "TU ORÁCULO"),
-    ),
+    // (2026-09-24) La marca "TU ORÁCULO", los números 1–5 y los marcos dorados de
+    // cada carta ahora vienen HORNEADOS en el fondo (tarot-cabezal-fondo.jpg); acá
+    // solo se dibuja lo que varía por orden: nombre, fecha y las 5 cartas.
     opts.debugLayout ? capaDebug(LAYOUT.NAME_SCROLL_MAX_WIDTH) : null,
   );
 
