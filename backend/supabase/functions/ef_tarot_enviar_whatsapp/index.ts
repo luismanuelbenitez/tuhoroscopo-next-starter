@@ -34,8 +34,17 @@ import { generarImagenWhatsapp } from "../_shared/tarot-imagen-whatsapp.ts";
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
-const WHATSAPP_TOKEN              = Deno.env.get("WHATSAPP_TOKEN") ?? "";
 const WHATSAPP_PHONE_NUMBER_ID    = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
+// Access tokens de WhatsApp Cloud API, separados dev/producción — mismo
+// número (WHATSAPP_PHONE_NUMBER_ID) para ambos, mismo criterio que ya usa
+// Mercado Pago en este módulo: seleccionados por `mp_modo`, no por
+// `whatsapp_modo` (que sigue controlando únicamente si se simula o se envía
+// de verdad). Alcance deliberadamente acotado a este archivo — el resto del
+// sistema de WhatsApp (Horóscopo, WA Inbox de admin, descarga de media)
+// sigue compartiendo el WHATSAPP_TOKEN legacy sin cambios (2026-09-24, ver
+// docs/product/DECISIONS.md).
+const WHATSAPP_TAROT_TOKEN_TEST   = Deno.env.get("WHATSAPP_TAROT_TOKEN_TEST") ?? "";
+const WHATSAPP_TAROT_TOKEN_PROD   = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") ?? "";
 // Número autorizado para recibir WA real en modo prueba controlada (mp_modo=sandbox + whatsapp_modo=production).
 // Solo se lee en Supabase Secrets — nunca expuesto al frontend.
 const TEST_WHATSAPP_ALLOWED_PHONE = Deno.env.get("TEST_WHATSAPP_ALLOWED_PHONE") ?? "";
@@ -45,6 +54,33 @@ const FN = "ef_tarot_enviar_whatsapp";
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 function now() { return new Date().toISOString(); }
+
+// Mismo criterio que resolverTokenMPTarot() en ef_tarot_crear_orden/
+// ef_tarot_webhook_mp: valor ausente → "sandbox" (default ya existente),
+// valor presente pero no reconocido → null (error explícito, nunca se
+// asume un ambiente ante un dato ambiguo).
+type ModoMP = "sandbox" | "production";
+
+function normalizarModoMP(valorCrudo: string | undefined): ModoMP | null {
+  const modo = (valorCrudo ?? "sandbox").toLowerCase().trim();
+  if (modo === "sandbox" || modo === "production") return modo;
+  return null;
+}
+
+type ResolverTokenWAResultado =
+  | { ok: true; token: string }
+  | { ok: false; errorCode: string; envVar: string };
+
+function resolverTokenWATarot(modo: ModoMP): ResolverTokenWAResultado {
+  if (modo === "production") {
+    return WHATSAPP_TAROT_TOKEN_PROD
+      ? { ok: true, token: WHATSAPP_TAROT_TOKEN_PROD }
+      : { ok: false, errorCode: "WHATSAPP_TOKEN_TAROT_PROD_MISSING", envVar: "WHATSAPP_TAROT_TOKEN_PROD" };
+  }
+  return WHATSAPP_TAROT_TOKEN_TEST
+    ? { ok: true, token: WHATSAPP_TAROT_TOKEN_TEST }
+    : { ok: false, errorCode: "WHATSAPP_TOKEN_TAROT_TEST_MISSING", envVar: "WHATSAPP_TAROT_TOKEN_TEST" };
+}
 
 async function log(
   ordenId: string,
@@ -414,8 +450,20 @@ serve(async (req) => {
           `Modo sandbox: envío simulado exitoso (no se llamó a la API real) — tipo=${wouldSend.type}`);
       }
     } else {
-      if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-        throw new Error("WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados en env vars");
+      if (!WHATSAPP_PHONE_NUMBER_ID) {
+        throw new Error("WHATSAPP_PHONE_NUMBER_ID no configurado en env vars");
+      }
+
+      // Mismo criterio que Mercado Pago en este módulo: mp_modo decide qué
+      // credencial de WhatsApp se usa para un envío real (modoControlado =
+      // mp_modo sandbox → token de test; producción total → token de prod).
+      const modoMP = normalizarModoMP(cfg.mp_modo);
+      if (!modoMP) {
+        throw new Error(`mp_modo tiene un valor no reconocido ("${cfg.mp_modo}") — no se pudo determinar qué credencial de WhatsApp usar`);
+      }
+      const tokenWA = resolverTokenWATarot(modoMP);
+      if (!tokenWA.ok) {
+        throw new Error(`${tokenWA.envVar} no está configurado en Supabase Secrets (mp_modo=${modoMP}) — no se pudo enviar WhatsApp`);
       }
 
       const waBody = puedeUsarTemplate ? buildWaBodyTemplate() : buildWaBodyDocumento();
@@ -429,7 +477,7 @@ serve(async (req) => {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+            Authorization: `Bearer ${tokenWA.token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(waBody),
