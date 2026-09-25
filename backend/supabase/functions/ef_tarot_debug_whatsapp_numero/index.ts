@@ -63,8 +63,33 @@ serve(async (req) => {
     templateData = await tplRes.json().catch(() => ({}));
   }
 
+  // 4) Diagnóstico de webhook (2026-09-25): ¿qué APP suscribió el WABA real y
+  //    hay un override de webhook a nivel de número? Solo lecturas GET; el
+  //    token nunca se devuelve.
+  const cab = { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } };
+  const [subsRes, cfgRes, dbgRes] = await Promise.all([
+    wabaId ? fetch(`https://graph.facebook.com/v18.0/${wabaId}/subscribed_apps`, cab) : Promise.resolve(null),
+    fetch(`https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}?fields=webhook_configuration`, cab),
+    fetch(`https://graph.facebook.com/v18.0/debug_token?input_token=${encodeURIComponent(WHATSAPP_TAROT_TOKEN_PROD)}`, cab),
+  ]);
+  const subs = subsRes ? await subsRes.json().catch(() => ({})) : null;
+  const cfg = await cfgRes.json().catch(() => ({}));
+  const dbg = (await dbgRes.json().catch(() => ({}))) as { data?: { app_id?: string; application?: string; type?: string; is_valid?: boolean; expires_at?: number; granular_scopes?: Array<{ scope?: string; target_ids?: string[] }> } };
+  // WABAs a los que el token tiene acceso (target_ids de whatsapp_business_management).
+  const wabaIds = (dbg.data?.granular_scopes ?? []).filter((g) => g.scope === "whatsapp_business_management").flatMap((g) => g.target_ids ?? []);
+  const suscripciones = await Promise.all(wabaIds.map(async (id) => {
+    const r = await fetch(`https://graph.facebook.com/v18.0/${id}/subscribed_apps`, cab);
+    return { waba_id: id, http_status: r.status, data: await r.json().catch(() => ({})) };
+  }));
+
   return jsonResponse({
     ok: true,
+    webhook: {
+      token_app: { app_id: dbg.data?.app_id ?? null, application: dbg.data?.application ?? null, tipo: dbg.data?.type ?? null, valido: dbg.data?.is_valid ?? null, expira_at: dbg.data?.expires_at ?? null },
+      waba_subscribed_apps: { http_status: subsRes?.status ?? null, data: subs },
+      wabas_del_token_y_suscripciones: suscripciones,
+      numero_webhook_configuration: { http_status: cfgRes.status, data: cfg },
+    },
     numero_configurado: { http_status: numeroRes.status, data: numeroData },
     waba: { http_status: wabaRes.status, data: wabaData, waba_id: wabaId },
     template_tu_tirada_lista_v1_en_ese_waba: { http_status: templateHttpStatus, data: templateData },
