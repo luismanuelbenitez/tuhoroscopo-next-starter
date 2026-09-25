@@ -17,26 +17,31 @@ const PDF_PAGES = [
   { src: '/img/tarot/pdf-p3.jpg', label: 'Mensaje final' },
 ];
 
+// La propuesta (2026-09-25): no se vende "un PDF", se vende una EXPERIENCIA —
+// se sortean tus 5 cartas, se leen para vos, y te llegan por WhatsApp y/o
+// email con lectura online (móvil, 30 días) + PDF. Todo texto de esta página
+// debe ser coherente con esa entrega y con la garantía de 15 minutos.
+
 const BENEFITS = [
   {
     icon: '🔍',
-    heading: 'Claridad sobre tu situación',
+    heading: 'Claridad sobre tu momento',
     desc: 'Ves lo que estás viviendo desde afuera. A veces ese ángulo cambia todo.',
   },
   {
+    icon: '🃏',
+    heading: 'Una tirada que es solo tuya',
+    desc: 'Tus 5 cartas se sortean cuando pagás y se leen en relación con vos: tu nombre, tu fecha y lo que quieras explorar.',
+  },
+  {
     icon: '🚧',
-    heading: 'El obstáculo que no estás viendo',
-    desc: 'La tirada revela lo que puede estar frenándote, aunque no lo notes desde adentro.',
+    heading: 'Lo que quizás no estás viendo',
+    desc: 'La tirada pone sobre la mesa lo que puede estar frenándote, aunque no lo notes desde adentro.',
   },
   {
-    icon: '🧭',
-    heading: 'Una perspectiva para avanzar',
-    desc: 'No predicciones. Simbología del tarot clásico aplicada a tu momento, con o sin pregunta puntual.',
-  },
-  {
-    icon: '📄',
-    heading: 'Tu lectura en PDF, para siempre',
-    desc: '3 páginas con diseño premium. Podés releerla cuando lo necesités.',
+    icon: '🗝️',
+    heading: 'Claves para avanzar',
+    desc: 'Cada lectura cierra con un resumen, un mensaje personal y tres claves concretas. Sin predicciones: simbología del tarot aplicada a tu momento.',
   },
 ];
 
@@ -44,33 +49,33 @@ const STEPS = [
   {
     n: '01',
     icon: '✏️',
-    title: 'Contanos sobre vos',
-    desc: 'Tu nombre, tu WhatsApp y, si querés, una pregunta o situación que quieras explorar. Menos de 2 minutos.',
+    title: 'Contanos tu momento',
+    desc: 'Tu nombre, tu WhatsApp, tu fecha de nacimiento y, si querés, una pregunta. Menos de 2 minutos.',
   },
   {
     n: '02',
     icon: '💳',
     title: 'Confirmás el pago',
-    desc: 'Un pago único y seguro vía Mercado Pago. Sin suscripción ni cargos futuros.',
+    desc: 'Un pago único y seguro con Mercado Pago. Sin suscripción ni cargos futuros.',
   },
   {
     n: '03',
     icon: '🔮',
-    title: 'La IA genera tu tirada',
-    desc: 'Las 5 cartas se interpretan con tu información y lo que quieras explorar. Cada lectura es única.',
+    title: 'Se tiran tus cartas',
+    desc: 'Se sortean tus 5 cartas y se leen una por una en relación con tu situación. Cada tirada es única.',
   },
   {
     n: '04',
     icon: '📲',
-    title: 'La recibís en tu WhatsApp',
-    desc: 'En menos de 15 minutos. Sin apps, sin descargas, sin pasos extra.',
+    title: 'Te llega en menos de 15 min',
+    desc: 'Por WhatsApp (y por email, si lo dejás): tu tirada, la lectura online y el PDF. Sin apps ni descargas.',
   },
 ];
 
 const TRUST_BADGES = [
-  { Icon: ShieldCheck,   text: 'Pago seguro vía Mercado Pago' },
-  { Icon: Zap,           text: 'Entrega en menos de 15 min' },
-  { Icon: MessageCircle, text: 'Directo a tu WhatsApp' },
+  { Icon: ShieldCheck,   text: 'Pago seguro con Mercado Pago' },
+  { Icon: Zap,           text: 'Te llega en menos de 15 min' },
+  { Icon: MessageCircle, text: 'Por WhatsApp y/o email' },
   { Icon: FileText,      text: 'Sin suscripción' },
   { Icon: Clock,         text: 'Garantía de devolución' },
 ];
@@ -83,29 +88,37 @@ const QUESTION_TYPES = [
   { icon: '🛣️', label: 'Decisiones importantes' },
   { icon: '🌱', label: 'Crecimiento personal' },
   { icon: '✈️', label: 'Cambios de vida' },
-  { icon: '🔮', label: 'Futuro cercano' },
+  { icon: '🔮', label: 'Lo que viene' },
 ];
 
 const FAQ = [
   {
-    q: '¿Es realmente personalizado?',
-    a: 'Sí. Se construye con tu nombre, tu fecha de nacimiento y, si tenés una pregunta puntual, también con ella. Las cartas se interpretan en relación a tu momento, con pregunta concreta o sin ella. No es texto estándar ni genérico.',
+    q: '¿Qué recibo exactamente?',
+    a: 'Un mensaje en tu WhatsApp (y en tu email, si lo dejás) con tus 5 cartas y dos botones: "Leer mi tirada", una lectura online pensada para el celular que queda disponible 30 días, y "Descargar PDF", un archivo de 3 páginas que es tuyo para siempre.',
   },
   {
-    q: '¿Qué pasa si no me llega el WhatsApp?',
-    a: 'Si en 20 minutos no recibís tu tirada, escribinos y lo resolvemos de inmediato. Si completás el email en el formulario, también te la enviamos como respaldo. Garantizamos la entrega.',
+    q: '¿Cuánto tarda?',
+    a: 'Menos de 15 minutos desde que se confirma tu pago. Si pasado ese tiempo no la recibiste, escribinos a hola@tuoraculo.uy y te la enviamos de inmediato o te devolvemos el dinero.',
+  },
+  {
+    q: '¿Es realmente personalizado?',
+    a: 'Sí. Tus 5 cartas se sortean para vos y se interpretan con tu nombre, tu fecha de nacimiento, el tema que elegiste y tu pregunta, si la escribís. Con pregunta concreta o sin ella. No es texto estándar ni genérico.',
+  },
+  {
+    q: '¿Qué pasa si no me llega?',
+    a: 'Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la carpeta de spam). Si pasaron 15 minutos y no hay nada, escribinos a hola@tuoraculo.uy: la reenviamos o te devolvemos el dinero.',
   },
   {
     q: '¿Es IA o hay un tarotista humano?',
-    a: 'La lectura la genera inteligencia artificial aplicando simbología del tarot clásico a tu situación. No hay un tarotista humano detrás. Si buscás esa perspectiva simbólica profunda, con o sin una pregunta concreta, es exactamente para vos.',
+    a: 'Las cartas se sortean y la lectura la genera inteligencia artificial, aplicando la simbología del tarot clásico a tu situación. No hay un tarotista humano detrás. Es una perspectiva simbólica para reflexionar, no una predicción.',
   },
   {
     q: '¿Puedo consultar más de una vez?',
-    a: 'Sí. Cada tirada es independiente. Podés comprar nuevas consultas cuando quieras, sobre el mismo tema o uno diferente. Sin suscripción ni renovaciones.',
+    a: 'Sí. Cada tirada es independiente: cada vez se sortean cartas nuevas. Podés pedir otra cuando quieras, sobre el mismo tema o uno diferente. Sin suscripción ni renovaciones.',
   },
   {
     q: '¿Cómo funciona el pago?',
-    a: 'El pago se procesa vía Mercado Pago. Podés pagar con tarjeta, saldo o transferencia. Tus datos bancarios nunca pasan por nuestros servidores. Un único cobro, sin cargos ocultos.',
+    a: 'El pago se procesa con Mercado Pago. Podés pagar con tarjeta, saldo o transferencia. Tus datos bancarios nunca pasan por nuestros servidores. Un único cobro, sin cargos ocultos.',
   },
 ];
 
@@ -222,7 +235,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           }}
         />
       </button>
-      <div style={{ maxHeight: open ? 300 : 0, overflow: 'hidden', transition: 'max-height 0.32s cubic-bezier(0.4,0,0.2,1)' }}>
+      <div style={{ maxHeight: open ? 340 : 0, overflow: 'hidden', transition: 'max-height 0.32s cubic-bezier(0.4,0,0.2,1)' }}>
         <p style={{ padding: '0 20px 18px', color: 'rgba(255,255,255,0.58)', fontSize: 14, lineHeight: 1.72, margin: 0 }}>{a}</p>
       </div>
     </div>
@@ -244,10 +257,19 @@ function CtaLink({ size = 'md', children }: { size?: 'sm' | 'md' | 'lg'; childre
         boxShadow: '0 4px 24px rgba(251,191,36,0.30)',
       }}
     >
-      {children ?? 'Quiero mi lectura →'}
+      {children ?? 'Quiero mi tirada →'}
     </Link>
   );
 }
+
+const EYEBROW: React.CSSProperties = {
+  fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+  color: GOLD_DIM, textAlign: 'center', marginBottom: 10,
+};
+const H2: React.CSSProperties = {
+  fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center',
+  marginBottom: 10, color: 'white', letterSpacing: '-0.022em', lineHeight: 1.25,
+};
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -309,8 +331,6 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         .tl-in3 { animation: tl-fade-up 0.65s 0.38s ease both; }
         .tl-in4 { animation: tl-fade-up 0.65s 0.52s ease both; }
 
-        .tl-pdf-float { animation: tl-float 4.5s ease-in-out infinite; }
-
         [data-tl-reveal] {
           opacity: 0;
           transform: translateY(24px);
@@ -357,11 +377,31 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
 
         .tl-sticky { animation: tl-slide-up 0.28s cubic-bezier(0.4,0,0.2,1) both; }
 
+        /* Hero: dos celulares superpuestos (mensaje de WhatsApp + lectura online) */
+        .tl-phones { position: relative; width: 340px; height: 420px; animation: tl-float 5s ease-in-out infinite; }
+        .tl-phone {
+          position: absolute; top: 0; height: auto !important; border-radius: 18px;
+          border: 1px solid rgba(255,255,255,0.10);
+          box-shadow: 0 22px 60px rgba(0,0,0,0.7);
+        }
+        .tl-phone-a { left: 0; width: 195px !important; transform: rotate(-5deg); z-index: 1; }
+        .tl-phone-b {
+          right: 0; top: 36px; width: 195px !important; transform: rotate(4deg); z-index: 2;
+          box-shadow: 0 26px 70px rgba(0,0,0,0.8), 0 0 46px rgba(251,191,36,0.14);
+        }
+        @media (max-width: 700px) {
+          .tl-phones { width: min(340px, 92vw); height: 380px; }
+          .tl-phone-a, .tl-phone-b { width: 46vw !important; max-width: 185px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .tl-phones, .tl-cta { animation: none; }
+        }
+
         /* Hero grid: 2 cols on ≥700px, stacked on mobile */
         .tl-hero-grid {
           display: grid;
-          grid-template-columns: 1.45fr 1fr;
-          gap: 52px;
+          grid-template-columns: 1.3fr 1fr;
+          gap: 40px;
           align-items: center;
         }
         @media (max-width: 700px) {
@@ -370,7 +410,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
             gap: 36px;
           }
           .tl-hero-copy { order: 1; }
-          .tl-hero-pdf  { order: 2; }
+          .tl-hero-visual  { order: 2; }
         }
 
         /* Quick facts: wrap neatly on small screens */
@@ -417,37 +457,37 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.09em',
                 textTransform: 'uppercase', color: GOLD_DIM,
               }}>
-                ✦ Lectura de Tarot personalizada con IA
+                ✦ Tarot personalizado con IA · Tu Oráculo
               </div>
 
               <h1 className="tl-in1" style={{
                 fontSize: 'clamp(28px, 5vw, 50px)', fontWeight: 900,
                 lineHeight: 1.16, marginBottom: 18, letterSpacing: '-0.025em',
               }}>
-                Hay decisiones que no se resuelven{' '}
-                con más información.<br />
+                Tirá tus cartas.<br />
                 <span style={{
                   background: `linear-gradient(90deg, ${GOLD} 0%, rgba(251,191,36,0.72) 100%)`,
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 }}>
-                  Necesitan otra perspectiva.
+                  Mirá tu momento desde otra perspectiva.
                 </span>
               </h1>
 
               <p className="tl-in2" style={{
-                fontSize: 17, color: 'rgba(255,255,255,0.65)',
+                fontSize: 17, color: 'rgba(255,255,255,0.68)',
                 lineHeight: 1.65, marginBottom: 28, maxWidth: 500,
               }}>
-                Una tirada de 5 cartas para comprender mejor tu situación, con una
-                pregunta puntual o sin ella. La recibís en tu WhatsApp, con lectura online para leer en el celular y PDF para guardar, en menos de 15 minutos.
+                Contanos qué estás viviendo (y una pregunta, si querés). Sorteamos tus 5 cartas, las leemos
+                para vos y en menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular
+                y un PDF para guardar.
               </p>
 
               <div className="tl-quick-facts tl-in2" style={{ marginBottom: 32 }}>
                 {[
                   { icon: '💰', label: precioTexto, sub: 'pago único' },
-                  { icon: '⏱',  label: 'En < 15 min',    sub: '' },
-                  { icon: '📲', label: 'WhatsApp',        sub: 'sin apps extra' },
-                  { icon: '🔓', label: 'Sin suscripción', sub: '' },
+                  { icon: '⏱',  label: 'En menos de 15 min', sub: '' },
+                  { icon: '📲', label: 'Por WhatsApp',       sub: 'y/o email' },
+                  { icon: '🔓', label: 'Sin suscripción',    sub: '' },
                 ].map(f => (
                   <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>{f.icon}</span>
@@ -462,16 +502,27 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
               <div className="tl-in3">
                 <CtaLink size="lg" />
                 <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.34)', lineHeight: 1.65 }}>
-                  Pago seguro vía Mercado Pago · Sin renovaciones<br />
-                  <span style={{ color: GOLD_DIM }}>✦ Si no llega en 15 min, te devolvemos el dinero.</span>
+                  Pago seguro con Mercado Pago · Sin renovaciones<br />
+                  <span style={{ color: GOLD_DIM }}>✦ Si tu tirada no llega en 15 minutos, te devolvemos el dinero.</span>
                 </p>
               </div>
             </div>
 
-            {/* PDF Viewer */}
-            <div className="tl-hero-pdf" style={{ display: 'flex', justifyContent: 'center' }}>
-              <div className="tl-pdf-float tl-in2">
-                <PdfViewer width={230} />
+            {/* Experiencia: el mensaje de WhatsApp + la lectura online */}
+            <div className="tl-hero-visual" style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className="tl-phones tl-in2">
+                <Image
+                  src="/img/tarot/whatsapp-mockup.jpg"
+                  alt="Mensaje de WhatsApp con tu tirada: tus cinco cartas, botón para leer online y botón para descargar el PDF"
+                  width={430} height={740} priority
+                  className="tl-phone tl-phone-a"
+                />
+                <Image
+                  src="/img/tarot/lectura-mockup.jpg"
+                  alt="La lectura online en el celular: tu nombre, tus cinco cartas y el acceso a cada interpretación"
+                  width={430} height={740} priority
+                  className="tl-phone tl-phone-b"
+                />
               </div>
             </div>
 
@@ -499,90 +550,41 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         </section>
 
         {/* ══════════════════════════════════════════════════════════
-            BENEFICIOS
-        ══════════════════════════════════════════════════════════ */}
-        <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '0 24px 72px' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-            Lo que vas a lograr
-          </p>
-          <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 12, color: 'white', letterSpacing: '-0.022em', lineHeight: 1.25 }}>
-            Una lectura construida<br />alrededor de tu momento.
-          </h2>
-          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.48)', textAlign: 'center', marginBottom: 44, lineHeight: 1.6 }}>
-            Cada tirada se construye desde cero con tu nombre, tu fecha y lo que quieras explorar — con una pregunta puntual o sin ella.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-            {BENEFITS.map((b) => (
-              <div key={b.heading} className="tl-card" style={{
-                display: 'flex', flexDirection: 'column', gap: 10,
-                padding: '22px 20px', borderRadius: 16,
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.03)',
-              }}>
-                <span style={{ fontSize: 28 }}>{b.icon}</span>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.90)', marginBottom: 5 }}>{b.heading}</p>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.52)', lineHeight: 1.62 }}>{b.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ══════════════════════════════════════════════════════════
-            PRODUCTO — PDF + WhatsApp
+            LA EXPERIENCIA — qué recibís (WhatsApp → lectura online → PDF)
         ══════════════════════════════════════════════════════════ */}
         <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 1060, margin: '0 auto', padding: '0 24px 80px' }}>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-              El producto
-            </p>
-            <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 8, color: 'white', letterSpacing: '-0.022em' }}>
-              Esto es lo que recibís.
+          <div>
+            <p style={EYEBROW}>La experiencia</p>
+            <h2 style={H2}>
+              Tu tirada llega,<br />y se lee como una experiencia.
             </h2>
-            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.46)', textAlign: 'center', marginBottom: 52, lineHeight: 1.6 }}>
-              Llega a tu WhatsApp con una lectura online pensada para el celular y un PDF de 3 páginas con diseño premium para guardar.
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: 52, lineHeight: 1.65, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+              No es un archivo suelto. Recibís tus cartas, las abrís en tu celular una por una y te quedás con un PDF para guardar.
             </p>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 52, justifyContent: 'center', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-                  1 · Llega a tu WhatsApp
-                </p>
-                <Image
-                  src="/img/tarot/whatsapp-mockup.jpg"
-                  alt="Vista previa del mensaje de WhatsApp con tu tirada, la lectura online y el PDF"
-                  width={250} height={430}
-                  style={{
-                    borderRadius: 16,
-                    border: '1px solid rgba(255,255,255,0.09)',
-                    boxShadow: '0 16px 56px rgba(0,0,0,0.65)',
-                  }}
-                />
-              </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 44, justifyContent: 'center', alignItems: 'flex-start' }}>
+              {[
+                { n: '1', t: 'Te llega a tu WhatsApp', d: 'Un mensaje con tu nombre y tus 5 cartas, y dos botones: leer online o descargar el PDF. Si dejás tu email, también te la enviamos ahí.', img: '/img/tarot/whatsapp-mockup.jpg', alt: 'Mensaje de WhatsApp con tu tirada, la lectura online y el PDF' },
+                { n: '2', t: 'La leés online, hecha para el celular', d: 'Tocás cada carta y leés su significado para tu momento. Con ambientación sonora, un resumen, un mensaje personal y claves para avanzar. Disponible 30 días.', img: '/img/tarot/lectura-mockup.jpg', alt: 'La lectura online en el celular con tus cartas y su interpretación' },
+              ].map(item => (
+                <div key={item.n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, maxWidth: 270 }}>
+                  <Image
+                    src={item.img}
+                    alt={item.alt}
+                    width={250} height={430}
+                    style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 16px 56px rgba(0,0,0,0.65)' }}
+                  />
+                  <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0, textAlign: 'center' }}>{item.n} · {item.t}</p>
+                  <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, textAlign: 'center', margin: 0 }}>{item.d}</p>
+                </div>
+              ))}
 
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-                  2 · Léela online, pensada para el celular
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, maxWidth: 290 }}>
+                <PdfViewer width={250} />
+                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>3 · Y un PDF para guardar</p>
+                <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, textAlign: 'center', margin: 0 }}>
+                  3 páginas con diseño cuidado: tu tirada, la interpretación y tu mensaje final. Es tuyo para siempre.
                 </p>
-                <Image
-                  src="/img/tarot/lectura-mockup.jpg"
-                  alt="Vista previa de la lectura online en el celular, con tus cartas y su interpretación"
-                  width={250} height={430}
-                  style={{
-                    borderRadius: 16,
-                    border: '1px solid rgba(255,255,255,0.09)',
-                    boxShadow: '0 16px 56px rgba(0,0,0,0.65)',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-                  3 · Y tu PDF para guardar
-                </p>
-                <PdfViewer width={275} />
               </div>
             </div>
 
@@ -597,14 +599,12 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         ══════════════════════════════════════════════════════════ */}
         <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 960, margin: '0 auto', padding: '0 24px 80px' }}>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-              ¿Cómo funciona?
-            </p>
-            <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 8, color: 'white', letterSpacing: '-0.022em' }}>
-              4 pasos. Menos de 15 minutos.
+            <p style={EYEBROW}>¿Cómo funciona?</p>
+            <h2 style={{ ...H2, marginBottom: 8 }}>
+              Cuatro pasos. Menos de 15 minutos.
             </h2>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.46)', textAlign: 'center', marginBottom: 48 }}>
-              Más simple que pedir comida a domicilio.
+              Vos contás tu momento; las cartas y la lectura las ponemos nosotros.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))', gap: 16 }}>
@@ -629,19 +629,48 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         </section>
 
         {/* ══════════════════════════════════════════════════════════
-            ¿PARA QUÉ TIPO DE PREGUNTAS SIRVE? (nueva sección)
+            BENEFICIOS
         ══════════════════════════════════════════════════════════ */}
         <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '0 24px 80px' }}>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-              ¿Qué podés explorar con Tu Tirada?
+            <p style={EYEBROW}>Lo que te llevás</p>
+            <h2 style={{ ...H2, marginBottom: 12 }}>
+              Una tirada hecha<br />alrededor de tu momento.
+            </h2>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.48)', textAlign: 'center', marginBottom: 44, lineHeight: 1.6 }}>
+              Tus cartas se sortean para vos y se leen con tu nombre, tu fecha y lo que quieras explorar, con una pregunta puntual o sin ella.
             </p>
-            <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 8, color: 'white', letterSpacing: '-0.022em' }}>
-              Algunos ejemplos de consultas frecuentes.
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+              {BENEFITS.map((b) => (
+                <div key={b.heading} className="tl-card" style={{
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                  padding: '22px 20px', borderRadius: 16,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.03)',
+                }}>
+                  <span style={{ fontSize: 28 }}>{b.icon}</span>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.90)', marginBottom: 5 }}>{b.heading}</p>
+                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.52)', lineHeight: 1.62 }}>{b.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════════════════════════
+            ¿QUÉ SE PUEDE EXPLORAR?
+        ══════════════════════════════════════════════════════════ */}
+        <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 860, margin: '0 auto', padding: '0 24px 80px' }}>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
+            <p style={EYEBROW}>¿Qué podés explorar?</p>
+            <h2 style={{ ...H2, marginBottom: 8 }}>
+              Elegís el tema. La pregunta es opcional.
             </h2>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.46)', textAlign: 'center', marginBottom: 44, lineHeight: 1.65, maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
-              Podés traer una pregunta puntual o simplemente el tema o momento que quieras explorar.
-              Cuanto más contexto compartas, más enfocada es la interpretación.
+              Podés traer una pregunta puntual o simplemente el tema que te ronda. Cuanto más contexto compartas, más enfocada es la lectura.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 12 }}>
@@ -680,7 +709,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
               <span style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.32)' }}>$U 2.000+</span>
             </p>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 22 }}>
-              Acá, sin salir de tu casa, en menos de 15 minutos:
+              Tu tirada, sin salir de tu casa, en menos de 15 minutos:
             </p>
             <div style={{ marginBottom: 6 }}>
               <span style={{ fontSize: precioUYU !== null ? 58 : 26, fontWeight: 900, color: 'white', letterSpacing: '-0.04em', lineHeight: 1 }}>
@@ -692,7 +721,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
             </p>
             <CtaLink size="lg" />
             <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: '6px 18px', justifyContent: 'center' }}>
-              {['Pago seguro', 'Sin suscripción', 'Entrega en ~15 min', 'Garantía de devolución'].map(t => (
+              {['Pago seguro', 'Sin suscripción', 'Te llega en menos de 15 min', 'Garantía de devolución'].map(t => (
                 <span key={t} style={{ fontSize: 12, color: 'rgba(255,255,255,0.34)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ color: GOLD_DIM }}>✓</span> {t}
                 </span>
@@ -706,10 +735,8 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         ══════════════════════════════════════════════════════════ */}
         <section data-tl-reveal style={{ position: 'relative', zIndex: 1, maxWidth: 680, margin: '0 auto', padding: '0 24px 72px' }}>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 60 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_DIM, textAlign: 'center', marginBottom: 10 }}>
-              Preguntas frecuentes
-            </p>
-            <h2 style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 800, textAlign: 'center', marginBottom: 36, color: 'white', letterSpacing: '-0.022em' }}>
+            <p style={EYEBROW}>Preguntas frecuentes</p>
+            <h2 style={{ ...H2, marginBottom: 36 }}>
               Antes de comprar.
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -746,10 +773,10 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
           margin: '0 auto', padding: '0 24px 96px', textAlign: 'center',
         }}>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.38)', marginBottom: 14 }}>
-            ¿Seguís dudando?
+            Tus cartas te esperan.
           </p>
           <h2 style={{ fontSize: 'clamp(22px, 4.5vw, 34px)', fontWeight: 800, color: 'white', marginBottom: 28, lineHeight: 1.28, letterSpacing: '-0.025em' }}>
-            Si tu lectura no llega en 15 minutos,{' '}
+            Si tu tirada no llega en 15 minutos,{' '}
             <span style={{ color: GOLD }}>te devolvemos el dinero.</span>
           </h2>
           <CtaLink size="lg" />
@@ -777,7 +804,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
           >
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.90)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Lectura de Tarot personalizada
+                Tu tirada de Tarot
               </p>
               <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.42)' }}>
                 {precioTexto} · un pago · &lt; 15 min
@@ -793,7 +820,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 whiteSpace: 'nowrap',
               }}
             >
-              Quiero mi lectura →
+              Quiero mi tirada →
             </Link>
           </div>
         )}

@@ -2,9 +2,9 @@ import TarotLandingContent from './TarotLandingContent';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 
 export const metadata = {
-  title: 'Lectura de Tarot personalizada | Tu Oráculo',
+  title: 'Tu tirada de Tarot personalizada | Tu Oráculo',
   description:
-    'Tirada de 5 cartas para comprender mejor tu situación, con o sin una pregunta puntual. La recibís en tu WhatsApp, con lectura online y PDF, en menos de 15 minutos. Un solo pago. Sin suscripción.',
+    'Se sortean tus 5 cartas y se leen para vos. En menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular y un PDF para guardar. Un solo pago. Sin suscripción.',
 };
 
 export default async function TarotPage() {
