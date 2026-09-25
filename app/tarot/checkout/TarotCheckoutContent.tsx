@@ -723,9 +723,9 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                   </p>
                   <div className="space-y-2.5">
                     {[
-                      'Tirada de 5 cartas (Cruz Celta)',
+                      'Tirada de 5 cartas',
                       'Lectura narrativa personalizada',
-                      'Entrega por WhatsApp en PDF',
+                      'Por WhatsApp: lectura online + PDF',
                       'En menos de 15 minutos',
                       'Pago único · Sin suscripción',
                     ].map(text => (

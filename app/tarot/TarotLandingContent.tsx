@@ -93,7 +93,7 @@ const FAQ = [
   },
   {
     q: '¿Qué pasa si no me llega el WhatsApp?',
-    a: 'Si en 20 minutos no recibís tu PDF, escribinos y lo resolvemos de inmediato. Si completás el email en el formulario, también te lo enviamos como respaldo. Garantizamos la entrega.',
+    a: 'Si en 20 minutos no recibís tu tirada, escribinos y lo resolvemos de inmediato. Si completás el email en el formulario, también te la enviamos como respaldo. Garantizamos la entrega.',
   },
   {
     q: '¿Es IA o hay un tarotista humano?',
@@ -439,7 +439,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 lineHeight: 1.65, marginBottom: 28, maxWidth: 500,
               }}>
                 Una tirada de 5 cartas para comprender mejor tu situación, con una
-                pregunta puntual o sin ella. Entregada en PDF directo a tu WhatsApp en menos de 15 minutos.
+                pregunta puntual o sin ella. La recibís en tu WhatsApp, con lectura online para leer en el celular y PDF para guardar, en menos de 15 minutos.
               </p>
 
               <div className="tl-quick-facts tl-in2" style={{ marginBottom: 32 }}>
@@ -542,7 +542,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
               Esto es lo que recibís.
             </h2>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.46)', textAlign: 'center', marginBottom: 52, lineHeight: 1.6 }}>
-              Un PDF de 3 páginas con diseño premium, entregado directo a tu WhatsApp.
+              Llega a tu WhatsApp con una lectura online pensada para el celular y un PDF de 3 páginas con diseño premium para guardar.
             </p>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 52, justifyContent: 'center', alignItems: 'flex-start' }}>
