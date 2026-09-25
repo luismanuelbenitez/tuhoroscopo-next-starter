@@ -548,25 +548,41 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 52, justifyContent: 'center', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                 <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-                  Tu PDF de lectura
-                </p>
-                <PdfViewer width={275} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
-                  Así llega a tu WhatsApp
+                  1 · Llega a tu WhatsApp
                 </p>
                 <Image
                   src="/img/tarot/whatsapp-mockup.jpg"
-                  alt="Vista previa de la lectura llegando a WhatsApp"
-                  width={250} height={356}
+                  alt="Vista previa del mensaje de WhatsApp con tu tirada, la lectura online y el PDF"
+                  width={250} height={430}
                   style={{
                     borderRadius: 16,
                     border: '1px solid rgba(255,255,255,0.09)',
                     boxShadow: '0 16px 56px rgba(0,0,0,0.65)',
                   }}
                 />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+                  2 · Léela online, pensada para el celular
+                </p>
+                <Image
+                  src="/img/tarot/lectura-mockup.jpg"
+                  alt="Vista previa de la lectura online en el celular, con tus cartas y su interpretación"
+                  width={250} height={430}
+                  style={{
+                    borderRadius: 16,
+                    border: '1px solid rgba(255,255,255,0.09)',
+                    boxShadow: '0 16px 56px rgba(0,0,0,0.65)',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0 }}>
+                  3 · Y tu PDF para guardar
+                </p>
+                <PdfViewer width={275} />
               </div>
             </div>
 
