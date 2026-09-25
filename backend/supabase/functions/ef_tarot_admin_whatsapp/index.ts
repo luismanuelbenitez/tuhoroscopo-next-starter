@@ -52,6 +52,8 @@ const TEXTO_MAX_LEN = 4096; // límite de WhatsApp Cloud API para mensajes de te
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+function soloDigitos(v: string): string { return (v ?? "").replace(/\D/g, ""); }
+
 function jsonResponse(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 }
@@ -332,153 +334,210 @@ serve(async (req) => {
   }
 
   // ── listar ───────────────────────────────────────────────────────────────
+  // (2026-09-25) Lista UNIFICADA de contactos: conversaciones (el cliente
+  // escribió) + clientes a los que SOLO les enviamos la tirada
+  // (tarot_envios_whatsapp). Se resuelve en lectura — no se escribe nada en
+  // tarot_whatsapp_mensajes ni se toca el pipeline de entrega.
   if (accion === "listar") {
-    const filtro = texto(body.filtro, 20) ?? "todos"; // todos | no_leidos | con_orden | sin_orden
-    const busqueda = texto(body.busqueda, 100);
+    const filtro = texto(body.filtro, 20) ?? "todos"; // todos | no_leidos | con_orden | sin_orden | solo_envios | con_problemas
+    const busqueda = texto(body.busqueda, 100)?.toLowerCase() ?? null;
+    const incluirSimulados = body.incluir_simulados === true;
     const limitRaw = Number(body.limit ?? LIMIT_DEFAULT);
     const limit = Number.isFinite(limitRaw) ? Math.min(LIMIT_MAX, Math.max(1, limitRaw)) : LIMIT_DEFAULT;
     const offsetRaw = Number(body.offset ?? 0);
     const offset = Number.isFinite(offsetRaw) ? Math.max(0, offsetRaw) : 0;
 
-    let query = supabase
-      .from("tarot_whatsapp_conversaciones")
-      .select("id, telefono_normalizado, cliente_id, orden_id, wa_contact_name, estado, no_leidos, ultimo_mensaje_at, ultimo_mensaje_preview, ultimo_mensaje_direccion, created_at, updated_at", { count: "exact" });
+    const [convsRes, enviosRes] = await Promise.all([
+      supabase.from("tarot_whatsapp_conversaciones")
+        .select("id, telefono_normalizado, cliente_id, orden_id, wa_contact_name, estado, no_leidos, ultimo_mensaje_at, ultimo_mensaje_preview, ultimo_mensaje_direccion")
+        .limit(2000),
+      supabase.from("tarot_envios_whatsapp")
+        .select("id, orden_id, telefono_destino, estado, wa_status, wa_error_code, enviado_at, entregado_at, leido_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3000),
+    ]);
+    if (convsRes.error) return jsonResponse({ ok: false, motivo: "error_query", detalle: convsRes.error.message }, 500);
+    if (enviosRes.error) return jsonResponse({ ok: false, motivo: "error_query", detalle: enviosRes.error.message }, 500);
 
-    if (filtro === "no_leidos") query = query.gt("no_leidos", 0);
-    else if (filtro === "con_orden") query = query.not("orden_id", "is", null);
-    else if (filtro === "sin_orden") query = query.is("orden_id", null);
-
-    if (busqueda) {
-      // Búsqueda por nombre de cliente u orden (external_reference): se
-      // resuelven ids por separado — supabase-js no permite OR entre
-      // columnas de tablas distintas en una sola query.
-      const [clientesMatch, ordenesMatch] = await Promise.all([
-        supabase.from("tarot_clientes").select("id").ilike("nombre_completo", `%${busqueda}%`).limit(50),
-        supabase.from("tarot_ordenes").select("id").ilike("external_reference", `%${busqueda}%`).limit(50),
-      ]);
-      const clienteIds = (clientesMatch.data ?? []).map((c: { id: string }) => c.id);
-      const ordenIds = (ordenesMatch.data ?? []).map((o: { id: string }) => o.id);
-
-      const condiciones: string[] = [
-        `telefono_normalizado.ilike.%${busqueda}%`,
-        `wa_contact_name.ilike.%${busqueda}%`,
-      ];
-      if (clienteIds.length) condiciones.push(`cliente_id.in.(${clienteIds.join(",")})`);
-      if (ordenIds.length) condiciones.push(`orden_id.in.(${ordenIds.join(",")})`);
-      query = query.or(condiciones.join(","));
+    type EnvioRow = { id: string; orden_id: string; telefono_destino: string; estado: string; wa_status: string | null; wa_error_code: string | null; enviado_at: string | null; entregado_at: string | null; leido_at: string | null; created_at: string };
+    type Contacto = { key: string; conv: ConversacionRow | null; ultimoEnvio: EnvioRow | null; nEnvios: number };
+    const contactos = new Map<string, Contacto>();
+    for (const c of (convsRes.data ?? []) as ConversacionRow[]) {
+      contactos.set(soloDigitos(c.telefono_normalizado), { key: soloDigitos(c.telefono_normalizado), conv: c, ultimoEnvio: null, nEnvios: 0 });
+    }
+    for (const e of ((enviosRes.data ?? []) as EnvioRow[])) {
+      if (!incluirSimulados && e.estado === "simulado") continue;
+      const key = soloDigitos(e.telefono_destino);
+      if (!key) continue;
+      const c = contactos.get(key) ?? { key, conv: null, ultimoEnvio: null, nEnvios: 0 };
+      c.nEnvios++;
+      if (!c.ultimoEnvio) c.ultimoEnvio = e; // ya vienen ordenados desc → el primero es el último
+      contactos.set(key, c);
     }
 
-    query = query.order("ultimo_mensaje_at", { ascending: false, nullsFirst: false }).range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
-    if (error) return jsonResponse({ ok: false, motivo: "error_query", detalle: error.message }, 500);
-
-    const filas = (data ?? []) as ConversacionRow[];
-
-    // Enriquecer con nombre de cliente canónico (si hay) y ref de orden —
-    // dos queries batch, no N+1.
-    const clienteIds = [...new Set(filas.map((f) => f.cliente_id).filter(Boolean))] as string[];
-    const ordenIds = [...new Set(filas.map((f) => f.orden_id).filter(Boolean))] as string[];
-    const [clientesRes, ordenesRes] = await Promise.all([
-      clienteIds.length ? supabase.from("tarot_clientes").select("id, nombre_completo").in("id", clienteIds) : Promise.resolve({ data: [] }),
-      ordenIds.length ? supabase.from("tarot_ordenes").select("id, external_reference, estado").in("id", ordenIds) : Promise.resolve({ data: [] }),
-    ]);
+    // Enriquecimiento batch (órdenes y clientes).
+    const lista = [...contactos.values()];
+    const ordenIds = [...new Set(lista.flatMap((c) => [c.conv?.orden_id, c.ultimoEnvio?.orden_id]).filter(Boolean))] as string[];
+    const ordenesRes = ordenIds.length
+      ? await supabase.from("tarot_ordenes").select("id, external_reference, estado, cliente_id, nombre_snapshot").in("id", ordenIds)
+      : { data: [] };
+    const ordenPorId = new Map((ordenesRes.data ?? []).map((o: { id: string; external_reference: string | null; estado: string; cliente_id: string | null; nombre_snapshot: string | null }) => [o.id, o]));
+    const clienteIds = [...new Set([
+      ...lista.map((c) => c.conv?.cliente_id),
+      ...[...ordenPorId.values()].map((o) => o.cliente_id),
+    ].filter(Boolean))] as string[];
+    const clientesRes = clienteIds.length
+      ? await supabase.from("tarot_clientes").select("id, nombre_completo").in("id", clienteIds)
+      : { data: [] };
     const nombrePorCliente = new Map((clientesRes.data ?? []).map((c: { id: string; nombre_completo: string }) => [c.id, c.nombre_completo]));
-    const ordenPorId = new Map((ordenesRes.data ?? []).map((o: { id: string; external_reference: string | null; estado: string }) => [o.id, o]));
 
-    // Total global de no leídos (para el badge) — independiente de filtros/paginación de esta llamada.
-    const { count: noLeidosTotal } = await supabase
-      .from("tarot_whatsapp_conversaciones")
-      .select("id", { count: "exact", head: true })
-      .gt("no_leidos", 0);
-
-    const conversaciones = filas.map((f) => {
-      const nombreCliente = f.cliente_id ? nombrePorCliente.get(f.cliente_id) ?? null : null;
-      const nombreMostrado = nombreCliente ?? f.wa_contact_name ?? null;
-      const orden = f.orden_id ? ordenPorId.get(f.orden_id) ?? null : null;
+    const hace15min = Date.now() - 15 * 60000;
+    let filas = lista.map((c) => {
+      const ordenId = c.ultimoEnvio?.orden_id ?? c.conv?.orden_id ?? null;
+      const orden = ordenId ? ordenPorId.get(ordenId) ?? null : null;
+      const nombre = (c.conv?.cliente_id ? nombrePorCliente.get(c.conv.cliente_id) : null)
+        ?? (orden?.cliente_id ? nombrePorCliente.get(orden.cliente_id) : null)
+        ?? c.conv?.wa_contact_name ?? orden?.nombre_snapshot ?? null;
+      const tel = c.conv?.telefono_normalizado ?? `+${c.key}`;
+      const envioTs = c.ultimoEnvio ? new Date(c.ultimoEnvio.enviado_at ?? c.ultimoEnvio.created_at).getTime() : 0;
+      const convTs = c.conv?.ultimo_mensaje_at ? new Date(c.conv.ultimo_mensaje_at).getTime() : 0;
+      const ganaEnvio = envioTs > convTs;
+      const e = c.ultimoEnvio;
+      const problema = !!e && (e.estado === "error" || (e.estado === "enviando" && new Date(e.created_at).getTime() < hace15min));
       return {
-        id: f.id,
-        telefono: nombreMostrado ? f.telefono_normalizado : enmascararTelefono(f.telefono_normalizado),
-        nombre: nombreMostrado,
-        cliente_id: f.cliente_id,
-        orden_id: f.orden_id,
+        id: c.conv?.id ?? `tel:${c.key}`,
+        tiene_conversacion: !!c.conv,
+        telefono: nombre ? tel : enmascararTelefono(tel),
+        nombre,
+        cliente_id: c.conv?.cliente_id ?? orden?.cliente_id ?? null,
+        orden_id: ordenId,
         orden_ref: orden?.external_reference ?? null,
         orden_estado: orden?.estado ?? null,
-        ultimo_mensaje_at: f.ultimo_mensaje_at,
-        ultimo_mensaje_preview: f.ultimo_mensaje_preview,
-        ultimo_mensaje_direccion: f.ultimo_mensaje_direccion,
-        no_leidos: f.no_leidos,
+        ultimo_mensaje_at: new Date(Math.max(envioTs, convTs) || Date.now()).toISOString(),
+        ultimo_mensaje_preview: ganaEnvio ? "Tu tirada enviada" : (c.conv?.ultimo_mensaje_preview ?? null),
+        ultimo_mensaje_direccion: ganaEnvio ? "outbound" : (c.conv?.ultimo_mensaje_direccion ?? null),
+        no_leidos: c.conv?.no_leidos ?? 0,
+        n_envios: c.nEnvios,
+        con_problema: problema,
+        ultimo_envio: e ? {
+          estado: e.estado, wa_status: e.wa_status, enviado_at: e.enviado_at, entregado_at: e.entregado_at,
+          leido_at: e.leido_at, error_code: e.wa_error_code, simulado: e.estado === "simulado",
+        } : null,
+      };
+    });
+
+    if (filtro === "no_leidos") filas = filas.filter((f) => f.no_leidos > 0);
+    else if (filtro === "con_orden") filas = filas.filter((f) => !!f.orden_id);
+    else if (filtro === "sin_orden") filas = filas.filter((f) => !f.orden_id);
+    else if (filtro === "solo_envios") filas = filas.filter((f) => f.n_envios > 0);
+    else if (filtro === "con_problemas") filas = filas.filter((f) => f.con_problema);
+    if (busqueda) {
+      filas = filas.filter((f) =>
+        (f.nombre ?? "").toLowerCase().includes(busqueda) ||
+        soloDigitos(f.telefono).includes(soloDigitos(busqueda) || "\u0000") ||
+        (f.orden_ref ?? "").toLowerCase().includes(busqueda));
+    }
+    filas.sort((a, b) => new Date(b.ultimo_mensaje_at).getTime() - new Date(a.ultimo_mensaje_at).getTime());
+
+    const total = filas.length;
+    const conversaciones = filas.slice(offset, offset + limit);
+    const noLeidosTotal = (convsRes.data ?? []).filter((c: { no_leidos: number }) => c.no_leidos > 0).length;
+
+    return jsonResponse({
+      ok: true,
+      conversaciones,
+      paginacion: { total, limit, offset, next_offset: total > offset + limit ? offset + limit : null },
+      no_leidos_total: noLeidosTotal,
+    });
+  }
+
+  // ── detalle ──────────────────────────────────────────────────────────────
+  // conversacion_id puede ser un uuid o "tel:<digitos>" (contacto al que solo
+  // se le enviaron mensajes y todavía no escribió).
+  if (accion === "detalle") {
+    const idEntrada = texto(body.conversacion_id, 100);
+    if (!idEntrada) return jsonResponse({ ok: false, motivo: "conversacion_id_requerido" }, 400);
+
+    const COLS = "id, telefono_normalizado, cliente_id, orden_id, wa_contact_name, estado, no_leidos, ultimo_mensaje_at, created_at";
+    let conv: { id: string; telefono_normalizado: string; cliente_id: string | null; orden_id: string | null; wa_contact_name: string | null; estado: string; no_leidos: number; ultimo_mensaje_at: string | null; created_at: string } | null = null;
+    let telDigitos = "";
+    if (idEntrada.startsWith("tel:")) {
+      telDigitos = soloDigitos(idEntrada.slice(4));
+      if (!telDigitos) return jsonResponse({ ok: false, motivo: "telefono_invalido" }, 400);
+      const { data } = await supabase.from("tarot_whatsapp_conversaciones").select(COLS)
+        .in("telefono_normalizado", [`+${telDigitos}`, telDigitos]).maybeSingle();
+      conv = data ?? null;
+    } else {
+      const { data, error: convErr } = await supabase.from("tarot_whatsapp_conversaciones").select(COLS).eq("id", idEntrada).maybeSingle();
+      if (convErr) return jsonResponse({ ok: false, motivo: "error_query", detalle: convErr.message }, 500);
+      if (!data) return jsonResponse({ ok: false, motivo: "conversacion_no_encontrada" }, 404);
+      conv = data;
+      telDigitos = soloDigitos(data.telefono_normalizado);
+    }
+
+    // Todos los envíos de la tirada a ESTE teléfono (todas sus órdenes).
+    const { data: envios } = await supabase.from("tarot_envios_whatsapp")
+      .select("id, orden_id, estado, wa_status, numero_intento, es_reenvio, wa_message_id, wa_error_code, wa_error_mensaje, enviado_at, entregado_at, leido_at, created_at")
+      .in("telefono_destino", [telDigitos, `+${telDigitos}`])
+      .order("created_at", { ascending: true });
+    const listaEnvios = envios ?? [];
+
+    const ordenIds = [...new Set([conv?.orden_id, ...listaEnvios.map((e) => e.orden_id)].filter(Boolean))] as string[];
+    const ordenesRes = ordenIds.length
+      ? await supabase.from("tarot_ordenes").select("id, external_reference, estado, tema, created_at, cliente_id, nombre_snapshot").in("id", ordenIds)
+      : { data: [] };
+    const ordenPorId = new Map((ordenesRes.data ?? []).map((o: { id: string; external_reference: string | null; estado: string; tema: string; created_at: string; cliente_id: string | null; nombre_snapshot: string | null }) => [o.id, o]));
+    const ordenPrincipal = (conv?.orden_id ? ordenPorId.get(conv.orden_id) : null) ?? (listaEnvios.length ? ordenPorId.get(listaEnvios[listaEnvios.length - 1].orden_id) : null) ?? null;
+    const clienteIdRes = conv?.cliente_id ?? ordenPrincipal?.cliente_id ?? null;
+
+    const [mensajesRes, clienteRes, ventana, sandbox] = await Promise.all([
+      conv
+        ? supabase.from("tarot_whatsapp_mensajes")
+            .select("id, whatsapp_message_id, direccion, tipo, texto, media_id, mime_type, filename, payload_meta, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, created_at")
+            .eq("conversacion_id", conv.id).order("timestamp_whatsapp", { ascending: true })
+        : Promise.resolve({ data: [] }),
+      clienteIdRes
+        ? supabase.from("tarot_clientes").select("id, nombre_completo, telefono, email").eq("id", clienteIdRes).maybeSingle()
+        : Promise.resolve({ data: null }),
+      conv ? calcularVentana24h(conv.id) : Promise.resolve({ activa: false, ultimo_inbound_at: null, expira_at: null, segundos_restantes: null } as Ventana24h),
+      esModoSandbox(),
+    ]);
+    const mensajes = (mensajesRes.data ?? []) as Array<{ tipo: string; payload_meta: Record<string, unknown> | null; timestamp_whatsapp: string | null; created_at: string }>;
+
+    // Reacciones del cliente, agrupadas por el mensaje (wamid) al que reaccionó.
+    const reaccionesPorWamid = new Map<string, Array<{ emoji: string | null; at: string }>>();
+    for (const m of mensajes) {
+      if (m.tipo !== "reaction") continue;
+      const wamid = typeof m.payload_meta?.message_id === "string" ? m.payload_meta.message_id : null;
+      if (!wamid) continue;
+      const arr = reaccionesPorWamid.get(wamid) ?? [];
+      arr.push({ emoji: typeof m.payload_meta?.emoji === "string" ? m.payload_meta.emoji : null, at: m.timestamp_whatsapp ?? m.created_at });
+      reaccionesPorWamid.set(wamid, arr);
+    }
+
+    const enviosWhatsapp = listaEnvios.map((e) => {
+      const o = ordenPorId.get(e.orden_id) ?? null;
+      return {
+        ...e,
+        orden_ref: o?.external_reference ?? null,
+        reacciones: e.wa_message_id ? (reaccionesPorWamid.get(e.wa_message_id) ?? []) : [],
       };
     });
 
     return jsonResponse({
       ok: true,
-      conversaciones,
-      paginacion: {
-        total: count ?? 0,
-        limit, offset,
-        next_offset: (count ?? 0) > offset + limit ? offset + limit : null,
-      },
-      no_leidos_total: noLeidosTotal ?? 0,
-    });
-  }
-
-  // ── detalle ──────────────────────────────────────────────────────────────
-  if (accion === "detalle") {
-    const conversacionId = texto(body.conversacion_id, 100);
-    if (!conversacionId) return jsonResponse({ ok: false, motivo: "conversacion_id_requerido" }, 400);
-
-    const { data: conv, error: convErr } = await supabase
-      .from("tarot_whatsapp_conversaciones")
-      .select("id, telefono_normalizado, cliente_id, orden_id, wa_contact_name, estado, no_leidos, ultimo_mensaje_at, created_at")
-      .eq("id", conversacionId)
-      .maybeSingle();
-    if (convErr) return jsonResponse({ ok: false, motivo: "error_query", detalle: convErr.message }, 500);
-    if (!conv) return jsonResponse({ ok: false, motivo: "conversacion_no_encontrada" }, 404);
-
-    const [mensajesRes, clienteRes, ordenRes, ventana, sandbox] = await Promise.all([
-      supabase
-        .from("tarot_whatsapp_mensajes")
-        .select("id, whatsapp_message_id, direccion, tipo, texto, media_id, mime_type, filename, payload_meta, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, created_at")
-        .eq("conversacion_id", conversacionId)
-        .order("timestamp_whatsapp", { ascending: true }),
-      conv.cliente_id
-        ? supabase.from("tarot_clientes").select("id, nombre_completo, telefono, email").eq("id", conv.cliente_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-      conv.orden_id
-        ? supabase.from("tarot_ordenes").select("id, external_reference, estado, tema, created_at").eq("id", conv.orden_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-      calcularVentana24h(conversacionId),
-      esModoSandbox(),
-    ]);
-
-    // Envíos outbound reales de la orden asociada (si hay) — se muestran como
-    // eventos de sistema en el historial, NUNCA se escriben en
-    // tarot_whatsapp_mensajes (no se fabrica historial, ver docs/modules/whatsapp-inbox.md).
-    const enviosOutbound = conv.orden_id
-      ? await supabase
-          .from("tarot_envios_whatsapp")
-          .select("id, estado, numero_intento, wa_message_id, enviado_at, entregado_at, leido_at, created_at")
-          .eq("orden_id", conv.orden_id)
-          .order("created_at", { ascending: true })
-      : { data: [] };
-
-    return jsonResponse({
-      ok: true,
-      conversacion: {
-        id: conv.id,
-        telefono: conv.telefono_normalizado,
-        cliente_id: conv.cliente_id,
-        orden_id: conv.orden_id,
-        wa_contact_name: conv.wa_contact_name,
-        no_leidos: conv.no_leidos,
-      },
+      conversacion: conv ? {
+        id: conv.id, telefono: conv.telefono_normalizado, cliente_id: conv.cliente_id, orden_id: conv.orden_id,
+        wa_contact_name: conv.wa_contact_name, no_leidos: conv.no_leidos,
+      } : null,
+      contacto: { telefono: conv?.telefono_normalizado ?? `+${telDigitos}`, nombre: clienteRes.data?.nombre_completo ?? conv?.wa_contact_name ?? ordenPrincipal?.nombre_snapshot ?? null },
       ventana_24h: ventana,
       modo_sandbox: sandbox,
       cliente: clienteRes.data ?? null,
-      orden: ordenRes.data ?? null,
+      orden: ordenPrincipal,
       mensajes: mensajesRes.data ?? [],
-      envios_whatsapp_orden: enviosOutbound.data ?? [],
+      envios_whatsapp: enviosWhatsapp,
+      envios_whatsapp_orden: enviosWhatsapp, // compat con la versión anterior del componente
     });
   }
 

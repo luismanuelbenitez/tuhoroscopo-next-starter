@@ -18,6 +18,23 @@ interface Conversacion {
   ultimo_mensaje_preview: string | null;
   ultimo_mensaje_direccion: string | null;
   no_leidos: number;
+  tiene_conversacion?: boolean;
+  n_envios?: number;
+  con_problema?: boolean;
+  ultimo_envio?: {
+    estado: string; wa_status: string | null; enviado_at: string | null; entregado_at: string | null;
+    leido_at: string | null; error_code: string | null; simulado: boolean;
+  } | null;
+}
+
+// Marca de estado del ÚLTIMO envío de la tirada al contacto (tipo WhatsApp).
+function EstadoEnvio({ e }: { e: NonNullable<Conversacion["ultimo_envio"]> }) {
+  if (e.simulado) return <span className="text-[11px] text-violet-400" title="Envío simulado (sandbox)">simulado</span>;
+  if (e.estado === "error") return <span className="text-[11px] text-red-400" title={e.error_code ? `Error ${e.error_code}` : "Error al enviar"}>✗ falló</span>;
+  if (e.estado === "enviando") return <span className="text-[11px] text-amber-400" title="Sin confirmación de envío">… enviando</span>;
+  if (e.leido_at || e.estado === "leido") return <span className="text-[13px] text-sky-400" title="Leído">✓✓</span>;
+  if (e.entregado_at || e.estado === "entregado") return <span className="text-[13px] text-gray-400" title="Entregado">✓✓</span>;
+  return <span className="text-[13px] text-gray-500" title="Enviado">✓</span>;
 }
 
 interface Paginacion { total: number; limit: number; offset: number; next_offset: number | null }
@@ -39,7 +56,8 @@ const ESTADO_ORDEN_LABEL: Record<string, string> = {
 const LIMIT = 50;
 
 export default function TarotWhatsappPage() {
-  const [filtro, setFiltro]           = useState<"todos" | "no_leidos" | "con_orden" | "sin_orden">("todos");
+  const [filtro, setFiltro]           = useState<"todos" | "no_leidos" | "con_orden" | "sin_orden" | "solo_envios" | "con_problemas">("todos");
+  const [verSimulados, setVerSimulados] = useState(false);
   const [busquedaInput, setBusquedaInput] = useState("");
   const [busqueda, setBusqueda]       = useState("");
   const [offset, setOffset]           = useState(0);
@@ -57,6 +75,7 @@ export default function TarotWhatsappPage() {
     const params = new URLSearchParams();
     if (filtro !== "todos") params.set("filtro", filtro);
     if (busqueda) params.set("busqueda", busqueda);
+    if (verSimulados) params.set("incluir_simulados", "true");
     params.set("offset", String(offset));
     params.set("limit", String(LIMIT));
     try {
@@ -73,7 +92,7 @@ export default function TarotWhatsappPage() {
     } finally {
       setCargando(false);
     }
-  }, [filtro, busqueda, offset]);
+  }, [filtro, busqueda, offset, verSimulados]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -136,6 +155,8 @@ export default function TarotWhatsappPage() {
               { v: "no_leidos", label: "No leídos" },
               { v: "con_orden", label: "Con orden" },
               { v: "sin_orden", label: "Sin orden" },
+              { v: "solo_envios", label: "Con envíos" },
+              { v: "con_problemas", label: "Con problemas" },
             ] as const).map((f) => (
               <button
                 key={f.v}
@@ -148,6 +169,16 @@ export default function TarotWhatsappPage() {
               </button>
             ))}
           </div>
+
+          <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none" title="Incluye los envíos de prueba (modo sandbox)">
+            <input
+              type="checkbox"
+              checked={verSimulados}
+              onChange={(e) => { setVerSimulados(e.target.checked); setOffset(0); }}
+              className="accent-violet-500"
+            />
+            Ver simulados
+          </label>
 
           <form onSubmit={onBuscar} className="flex items-center gap-1.5 ml-auto">
             <div className="relative">
@@ -207,6 +238,11 @@ export default function TarotWhatsappPage() {
                     <td className="px-4 py-3 text-gray-400 max-w-xs truncate">
                       {c.ultimo_mensaje_direccion === "outbound" && <span className="text-gray-600 mr-1">↳</span>}
                       {c.ultimo_mensaje_preview ?? "—"}
+                      {c.ultimo_mensaje_direccion === "outbound" && c.ultimo_envio && (
+                        <span className="ml-2 align-middle"><EstadoEnvio e={c.ultimo_envio} /></span>
+                      )}
+                      {(c.n_envios ?? 0) > 1 && <span className="ml-2 text-[10px] text-gray-600">({c.n_envios} envíos)</span>}
+                      {c.tiene_conversacion === false && <span className="ml-2 text-[10px] text-gray-600">· aún no escribió</span>}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">{fmtFecha(c.ultimo_mensaje_at)}</td>
                     <td className="px-4 py-3">

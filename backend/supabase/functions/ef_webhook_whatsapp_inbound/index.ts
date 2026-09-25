@@ -553,7 +553,10 @@ async function registrarMensajeTarotInbound(params) {
     media_id: parsed.mediaId ?? null,
     mime_type: parsed.mimeType ?? null,
     filename: parsed.filename ?? null,
-    payload_meta: parsed.payloadMeta ?? null,
+    // Reacciones (2026-09-25): emoji + wamid del mensaje al que se reacciona,
+    // para mostrarlas bajo ese mensaje en el admin (emoji null = quitó la reacción).
+    payload_meta: parsed.payloadMeta
+      ?? (parsed.tipo === "reaction" ? { emoji: parsed.reactionEmoji ?? null, message_id: parsed.reactionToMessageId ?? null } : null),
     timestamp_whatsapp: parsed.timestampUTC,
   });
 

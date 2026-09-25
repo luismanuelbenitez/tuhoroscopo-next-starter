@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
   if (filtro) body.filtro = filtro;
   const busqueda = searchParams.get("busqueda");
   if (busqueda) body.busqueda = busqueda;
+  if (searchParams.get("incluir_simulados") === "true") body.incluir_simulados = true;
   const limit = searchParams.get("limit");
   if (limit) body.limit = parseInt(limit, 10);
   const offset = searchParams.get("offset");

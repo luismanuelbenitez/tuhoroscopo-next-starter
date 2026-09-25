@@ -26,6 +26,9 @@ interface Mensaje {
 interface EnvioWA {
   id: string; estado: string; numero_intento: number; wa_message_id: string | null;
   enviado_at: string | null; entregado_at: string | null; leido_at: string | null; created_at: string;
+  wa_status?: string | null; es_reenvio?: boolean; wa_error_code?: string | null; wa_error_mensaje?: string | null;
+  orden_id?: string; orden_ref?: string | null;
+  reacciones?: Array<{ emoji: string | null; at: string }>;
 }
 interface Cliente { id: string; nombre_completo: string; telefono: string; email: string | null }
 interface Orden { id: string; external_reference: string | null; estado: string; tema: string; created_at: string }
@@ -169,7 +172,11 @@ function BurbujaMensaje({
             </div>
           )}
           {msg.tipo === "reaction" && (
-            <p className="text-gray-300">Reaccionó a un mensaje</p>
+            <p className="text-gray-300">
+              {typeof msg.payload_meta?.emoji === "string"
+                ? <>Reaccionó <span className="text-lg align-middle">{msg.payload_meta.emoji as string}</span> a un mensaje</>
+                : typeof msg.payload_meta?.message_id === "string" ? "Quitó su reacción" : "Reaccionó a un mensaje"}
+            </p>
           )}
 
           <div className={`mt-1 flex items-center gap-2 text-[10px] ${esInbound ? "text-gray-500" : "text-emerald-400/60"}`}>
@@ -215,18 +222,66 @@ function BurbujaMensaje({
   );
 }
 
-function EventoSistema({ envio }: { envio: EnvioWA }) {
-  const label = envio.estado === "enviado" ? "Plantilla enviada"
-    : envio.estado === "entregado" ? "Entregado"
-    : envio.estado === "leido" ? "Leído"
-    : envio.estado === "simulado" ? "Simulado (sandbox)"
-    : envio.estado === "error" ? "Error al enviar"
-    : envio.estado;
+// Envío de la tirada (plantilla) como mensaje saliente: globo a la derecha con
+// marca de estado tipo WhatsApp, detalle de horas, enlace a la orden y
+// reacciones del cliente. Fuente: tarot_envios_whatsapp (no se escribe en la bandeja).
+function EnvioBurbuja({ envio }: { envio: EnvioWA }) {
+  const simulado = envio.estado === "simulado";
+  const error = envio.estado === "error";
+  const enviando = envio.estado === "enviando";
+  const leido = !!envio.leido_at || envio.estado === "leido";
+  const entregado = !!envio.entregado_at || envio.estado === "entregado" || leido;
+
+  let marca: React.ReactNode;
+  if (simulado) marca = <span className="text-violet-400">simulado (sandbox)</span>;
+  else if (error) marca = <span className="text-red-400">✗ falló{envio.wa_error_code ? ` (${envio.wa_error_code})` : ""}</span>;
+  else if (enviando) marca = <span className="text-amber-400">… sin confirmación de envío</span>;
+  else if (leido) marca = <span className="text-sky-400 text-[13px]" title="Leído">✓✓</span>;
+  else if (entregado) marca = <span className="text-gray-400 text-[13px]" title="Entregado">✓✓</span>;
+  else marca = <span className="text-gray-400 text-[13px]" title="Enviado">✓</span>;
+
+  const lineas: string[] = [];
+  if (envio.enviado_at) lineas.push(`Enviado ${fmtHora(envio.enviado_at)}`);
+  if (envio.entregado_at) lineas.push(`Entregado ${fmtHora(envio.entregado_at)}`);
+  if (envio.leido_at) lineas.push(`Leído ${fmtHora(envio.leido_at)}`);
+
   return (
-    <div className="flex justify-center my-2">
-      <span className="text-[11px] text-gray-500 bg-gray-900/60 border border-gray-800 rounded-full px-3 py-1">
-        📨 {label} · Tu Tirada · {fmtFecha(envio.enviado_at ?? envio.created_at)}
-      </span>
+    <div className="flex justify-end my-2">
+      <div className="max-w-[85%]">
+        <div className="rounded-2xl rounded-tr-sm border border-emerald-900/50 bg-emerald-950/30 px-3.5 py-2.5 text-sm text-gray-200">
+          <p className="font-medium">📨 Tu tirada enviada{envio.es_reenvio ? " (reenvío)" : ""}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Plantilla con imagen y botones (leer online / PDF)</p>
+          {envio.orden_id && (
+            <a
+              href={`/admin/tarot/ordenes/${envio.orden_id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+            >
+              Ver orden #{envio.orden_ref?.slice(-8) ?? envio.orden_id.slice(0, 8)} <ExternalLink size={11} />
+            </a>
+          )}
+          <div className="mt-1.5 flex items-center justify-end gap-2 text-[10px] text-emerald-400/60">
+            <span>{fmtFecha(envio.enviado_at ?? envio.created_at)}</span>
+            {marca}
+          </div>
+          {lineas.length > 0 && (
+            <p className="mt-0.5 text-right text-[10px] text-gray-500">{lineas.join(" · ")}</p>
+          )}
+          {error && envio.wa_error_mensaje && (
+            <p className="mt-1 text-[11px] text-red-400 break-words">{envio.wa_error_mensaje}</p>
+          )}
+        </div>
+        {(envio.reacciones?.length ?? 0) > 0 && (
+          <div className="mt-1 flex justify-end gap-1">
+            {envio.reacciones!.map((r, i) => (
+              <span key={i} className="rounded-full border border-gray-700 bg-gray-900 px-2 py-0.5 text-sm" title={`Reacción ${fmtHora(r.at)}`}>
+                {r.emoji ?? "∅"}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -237,6 +292,7 @@ export function TarotWhatsappConversacionDetalle({
   const [cargando, setCargando]   = useState(true);
   const [errorMsg, setErrorMsg]   = useState<string | null>(null);
   const [conv, setConv]           = useState<Conversacion | null>(null);
+  const [contacto, setContacto]   = useState<{ telefono: string; nombre: string | null } | null>(null);
   const [cliente, setCliente]     = useState<Cliente | null>(null);
   const [orden, setOrden]         = useState<Orden | null>(null);
   const [mensajes, setMensajes]   = useState<Mensaje[]>([]);
@@ -244,6 +300,7 @@ export function TarotWhatsappConversacionDetalle({
   const [ventana, setVentana]     = useState<Ventana24h | null>(null);
   const [modoSandbox, setModoSandbox] = useState(false);
   const [marcando, setMarcando]   = useState(false);
+  const [verSimulados, setVerSimulados] = useState(false);
 
   // Composer
   const [texto, setTexto]           = useState("");
@@ -261,11 +318,12 @@ export function TarotWhatsappConversacionDetalle({
       if (!r.ok || !json?.ok) {
         setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
       } else {
-        setConv(json.conversacion);
+        setConv(json.conversacion ?? null);
+        setContacto(json.contacto ?? null);
         setCliente(json.cliente);
         setOrden(json.orden);
         setMensajes(json.mensajes ?? []);
-        setEnviosWA(json.envios_whatsapp_orden ?? []);
+        setEnviosWA(json.envios_whatsapp ?? json.envios_whatsapp_orden ?? []);
         setVentana(json.ventana_24h ?? null);
         setModoSandbox(!!json.modo_sandbox);
       }
@@ -373,9 +431,12 @@ export function TarotWhatsappConversacionDetalle({
   // de la orden) en orden cronológico — sin fabricar mensajes outbound que
   // no existen (ver docs/modules/whatsapp-inbox.md § Mensajes outbound).
   type Item = { ts: number; tipo: "mensaje"; data: Mensaje } | { ts: number; tipo: "evento"; data: EnvioWA };
+  const simuladosOcultos = verSimulados ? 0 : enviosWA.filter((e) => e.estado === "simulado").length;
   const timeline: Item[] = [
     ...mensajes.map((m): Item => ({ ts: new Date(m.timestamp_whatsapp ?? m.created_at).getTime(), tipo: "mensaje", data: m })),
-    ...enviosWA.map((e): Item => ({ ts: new Date(e.enviado_at ?? e.created_at).getTime(), tipo: "evento", data: e })),
+    ...enviosWA
+      .filter((e) => verSimulados || e.estado !== "simulado")
+      .map((e): Item => ({ ts: new Date(e.enviado_at ?? e.created_at).getTime(), tipo: "evento", data: e })),
   ].sort((a, b) => a.ts - b.ts);
 
   return (
@@ -385,8 +446,8 @@ export function TarotWhatsappConversacionDetalle({
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-gray-800 shrink-0">
           <div className="min-w-0">
-            <h3 className="text-white font-semibold truncate">{cliente?.nombre_completo ?? conv?.wa_contact_name ?? "Desconocido"}</h3>
-            <p className="text-xs text-gray-500 font-mono">{conv?.telefono}</p>
+            <h3 className="text-white font-semibold truncate">{cliente?.nombre_completo ?? conv?.wa_contact_name ?? contacto?.nombre ?? "Desconocido"}</h3>
+            <p className="text-xs text-gray-500 font-mono">{conv?.telefono ?? contacto?.telefono}</p>
             {orden && (
               <a
                 href={`/admin/tarot/ordenes/${orden.id}`}
@@ -408,14 +469,14 @@ export function TarotWhatsappConversacionDetalle({
         <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-800/60 shrink-0">
           <button
             onClick={() => marcar("marcar_leido")}
-            disabled={marcando || conv?.no_leidos === 0}
+            disabled={marcando || !conv || conv.no_leidos === 0}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-emerald-700/60 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Check size={12} /> Marcar leído
           </button>
           <button
             onClick={() => marcar("marcar_no_leido")}
-            disabled={marcando || (conv?.no_leidos ?? 0) > 0}
+            disabled={marcando || !conv || conv.no_leidos > 0}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <EyeOff size={12} /> Marcar no leído
@@ -424,6 +485,14 @@ export function TarotWhatsappConversacionDetalle({
 
         {/* Historial */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {(simuladosOcultos > 0 || (verSimulados && enviosWA.some((e) => e.estado === "simulado"))) && (
+            <button
+              onClick={() => setVerSimulados((v) => !v)}
+              className="mb-3 w-full text-[11px] text-violet-400/80 hover:text-violet-300 border border-violet-900/40 rounded-lg py-1.5"
+            >
+              {verSimulados ? "Ocultar envíos simulados (sandbox)" : `Mostrar ${simuladosOcultos} envío(s) simulado(s) de prueba`}
+            </button>
+          )}
           {cargando && <p className="text-center text-gray-500 text-sm animate-pulse mt-10">Cargando conversación…</p>}
           {errorMsg && (
             <p className="text-center text-red-400 text-sm mt-10">{errorMsg}</p>
@@ -445,7 +514,7 @@ export function TarotWhatsappConversacionDetalle({
                   reintentandoId={reintentandoId}
                 />
               )
-              : <EventoSistema key={item.data.id} envio={item.data} />
+              : <EnvioBurbuja key={item.data.id} envio={item.data} />
           )}
         </div>
 
@@ -468,7 +537,12 @@ export function TarotWhatsappConversacionDetalle({
 
         {/* Ventana 24h + Composer */}
         <div className="border-t border-gray-800 px-5 py-3 shrink-0">
-          {ventana?.activa ? (
+          {!conv ? (
+            <div className="mb-2 rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2">
+              <p className="text-[11px] text-gray-400 font-medium">Este cliente todavía no escribió</p>
+              <p className="mt-1 text-[11px] text-gray-500">Solo podrás responderle con texto libre cuando él te escriba (ventana de 24 h).</p>
+            </div>
+          ) : ventana?.activa ? (
             <p className="mb-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
               <Clock size={11} /> Ventana de atención activa
               {ventana.segundos_restantes != null && (
@@ -497,7 +571,7 @@ export function TarotWhatsappConversacionDetalle({
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               onKeyDown={onComposerKeyDown}
-              disabled={!ventana?.activa || enviando}
+              disabled={!conv || !ventana?.activa || enviando}
               placeholder={ventana?.activa ? "Escribí una respuesta… (Ctrl+Enter para enviar)" : "Ventana vencida — no se puede responder con texto libre"}
               rows={2}
               maxLength={4096}
@@ -505,7 +579,7 @@ export function TarotWhatsappConversacionDetalle({
             />
             <button
               onClick={enviarRespuesta}
-              disabled={!ventana?.activa || enviando || !texto.trim()}
+              disabled={!conv || !ventana?.activa || enviando || !texto.trim()}
               className="flex items-center gap-1.5 text-sm px-3.5 py-2 rounded-lg border border-emerald-700/60 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             >
               <Send size={14} /> {enviando ? "Enviando…" : "Enviar"}
