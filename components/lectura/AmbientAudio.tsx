@@ -126,14 +126,6 @@ export function AmbientAudioControls() {
   return (
     <>
       <div ref={heroBtnRef} className="relative inline-block">
-        {/* Aro suave que llama la atención hasta que el cliente activa el ambiente (se apaga con "reducir movimiento") */}
-        {!yaActivado && estado !== "error" && (
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(240,197,90,0.55)] animate-ping motion-reduce:hidden"
-            style={{ animationDuration: "2.6s" }}
-          />
-        )}
         <button
           type="button"
           onClick={toggle}
