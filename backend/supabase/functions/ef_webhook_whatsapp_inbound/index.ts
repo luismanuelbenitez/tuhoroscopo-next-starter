@@ -55,7 +55,8 @@ const ANON_KEY_SUPABASE = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANO
 // Seguridad entre funciones internas (recomendado)
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
 // WA Cloud API — para responder a clientes TTC dentro de ventana 24h
-const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TOKEN") ?? "";
+// Solo se usa para responder a clientes TTC (Tarot): token de producción de Tarot con fallback al legacy (2026-09-25).
+const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 // Worker/outbox (CAPA 4)
 const SENDER_FUNCTION_NAME = "ef_whatsapp_sender";

@@ -43,7 +43,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
-const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TOKEN") ?? "";
+// Token de producción de Tarot (2026-09-25): antes usaba WHATSAPP_TOKEN legacy, ya revocado
+// (error 190 al responder). Mismo criterio que ef_tarot_enviar_whatsapp; el legacy queda solo como fallback.
+const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 const FN = "ef_tarot_admin_whatsapp";
 const TEXTO_MAX_LEN = 4096; // límite de WhatsApp Cloud API para mensajes de texto
