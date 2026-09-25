@@ -32,6 +32,15 @@ const POSICIONES: Record<number, string> = {
   5: "Lo que viene",
 };
 
+// Versión corta de POSICIONES para la tira de miniaturas (caben en ~60 px, 2 líneas).
+const ETIQUETA_CORTA: Record<number, string> = {
+  1: "Momento actual",
+  2: "Desafío",
+  3: "Lo que no ves",
+  4: "Consejo",
+  5: "Lo que viene",
+};
+
 const GOLD = "#FFCE4D";
 const SERIF_FONT = "var(--font-serif-editorial), serif";
 
@@ -203,10 +212,10 @@ export default async function LecturaPage({ params }: { params: { token: string 
                       <div className="mx-auto rounded-[3px]" style={{ width: 58, aspectRatio: "2 / 3", border: `1.5px solid ${GOLD_TINTA}` }} />
                     )}
                     <span
-                      className="mx-auto mt-1.5 flex items-center justify-center rounded-full text-[13px] font-bold"
-                      style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
+                      className="block mt-1.5 text-[10.5px] font-semibold uppercase leading-[1.15] tracking-[0.04em]"
+                      style={{ color: "#F3DFA5", fontFamily: SERIF_FONT }}
                     >
-                      {c.posicion}
+                      {ETIQUETA_CORTA[c.posicion] ?? `Carta ${c.posicion}`}
                     </span>
                   </a>
                 </li>
