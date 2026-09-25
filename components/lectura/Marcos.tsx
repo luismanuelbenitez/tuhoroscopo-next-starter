@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 export const IMG = "/img/lectura";
 export const INK = "#291408"; // tinta sobre pergamino — igual que el PDF
+export const INK_TEXTO = "#160a03"; // tinta casi negra para leer párrafos sobre pergamino
 export const GOLD = "#F0C55A";
 
 // Fondo de toda la página: terciopelo repetible + halo dorado superior.
@@ -39,7 +40,7 @@ export function PanelPergamino({ children, className = "" }: { children: ReactNo
         backgroundImage: `url(${IMG}/pergamino-fondo.webp)`,
         backgroundSize: "320px 320px",
         backgroundColor: "#eddcae",
-        color: INK,
+        color: INK_TEXTO,
         boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
       }}
     >

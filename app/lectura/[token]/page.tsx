@@ -4,7 +4,7 @@ import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { Reveal } from "@/components/lectura/Reveal";
 import {
-  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, IconoClaves, IconoMensaje, IconoResumen, PanelOscuro, PanelPergamino, PlacaTitulo,
+  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, INK_TEXTO, IconoClaves, IconoMensaje, IconoResumen, PanelOscuro, PanelPergamino, PlacaTitulo,
 } from "@/components/lectura/Marcos";
 
 export const dynamic = "force-dynamic";
@@ -162,7 +162,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${IMG}/sol.png`} alt="" aria-hidden="true" width={64} height={64} style={{ width: 64, height: 64 }} />
             {fechaNacimiento && (
-              <p className="text-[19px] font-bold tracking-[0.04em]" style={{ color: GOLD_TINTA, fontFamily: SERIF_FONT }}>
+              <p className="text-[21px] font-bold tracking-[0.04em]" style={{ color: "#FFE9A6", fontFamily: SERIF_FONT, textShadow: "0 1px 10px rgba(240,197,90,0.35)" }}>
                 {fechaNacimiento}
               </p>
             )}
@@ -174,14 +174,14 @@ export default async function LecturaPage({ params }: { params: { token: string 
         {/* Pregunta + audio ambiental */}
         <section className="text-center mb-6 px-1">
           {resultado.pregunta && (
-            <div className="mb-6">
-              <p className="text-[11px] tracking-[0.25em] uppercase mb-2.5" style={{ color: GOLD, opacity: 0.9 }}>
-                Tu pregunta
+            <div
+              className="mb-7 mx-auto max-w-[330px] rounded-2xl px-5 py-4"
+              style={{ border: "1px solid rgba(240,197,90,0.35)", background: "rgba(10,6,20,0.55)" }}
+            >
+              <p className="text-[12px] tracking-[0.3em] uppercase mb-2" style={{ color: GOLD_TINTA }}>
+                Tu consulta
               </p>
-              <p
-                className="text-[16px] text-[#d9d3e6] italic leading-relaxed max-w-[300px] mx-auto"
-                style={{ fontFamily: SERIF_FONT }}
-              >
+              <p className="text-[18px] text-[#F3ECD9] italic leading-snug" style={{ fontFamily: SERIF_FONT, fontWeight: 600 }}>
                 &ldquo;{resultado.pregunta}&rdquo;
               </p>
             </div>
@@ -196,7 +196,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
             <ul className="flex justify-between gap-1.5">
               {resultado.cartas.map((c) => (
                 <li key={`nav-${c.posicion}`} className="flex-1 text-center">
-                  <a href={`#carta-${c.posicion}`} className="block py-1">
+                  <a href={`#carta-${c.posicion}`} className="group block py-1 rounded-md transition-transform duration-200 ease-out hover:-translate-y-1 active:translate-y-0 focus-visible:-translate-y-1 outline-none">
                     {c.imagen_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -205,7 +205,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
                         width={60}
                         height={90}
                         loading="eager"
-                        className={`mx-auto rounded-[3px] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
+                        className={`mx-auto rounded-[3px] transition duration-200 group-hover:brightness-125 group-hover:saturate-110 group-hover:shadow-[0_0_16px_3px_rgba(240,197,90,0.7)] group-focus-visible:shadow-[0_0_16px_3px_rgba(240,197,90,0.7)] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
                         style={{ width: "100%", maxWidth: 58, height: "auto", aspectRatio: "2 / 3", objectFit: "cover", border: `1.5px solid ${GOLD_TINTA}` }}
                       />
                     ) : (
@@ -293,9 +293,9 @@ export default async function LecturaPage({ params }: { params: { token: string 
         {/* Resumen — pergamino claro, como el PDF */}
         <Reveal className="block">
           <section id="resumen" className="mt-2 mb-9 scroll-mt-4">
-            <PlacaTitulo className="relative z-10 -mb-5">Resumen de tu tirada</PlacaTitulo>
+            <PlacaTitulo className="relative z-10 -mb-5">Resumen</PlacaTitulo>
             <PanelPergamino className="px-4 pb-8 pt-11">
-              <p className="text-[16.5px] leading-[1.8] whitespace-pre-line" style={{ fontFamily: SERIF_FONT, fontWeight: 500 }}>
+              <p className="text-[17.5px] leading-[1.75] whitespace-pre-line" style={{ fontFamily: SERIF_FONT, fontWeight: 700, color: INK_TEXTO }}>
                 {resultado.resumen_lectura}
               </p>
             </PanelPergamino>
@@ -307,7 +307,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
           <section id="mensaje" className="mb-10 scroll-mt-4">
             <PlacaTitulo className="relative z-10 -mb-5">Mensaje personal</PlacaTitulo>
             <PanelPergamino className="px-4 pb-8 pt-11">
-              <p className="text-[17px] leading-[1.8] text-center" style={{ fontFamily: SERIF_FONT, fontWeight: 600 }}>
+              <p className="text-[18px] leading-[1.75] text-center" style={{ fontFamily: SERIF_FONT, fontWeight: 700, color: INK_TEXTO }}>
                 {resultado.mensaje_final}
               </p>
             </PanelPergamino>

@@ -125,14 +125,28 @@ export function AmbientAudioControls() {
 
   return (
     <>
-      <div ref={heroBtnRef} className="inline-block">
+      <div ref={heroBtnRef} className="relative inline-block">
+        {/* Aro suave que llama la atención hasta que el cliente activa el ambiente (se apaga con "reducir movimiento") */}
+        {!yaActivado && estado !== "error" && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-full border border-[rgba(240,197,90,0.55)] animate-ping motion-reduce:hidden"
+            style={{ animationDuration: "2.6s" }}
+          />
+        )}
         <button
           type="button"
           onClick={toggle}
           disabled={estado === "cargando"}
-          className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,206,77,0.35)] bg-[#1c1140]/80 px-5 py-2 text-[12px] tracking-wide text-[#c9c4d6] shadow-[0_4px_16px_rgba(0,0,0,0.35)] backdrop-blur transition-colors hover:bg-[#241751] hover:border-[rgba(255,206,77,0.55)] disabled:opacity-60"
+          className="relative inline-flex items-center gap-2.5 rounded-full border-[1.5px] border-[rgba(240,197,90,0.75)] bg-[#241751]/90 px-7 py-3.5 text-[15px] font-semibold tracking-wide text-[#F3E7C4] shadow-[0_6px_22px_rgba(0,0,0,0.45),0_0_18px_rgba(240,197,90,0.18)] backdrop-blur transition-colors hover:bg-[#2e1d63] hover:border-[rgba(240,197,90,0.95)] disabled:opacity-60"
         >
-          <span style={{ color: GOLD }}>{reproduciendo ? "❚❚" : "♪"}</span>
+          <span style={{ color: GOLD }} aria-hidden="true">
+            {reproduciendo ? (
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>
+            )}
+          </span>
           <span>
             {estado === "error"
               ? "Ambiente no disponible"
