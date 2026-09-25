@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, AlertCircle, MessageCircle, Search, FlaskCon
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotWhatsappConversacionDetalle } from "@/components/admin/TarotWhatsappConversacionDetalle";
 import { TarotWhatsappDebugDialog } from "@/components/admin/TarotWhatsappDebugDialog";
+import { TarotWhatsappEventos } from "@/components/admin/TarotWhatsappEventos";
 
 interface Conversacion {
   id: string;
@@ -48,6 +49,7 @@ export default function TarotWhatsappPage() {
   const [errorMsg, setErrorMsg]       = useState<string | null>(null);
   const [seleccionada, setSeleccionada] = useState<string | null>(null);
   const [mostrarDebug, setMostrarDebug] = useState(false);
+  const [vista, setVista] = useState<"conversaciones" | "eventos">("conversaciones");
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -103,6 +105,26 @@ export default function TarotWhatsappPage() {
           </button>
         </div>
 
+        <div className="flex gap-1 mb-4">
+          {([
+            { v: "conversaciones", label: "Conversaciones" },
+            { v: "eventos", label: "Eventos de Meta" },
+          ] as const).map((t) => (
+            <button
+              key={t.v}
+              onClick={() => setVista(t.v)}
+              className={`px-4 py-2 text-sm rounded-lg border transition-colors ${
+                vista === t.v ? "border-emerald-500 bg-emerald-900/40 text-emerald-300" : "border-gray-700 text-gray-400 hover:border-gray-600"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {vista === "eventos" && <TarotWhatsappEventos />}
+
+        {vista === "conversaciones" && (<>
         <p className="text-xs text-gray-500 mb-4">
           Mensajes entrantes de clientes por WhatsApp. Una fila por número — abrí una conversación para ver el historial completo.
         </p>
@@ -234,6 +256,7 @@ export default function TarotWhatsappPage() {
             </div>
           </div>
         )}
+        </>)}
       </main>
 
       {seleccionada && (

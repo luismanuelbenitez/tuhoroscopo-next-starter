@@ -15,6 +15,8 @@
 //   - marcar_no_leido:     no_leidos = max(no_leidos, 1)
 //   - responder:           { conversacion_id, texto } — texto libre, solo si hay ventana 24h activa
 //   - reintentar:          { mensaje_id } — reintenta un outbound en estado 'error'
+//   - eventos_resumen / eventos_listar / evento_detalle: visibilidad de TODO lo que
+//     llega al webhook de Meta (whatsapp_webhook_events), no solo mensajes de clientes
 //
 // VENTANA 24H (sprint 2026-09-06): WhatsApp Cloud API solo permite texto
 // libre dentro de las 24h desde el ÚLTIMO mensaje inbound real del cliente
@@ -228,6 +230,82 @@ async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: st
 
 const LIMIT_DEFAULT = 50;
 const LIMIT_MAX = 200;
+
+// ── Eventos del webhook de Meta (visibilidad admin, 2026-09-25) ─────────────
+// Campos de Meta que afectan la operación (plantillas, calidad, cuenta).
+const EVENTOS_IMPORTANTES = new Set([
+  "message_template_status_update", "message_template_quality_update", "template_category_update",
+  "template_correct_category_detection", "phone_number_quality_update", "phone_number_name_update",
+  "account_update", "account_alerts", "account_review_update", "account_settings_update",
+  "business_status_update", "business_capability_update", "security",
+]);
+
+type Json = Record<string, unknown>;
+function valorDe(payload: unknown): Json {
+  const p = payload as { entry?: Array<{ changes?: Array<{ value?: Json }> }> } | null;
+  return (p?.entry?.[0]?.changes?.[0]?.value ?? {}) as Json;
+}
+function s(v: unknown): string { return typeof v === "string" ? v : v == null ? "" : String(v); }
+
+function severidadEvento(tipo: string, payload: unknown): { nivel: "critico" | "atencion" | "info"; titulo: string } {
+  const v = valorDe(payload);
+  switch (tipo) {
+    case "message_template_status_update": {
+      const ev = s(v.event).toUpperCase();
+      const nombre = s(v.message_template_name);
+      const malo = ["REJECTED", "PAUSED", "DISABLED", "FLAGGED"].includes(ev);
+      return { nivel: malo ? "critico" : "info", titulo: `Plantilla ${nombre || ""} → ${ev || "actualización"}`.trim() };
+    }
+    case "message_template_quality_update": {
+      const nuevo = s(v.new_quality_score).toUpperCase();
+      return { nivel: nuevo === "RED" ? "critico" : nuevo === "YELLOW" ? "atencion" : "info", titulo: `Calidad de plantilla ${s(v.message_template_name)}: ${s(v.previous_quality_score)} → ${nuevo}` };
+    }
+    case "phone_number_quality_update": {
+      const ev = s(v.event).toUpperCase();
+      return { nivel: ev === "DOWNGRADE" || ev === "FLAGGED" ? "atencion" : "info", titulo: `Calidad/límite del número: ${ev || "actualización"}` };
+    }
+    case "account_alerts": {
+      const sev = s(v.alert_severity).toUpperCase();
+      return { nivel: sev === "CRITICAL" ? "critico" : "atencion", titulo: `Alerta de cuenta${sev ? ` (${sev})` : ""}` };
+    }
+    case "account_update": {
+      const ev = s(v.event).toUpperCase();
+      const malo = /BAN|RESTRICT|VIOLATION|DISABLE/.test(ev);
+      return { nivel: malo ? "critico" : "info", titulo: `Cuenta: ${ev || "actualización"}` };
+    }
+    case "account_review_update":
+      return { nivel: "atencion", titulo: `Revisión de cuenta: ${s(v.decision) || "actualización"}` };
+    default:
+      return { nivel: "info", titulo: tipo };
+  }
+}
+
+function resumenLegibleEvento(f: {
+  tipo_evento: string | null; es_evento_mensaje: boolean; es_evento_status: boolean; status: string | null;
+  message_type: string | null; from_number: string | null; payload: unknown;
+}): string {
+  const v = valorDe(f.payload);
+  if (f.es_evento_status) {
+    const st = (Array.isArray(v.statuses) ? v.statuses[0] : null) as Json | null;
+    const err = (Array.isArray(st?.errors) ? (st!.errors as Json[])[0] : null) as Json | null;
+    return `Mensaje ${s(f.status) || s(st?.status)} → ${s(st?.recipient_id)}${err ? ` · error ${s(err.code)}: ${s(err.title)}` : ""}`;
+  }
+  if (f.es_evento_mensaje) {
+    const m = (Array.isArray(v.messages) ? v.messages[0] : null) as Json | null;
+    const txt = s((m?.text as Json | undefined)?.body).replace(/\s+/g, " ").slice(0, 90);
+    return `${s(f.message_type) || s(m?.type) || "mensaje"} de ${s(f.from_number)}${txt ? ` · "${txt}"` : ""}`;
+  }
+  switch (f.tipo_evento) {
+    case "message_template_status_update": return [s(v.message_template_name), s(v.event), s(v.reason)].filter(Boolean).join(" · ");
+    case "message_template_quality_update": return `${s(v.message_template_name)} · ${s(v.previous_quality_score)} → ${s(v.new_quality_score)}`;
+    case "phone_number_quality_update": return [s(v.display_phone_number), s(v.event), s(v.current_limit)].filter(Boolean).join(" · ");
+    case "account_alerts": return [s(v.alert_type), s(v.alert_description)].filter(Boolean).join(" · ");
+    case "account_update": return [s(v.event), s(v.phone_number)].filter(Boolean).join(" · ");
+    case "account_review_update": return s(v.decision);
+  }
+  const simples = Object.entries(v).filter(([, x]) => typeof x === "string" || typeof x === "number").slice(0, 4).map(([k, x]) => `${k}: ${x}`);
+  return simples.join(" · ") || "(sin detalle — abrí el evento para ver el JSON)";
+}
 
 serve(async (req) => {
   const internalKey = req.headers.get("x-internal-key");
@@ -486,6 +564,98 @@ serve(async (req) => {
       { conversacion_id: original.conversacion_id, mensaje_original_id: mensajeId, mensaje_nuevo_id: resultado.mensaje_id });
 
     return jsonResponse(resultado, resultado.ok ? 200 : 502);
+  }
+
+  // ── eventos_resumen / eventos_listar / evento_detalle (2026-09-25) ──────
+  // Visibilidad de TODO lo que Meta manda al webhook (whatsapp_webhook_events),
+  // no solo los mensajes de clientes: estados de entrega, plantillas
+  // pausadas/rechazadas, calidad del número, alertas de cuenta, etc.
+  if (accion === "eventos_resumen") {
+    const desde7d = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { data, error } = await supabase
+      .from("whatsapp_webhook_events")
+      .select("id, created_at, tipo_evento, es_evento_mensaje, es_evento_status, payload")
+      .gte("created_at", desde7d)
+      .order("created_at", { ascending: false })
+      .limit(3000);
+    if (error) return jsonResponse({ ok: false, motivo: "error_query", detalle: error.message }, 500);
+    const filas = data ?? [];
+    const hace24h = Date.now() - 86400000;
+    const porTipo: Record<string, { ult24h: number; ult7d: number }> = {};
+    let importantes7d = 0, atencion7d = 0;
+    for (const f of filas) {
+      const t = f.tipo_evento ?? "desconocido";
+      porTipo[t] ??= { ult24h: 0, ult7d: 0 };
+      porTipo[t].ult7d++;
+      if (new Date(f.created_at).getTime() >= hace24h) porTipo[t].ult24h++;
+      if (EVENTOS_IMPORTANTES.has(t)) {
+        importantes7d++;
+        if (severidadEvento(t, f.payload).nivel !== "info") atencion7d++;
+      }
+    }
+    const { data: ultimo } = await supabase.from("whatsapp_webhook_events")
+      .select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: ultMsg } = await supabase.from("whatsapp_webhook_events")
+      .select("created_at").eq("es_evento_mensaje", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: ultSt } = await supabase.from("whatsapp_webhook_events")
+      .select("created_at").eq("es_evento_status", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    return jsonResponse({
+      ok: true,
+      ultimo_evento_at: ultimo?.created_at ?? null,
+      ultimo_mensaje_entrante_at: ultMsg?.created_at ?? null,
+      ultimo_estado_entrega_at: ultSt?.created_at ?? null,
+      eventos_7d: filas.length,
+      importantes_7d: importantes7d,
+      requieren_atencion_7d: atencion7d,
+      por_tipo: porTipo,
+    });
+  }
+
+  if (accion === "eventos_listar") {
+    const categoria = texto(body.categoria, 20) ?? "todos"; // todos | importantes | mensajes | estados | otros
+    const limitRaw = Number(body.limit ?? LIMIT_DEFAULT);
+    const limit = Number.isFinite(limitRaw) ? Math.min(LIMIT_MAX, Math.max(1, limitRaw)) : LIMIT_DEFAULT;
+    const offsetRaw = Number(body.offset ?? 0);
+    const offset = Number.isFinite(offsetRaw) ? Math.max(0, offsetRaw) : 0;
+    const lista = `(${[...EVENTOS_IMPORTANTES].join(",")})`;
+
+    let q = supabase.from("whatsapp_webhook_events")
+      .select("id, created_at, tipo_evento, es_evento_mensaje, es_evento_status, status, message_type, from_number, phone_number_id, display_phone_number, processing_status, processing_error, inbound_http_status, payload", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (categoria === "importantes") q = q.in("tipo_evento", [...EVENTOS_IMPORTANTES]);
+    else if (categoria === "mensajes") q = q.eq("es_evento_mensaje", true);
+    else if (categoria === "estados") q = q.eq("es_evento_status", true);
+    else if (categoria === "otros") q = q.eq("es_evento_mensaje", false).eq("es_evento_status", false).not("tipo_evento", "in", lista);
+
+    const { data, error, count } = await q;
+    if (error) return jsonResponse({ ok: false, motivo: "error_query", detalle: error.message }, 500);
+    const total = count ?? 0;
+    const eventos = (data ?? []).map((f) => {
+      const t = f.tipo_evento ?? "desconocido";
+      const sev = severidadEvento(t, f.payload);
+      return {
+        id: f.id, created_at: f.created_at, tipo_evento: t,
+        categoria: f.es_evento_mensaje ? "mensaje" : f.es_evento_status ? "estado" : EVENTOS_IMPORTANTES.has(t) ? "importante" : "otro",
+        severidad: sev.nivel, titulo: sev.titulo,
+        resumen: resumenLegibleEvento(f),
+        phone_number_id: f.phone_number_id, display_phone_number: f.display_phone_number,
+        processing_status: f.processing_status, processing_error: f.processing_error,
+        inbound_http_status: f.inbound_http_status,
+      };
+    });
+    return jsonResponse({ ok: true, eventos, paginacion: { total, limit, offset, next_offset: offset + limit < total ? offset + limit : null } });
+  }
+
+  if (accion === "evento_detalle") {
+    const id = texto(body.id, 60);
+    if (!id) return jsonResponse({ ok: false, motivo: "id_requerido" }, 400);
+    const { data, error } = await supabase.from("whatsapp_webhook_events")
+      .select("id, created_at, tipo_evento, payload, processing_status, processing_error, inbound_called, inbound_http_status, inbound_response")
+      .eq("id", id).maybeSingle();
+    if (error) return jsonResponse({ ok: false, motivo: "error_query", detalle: error.message }, 500);
+    if (!data) return jsonResponse({ ok: false, motivo: "no_encontrado" }, 404);
+    return jsonResponse({ ok: true, evento: data }); // sin headers (pueden traer la firma de Meta)
   }
 
   return jsonResponse({ ok: false, motivo: "accion_invalida" }, 400);
