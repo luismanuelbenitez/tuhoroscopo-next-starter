@@ -4,7 +4,7 @@ import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { Reveal } from "@/components/lectura/Reveal";
 import {
-  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, PanelPergamino, PlacaTitulo,
+  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, PanelOscuro, PanelPergamino, PlacaTitulo,
 } from "@/components/lectura/Marcos";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +115,12 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
   const nombreCompleto = resultado.nombre?.trim() ?? "";
   const primerNombre = nombreCompleto.split(" ")[0] ?? "";
+  // Fecha de nacimiento opcional ("YYYY-MM-DD"); UTC para que no se corra un día.
+  const fechaNacimiento = resultado.fecha_nacimiento
+    ? new Date(`${resultado.fecha_nacimiento}T00:00:00Z`).toLocaleDateString("es-UY", {
+        day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+      })
+    : null;
 
   return (
     <main className={`${serif.variable} min-h-screen text-[#F0F1F5] relative`} style={{ background: "#140a24" }}>
@@ -128,14 +134,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
             <img src={`${IMG}/marca-isotipo-dorada.svg`} alt="Tu Oráculo" width={190} height={25} style={{ width: 190, height: "auto" }} />
           </div>
 
-          <div className="flex justify-between items-end px-1 mt-3" aria-hidden="true">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/sol.png`} alt="" width={64} height={64} style={{ width: 64, height: 64 }} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/luna.png`} alt="" width={64} height={64} style={{ width: 64, height: 64 }} />
-          </div>
-
-          <div className="relative mx-auto -mt-5" style={{ width: "100%", maxWidth: 360 }}>
+          <div className="relative mx-auto mt-4" style={{ width: "100%", maxWidth: 360 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${IMG}/pergamino-titulo.png`} alt="" aria-hidden="true" width={512} height={189} style={{ width: "100%", height: "auto", display: "block" }} />
             <h1
@@ -145,9 +144,19 @@ export default async function LecturaPage({ params }: { params: { token: string 
               {nombreCompleto || primerNombre}
             </h1>
           </div>
-          <p className="mt-3 text-[12px] tracking-[0.3em] uppercase" style={{ color: GOLD_TINTA }}>
-            Tu tirada
-          </p>
+
+          {/* Sol y luna debajo del pergamino; la fecha de nacimiento (si el cliente la cargó) va en el centro */}
+          <div className="flex items-center justify-between px-1 mt-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/sol.png`} alt="" aria-hidden="true" width={64} height={64} style={{ width: 64, height: 64 }} />
+            {fechaNacimiento && (
+              <p className="text-[19px] font-bold tracking-[0.04em]" style={{ color: GOLD_TINTA, fontFamily: SERIF_FONT }}>
+                {fechaNacimiento}
+              </p>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${IMG}/luna.png`} alt="" aria-hidden="true" width={64} height={64} style={{ width: 64, height: 64 }} />
+          </div>
         </header>
 
         {/* Pregunta + audio ambiental */}
@@ -170,34 +179,37 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
         {/* Tira de las 5 cartas: índice tocable */}
         <nav aria-label="Tus cartas" className="mb-2">
-          <ul className="flex justify-between gap-2 px-1">
-            {resultado.cartas.map((c) => (
-              <li key={`nav-${c.posicion}`} className="flex-1 text-center">
-                <a href={`#carta-${c.posicion}`} className="block py-1">
-                  {c.imagen_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.imagen_url}
-                      alt={c.nombre_carta}
-                      width={60}
-                      height={90}
-                      loading="eager"
-                      className={`mx-auto rounded-[3px] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
-                      style={{ width: "100%", maxWidth: 58, height: "auto", aspectRatio: "2 / 3", objectFit: "cover", border: `1.5px solid ${GOLD_TINTA}` }}
-                    />
-                  ) : (
-                    <div className="mx-auto rounded-[3px]" style={{ width: 58, aspectRatio: "2 / 3", border: `1.5px solid ${GOLD_TINTA}` }} />
-                  )}
-                  <span
-                    className="mx-auto mt-1.5 flex items-center justify-center rounded-full text-[13px] font-bold"
-                    style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
-                  >
-                    {c.posicion}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <PlacaTitulo className="relative z-10 -mb-5">Tus cartas</PlacaTitulo>
+          <PanelOscuro className="px-2 pt-9 pb-4">
+            <ul className="flex justify-between gap-1.5">
+              {resultado.cartas.map((c) => (
+                <li key={`nav-${c.posicion}`} className="flex-1 text-center">
+                  <a href={`#carta-${c.posicion}`} className="block py-1">
+                    {c.imagen_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.imagen_url}
+                        alt={c.nombre_carta}
+                        width={60}
+                        height={90}
+                        loading="eager"
+                        className={`mx-auto rounded-[3px] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
+                        style={{ width: "100%", maxWidth: 58, height: "auto", aspectRatio: "2 / 3", objectFit: "cover", border: `1.5px solid ${GOLD_TINTA}` }}
+                      />
+                    ) : (
+                      <div className="mx-auto rounded-[3px]" style={{ width: 58, aspectRatio: "2 / 3", border: `1.5px solid ${GOLD_TINTA}` }} />
+                    )}
+                    <span
+                      className="mx-auto mt-1.5 flex items-center justify-center rounded-full text-[13px] font-bold"
+                      style={{ width: 26, height: 26, background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
+                    >
+                      {c.posicion}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </PanelOscuro>
         </nav>
 
         <Divisor />
@@ -223,15 +235,11 @@ export default async function LecturaPage({ params }: { params: { token: string 
                     eager={idx === 0}
                   />
 
-                  <h2
-                    className="text-[1.5rem] text-center mt-5 mb-1 font-semibold tracking-wide"
-                    style={{ fontFamily: SERIF_FONT, color: "#F8F2E0" }}
-                  >
-                    {c.nombre_carta}
-                    {c.orientacion === "invertida" && (
-                      <span className="text-sm font-normal text-[#a79fbd]"> · invertida</span>
-                    )}
-                  </h2>
+                  {c.orientacion === "invertida" && (
+                    <p className="text-center mt-4 text-[12px] tracking-[0.25em] uppercase" style={{ color: "#a79fbd" }}>
+                      Carta invertida
+                    </p>
+                  )}
 
                   <p className="text-[16px] leading-[1.75] text-[#e6e2f0] mt-3">
                     {c.interpretacion}

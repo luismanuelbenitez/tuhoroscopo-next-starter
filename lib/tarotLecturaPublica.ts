@@ -12,6 +12,7 @@ export interface CartaPublica {
 export interface LecturaPublica {
   ok: true;
   nombre: string;
+  fecha_nacimiento?: string | null;
   pregunta: string | null;
   cartas: CartaPublica[];
   resumen_lectura: string;

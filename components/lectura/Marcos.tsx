@@ -48,6 +48,15 @@ export function PanelPergamino({ children, className = "" }: { children: ReactNo
   );
 }
 
+/** Panel oscuro con el mismo marco dorado (contenedor de la tira de cartas). */
+export function PanelOscuro({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={className} style={{ ...marco9(18), backgroundColor: "rgba(10,6,20,0.62)" }}>
+      {children}
+    </div>
+  );
+}
+
 /**
  * Placa de título (placa-titulo.png 288×108): extremos fijos ornamentados y
  * centro estirable (3-slice). Vacía en el arte; el texto va en HTML.
@@ -59,16 +68,17 @@ export function PlacaTitulo({ children, className = "" }: { children: ReactNode;
         className="text-center font-semibold uppercase"
         style={{
           borderStyle: "solid",
-          borderWidth: "16px 30px",
+          borderWidth: "21px 34px",
           borderImageSource: `url(${IMG}/placa-titulo.png)`,
           borderImageSlice: "40 76 fill",
-          borderImageWidth: "16px 30px",
+          borderImageWidth: "21px 34px",
           borderImageRepeat: "stretch",
           color: "#F3DFA5",
-          fontSize: 13,
-          letterSpacing: "0.2em",
+          fontSize: 15,
+          letterSpacing: "0.14em",
           lineHeight: 1.2,
-          minWidth: 200,
+          minWidth: 220,
+          maxWidth: "100%",
           padding: "0 4px",
           fontFamily: "var(--font-serif-editorial), serif",
         }}

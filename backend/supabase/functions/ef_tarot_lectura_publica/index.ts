@@ -123,7 +123,7 @@ serve(async (req) => {
 
   const { data: orden } = await supabase
     .from("tarot_ordenes")
-    .select("nombre_snapshot, pregunta_usuario, funnel_session_id")
+    .select("nombre_snapshot, pregunta_usuario, funnel_session_id, fecha_nacimiento_snapshot")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -236,6 +236,9 @@ serve(async (req) => {
   return json({
     ok: true,
     nombre: orden.nombre_snapshot,
+    // Opcional (el checkout no la exige): "YYYY-MM-DD" o null. La página la
+    // formatea; si es null simplemente no se muestra.
+    fecha_nacimiento: orden.fecha_nacimiento_snapshot ?? null,
     pregunta: contenido.pregunta ?? orden.pregunta_usuario ?? null,
     cartas,
     resumen_lectura: contenido.resumen_lectura ?? "",
