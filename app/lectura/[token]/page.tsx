@@ -4,7 +4,7 @@ import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { Reveal } from "@/components/lectura/Reveal";
 import {
-  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, PanelOscuro, PanelPergamino, PlacaTitulo,
+  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, IconoClaves, IconoMensaje, IconoResumen, PanelOscuro, PanelPergamino, PlacaTitulo,
 } from "@/components/lectura/Marcos";
 
 export const dynamic = "force-dynamic";
@@ -133,6 +133,9 @@ export default async function LecturaPage({ params }: { params: { token: string 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${IMG}/marca-isotipo-dorada.svg`} alt="Tu Oráculo" width={190} height={25} style={{ width: 190, height: "auto" }} />
           </div>
+          <p className="mt-1.5 text-[12px] font-semibold tracking-[0.55em] uppercase pl-[0.55em]" style={{ color: GOLD_TINTA, fontFamily: SERIF_FONT }}>
+            Tarot
+          </p>
 
           <div className="relative mx-auto mt-4" style={{ width: "100%", maxWidth: 360 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -179,7 +182,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
         {/* Tira de las 5 cartas: índice tocable */}
         <nav aria-label="Tus cartas" className="mb-2">
-          <PlacaTitulo className="relative z-10 -mb-5">Tus cartas</PlacaTitulo>
+          <PlacaTitulo className="relative z-10 -mb-5">Tu tirada</PlacaTitulo>
           <PanelOscuro className="px-2 pt-9 pb-4">
             <ul className="flex justify-between gap-1.5">
               {resultado.cartas.map((c) => (
@@ -205,6 +208,28 @@ export default async function LecturaPage({ params }: { params: { token: string 
                     >
                       {c.posicion}
                     </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            <p className="text-center text-[12px] mt-2 mb-3" style={{ color: "#b4adc7" }}>
+              Toca una carta para leerla
+            </p>
+            <ul className="flex justify-between gap-1.5 px-0.5">
+              {[
+                { href: "#resumen", label: "Resumen", Icono: IconoResumen },
+                { href: "#mensaje", label: "Mensaje", Icono: IconoMensaje },
+                { href: "#claves", label: "Claves", Icono: IconoClaves },
+              ].map(({ href, label, Icono }) => (
+                <li key={href} className="flex-1">
+                  <a
+                    href={href}
+                    className="flex items-center justify-center gap-1.5 rounded-full min-h-[44px] px-2 text-[13px] font-semibold uppercase tracking-[0.08em]"
+                    style={{ border: `1.5px solid ${GOLD_TINTA}`, background: "rgba(240,197,90,0.08)", color: "#F3DFA5", fontFamily: SERIF_FONT }}
+                  >
+                    <Icono />
+                    {label}
                   </a>
                 </li>
               ))}
@@ -258,7 +283,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
         {/* Resumen — pergamino claro, como el PDF */}
         <Reveal className="block">
-          <section className="mt-2 mb-9">
+          <section id="resumen" className="mt-2 mb-9 scroll-mt-4">
             <PlacaTitulo className="relative z-10 -mb-5">Resumen de tu tirada</PlacaTitulo>
             <PanelPergamino className="px-4 pb-8 pt-11">
               <p className="text-[16.5px] leading-[1.8] whitespace-pre-line" style={{ fontFamily: SERIF_FONT, fontWeight: 500 }}>
@@ -270,7 +295,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
         {/* Mensaje personal — cierre humano */}
         <Reveal className="block">
-          <section className="mb-10">
+          <section id="mensaje" className="mb-10 scroll-mt-4">
             <PlacaTitulo className="relative z-10 -mb-5">Mensaje personal</PlacaTitulo>
             <PanelPergamino className="px-4 pb-8 pt-11">
               <p className="text-[17px] leading-[1.8] text-center" style={{ fontFamily: SERIF_FONT, fontWeight: 600 }}>
@@ -283,7 +308,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
         {/* Claves / próximos pasos */}
         {resultado.proximos_pasos?.length > 0 && (
           <Reveal className="block">
-            <section className="mb-10">
+            <section id="claves" className="mb-10 scroll-mt-4">
               <PlacaTitulo className="mb-6">Claves para avanzar</PlacaTitulo>
               <ol className="space-y-4">
                 {resultado.proximos_pasos.map((paso, i) => (

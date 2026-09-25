@@ -144,3 +144,36 @@ export function CartaEnMarco({
     </div>
   );
 }
+
+// Íconos simples (trazo dorado) para el índice de la tirada.
+const ICON: CSSProperties = { width: 18, height: 18, flexShrink: 0 };
+const TRAZO = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+
+/** Pergamino enrollado. */
+export function IconoResumen() {
+  return (
+    <svg viewBox="0 0 24 24" style={ICON} aria-hidden="true" {...TRAZO}>
+      <path d="M6 4h11a2 2 0 0 1 2 2v11a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2Z" />
+      <path d="M9 9h7M9 13h7" />
+    </svg>
+  );
+}
+
+/** Luna creciente. */
+export function IconoMensaje() {
+  return (
+    <svg viewBox="0 0 24 24" style={ICON} aria-hidden="true" {...TRAZO}>
+      <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
+    </svg>
+  );
+}
+
+/** Llave. */
+export function IconoClaves() {
+  return (
+    <svg viewBox="0 0 24 24" style={ICON} aria-hidden="true" {...TRAZO}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l8-8M16 7l2.5 2.5M14 9l2 2" />
+    </svg>
+  );
+}
