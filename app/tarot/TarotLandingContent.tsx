@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ShieldCheck, Clock, MessageCircle, FileText, Zap, ChevronDown } from 'lucide-react';
 import { trackViewItem, trackLandingViewed } from '@/lib/analytics';
 import { metaViewContent } from '@/lib/metaPixel';
+import { CelularMock, DocumentoMock } from '@/components/tarot/Mockups';
 
 const GOLD = '#FFCE4D';
 const GOLD_DIM = 'rgba(251,191,36,0.68)';
@@ -377,24 +378,34 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
 
         .tl-sticky { animation: tl-slide-up 0.28s cubic-bezier(0.4,0,0.2,1) both; }
 
-        /* Hero: dos celulares superpuestos (mensaje de WhatsApp + lectura online) */
-        .tl-phones { position: relative; width: 340px; height: 420px; animation: tl-float 5s ease-in-out infinite; }
-        .tl-phone {
-          position: absolute; top: 0; height: auto !important; border-radius: 18px;
-          border: 1px solid rgba(255,255,255,0.10);
-          box-shadow: 0 22px 60px rgba(0,0,0,0.7);
+        /* Hero: fondo ambiente (terciopelo, velas, cristales) + composición de objetos reales */
+        .tl-hero-bg {
+          position: relative;
+          background-color: #0d0820;
+          background-image: url(/img/tarot/hero-fondo-movil.webp);
+          background-size: cover;
+          background-position: center bottom;
         }
-        .tl-phone-a { left: 0; width: 195px !important; transform: rotate(-5deg); z-index: 1; }
-        .tl-phone-b {
-          right: 0; top: 36px; width: 195px !important; transform: rotate(4deg); z-index: 2;
-          box-shadow: 0 26px 70px rgba(0,0,0,0.8), 0 0 46px rgba(251,191,36,0.14);
+        @media (min-width: 701px) {
+          .tl-hero-bg { background-image: url(/img/tarot/hero-fondo-escritorio.webp); background-position: center; }
         }
+        .tl-hero-bg::before {
+          content: ''; position: absolute; inset: 0; pointer-events: none;
+          background: linear-gradient(180deg, rgba(13,8,32,0.55) 0%, rgba(13,8,32,0.25) 45%, rgba(13,8,32,0.5) 80%, #0d0820 100%);
+        }
+        .tl-scene { position: relative; width: 380px; height: 470px; animation: tl-float 6s ease-in-out infinite; }
+        .tl-obj { position: absolute; filter: drop-shadow(0 22px 34px rgba(0,0,0,0.6)); }
+        .tl-obj-doc   { right: 0;   bottom: 0;   width: 150px; transform: rotate(7deg);  z-index: 1; }
+        .tl-obj-wa    { left: 0;    top: 28px;   width: 158px; transform: rotate(-6deg); z-index: 2; }
+        .tl-obj-lec   { left: 96px; top: 0;      width: 178px; transform: rotate(3deg);  z-index: 3; filter: drop-shadow(0 26px 40px rgba(0,0,0,0.7)) drop-shadow(0 0 30px rgba(251,191,36,0.16)); }
         @media (max-width: 700px) {
-          .tl-phones { width: min(340px, 92vw); height: 380px; }
-          .tl-phone-a, .tl-phone-b { width: 46vw !important; max-width: 185px; }
+          .tl-scene { width: min(360px, 94vw); height: 430px; }
+          .tl-obj-doc { width: 38%; }
+          .tl-obj-wa  { width: 41%; }
+          .tl-obj-lec { left: 25%; width: 46%; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .tl-phones, .tl-cta { animation: none; }
+          .tl-scene, .tl-cta { animation: none; }
         }
 
         /* Hero grid: 2 cols on ≥700px, stacked on mobile */
@@ -444,6 +455,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
         {/* ══════════════════════════════════════════════════════════
             HERO
         ══════════════════════════════════════════════════════════ */}
+        <div className="tl-hero-bg">
         <section style={{ position: 'relative', zIndex: 1, maxWidth: 1080, margin: '0 auto', padding: '48px 24px 52px' }}>
           <div className="tl-hero-grid">
 
@@ -508,26 +520,18 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
               </div>
             </div>
 
-            {/* Experiencia: el mensaje de WhatsApp + la lectura online */}
+            {/* Experiencia: WhatsApp + lectura online + PDF (capturas reales sobre objetos) */}
             <div className="tl-hero-visual" style={{ display: 'flex', justifyContent: 'center' }}>
-              <div className="tl-phones tl-in2">
-                <Image
-                  src="/img/tarot/whatsapp-mockup.jpg"
-                  alt="Mensaje de WhatsApp con tu tirada: tus cinco cartas, botón para leer online y botón para descargar el PDF"
-                  width={430} height={740} priority
-                  className="tl-phone tl-phone-a"
-                />
-                <Image
-                  src="/img/tarot/lectura-mockup.jpg"
-                  alt="La lectura online en el celular: tu nombre, tus cinco cartas y el acceso a cada interpretación"
-                  width={430} height={740} priority
-                  className="tl-phone tl-phone-b"
-                />
+              <div className="tl-scene tl-in2">
+                <DocumentoMock className="tl-obj tl-obj-doc" style={{ position: "absolute" }} alt="Tu lectura en PDF: la página con tus cinco cartas" priority />
+                <CelularMock className="tl-obj tl-obj-wa" style={{ position: "absolute" }} pantalla="whatsapp" alt="Mensaje de WhatsApp con tu tirada, el botón para leer online y el PDF" priority />
+                <CelularMock className="tl-obj tl-obj-lec" style={{ position: "absolute" }} pantalla="lectura" alt="La lectura online en el celular con tus cinco cartas" priority />
               </div>
             </div>
 
           </div>
         </section>
+        </div>
 
         {/* ══════════════════════════════════════════════════════════
             TRUST BAR
@@ -564,15 +568,14 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 44, justifyContent: 'center', alignItems: 'flex-start' }}>
               {[
-                { n: '1', t: 'Te llega a tu WhatsApp', d: 'Un mensaje con tu nombre y tus 5 cartas, y dos botones: leer online o descargar el PDF. Si dejás tu email, también te la enviamos ahí.', img: '/img/tarot/whatsapp-mockup.jpg', alt: 'Mensaje de WhatsApp con tu tirada, la lectura online y el PDF' },
-                { n: '2', t: 'La leés online, hecha para el celular', d: 'Tocás cada carta y leés su significado para tu momento. Con ambientación sonora, un resumen, un mensaje personal y claves para avanzar. Disponible 30 días.', img: '/img/tarot/lectura-mockup.jpg', alt: 'La lectura online en el celular con tus cartas y su interpretación' },
+                { n: '1', t: 'Te llega a tu WhatsApp', d: 'Un mensaje con tu nombre y tus 5 cartas, y dos botones: leer online o descargar el PDF. Si dejás tu email, también te la enviamos ahí.', pantalla: 'whatsapp' as const, alt: 'Mensaje de WhatsApp con tu tirada, la lectura online y el PDF' },
+                { n: '2', t: 'La leés online, hecha para el celular', d: 'Tocás cada carta y leés su significado para tu momento. Con ambientación sonora, un resumen, un mensaje personal y claves para avanzar. Disponible 30 días.', pantalla: 'lectura' as const, alt: 'La lectura online en el celular con tus cartas y su interpretación' },
               ].map(item => (
                 <div key={item.n} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, maxWidth: 270 }}>
-                  <Image
-                    src={item.img}
+                  <CelularMock
+                    pantalla={item.pantalla}
                     alt={item.alt}
-                    width={250} height={430}
-                    style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 16px 56px rgba(0,0,0,0.65)' }}
+                    style={{ width: 210, filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.65))' }}
                   />
                   <p style={{ fontSize: 11, color: GOLD_DIM, letterSpacing: '0.09em', textTransform: 'uppercase', fontWeight: 700, margin: 0, textAlign: 'center' }}>{item.n} · {item.t}</p>
                   <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, textAlign: 'center', margin: 0 }}>{item.d}</p>
