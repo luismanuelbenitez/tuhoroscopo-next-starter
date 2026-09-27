@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, Clock, MessageCircle, FileText, Zap, ChevronDown } from 'lucide-react';
+import { ShieldCheck, Volume2, MessageCircle, FileText, Zap, ChevronDown } from 'lucide-react';
 import { trackViewItem, trackLandingViewed } from '@/lib/analytics';
 import { metaViewContent } from '@/lib/metaPixel';
 import { CelularMock, DocumentoMock } from '@/components/tarot/Mockups';
@@ -78,7 +78,7 @@ const TRUST_BADGES = [
   { Icon: Zap,           text: 'Te llega en menos de 15 min' },
   { Icon: MessageCircle, text: 'Por WhatsApp y/o email' },
   { Icon: FileText,      text: 'Sin suscripción' },
-  { Icon: Clock,         text: 'Garantía de devolución' },
+  { Icon: Volume2,       text: 'Con sonido ambiental' },
 ];
 
 const QUESTION_TYPES = [
@@ -99,7 +99,7 @@ const FAQ = [
   },
   {
     q: '¿Cuánto tarda?',
-    a: 'Menos de 15 minutos desde que se confirma tu pago. Si pasado ese tiempo no la recibiste, escribinos a hola@tuoraculo.uy y te la enviamos de inmediato o te devolvemos el dinero.',
+    a: 'Menos de 15 minutos desde que se confirma tu pago. Si pasado ese tiempo no la recibiste, escribinos a hola@tuoraculo.uy y te la enviamos de inmediato.',
   },
   {
     q: '¿Es realmente personalizado?',
@@ -107,7 +107,7 @@ const FAQ = [
   },
   {
     q: '¿Qué pasa si no me llega?',
-    a: 'Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la carpeta de spam). Si pasaron 15 minutos y no hay nada, escribinos a hola@tuoraculo.uy: la reenviamos o te devolvemos el dinero.',
+    a: 'Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la carpeta de spam). Si pasaron 15 minutos y no hay nada, escribinos a hola@tuoraculo.uy y te la reenviamos.',
   },
   {
     q: '¿Es IA o hay un tarotista humano?',
@@ -515,7 +515,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 <CtaLink size="lg" />
                 <p style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.34)', lineHeight: 1.65 }}>
                   Pago seguro con Mercado Pago · Sin renovaciones<br />
-                  <span style={{ color: GOLD_DIM }}>✦ Si tu tirada no llega en 15 minutos, te devolvemos el dinero.</span>
+                  <span style={{ color: GOLD_DIM }}>✦ Te avisamos apenas tus cartas estén listas.</span>
                 </p>
               </div>
             </div>
@@ -724,7 +724,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
             </p>
             <CtaLink size="lg" />
             <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: '6px 18px', justifyContent: 'center' }}>
-              {['Pago seguro', 'Sin suscripción', 'Te llega en menos de 15 min', 'Garantía de devolución'].map(t => (
+              {['Pago seguro', 'Sin suscripción', 'Te llega en menos de 15 min', 'Pensada para tu celular'].map(t => (
                 <span key={t} style={{ fontSize: 12, color: 'rgba(255,255,255,0.34)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ color: GOLD_DIM }}>✓</span> {t}
                 </span>
@@ -776,11 +776,11 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
           margin: '0 auto', padding: '0 24px 96px', textAlign: 'center',
         }}>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.38)', marginBottom: 14 }}>
-            Tus cartas te esperan.
+            ¿Qué cartas van a salir para vos?
           </p>
           <h2 style={{ fontSize: 'clamp(22px, 4.5vw, 34px)', fontWeight: 800, color: 'white', marginBottom: 28, lineHeight: 1.28, letterSpacing: '-0.025em' }}>
-            Si tu tirada no llega en 15 minutos,{' '}
-            <span style={{ color: GOLD }}>te devolvemos el dinero.</span>
+            Tirá tus cartas y{' '}
+            <span style={{ color: GOLD }}>tené tu tirada en menos de 15 minutos.</span>
           </h2>
           <CtaLink size="lg" />
           <p style={{ marginTop: 14, fontSize: 12, color: 'rgba(255,255,255,0.27)' }}>

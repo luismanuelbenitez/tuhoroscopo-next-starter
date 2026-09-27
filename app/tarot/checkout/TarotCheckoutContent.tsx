@@ -25,6 +25,7 @@ const TEMAS = [
   { value: 'amor',      label: '❤️  Amor y vínculos' },
   { value: 'trabajo',   label: '💼 Trabajo y proyectos' },
   { value: 'dinero',    label: '💰 Dinero y recursos' },
+  { value: 'salud',     label: '🌿 Salud y bienestar' },
   { value: 'decision',  label: '🔮 Decisión personal' },
 ];
 
@@ -34,7 +35,26 @@ const EJEMPLOS_POR_TEMA: Record<string, string> = {
   amor:      '¿Tiene futuro esta relación? · ¿Es el momento de dar el siguiente paso?',
   trabajo:   '¿Debo aceptar esta propuesta? · ¿Qué me frena en mi carrera?',
   dinero:    '¿Qué bloquea mi prosperidad? · ¿Es buen momento para esta inversión?',
+  salud:     '¿Qué necesita mi cuerpo o mi mente en este momento? · ¿Cómo recupero el equilibrio?',
   decision:  '¿Cuál es el camino correcto para mí ahora? · ¿Estoy listo para este cambio?',
+};
+
+// Autocompletado del campo "pregunta" según el tema elegido (2026-09-27,
+// pedido explícito del usuario) — SOLO mientras el cliente no haya tocado el
+// campo con la mano, en cualquier dirección (mismo patrón que
+// emailEligioManualmente más abajo: nunca pelea contra una edición manual).
+// "general" carga la combinación clásica (Salud, Dinero y Amor) porque le da
+// a la IA una base temática real; los demás repiten la etiqueta del tema —
+// es redundante con el campo `tema` que ya recibe la IA por separado, pero
+// le muestra al cliente que su elección "quedó cargada" y le da un punto de
+// partida para escribir algo más específico si quiere.
+const PREGUNTA_POR_TEMA: Record<string, string> = {
+  general:  'Salud, Dinero y Amor',
+  amor:     'Amor y vínculos',
+  trabajo:  'Trabajo y proyectos',
+  dinero:   'Dinero y recursos',
+  salud:    'Salud y bienestar',
+  decision: 'Decisión personal',
 };
 
 interface FormState {
@@ -116,6 +136,16 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.email]);
 
+  // Autocompletado de "pregunta" según el tema — ver PREGUNTA_POR_TEMA arriba.
+  // Mismo patrón que el email: se detiene apenas el cliente toca el campo a mano.
+  const [preguntaEditadaManualmente, setPreguntaEditadaManualmente] = useState(false);
+  useEffect(() => {
+    if (preguntaEditadaManualmente) return;
+    const sugerencia = PREGUNTA_POR_TEMA[form.tema];
+    if (sugerencia) setForm(prev => ({ ...prev, pregunta: sugerencia }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.tema]);
+
   // Descuento
   const [codigoCampo, setCodigoCampo]         = useState('');
   const [codigoValidando, setCodigoValidando] = useState(false);
@@ -139,6 +169,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
+    if (e.target.name === 'pregunta') setPreguntaEditadaManualmente(true);
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
@@ -630,7 +661,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                     . Pago único · Sin renovaciones.
                   </span>
                   <p className="text-[11px] mt-1.5" style={{ color: 'rgba(251,191,36,0.42)' }}>
-                    ✦ Si no recibís tu lectura en 15 minutos, te devolvemos el dinero.
+                    ✦ Te avisamos por WhatsApp apenas tus cartas estén listas.
                   </p>
                 </div>
 
