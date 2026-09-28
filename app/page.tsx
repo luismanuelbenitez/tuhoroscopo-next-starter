@@ -99,7 +99,7 @@ export default function HomePage() {
               Experiencias de autoconocimiento, directo a tu WhatsApp.
             </p>
             <p className="text-white/60 text-sm max-w-xs mx-auto leading-relaxed">
-              Hoy tenemos un producto disponible: Tu Tirada.{" "}
+              Hoy tenemos un producto disponible: Tu Tirada Tarot.{" "}
               <span className="text-white/40">Sin apps. Pago seguro por Mercado Pago.</span>
             </p>
           </div>
@@ -137,7 +137,7 @@ export default function HomePage() {
               </div>
 
               <h2 className="text-2xl font-extrabold text-white mb-1 leading-snug uppercase tracking-wide">
-                Tu Tirada
+                Tu Tirada Tarot
               </h2>
               <p className="text-white/50 text-sm mb-3">
                 Lectura de tarot personalizada con IA

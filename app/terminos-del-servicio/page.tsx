@@ -23,7 +23,7 @@ export default async function TerminosServicio() {
       content: 'Al usar nuestros servicios aceptás estos Términos en su totalidad. Debés ser mayor de 18 años para contratar una lectura o suscribirte. No podés usar el servicio con fines comerciales, revender el contenido ni reproducirlo sin autorización.',
     },
     {
-      title: '3. Tu Tirada — Pago único',
+      title: '3. Tu Tirada Tarot — Pago único',
       content: `Las lecturas de tarot son un producto de pago único: cuestan ${precioTarotTexto}, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
     },
     {

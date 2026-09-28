@@ -68,7 +68,7 @@ export default async function FAQ() {
           Preguntas frecuentes
         </h1>
         <p className="text-white/70 text-base leading-relaxed">
-          Todo lo que necesitás saber sobre Tu Tirada, antes o después de comprar.
+          Todo lo que necesitás saber sobre Tu Tirada Tarot, antes o después de comprar.
         </p>
       </div>
 

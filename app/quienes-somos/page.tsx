@@ -49,7 +49,7 @@ export default function QuienesSomos() {
         </p>
       </Seccion>
 
-      <Seccion titulo="Tu Tirada — nuestro primer producto">
+      <Seccion titulo="Tu Tirada Tarot — nuestro primer producto">
         <p className="text-white/80 text-sm leading-relaxed mb-3">
           Una lectura de tarot personalizada: se sortean 5 cartas para tu consulta y se
           interpretan en relación con tu nombre, tu fecha de nacimiento y lo que quieras
