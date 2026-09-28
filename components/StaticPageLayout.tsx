@@ -22,7 +22,7 @@ export default function StaticPageLayout({ children }: { children: ReactNode }) 
       >
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-64"
-          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(88,28,180,0.10), transparent)', zIndex: 0 }}
+          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(240,197,90,0.09), transparent)', zIndex: 0 }}
         />
         <div className="mx-auto max-w-3xl px-4 py-12 md:py-16 relative z-[1]">
           {children}

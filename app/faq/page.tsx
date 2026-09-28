@@ -1,59 +1,58 @@
 import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
-import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
+import { getPrecioTarot } from '@/lib/getPrecioTarot';
+
+const GOLD = '#F0C55A';
 
 export default async function FAQ() {
-  const precio = await getPrecioSuscripcion();
+  const precio = await getPrecioTarot();
+  const precioTexto = precio !== null ? `$U ${precio}` : 'el precio que ves en el checkout';
 
   const FAQS = [
     {
       q: '¿Qué recibo exactamente?',
-      a: 'Cada mañana recibís un mensaje de WhatsApp con: tu horóscopo diario personalizado por signo, un consejo según el foco que elegiste (amor, trabajo, bienestar o general), tu número de la suerte del día con una idea práctica, tu color del día con un significado, y una pausa breve para arrancar con calma.',
+      a: 'Un mensaje en tu WhatsApp (y en tu email, si lo pedís) con tus 5 cartas y dos accesos: "Leer mi tirada", una lectura online pensada para el celular disponible 30 días, y "Descargar PDF", un archivo de 3 páginas que es tuyo para siempre.',
     },
     {
-      q: '¿Cuándo me llega el mensaje?',
-      a: 'Los mensajes se envían temprano a la mañana, generalmente entre las 7 y las 9 AM (hora de Uruguay). El horario puede variar levemente. El primer mensaje llega poco después de confirmar tu WhatsApp al suscribirte.',
+      q: '¿Cuánto tarda?',
+      a: 'Menos de 15 minutos desde que se confirma tu pago. Si pasado ese tiempo no la recibiste, escribinos a hola@tuoraculo.uy y te la enviamos de inmediato.',
     },
     {
-      q: '¿Necesito instalar alguna app?',
-      a: 'No. Todo llega directamente a tu WhatsApp, que ya tenés instalado. Sin apps nuevas, sin contraseñas, sin configuraciones adicionales.',
+      q: '¿Alguien más se entera de mi consulta?',
+      a: 'No. Tu tirada llega directo a tu WhatsApp (y a tu email, si lo pedís) — nadie más la ve, y nosotros no la compartimos con nadie. Podés preguntar sobre lo que sea sin dar explicaciones.',
+    },
+    {
+      q: '¿Es realmente personalizada?',
+      a: 'Sí. Tus 5 cartas se sortean para vos y se interpretan con tu nombre, tu fecha de nacimiento, el tema que elegiste y tu pregunta, si la escribís. No es texto estándar ni genérico.',
     },
     {
       q: '¿Cuánto cuesta?',
-      a: `La suscripción cuesta $U ${precio} por mes. Sin cargos ocultos ni costos adicionales.`,
+      a: `Tu Tirada cuesta ${precioTexto}, un pago único. Sin suscripción, sin renovaciones ni cargos futuros.`,
     },
     {
       q: '¿Cómo se paga?',
-      a: 'El pago se procesa de forma segura a través de Mercado Pago. Podés pagar con tarjeta de crédito, débito u otros medios disponibles en Mercado Pago para Uruguay.',
+      a: 'El pago se procesa de forma segura con Mercado Pago. Podés pagar con tarjeta, saldo o transferencia. Tus datos bancarios nunca pasan por nuestros servidores.',
     },
     {
-      q: '¿Cómo cancelo?',
-      a: 'Podés cancelar en cualquier momento desde tu perfil en Mercado Pago, o escribiéndonos a hola@tuoraculo.uy. Sin trámites complicados.',
+      q: '¿Qué pasa si no me llega?',
+      a: 'Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la carpeta de spam). Si pasaron 15 minutos y no hay nada, escribinos a hola@tuoraculo.uy y te la reenviamos.',
     },
     {
-      q: '¿Qué pasa después de suscribirme?',
-      a: 'Una vez completado el pago, te enviamos un mensaje de bienvenida a tu WhatsApp. Respondés ese mensaje una vez para activar tu cuenta y a partir de la mañana siguiente empezás a recibir tu guía diaria.',
+      q: '¿Es IA o hay un tarotista humano?',
+      a: 'Las cartas se sortean y la lectura la genera inteligencia artificial, aplicando la simbología del tarot clásico a tu situación. No hay un tarotista humano detrás. Es una perspectiva simbólica para reflexionar, no una predicción.',
     },
     {
-      q: '¿Qué hago si no me llega el mensaje?',
-      a: 'Primero verificá que nuestro número esté guardado en tus contactos (eso evita que WhatsApp filtre el mensaje). Si después de 10 minutos de suscribirte no recibiste la bienvenida, escribinos a hola@tuoraculo.uy.',
+      q: '¿Puedo consultar más de una vez?',
+      a: 'Sí. Cada tirada es independiente: cada vez se sortean cartas nuevas. Podés pedir otra cuando quieras, sobre el mismo tema o uno diferente.',
     },
     {
-      q: '¿Cómo pauso o cancelo los mensajes?',
-      a: 'Respondé "BAJA" a cualquier mensaje nuestro y te damos de baja de inmediato. También podés escribirnos directamente si preferís pausarlos por un tiempo.',
+      q: '¿Necesito instalar alguna app?',
+      a: 'No. Todo llega directo a tu WhatsApp, que ya tenés instalado. La lectura online se abre en el navegador del celular, sin descargar nada.',
     },
     {
-      q: '¿El contenido es personalizado?',
-      a: 'Sí. Cada mensaje se construye con tu nombre, tu signo zodiacal y el foco que elegiste. No es un mensaje genérico enviado a todos — está pensado para vos.',
-    },
-    {
-      q: '¿Puedo cambiar mi foco o preferencia más adelante?',
-      a: 'Por ahora el foco se configura al suscribirte. Si querés cambiarlo, escribinos a hola@tuoraculo.uy y lo actualizamos.',
-    },
-    {
-      q: '¿Por qué me piden mi signo y mi preferencia?',
-      a: 'Para personalizar tu mensaje. Tu signo define el horóscopo y el tono general. Tu foco determina el consejo práctico del día. Sin esos datos, el mensaje sería igual para todos.',
+      q: '¿Tienen otros productos además de Tu Tirada?',
+      a: 'Por ahora Tu Tirada es el único producto disponible. Somos una empresa nueva y estamos construyendo más experiencias — cuando estén listas, las vas a encontrar en este mismo sitio.',
     },
   ];
 
@@ -62,14 +61,14 @@ export default async function FAQ() {
 
       {/* Header */}
       <div className="mb-10">
-        <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
           Dudas frecuentes
         </p>
         <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
           Preguntas frecuentes
         </h1>
         <p className="text-white/70 text-base leading-relaxed">
-          Todo lo que necesitás saber antes de suscribirte — o después.
+          Todo lo que necesitás saber sobre Tu Tirada, antes o después de comprar.
         </p>
       </div>
 
@@ -85,7 +84,8 @@ export default async function FAQ() {
               <span className="text-white/95 text-sm font-semibold">{faq.q}</span>
               <ChevronDown
                 size={15}
-                className="text-violet-400 shrink-0 transition-transform duration-200 group-open:rotate-180"
+                className="shrink-0 transition-transform duration-200 group-open:rotate-180"
+                style={{ color: GOLD }}
               />
             </summary>
             <div className="px-5 pb-5">
@@ -103,21 +103,25 @@ export default async function FAQ() {
         style={{ background: 'rgba(255,255,255,0.03)' }}
       >
         <p className="text-white/80 text-sm mb-1">¿Quedó alguna duda sin responder?</p>
-        <Link href="/contacto" className="text-violet-400 text-sm hover:text-violet-300 transition-colors underline underline-offset-2">
+        <Link href="/contacto" className="text-sm underline underline-offset-2 transition-colors" style={{ color: GOLD }}>
           Escribinos desde la página de contacto
         </Link>
       </div>
 
       {/* CTA */}
       <div className="text-center">
-        <a
-          href="/horoscopo/checkout"
-          className="inline-block rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-8 py-3.5 text-sm font-bold text-white transition-all hover:from-violet-600 hover:to-violet-400"
-          style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.30)' }}
+        <Link
+          href="/tarot"
+          className="inline-block rounded-xl px-8 py-3.5 text-sm font-bold"
+          style={{
+            background: `linear-gradient(135deg, #c49008 0%, ${GOLD} 55%, #f2cc44 100%)`,
+            color: '#180e00',
+            boxShadow: '0 4px 20px rgba(240,197,90,0.30)',
+          }}
         >
-          Activar mi guía diaria →
-        </a>
-        <p className="mt-2 text-[12px] text-white/40">$U {precio}/mes · Sin apps · Cancelás cuando quieras</p>
+          Quiero mi tirada →
+        </Link>
+        <p className="mt-2 text-[12px] text-white/40">{precioTexto} · un pago único · te llega en menos de 15 min</p>
       </div>
 
     </StaticPageLayout>

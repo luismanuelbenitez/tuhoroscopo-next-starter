@@ -1,6 +1,9 @@
-import { Mail } from 'lucide-react';
+import { Mail, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import StaticPageLayout from '@/components/StaticPageLayout';
+
+const GOLD = '#F0C55A';
+const WA_NUMBER = process.env.NEXT_PUBLIC_WA_NUMBER ?? '';
 
 export default function Contacto() {
   return (
@@ -8,47 +11,77 @@ export default function Contacto() {
 
       {/* Header */}
       <div className="mb-10">
-        <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
           Soporte
         </p>
         <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
           Contacto
         </h1>
         <p className="text-white/70 text-base leading-relaxed">
-          Estamos para ayudarte. Si tenés una consulta sobre tu suscripción o el servicio, estas son las formas de comunicarte con nosotros.
+          Estamos para ayudarte. Si tenés una consulta sobre tu tirada o tu pago, estas son las
+          formas de comunicarte con nosotros.
         </p>
       </div>
 
-      {/* Canal principal */}
+      {/* Canales */}
       <div
         className="rounded-2xl border border-white/8 p-6 mb-4"
         style={{ background: 'rgba(255,255,255,0.03)' }}
       >
-        <h2 className="text-sm font-semibold text-violet-400 mb-3">Correo electrónico</h2>
+        <h2 className="text-sm font-semibold mb-3" style={{ color: GOLD }}>Correo electrónico</h2>
         <p className="text-white/80 text-sm leading-relaxed mb-3">
-          La forma más confiable de contactarnos. Respondemos en un plazo de 24 a 48 horas hábiles.
+          La forma más confiable de contactarnos. Respondemos en un plazo de 24 a 48 horas
+          hábiles.
         </p>
         <a
           href="mailto:hola@tuoraculo.uy"
-          className="inline-flex items-center gap-2 text-white font-semibold text-sm rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 px-5 py-3 hover:from-violet-600 hover:to-violet-400 transition-all"
-          style={{ boxShadow: '0 4px 20px rgba(109,40,217,0.28)' }}
+          className="inline-flex items-center gap-2 text-sm font-semibold rounded-xl px-5 py-3 transition-all"
+          style={{
+            background: `linear-gradient(135deg, #c49008 0%, ${GOLD} 55%, #f2cc44 100%)`,
+            color: '#180e00',
+            boxShadow: '0 4px 20px rgba(240,197,90,0.28)',
+          }}
         >
           <Mail size={14} />
           hola@tuoraculo.uy
         </a>
       </div>
 
-      {/* Mensajes — dar de baja */}
+      {WA_NUMBER && (
+        <div
+          className="rounded-2xl border border-white/8 p-6 mb-4"
+          style={{ background: 'rgba(255,255,255,0.03)' }}
+        >
+          <h2 className="text-sm font-semibold mb-3" style={{ color: GOLD }}>WhatsApp</h2>
+          <p className="text-white/80 text-sm leading-relaxed mb-3">
+            Si ya compraste tu tirada, respondé directamente al mensaje que te llegó — es el
+            camino más rápido. Si todavía no compraste y tenés una duda, también podés
+            escribirnos acá.
+          </p>
+          <a
+            href={`https://wa.me/${WA_NUMBER}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-semibold rounded-xl px-5 py-3 transition-all"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}
+          >
+            <MessageCircle size={14} />
+            Escribinos por WhatsApp
+          </a>
+        </div>
+      )}
+
+      {/* No recibí mi tirada */}
       <div
         className="rounded-2xl border border-white/8 p-6 mb-4"
         style={{ background: 'rgba(255,255,255,0.03)' }}
       >
-        <h2 className="text-sm font-semibold text-violet-400 mb-3">Pausar o cancelar mensajes</h2>
+        <h2 className="text-sm font-semibold mb-3" style={{ color: GOLD }}>No recibí mi tirada</h2>
         <p className="text-white/80 text-sm leading-relaxed">
-          Si querés pausar o detener los mensajes de WhatsApp, respondé <span className="text-violet-300 font-semibold">BAJA</span> a cualquier mensaje nuestro. Lo procesamos de inmediato, sin preguntas.
-        </p>
-        <p className="text-white/60 text-sm mt-2">
-          Para cancelar la suscripción de pago, podés hacerlo desde tu cuenta en Mercado Pago o escribirnos al correo de arriba.
+          Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la
+          carpeta de spam, si pediste copia ahí). Si pasaron 15 minutos desde el pago y no
+          recibiste nada, escribinos por cualquiera de los canales de arriba con el nombre y el
+          teléfono que usaste al comprar — te la reenviamos de inmediato.
         </p>
       </div>
 
@@ -57,17 +90,17 @@ export default function Contacto() {
         className="rounded-2xl border border-white/8 p-6 mb-10"
         style={{ background: 'rgba(255,255,255,0.03)' }}
       >
-        <h2 className="text-sm font-semibold text-violet-400 mb-4">Motivos de contacto más frecuentes</h2>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: GOLD }}>Motivos de contacto más frecuentes</h2>
         <div className="space-y-2.5">
           {[
-            'No recibí el mensaje de bienvenida después de suscribirme',
-            'Quiero cambiar mi signo o preferencia de contenido',
+            'No recibí mi tirada después de pagar',
             'Tengo una duda sobre el cobro en Mercado Pago',
-            'Quiero pausar los mensajes por un período',
+            'Quiero corregir un dato de mi consulta (nombre, teléfono, fecha)',
+            'El enlace a mi lectura online dejó de funcionar',
             'Tengo una sugerencia o comentario',
           ].map(motivo => (
             <div key={motivo} className="flex gap-3 items-start">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: GOLD }} />
               <p className="text-white/65 text-sm">{motivo}</p>
             </div>
           ))}
@@ -79,7 +112,8 @@ export default function Contacto() {
         <p className="text-white/50 text-sm mb-2">¿Buscás una respuesta rápida?</p>
         <Link
           href="/faq"
-          className="text-violet-400 text-sm hover:text-violet-300 transition-colors underline underline-offset-2"
+          className="text-sm underline underline-offset-2 transition-colors"
+          style={{ color: GOLD }}
         >
           Revisá las preguntas frecuentes →
         </Link>

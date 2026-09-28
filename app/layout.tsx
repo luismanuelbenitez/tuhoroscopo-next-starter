@@ -10,10 +10,10 @@ import { MetaPixel } from "@/components/MetaPixel";
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuoraculo.uy"),
   title: "Tu Oráculo",
-  description: "Claridad cuando más la necesitás. Horóscopo diario y lectura de tarot, directo a tu WhatsApp.",
+  description: "Tu Tirada: lectura de tarot personalizada con IA, directo a tu WhatsApp en menos de 15 minutos.",
   openGraph: {
     title: "Tu Oráculo",
-    description: "Claridad cuando más la necesitás.",
+    description: "Tu Tirada: lectura de tarot personalizada, directo a tu WhatsApp en menos de 15 minutos.",
     url: "https://tuoraculo.uy",
     siteName: "Tu Oráculo",
     images: [{ url: "/img/whatsapp/og.jpg", width: 1672, height: 941, alt: "Tu Oráculo" }],
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Tu Oráculo",
-    description: "Claridad cuando más la necesitás.",
+    description: "Tu Tirada: lectura de tarot personalizada, directo a tu WhatsApp en menos de 15 minutos.",
     images: ["/img/whatsapp/og.jpg"],
   },
 icons: {

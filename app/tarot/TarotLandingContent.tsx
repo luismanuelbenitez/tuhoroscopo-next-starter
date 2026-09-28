@@ -106,6 +106,10 @@ const FAQ = [
     a: 'Sí. Tus 5 cartas se sortean para vos y se interpretan con tu nombre, tu fecha de nacimiento, el tema que elegiste y tu pregunta, si la escribís. Con pregunta concreta o sin ella. No es texto estándar ni genérico.',
   },
   {
+    q: '¿Alguien más se entera de mi consulta?',
+    a: 'No. Tu tirada llega directo a tu WhatsApp (y a tu email, si lo pedís) — nadie más la ve, y nosotros no la compartimos con nadie. Podés preguntar sobre lo que sea sin dar explicaciones.',
+  },
+  {
     q: '¿Qué pasa si no me llega?',
     a: 'Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la carpeta de spam). Si pasaron 15 minutos y no hay nada, escribinos a hola@tuoraculo.uy y te la reenviamos.',
   },
@@ -489,9 +493,9 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                 fontSize: 17, color: 'rgba(255,255,255,0.68)',
                 lineHeight: 1.65, marginBottom: 28, maxWidth: 500,
               }}>
-                Contanos qué estás viviendo (y una pregunta, si querés). Sorteamos tus 5 cartas, las leemos
-                para vos y en menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular
-                y un PDF para guardar.
+                Cuando la duda aparece, no hace falta esperar turno. Contanos qué estás viviendo (y una
+                pregunta, si querés) y en menos de 15 minutos tenés tus cartas — en privado, directo a tu
+                WhatsApp: una lectura online pensada para el celular y un PDF para guardar.
               </p>
 
               <div className="tl-quick-facts tl-in2" style={{ marginBottom: 32 }}>
@@ -499,6 +503,7 @@ export default function TarotLandingContent({ precioUYU }: { precioUYU: number |
                   { icon: '💰', label: precioTexto, sub: 'pago único' },
                   { icon: '⏱',  label: 'En menos de 15 min', sub: '' },
                   { icon: '📲', label: 'Por WhatsApp',       sub: 'y/o email' },
+                  { icon: '🔒', label: '100% privado',       sub: '' },
                   { icon: '🔓', label: 'Sin suscripción',    sub: '' },
                 ].map(f => (
                   <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
