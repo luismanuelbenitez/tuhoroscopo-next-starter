@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  AlertCircle, Pencil, X, Check, Loader2, ChevronDown, ChevronUp, RefreshCw,
+  AlertCircle, Pencil, X, Check, Loader2, ChevronDown, ChevronUp, RefreshCw, Play,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
@@ -38,6 +38,7 @@ interface ProductoConfig {
 interface EnvStatus {
   whatsapp_token_configurado?: boolean;
   whatsapp_phone_id_configurado?: boolean;
+  openai_api_key_configurado?: boolean;
   source?: string;
   ef_unreachable?: boolean;
 }
@@ -135,6 +136,20 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
       { clave: "debug_mode",      label: "Debug mode",        tipo: "select", opciones: ["false", "true"],
         helpText: "true = logs verbosos en todas las EFs. Desactivar en producción." },
       { clave: "version_terminos", label: "Versión términos", tipo: "text" },
+    ],
+  },
+  {
+    titulo: "Audio / Voz (Resumen)",
+    campos: [
+      { clave: "tts_activo", label: "Generar audio automáticamente", tipo: "select", opciones: ["false", "true"],
+        helpText: 'Narra el Resumen con voz (OpenAI TTS) para cada lectura nueva. "false" = no se genera nada (comportamiento actual). Probá primero con "Probar voz" más abajo.' },
+      { clave: "tts_voz", label: "Voz", tipo: "select",
+        opciones: ["alloy", "ash", "ballad", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer", "verse"] },
+      { clave: "tts_modelo", label: "Modelo", tipo: "text", helpText: "Ej: gpt-4o-mini-tts" },
+      { clave: "tts_velocidad", label: "Velocidad", tipo: "number", min: 0.25, max: 4, step: 0.05,
+        helpText: "1.0 = normal. Rango 0.25–4.0." },
+      { clave: "tts_instrucciones", label: "Instrucciones de tono", tipo: "text",
+        helpText: "Cómo debe sonar la voz (acento, calidez, ritmo)." },
     ],
   },
 ];
@@ -465,6 +480,126 @@ function PromptEditor({ cfg, onSave }: {
 }
 
 // ============================================================================
+// PruebaVoz — genera y reproduce un audio de prueba en el momento, sin
+// guardar nada ni depender de tts_activo. Deja "probar antes de activar".
+// ============================================================================
+
+const TEXTO_PRUEBA_DEFAULT =
+  "Este momento te invita a soltar el control y confiar en el proceso. El Loco te " +
+  "recuerda que los nuevos comienzos dan un poco de vértigo, pero es justamente esa " +
+  "incertidumbre la que abre espacio para algo genuino. La Estrella aparece para " +
+  "decirte que, después de un tiempo difícil, la esperanza vuelve a tener sentido.";
+
+const VOCES_OPENAI = ["alloy", "ash", "ballad", "coral", "echo", "fable", "onyx", "nova", "sage", "shimmer", "verse"];
+
+function PruebaVoz({ configMap }: { configMap: Record<string, string> }) {
+  const [texto, setTexto] = useState(TEXTO_PRUEBA_DEFAULT);
+  const [voz, setVoz] = useState(configMap.tts_voz || "nova");
+  const [instrucciones, setInstrucciones] = useState(configMap.tts_instrucciones || "");
+  const [velocidad, setVelocidad] = useState(configMap.tts_velocidad || "1.0");
+  const [generando, setGenerando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  async function generar() {
+    setGenerando(true);
+    setError(null);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+    try {
+      const res = await fetch("/api/admin/tarot/config/probar-voz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          texto,
+          voz,
+          instrucciones: instrucciones || undefined,
+          velocidad: velocidad ? Number(velocidad) : undefined,
+          modelo: configMap.tts_modelo || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.error ?? "Error al generar el audio");
+        return;
+      }
+      const bin = atob(data.audio_base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+      setAudioUrl(url);
+      new Audio(url).play().catch(() => { /* el usuario puede darle play manual abajo */ });
+    } catch {
+      setError("Error de red");
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  const inputCls = "bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500 w-full";
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-800/60">
+        <span className="text-sm font-semibold text-gray-200">Probar voz</span>
+        <span className="ml-2 text-xs text-gray-500">— genera un audio de prueba al toque, sin guardar nada ni depender de &quot;Generar audio automáticamente&quot;</span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Texto de prueba</label>
+          <textarea
+            rows={4}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Voz</label>
+            <select value={voz} onChange={(e) => setVoz(e.target.value)} className={inputCls}>
+              {VOCES_OPENAI.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Velocidad</label>
+            <input
+              type="number" min={0.25} max={4} step={0.05}
+              value={velocidad}
+              onChange={(e) => setVelocidad(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={generar}
+              disabled={generando || !texto.trim()}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              {generando ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+              {generando ? "Generando…" : "Generar y escuchar"}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Instrucciones de tono (opcional para esta prueba)</label>
+          <textarea
+            rows={2}
+            value={instrucciones}
+            onChange={(e) => setInstrucciones(e.target.value)}
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+        {error && <ResultMsg ok={false} texto={error} />}
+        {audioUrl && (
+          <audio controls src={audioUrl} className="w-full" style={{ height: 32 }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Page
 // ============================================================================
 
@@ -526,6 +661,8 @@ export default function TarotConfigPage() {
     const waModo = configMap.whatsapp_modo ?? "sandbox";
     if (mpModo !== "production" && waModo === "production" && debeWa)
       warns.push('Modo prueba controlada activo: WhatsApp real solo se enviará a los números de la lista "Números autorizados (modo controlado)". Todos los demás recibirán envío simulado.');
+    if (configMap.tts_activo === "true" && !envStatus.ef_unreachable && !envStatus.openai_api_key_configurado)
+      warns.push("Audio de voz activado pero OPENAI_API_KEY no detectado en Supabase Edge Secrets. Configurar con: supabase secrets set OPENAI_API_KEY=...");
     return warns;
   })();
 
@@ -616,7 +753,7 @@ export default function TarotConfigPage() {
             {envStatus && (
               <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-800/60">
-                  <span className="text-sm font-semibold text-gray-200">Estado de integración WhatsApp</span>
+                  <span className="text-sm font-semibold text-gray-200">Estado de secrets</span>
                   <span className="ml-2 text-xs text-gray-500">— Supabase Edge Functions</span>
                 </div>
                 {envStatus.ef_unreachable ? (
@@ -637,10 +774,16 @@ export default function TarotConfigPage() {
                         {envStatus.whatsapp_phone_id_configurado ? "✓ Configurado" : "✗ No detectado"}
                       </span>
                     </div>
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="w-52 shrink-0 text-xs text-gray-400">OPENAI_API_KEY</span>
+                      <span className={`text-sm font-mono ${envStatus.openai_api_key_configurado ? "text-emerald-400" : "text-red-400"}`}>
+                        {envStatus.openai_api_key_configurado ? "✓ Configurado" : "✗ No detectado"}
+                      </span>
+                    </div>
                   </div>
                 )}
                 <p className="px-4 py-2 text-xs text-gray-600">
-                  Estas variables se verifican en el entorno de Supabase Edge Functions, que es donde se ejecuta el envío real de WhatsApp. Configurar con <code>supabase secrets set</code>.
+                  Estas variables se verifican en el entorno de Supabase Edge Functions, que es donde corre el envío real. Configurar con <code>supabase secrets set</code>.
                 </p>
                 {waWarnings.length > 0 && (
                   <div className="border-t border-amber-900/40 bg-amber-950/20 px-4 py-3 space-y-1">
@@ -653,6 +796,7 @@ export default function TarotConfigPage() {
                 )}
               </div>
             )}
+            <PruebaVoz configMap={configMap} />
             <p className="text-xs text-gray-600 pt-1">
               Campos ocultos (solo lectura desde DB): <span className="font-mono">mazo_default, tipo_tirada_default, storage_bucket_*</span>
             </p>

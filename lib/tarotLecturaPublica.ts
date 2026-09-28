@@ -67,3 +67,15 @@ export async function resolverUrlPdfPublica(
   const data = await res.json().catch(() => ({ ok: false, motivo: "error" }));
   return data as { ok: true; url: string } | { ok: false; motivo: string };
 }
+
+// Audio narrado del Resumen (TTS OpenAI) — opcional. Si no está
+// disponible (tts apagado, todavía generándose, o falló), devuelve
+// ok:false y el caller simplemente no muestra el botón de escuchar.
+export async function resolverUrlAudioResumenPublica(
+  token: string,
+): Promise<{ ok: true; url: string } | { ok: false; motivo: string }> {
+  const res = await callEF({ token, accion: "audio" });
+  if (!res) return { ok: false, motivo: "config_error" };
+  const data = await res.json().catch(() => ({ ok: false, motivo: "error" }));
+  return data as { ok: true; url: string } | { ok: false; motivo: string };
+}

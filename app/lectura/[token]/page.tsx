@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
-import { resolverLecturaPublica } from "@/lib/tarotLecturaPublica";
+import { resolverLecturaPublica, resolverUrlAudioResumenPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
+import { ResumenAudioControls } from "@/components/lectura/ResumenAudioControls";
 import { Reveal } from "@/components/lectura/Reveal";
 import {
   CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, INK_TEXTO, IconoClaves, IconoMensaje, IconoResumen, PanelOscuro, PanelPergamino, PlacaTitulo,
@@ -121,6 +122,11 @@ export default async function LecturaPage({ params }: { params: { token: string 
     if (resultado.motivo === "expirado") return <ExpiradoView />;
     return <NoEncontradoView />;
   }
+
+  // Best-effort: si tts está apagado o el audio no está listo, esto
+  // devuelve ok:false y el botón simplemente no se muestra.
+  const audioResumen = await resolverUrlAudioResumenPublica(params.token);
+  const audioResumenUrl = audioResumen.ok ? audioResumen.url : null;
 
   const nombreCompleto = resultado.nombre?.trim() ?? "";
   const primerNombre = nombreCompleto.split(" ")[0] ?? "";
@@ -299,6 +305,11 @@ export default async function LecturaPage({ params }: { params: { token: string 
                 {resultado.resumen_lectura}
               </p>
             </PanelPergamino>
+            {audioResumenUrl && (
+              <div className="text-center mt-4">
+                <ResumenAudioControls audioUrl={audioResumenUrl} />
+              </div>
+            )}
           </section>
         </Reveal>
 

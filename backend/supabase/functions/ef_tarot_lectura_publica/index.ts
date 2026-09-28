@@ -12,6 +12,10 @@
 //   de esa orden (el storage_url guardado en tarot_pdfs expira a las
 //   48h — este endpoint firma una nueva en cada click para que el CTA
 //   siga funcionando durante los 30 días de vida del token).
+// accion "audio": valida el token y devuelve una signed URL del audio
+//   narrado del Resumen (TTS OpenAI), si ya está generado. Feature
+//   opcional — si no está listo o no existe, devuelve ok:false sin
+//   romper nada (la lectura funciona igual sin el audio).
 //
 // No modifica tarot_ordenes, tarot_lecturas ni tarot_pdfs — es de solo
 // lectura salvo por el contador de aperturas en tarot_accesos_web y el
@@ -26,8 +30,9 @@ const TAROT_INTERNAL_KEY        = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 
 const BUCKET_ASSETS = "tarot-assets";
 const BUCKET_PDFS   = "tarot-pdfs";
-const IMG_SIGNED_TTL_SEG = 6 * 3600;
-const PDF_SIGNED_TTL_SEG = 3600;
+const IMG_SIGNED_TTL_SEG   = 6 * 3600;
+const PDF_SIGNED_TTL_SEG   = 3600;
+const AUDIO_SIGNED_TTL_SEG = 3600;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -102,7 +107,7 @@ serve(async (req) => {
   const token = String(body.token ?? "").trim();
   const accion = String(body.accion ?? "ver");
   if (!token) return json({ ok: false, error: "TOKEN_REQUERIDO" }, 400);
-  if (accion !== "ver" && accion !== "pdf") return json({ ok: false, error: "ACCION_INVALIDA" }, 400);
+  if (accion !== "ver" && accion !== "pdf" && accion !== "audio") return json({ ok: false, error: "ACCION_INVALIDA" }, 400);
 
   const resuelto = await resolverToken(token);
 
@@ -153,6 +158,27 @@ serve(async (req) => {
       session_id: orden.funnel_session_id ?? null,
       event_name: "mobile_pdf_clicked",
     });
+
+    return json({ ok: true, url: signed.signedUrl });
+  }
+
+  if (accion === "audio") {
+    const { data: lectura } = await supabase
+      .from("tarot_lecturas")
+      .select("audio_resumen_storage_path, audio_resumen_estado")
+      .eq("orden_id", ordenId)
+      .eq("es_vigente", true)
+      .maybeSingle();
+
+    if (lectura?.audio_resumen_estado !== "listo" || !lectura?.audio_resumen_storage_path) {
+      return json({ ok: false, motivo: "audio_no_disponible" }, 409);
+    }
+
+    const { data: signed, error: signedErr } = await supabase.storage
+      .from(BUCKET_ASSETS)
+      .createSignedUrl(lectura.audio_resumen_storage_path, AUDIO_SIGNED_TTL_SEG);
+
+    if (signedErr || !signed?.signedUrl) return json({ ok: false, motivo: "firma_audio_fallo" }, 500);
 
     return json({ ok: true, url: signed.signedUrl });
   }

@@ -16,6 +16,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WHATSAPP_TOKEN            = Deno.env.get("WHATSAPP_TOKEN")            ?? "";
 const WHATSAPP_PHONE_NUMBER_ID  = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID")  ?? "";
+const OPENAI_API_KEY             = Deno.env.get("OPENAI_API_KEY")            ?? "";
 
 serve((req) => {
   const auth = req.headers.get("Authorization");
@@ -29,6 +30,7 @@ serve((req) => {
     ok:                                    true,
     whatsapp_token_configurado:            !!WHATSAPP_TOKEN,
     whatsapp_phone_number_id_configurado:  !!WHATSAPP_PHONE_NUMBER_ID,
+    openai_api_key_configurado:            !!OPENAI_API_KEY,
     source:                                "supabase_edge_secrets",
   }), {
     status: 200, headers: { "Content-Type": "application/json" },

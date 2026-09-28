@@ -710,6 +710,28 @@ async function generarLectura(ordenId: string): Promise<void> {
       }),
     );
 
+    // 19. Disparar ef_tarot_generar_audio_resumen (fire-and-forget, en
+    // paralelo al PDF). Narración opcional del Resumen — gateada por
+    // tts_activo dentro de la propia función; si está apagado o falla,
+    // no afecta en nada la entrega (mismo criterio que el sonido
+    // ambiente de /lectura). Ver docs/product/DECISIONS.md.
+    const audioUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_audio_resumen`;
+    EdgeRuntime.waitUntil(
+      fetch(audioUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type":   "application/json",
+          Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "x-internal-key": TAROT_INTERNAL_KEY,
+        },
+        body: JSON.stringify({ modo: "produccion", lectura_id: lecturaId }),
+      }).catch(async (err) => {
+        await registrarLog(ordenId, "audio_resumen_dispatch_error", "warning",
+          "No se pudo disparar ef_tarot_generar_audio_resumen",
+          { error: String(err), lectura_id: lecturaId });
+      }),
+    );
+
   } catch (err) {
     const errMsg   = String(err);
     const ahoraNow = new Date().toISOString();

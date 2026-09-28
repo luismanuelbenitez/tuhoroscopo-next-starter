@@ -65,6 +65,7 @@ export async function GET(_req: NextRequest) {
         envStatus = {
           whatsapp_token_configurado:          efData.whatsapp_token_configurado,
           whatsapp_phone_id_configurado:       efData.whatsapp_phone_number_id_configurado,
+          openai_api_key_configurado:          efData.openai_api_key_configurado,
           source:                              "supabase_edge_secrets",
         };
       }
