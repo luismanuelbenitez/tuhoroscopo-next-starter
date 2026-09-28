@@ -84,6 +84,12 @@ interface ImagenEstado {
   signedUrl: string | null;
 }
 
+interface AudioEstado {
+  estado: string;
+  voz: string | null;
+  signedUrl: string | null;
+}
+
 interface EmailEstado {
   aplica: boolean;
   estado: string | null;
@@ -237,6 +243,7 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
   const [nombreSnapshot, setNombreSnapshot] = useState<string | null>(null);
   const [imagenEstado, setImagenEstado] = useState<ImagenEstado | null>(null);
   const [imagenUrl, setImagenUrl] = useState<string | null>(null);
+  const [audioEstado, setAudioEstado] = useState<AudioEstado | null>(null);
   const [emailEstado, setEmailEstado] = useState<EmailEstado | null>(null);
   const [expAccion, setExpAccion] = useState<"" | "generar_acceso" | "ver_imagen" | "regenerar_imagen" | "preview_email">("");
   const [expError, setExpError] = useState<string | null>(null);
@@ -269,6 +276,7 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
         setNombreSnapshot(dAcceso.ok ? (dAcceso.nombre_snapshot ?? null) : null);
         setImagenEstado(dAcceso.ok ? (dAcceso.imagen ?? null) : null);
         setEmailEstado(dAcceso.ok ? (dAcceso.email ?? null) : null);
+        setAudioEstado(dAcceso.ok ? (dAcceso.audio ?? null) : null);
         // El cabezal, si ya existe, se re-firma automáticamente para mostrar
         // la preview sin un click extra — esto NO regenera nada (solo firma
         // una URL fresca del PNG ya guardado). Si todavía no existe, no se
@@ -601,6 +609,15 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
                 tono={pdf?.estado === "generado" ? "ok" : pdf?.estado === "error_generacion" ? "error" : "pendiente"}
               />
               <ChecklistBadge
+                label={
+                  audioEstado?.estado === "listo" ? "Audio generado"
+                  : audioEstado?.estado === "generando" ? "Audio: generando…"
+                  : audioEstado?.estado === "error" ? "Audio: error"
+                  : "Audio no generado"
+                }
+                tono={audioEstado?.estado === "listo" ? "ok" : audioEstado?.estado === "error" ? "error" : "pendiente"}
+              />
+              <ChecklistBadge
                 label={accesoBadge(accesoInfo).label === "Activo" ? "Acceso web activo" : "Acceso web " + accesoBadge(accesoInfo).label.toLowerCase()}
                 tono={accesoBadge(accesoInfo).label === "Activo" ? "ok" : accesoInfo ? "error" : "pendiente"}
               />
@@ -692,6 +709,15 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
                     <p className="text-xs text-gray-500 mt-2">
                       Generá el acceso web (abajo) para habilitar estos botones en esta sesión.
                     </p>
+                  )}
+                  {audioEstado?.signedUrl && (
+                    <div className="mt-2.5">
+                      <p className="text-xs text-gray-500 mb-1">
+                        Audio del resumen{audioEstado.voz ? ` (voz: ${audioEstado.voz})` : ""}
+                      </p>
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <audio controls src={audioEstado.signedUrl} className="w-full" style={{ height: 32 }} />
+                    </div>
                   )}
                 </div>
               </div>
