@@ -39,15 +39,15 @@ const EJEMPLOS_POR_TEMA: Record<string, string> = {
   decision:  '¿Cuál es el camino correcto para mí ahora? · ¿Estoy listo para este cambio?',
 };
 
-// Autocompletado del campo "pregunta" según el tema elegido (2026-09-27,
-// pedido explícito del usuario) — SOLO mientras el cliente no haya tocado el
-// campo con la mano, en cualquier dirección (mismo patrón que
-// emailEligioManualmente más abajo: nunca pelea contra una edición manual).
-// "general" carga la combinación clásica (Salud, Dinero y Amor) porque le da
-// a la IA una base temática real; los demás repiten la etiqueta del tema —
-// es redundante con el campo `tema` que ya recibe la IA por separado, pero
-// le muestra al cliente que su elección "quedó cargada" y le da un punto de
-// partida para escribir algo más específico si quiere.
+// Valor por tema que se envía como pregunta_usuario cuando el cliente NO
+// escribió nada (2026-09-27, ajustado 2026-09-27: ya no se muestra en el
+// textarea — ver decisión "no toques código" en docs/product/DECISIONS.md.
+// El textarea queda 100% en blanco hasta que el cliente escribe; esto solo
+// define qué mandamos al backend en su lugar). "general" manda la
+// combinación clásica (Salud, Dinero y Amor) porque le da a la IA una base
+// temática real; los demás repiten la etiqueta del tema — redundante con el
+// campo `tema` que la IA ya recibe por separado, pero da un piso mínimo de
+// contexto en vez de mandar `null`.
 const PREGUNTA_POR_TEMA: Record<string, string> = {
   general:  'Salud, Dinero y Amor',
   amor:     'Amor y vínculos',
@@ -136,16 +136,6 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.email]);
 
-  // Autocompletado de "pregunta" según el tema — ver PREGUNTA_POR_TEMA arriba.
-  // Mismo patrón que el email: se detiene apenas el cliente toca el campo a mano.
-  const [preguntaEditadaManualmente, setPreguntaEditadaManualmente] = useState(false);
-  useEffect(() => {
-    if (preguntaEditadaManualmente) return;
-    const sugerencia = PREGUNTA_POR_TEMA[form.tema];
-    if (sugerencia) setForm(prev => ({ ...prev, pregunta: sugerencia }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.tema]);
-
   // Descuento
   const [codigoCampo, setCodigoCampo]         = useState('');
   const [codigoValidando, setCodigoValidando] = useState(false);
@@ -169,7 +159,6 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
-    if (e.target.name === 'pregunta') setPreguntaEditadaManualmente(true);
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
@@ -267,7 +256,10 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       email_solicitado: emailSolicitado,
       fecha_nacimiento: form.fecha_nacimiento || null,
       tema:             form.tema,
-      pregunta_usuario: form.pregunta.trim() || null,
+      // El textarea visible queda vacío hasta que el cliente escribe; si no
+      // escribió nada, mandamos el valor por tema (PREGUNTA_POR_TEMA) en su
+      // lugar, sin haberlo mostrado nunca en pantalla.
+      pregunta_usuario: form.pregunta.trim() || PREGUNTA_POR_TEMA[form.tema] || null,
       // Descuento (si se aplicó)
       codigo_descuento_uso_id: descuento?.uso_id ?? null,
       precio_final:            precioFinal,
