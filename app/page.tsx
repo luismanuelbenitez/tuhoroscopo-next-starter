@@ -8,7 +8,7 @@ import { usePrecioTarot } from "@/lib/usePrecioTarot";
 import { CelularMock } from "@/components/tarot/Mockups";
 import {
   Sparkles, ShieldCheck, Zap, Smartphone, MessageCircle, MapPin,
-  ClipboardList, CreditCard,
+  ClipboardList, CreditCard, Moon, Leaf,
 } from "lucide-react";
 
 const GOLD = "#F0C55A";
@@ -73,9 +73,9 @@ export default function HomePage() {
         className="min-h-screen text-white"
         style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)" }}
       >
-        {/* ── Nav ─────────────────────────────────────────────── */}
+        {/* ── Nav (desktop) ───────────────────────────────────── */}
         <nav
-          className="sticky top-0 z-20 flex items-center justify-between px-4 md:px-10 py-3"
+          className="hidden md:flex sticky top-0 z-20 items-center justify-between px-4 md:px-10 py-3"
           style={{ background: "rgba(11,8,24,0.78)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
         >
           <Link href="/" className="flex items-center gap-2 shrink-0">
@@ -98,8 +98,88 @@ export default function HomePage() {
           </CtaButton>
         </nav>
 
-        {/* ── Hero ────────────────────────────────────────────── */}
-        <section className="px-5 md:px-10 pt-10 md:pt-16 pb-10 max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+        {/* ── Hero (mobile): imagen vertical con paneles flotantes ── */}
+        <div className="md:hidden relative" style={{ aspectRatio: "900 / 1599" }}>
+          <img
+            src="/img/home/hero-vertical.webp"
+            alt=""
+            aria-hidden="true"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
+
+          {/* nav flotante, integrada a la imagen */}
+          <div
+            className="absolute top-0 inset-x-0 flex items-center justify-between px-4 py-3 z-10"
+            style={{ background: "linear-gradient(180deg, rgba(6,4,14,0.55) 0%, transparent 100%)" }}
+          >
+            <Link href="/" className="flex items-center gap-2">
+              <LogoIcon size={28} />
+              <span
+                className="text-[11px] font-bold tracking-[0.22em] uppercase"
+                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}
+              >
+                Tu Oráculo
+              </span>
+            </Link>
+            <CtaButton href="/tarot" className="text-[11px] px-3.5 py-2 rounded-full">
+              Ver Tu Tirada →
+            </CtaButton>
+          </div>
+
+          {/* panel de texto flotante */}
+          <div className="fi1 absolute left-4 right-4 z-10" style={{ top: "31%" }}>
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "rgba(14,8,28,0.48)", backdropFilter: "blur(18px)", border: "1px solid rgba(240,197,90,0.20)", boxShadow: "0 8px 32px rgba(0,0,0,0.35)" }}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
+                Experiencias digitales de autoconocimiento
+              </p>
+              <h1
+                className="mb-3"
+                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "1.7rem", lineHeight: 1.14 }}
+              >
+                Tu espacio de guía, claridad y autoconocimiento
+              </h1>
+              <p className="text-white/70 text-[13px] leading-relaxed mb-4">
+                En Tu Oráculo creamos experiencias digitales de autoconocimiento. Hoy podés vivir{" "}
+                <strong className="text-white/90">Tu Tirada Tarot</strong>, directo a tu WhatsApp en
+                menos de 15 minutos.
+              </p>
+              <CtaButton href="#producto-destacado" className="px-6 py-3 text-[13px]">
+                Explorar experiencias →
+              </CtaButton>
+            </div>
+          </div>
+
+          {/* celular flotante, con la captura real de cuando llega la tirada */}
+          <div className="fi2 absolute z-10" style={{ top: "63%", right: "8%", width: "21%" }}>
+            <CelularMock pantalla="whatsapp" alt="Mensaje de WhatsApp con tu tirada de tarot" priority />
+          </div>
+
+          {/* fila de confianza flotante */}
+          <div className="fi3 absolute left-4 right-4 z-10" style={{ bottom: "4%" }}>
+            <div
+              className="rounded-2xl px-3 py-3.5 grid grid-cols-3 gap-2"
+              style={{ background: "rgba(14,8,28,0.52)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.10)" }}
+            >
+              {[
+                { Icon: Sparkles, label: "Más claridad", sub: "para tus decisiones" },
+                { Icon: Moon, label: "Más conexión", sub: "contigo misma/o" },
+                { Icon: Leaf, label: "Más bienestar", sub: "en tu día a día" },
+              ].map(({ Icon, label, sub }) => (
+                <div key={label} className="text-center">
+                  <Icon size={16} style={{ color: GOLD, margin: "0 auto 4px" }} />
+                  <p className="text-[10px] text-white/80 font-semibold leading-tight">{label}</p>
+                  <p className="text-[9px] text-white/40 leading-tight">{sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Hero (desktop): layout anterior, sin cambios ────── */}
+        <section className="hidden md:grid px-5 md:px-10 pt-10 md:pt-16 pb-10 max-w-6xl mx-auto md:grid-cols-2 gap-10 items-center">
           <div className="fi1">
             <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
               Experiencias digitales de autoconocimiento
@@ -161,7 +241,7 @@ export default function HomePage() {
         </section>
 
         {/* ── Producto destacado ──────────────────────────────── */}
-        <section className="px-5 md:px-10 py-10 max-w-6xl mx-auto">
+        <section id="producto-destacado" className="px-5 md:px-10 py-10 max-w-6xl mx-auto scroll-mt-16">
           <div
             className="fi3 rounded-3xl p-6 md:p-10 grid md:grid-cols-[200px,1fr] gap-8 items-center"
             style={{ background: "linear-gradient(160deg, rgba(130,88,0,0.16) 0%, rgba(80,50,0,0.06) 100%)", border: "1px solid rgba(240,197,90,0.28)" }}
