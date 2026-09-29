@@ -89,6 +89,7 @@ export default function HomePage() {
           </Link>
           <div className="hidden md:flex items-center gap-7">
             <NavLink href="/">Inicio</NavLink>
+            <NavLink href="/tarot">Productos</NavLink>
             <NavLink href="/#como-funciona">Cómo funciona</NavLink>
             <NavLink href="/faq">Preguntas</NavLink>
             <NavLink href="/contacto">Contacto</NavLink>
@@ -178,65 +179,83 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── Hero (desktop): layout anterior, sin cambios ────── */}
-        <section className="hidden md:grid px-5 md:px-10 pt-10 md:pt-16 pb-10 max-w-6xl mx-auto md:grid-cols-2 gap-10 items-center">
-          <div className="fi1">
-            <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
-              Experiencias digitales de autoconocimiento
-            </p>
-            <h1
-              className="mb-4"
-              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2rem, 5vw, 3.1rem)", lineHeight: 1.1 }}
-            >
-              Tu espacio de guía,<br />claridad y autoconocimiento
-            </h1>
-            <p className="text-white/65 text-[15px] leading-relaxed mb-6 max-w-md">
-              En Tu Oráculo creamos experiencias digitales de autoconocimiento. Hoy podés vivir{" "}
-              <strong className="text-white/90">Tu Tirada Tarot</strong>: una lectura personalizada que
-              te llega directo a tu WhatsApp, en menos de 15 minutos, estés donde estés en Uruguay.
-            </p>
-            <CtaButton href="/tarot" className="px-7 py-3.5 text-sm mb-8">
-              Quiero mi tirada →
-            </CtaButton>
-            <div className="grid grid-cols-3 gap-4 max-w-sm">
-              {[
-                { Icon: Sparkles, label: "Más claridad", sub: "para tus decisiones" },
-                { Icon: Zap, label: "Respuesta", sub: "en minutos" },
-                { Icon: ShieldCheck, label: "100% privado", sub: "" },
-              ].map(({ Icon, label, sub }) => (
-                <div key={label} className="text-center">
-                  <Icon size={18} style={{ color: GOLD, margin: "0 auto 6px" }} />
-                  <p className="text-[11px] text-white/70 font-semibold leading-tight">{label}</p>
-                  {sub && <p className="text-[10px] text-white/40">{sub}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-
+        {/* ── Hero (desktop): borde a borde, misma imagen continua,
+            texto flotante sobre un degradado — mismo criterio que mobile,
+            reusando hero-escena.webp (pensada originalmente para media
+            columna; se evalúa acá si funciona full-bleed sin generar una
+            versión nueva más ancha). ────────────────────────────────── */}
+        <section className="hidden md:block relative overflow-hidden" style={{ minHeight: "82vh" }}>
           <div
-            className="fi2 hero-visual relative rounded-3xl overflow-hidden"
-            style={{ aspectRatio: "4 / 5" }}
-          >
-            <img
-              src="/img/home/carta-la-estrella.webp"
-              alt=""
-              aria-hidden="true"
-              className="home-carta home-carta-l hidden md:block"
-              style={{ position: "absolute", left: "4%", bottom: "6%", width: "22%" }}
-            />
-            <img
-              src="/img/home/carta-la-luna.webp"
-              alt=""
-              aria-hidden="true"
-              className="home-carta home-carta-r hidden md:block"
-              style={{ position: "absolute", left: "15%", bottom: "3%", width: "22%" }}
-            />
-            <CelularMock
-              pantalla="whatsapp"
-              alt="Mensaje de WhatsApp con tu tirada de tarot"
-              style={{ position: "absolute", right: "10%", top: "12%", width: "34%" }}
-              priority
-            />
+            className="hero-visual"
+            style={{ position: "absolute", inset: 0, backgroundSize: "cover", backgroundPosition: "center" }}
+          />
+          {/* Scrim izquierda→derecha: oscuro donde va el texto, transparente hacia la escena */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(100deg, rgba(9,6,20,0.88) 0%, rgba(9,6,20,0.72) 28%, rgba(9,6,20,0.30) 52%, rgba(9,6,20,0.05) 70%)",
+          }} />
+          {/* Fundido inferior hacia el fondo sólido de la página */}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(180deg, transparent 72%, #0b0818 100%)",
+          }} />
+
+          <div className="relative max-w-6xl mx-auto px-10 grid grid-cols-2 gap-10 items-center" style={{ minHeight: "82vh" }}>
+            <div className="fi1">
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
+                Experiencias digitales de autoconocimiento
+              </p>
+              <h1
+                className="mb-4"
+                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2rem, 4vw, 3.1rem)", lineHeight: 1.1, textShadow: "0 2px 20px rgba(0,0,0,0.5)" }}
+              >
+                Tu espacio de guía,<br />claridad y autoconocimiento
+              </h1>
+              <p className="text-white/70 text-[15px] leading-relaxed mb-6 max-w-md" style={{ textShadow: "0 1px 12px rgba(0,0,0,0.6)" }}>
+                En Tu Oráculo creamos experiencias digitales de autoconocimiento. Hoy podés vivir{" "}
+                <strong className="text-white/95">Tu Tirada Tarot</strong>: una lectura personalizada que
+                te llega directo a tu WhatsApp, en menos de 15 minutos, estés donde estés en Uruguay.
+              </p>
+              <CtaButton href="/tarot" className="px-7 py-3.5 text-sm mb-8">
+                Quiero mi tirada →
+              </CtaButton>
+              <div className="grid grid-cols-3 gap-4 max-w-sm">
+                {[
+                  { Icon: Sparkles, label: "Más claridad", sub: "para tus decisiones" },
+                  { Icon: Zap, label: "Respuesta", sub: "en minutos" },
+                  { Icon: ShieldCheck, label: "100% privado", sub: "" },
+                ].map(({ Icon, label, sub }) => (
+                  <div key={label} className="text-center">
+                    <Icon size={18} style={{ color: GOLD, margin: "0 auto 6px" }} />
+                    <p className="text-[11px] text-white/80 font-semibold leading-tight" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{label}</p>
+                    {sub && <p className="text-[10px] text-white/50" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{sub}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="fi2 relative" style={{ height: "78%" }}>
+              <img
+                src="/img/home/carta-la-estrella.webp"
+                alt=""
+                aria-hidden="true"
+                className="home-carta home-carta-l"
+                style={{ position: "absolute", left: "2%", bottom: "4%", width: "19%" }}
+              />
+              <img
+                src="/img/home/carta-la-luna.webp"
+                alt=""
+                aria-hidden="true"
+                className="home-carta home-carta-r"
+                style={{ position: "absolute", left: "13%", bottom: "1%", width: "19%" }}
+              />
+              <CelularMock
+                pantalla="whatsapp"
+                alt="Mensaje de WhatsApp con tu tirada de tarot"
+                style={{ position: "absolute", right: "12%", top: "4%", width: "30%" }}
+                priority
+              />
+            </div>
           </div>
         </section>
 
@@ -304,10 +323,16 @@ export default function HomePage() {
             </div>
           </div>
 
-          <p className="text-center text-white/35 text-xs mt-6">
-            Estamos construyendo más experiencias de autoconocimiento. Cuando estén listas, las vas a
-            encontrar acá también.
-          </p>
+          <div
+            className="fi3 mt-6 max-w-md mx-auto rounded-2xl p-5 text-center"
+            style={{ border: "1px dashed rgba(240,197,90,0.28)", background: "rgba(255,255,255,0.02)" }}
+          >
+            <Sparkles size={18} style={{ color: GOLD, margin: "0 auto 8px" }} />
+            <p className="text-sm font-semibold text-white/75 mb-1">Próximamente</p>
+            <p className="text-white/40 text-xs leading-relaxed">
+              Estamos trabajando en nuevas experiencias para vos.
+            </p>
+          </div>
         </section>
 
         {/* ── Cómo funciona ───────────────────────────────────── */}
