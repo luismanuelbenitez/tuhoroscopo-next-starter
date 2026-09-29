@@ -37,38 +37,90 @@ async function proxy(
 // import pesado (~300KB, el fondo horneado del cabezal de WhatsApp) que
 // no vale la pena redesplegar por esta lectura simple. Nunca genera
 // nada, solo lee estado y firma una URL si ya está listo.
+interface AudioEstadoResp {
+  estado: string;
+  voz: string | null;
+  modelo: string | null;
+  caracteres: number | null;
+  intentos: number;
+  generado_at: string | null;
+  error: string | null;
+  costo_usd_estimado: number | null;
+  signedUrl: string | null;
+}
+
+// Costo estimado (2026-09-29): OpenAI no devuelve un conteo de
+// tokens/costo verificable en la respuesta de /v1/audio/speech (a
+// diferencia de chat completions) — en vez de inventar un número, se
+// calcula a partir de una tasa cargada manualmente por el usuario en
+// tarot_configuracion (tts_costo_por_1000_caracteres_usd, mismo patrón
+// que tipo_cambio_usd_uyu). Sin esa tasa, se devuelve null y el
+// frontend muestra "No disponible" — nunca un costo no verificado.
+async function leerTasaCostoAudio(
+  env: { supabaseUrl: string; serviceRoleKey: string },
+): Promise<number | null> {
+  const res = await fetch(
+    `${env.supabaseUrl}/rest/v1/tarot_configuracion?clave=eq.tts_costo_por_1000_caracteres_usd&select=valor`,
+    { headers: { Authorization: `Bearer ${env.serviceRoleKey}`, apikey: env.serviceRoleKey }, cache: "no-store" },
+  );
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => []);
+  const valor = Number(rows?.[0]?.valor);
+  return Number.isFinite(valor) && valor > 0 ? valor : null;
+}
+
 async function leerAudioEstado(
   ordenId: string,
   env: { supabaseUrl: string; serviceRoleKey: string },
-): Promise<{ estado: string; voz: string | null; signedUrl: string | null }> {
+): Promise<AudioEstadoResp> {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${env.serviceRoleKey}`,
     apikey: env.serviceRoleKey,
   };
+  const vacio: AudioEstadoResp = {
+    estado: "no_generado", voz: null, modelo: null, caracteres: null,
+    intentos: 0, generado_at: null, error: null, costo_usd_estimado: null, signedUrl: null,
+  };
+
   const res = await fetch(
-    `${env.supabaseUrl}/rest/v1/tarot_lecturas?orden_id=eq.${ordenId}&es_vigente=eq.true&select=audio_resumen_estado,audio_resumen_storage_path,audio_resumen_voz`,
+    `${env.supabaseUrl}/rest/v1/tarot_lecturas?orden_id=eq.${ordenId}&es_vigente=eq.true&select=audio_resumen_estado,audio_resumen_storage_path,audio_resumen_voz,audio_resumen_modelo,audio_resumen_caracteres,audio_resumen_intentos,audio_resumen_generado_at,audio_resumen_error`,
     { headers, cache: "no-store" },
   );
-  if (!res.ok) return { estado: "no_generado", voz: null, signedUrl: null };
+  if (!res.ok) return vacio;
 
   const rows = await res.json().catch(() => []);
   const row = Array.isArray(rows) ? rows[0] : null;
-  const estado = row?.audio_resumen_estado ?? "no_generado";
-  const voz = row?.audio_resumen_voz ?? null;
-  const path = row?.audio_resumen_storage_path as string | undefined;
+  if (!row) return vacio;
 
-  if (estado !== "listo" || !path) return { estado, voz, signedUrl: null };
+  const caracteres = (row.audio_resumen_caracteres as number | null) ?? null;
+  const tasa = caracteres ? await leerTasaCostoAudio(env) : null;
+  const costoUsdEstimado = caracteres && tasa ? Number(((caracteres / 1000) * tasa).toFixed(6)) : null;
+
+  const base: AudioEstadoResp = {
+    estado: row.audio_resumen_estado ?? "no_generado",
+    voz: row.audio_resumen_voz ?? null,
+    modelo: row.audio_resumen_modelo ?? null,
+    caracteres,
+    intentos: (row.audio_resumen_intentos as number | null) ?? 0,
+    generado_at: row.audio_resumen_generado_at ?? null,
+    error: row.audio_resumen_error ?? null,
+    costo_usd_estimado: costoUsdEstimado,
+    signedUrl: null,
+  };
+
+  const path = row.audio_resumen_storage_path as string | undefined;
+  if (base.estado !== "listo" || !path) return base;
 
   const signRes = await fetch(`${env.supabaseUrl}/storage/v1/object/sign/tarot-assets/${path}`, {
     method: "POST",
     headers,
     body: JSON.stringify({ expiresIn: 24 * 3600 }),
   });
-  if (!signRes.ok) return { estado, voz, signedUrl: null };
+  if (!signRes.ok) return base;
   const signData = await signRes.json().catch(() => null);
-  const signedUrl = signData?.signedURL ? `${env.supabaseUrl}/storage/v1${signData.signedURL}` : null;
-  return { estado, voz, signedUrl };
+  base.signedUrl = signData?.signedURL ? `${env.supabaseUrl}/storage/v1${signData.signedURL}` : null;
+  return base;
 }
 
 // Estado actual del acceso web (creado/vence/estado) — se llama al abrir el detalle.

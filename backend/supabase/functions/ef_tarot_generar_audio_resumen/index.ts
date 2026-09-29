@@ -100,7 +100,7 @@ async function generarAudioProduccion(lecturaId: string) {
 
   const { data: lectura } = await supabase
     .from("tarot_lecturas")
-    .select("id, orden_id, resumen_lectura")
+    .select("id, orden_id, resumen_lectura, audio_resumen_intentos")
     .eq("id", lecturaId)
     .maybeSingle();
 
@@ -114,9 +114,11 @@ async function generarAudioProduccion(lecturaId: string) {
   const voz     = normalizarVoz(cfg.tts_voz);
   const modelo  = cfg.tts_modelo || MODELO_DEFAULT;
   const velocidad = cfg.tts_velocidad ? Number(cfg.tts_velocidad) : undefined;
+  const caracteres = lectura.resumen_lectura.length;
+  const intentos = ((lectura.audio_resumen_intentos as number | null) ?? 0) + 1;
 
   await supabase.from("tarot_lecturas")
-    .update({ audio_resumen_estado: "generando" })
+    .update({ audio_resumen_estado: "generando", audio_resumen_intentos: intentos })
     .eq("id", lecturaId);
 
   try {
@@ -136,19 +138,23 @@ async function generarAudioProduccion(lecturaId: string) {
       audio_resumen_storage_path: storagePath,
       audio_resumen_estado:       "listo",
       audio_resumen_voz:          voz,
+      audio_resumen_modelo:       modelo,
+      audio_resumen_caracteres:   caracteres,
       audio_resumen_generado_at:  new Date().toISOString(),
       audio_resumen_error:        null,
     }).eq("id", lecturaId);
 
-    await log(ordenId, "audio_resumen_generado", "info", "Audio del resumen generado", { lectura_id: lecturaId, voz, modelo });
+    await log(ordenId, "audio_resumen_generado", "info", "Audio del resumen generado", { lectura_id: lecturaId, voz, modelo, caracteres, intentos });
   } catch (err) {
     const errMsg = String(err);
     await supabase.from("tarot_lecturas").update({
-      audio_resumen_estado: "error",
-      audio_resumen_error:  errMsg.substring(0, 500),
+      audio_resumen_estado:     "error",
+      audio_resumen_error:      errMsg.substring(0, 500),
+      audio_resumen_modelo:     modelo,
+      audio_resumen_caracteres: caracteres,
     }).eq("id", lecturaId);
     await log(ordenId, "audio_resumen_error", "warning",
-      "Fallo al generar el audio del resumen (no bloquea la entrega)", { lectura_id: lecturaId, error: errMsg });
+      "Fallo al generar el audio del resumen (no bloquea la entrega)", { lectura_id: lecturaId, error: errMsg, intentos });
   }
 }
 

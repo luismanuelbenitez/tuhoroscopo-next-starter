@@ -150,6 +150,8 @@ const GRUPOS: { titulo: string; campos: Campo[] }[] = [
         helpText: "1.0 = normal. Rango 0.25–4.0." },
       { clave: "tts_instrucciones", label: "Instrucciones de tono", tipo: "text",
         helpText: "Cómo debe sonar la voz (acento, calidez, ritmo)." },
+      { clave: "tts_costo_por_1000_caracteres_usd", label: "Costo por 1000 caracteres (USD)", tipo: "number", min: 0, step: 0.001,
+        helpText: 'OpenAI no devuelve el costo real por audio — cargá acá la tasa que ves en tu dashboard de OpenAI para que el detalle de cada orden pueda estimar el costo. Vacío = el reporte muestra "No disponible" en vez de un número inventado.' },
     ],
   },
 ];

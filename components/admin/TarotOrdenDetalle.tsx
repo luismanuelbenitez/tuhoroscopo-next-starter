@@ -87,6 +87,12 @@ interface ImagenEstado {
 interface AudioEstado {
   estado: string;
   voz: string | null;
+  modelo: string | null;
+  caracteres: number | null;
+  intentos: number;
+  generado_at: string | null;
+  error: string | null;
+  costo_usd_estimado: number | null;
   signedUrl: string | null;
 }
 
@@ -154,6 +160,13 @@ const ESTADO_LECTURA: Record<string, { label: string; cls: string }> = {
   generando:   { label: "Generando",  cls: "bg-amber-900/50 text-amber-300" },
   completada:  { label: "Completada", cls: "bg-emerald-900/50 text-emerald-300" },
   error:       { label: "Error",      cls: "bg-red-900/50 text-red-300" },
+};
+
+const ESTADO_AUDIO: Record<string, { label: string; cls: string }> = {
+  no_generado: { label: "No generado", cls: "bg-gray-800 text-gray-400" },
+  generando:   { label: "Generando",   cls: "bg-amber-900/50 text-amber-300" },
+  listo:       { label: "Generado",    cls: "bg-emerald-900/50 text-emerald-300" },
+  error:       { label: "Error",       cls: "bg-red-900/50 text-red-300" },
 };
 
 const ESTADO_PDF: Record<string, { label: string; cls: string }> = {
@@ -549,6 +562,37 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               </>
             ) : (
               <p className="text-sm text-gray-500">Sin lectura generada aún.</p>
+            )}
+          </Sect>
+
+          {/* Audio IA — narración TTS (OpenAI) del Resumen, feature opcional */}
+          <Sect title="Audio IA">
+            {loadingRelated ? (
+              <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
+            ) : audioEstado ? (
+              <>
+                <DataRow label="Estado" value={
+                  <Badge
+                    text={(ESTADO_AUDIO[audioEstado.estado] ?? { label: audioEstado.estado, cls: "bg-gray-800 text-gray-400" }).label}
+                    cls={(ESTADO_AUDIO[audioEstado.estado] ?? { label: "", cls: "bg-gray-800 text-gray-400" }).cls}
+                  />
+                } />
+                <DataRow label="Modelo" value={<span className="font-mono text-xs">{audioEstado.modelo ?? "—"}</span>} />
+                <DataRow label="Voz" value={<span className="font-mono text-xs">{audioEstado.voz ?? "—"}</span>} />
+                <DataRow label="Caracteres del texto" value={audioEstado.caracteres != null ? audioEstado.caracteres.toLocaleString() : "—"} />
+                <DataRow label="Costo USD (estimado)" value={
+                  audioEstado.costo_usd_estimado != null
+                    ? <span className="font-mono text-xs">${audioEstado.costo_usd_estimado.toFixed(6)}</span>
+                    : <span className="text-gray-500 text-xs">No disponible (cargar tasa en Configuración)</span>
+                } />
+                <DataRow label="Intento #" value={audioEstado.intentos || "—"} />
+                <DataRow label="Generado" value={audioEstado.generado_at ? fmt(audioEstado.generado_at) : "—"} />
+                {audioEstado.error && (
+                  <DataRow label="Error" value={<span className="text-red-300">{audioEstado.error}</span>} />
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">Sin audio generado aún.</p>
             )}
           </Sect>
 
