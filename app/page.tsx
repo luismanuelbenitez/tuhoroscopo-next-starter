@@ -1,387 +1,47 @@
 "use client";
 
-import Link from "next/link";
-import type { Route } from "next";
-import type { ReactNode } from "react";
-import { LogoIcon } from "@/components/logo-icon";
-import { usePrecioTarot } from "@/lib/usePrecioTarot";
-import { CelularMock } from "@/components/tarot/Mockups";
-import {
-  Sparkles, ShieldCheck, Zap, Smartphone, MessageCircle, MapPin,
-  ClipboardList, CreditCard, Moon, Leaf,
-} from "lucide-react";
+import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
+import { HeaderHome } from "@/components/home/HeaderHome";
+import { HomeBackgroundStage } from "@/components/home/HomeBackgroundStage";
+import { HeroExperiencias } from "@/components/home/HeroExperiencias";
+import { ProductoDestacado } from "@/components/home/ProductoDestacado";
+import { BloqueExperiencias } from "@/components/home/BloqueExperiencias";
+import { ComoFunciona } from "@/components/home/ComoFunciona";
+import { BloqueConfianza } from "@/components/home/BloqueConfianza";
 
-const GOLD = "#F0C55A";
-const CTA_GRADIENT = "linear-gradient(135deg, #c8980e 0%, #FFCE4D 60%, #e8bc3a 100%)";
-
-function NavLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href as Route<string>} className="text-[13px] text-white/65 hover:text-white transition-colors">
-      {children}
-    </Link>
-  );
-}
-
-function CtaButton({ href, children, className = "" }: { href: string; children: ReactNode; className?: string }) {
-  return (
-    <Link
-      href={href as Route<string>}
-      className={`inline-block rounded-xl text-center font-bold ${className}`}
-      style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 4px 20px rgba(240,197,90,0.30)" }}
-    >
-      {children}
-    </Link>
-  );
-}
-
+// Un único escenario visual (HomeBackgroundStage) envuelve TODOS los
+// bloques de la home, hasta antes del footer (que queda afuera, en el
+// layout). El escenario ya no tiene alto fijo: lo da el flujo normal de
+// sus hijos, y el fondo (dos <img> mobile/desktop, position:absolute) se
+// estira a ese alto. Nada de márgenes negativos ni posicionamiento
+// absoluto para "superponer" bloques — cada bloque fluye normal, uno
+// debajo del otro, como una página común.
 export default function HomePage() {
-  const precioTarot = usePrecioTarot();
-
   return (
     <>
+      <GlobalHomeStyles />
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap');
-
         body { background-image: none !important; background-color: #0b0818 !important; }
         body::before { display: none !important; }
         header { display: none !important; }
-
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-        .fi1 { animation: fadeUp 0.5s ease both; }
-        .fi2 { animation: fadeUp 0.5s 0.12s ease both; }
-        .fi3 { animation: fadeUp 0.5s 0.24s ease both; }
-
-        .home-carta { border-radius: 8px; box-shadow: 0 14px 32px rgba(0,0,0,0.55); }
-        .home-carta-l { transform: rotate(-8deg); }
-        .home-carta-r { transform: rotate(7deg); }
-
-        .hero-visual {
-          background-image: url(/img/home/hero-escena.webp);
-          background-size: cover;
-          background-position: 30% center;
-        }
-        @media (min-width: 768px) {
-          .hero-visual { background-position: center; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .fi1, .fi2, .fi3 { animation: none; }
-        }
       `}</style>
 
       <div
         className="min-h-screen text-white"
         style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)" }}
       >
-        {/* ── Nav (desktop) ───────────────────────────────────── */}
-        <nav
-          className="hidden md:flex sticky top-0 z-20 items-center justify-between px-4 md:px-10 py-3"
-          style={{ background: "rgba(11,8,24,0.78)", backdropFilter: "blur(10px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <LogoIcon size={30} />
-            <span
-              className="hidden sm:inline text-[13px] font-bold tracking-[0.22em] uppercase"
-              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
-            >
-              Tu Oráculo
-            </span>
-          </Link>
-          <div className="hidden md:flex items-center gap-7">
-            <NavLink href="/">Inicio</NavLink>
-            <NavLink href="/tarot">Productos</NavLink>
-            <NavLink href="/#como-funciona">Cómo funciona</NavLink>
-            <NavLink href="/faq">Preguntas</NavLink>
-            <NavLink href="/contacto">Contacto</NavLink>
-          </div>
-          <CtaButton href="/tarot" className="text-[12px] px-4 py-2 rounded-full">
-            Ver Tu Tirada →
-          </CtaButton>
-        </nav>
-
-        {/* ── Hero (mobile): imagen vertical con paneles flotantes ── */}
-        <div className="md:hidden relative" style={{ aspectRatio: "900 / 1599" }}>
-          <img
-            src="/img/home/hero-vertical.webp"
-            alt=""
-            aria-hidden="true"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
-
-          {/* nav flotante, integrada a la imagen */}
-          <div
-            className="absolute top-0 inset-x-0 flex items-center justify-between px-4 py-3 z-10"
-            style={{ background: "linear-gradient(180deg, rgba(6,4,14,0.55) 0%, transparent 100%)" }}
-          >
-            <Link href="/" className="flex items-center gap-2">
-              <LogoIcon size={28} />
-              <span
-                className="text-[11px] font-bold tracking-[0.22em] uppercase"
-                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", textShadow: "0 1px 4px rgba(0,0,0,0.7)" }}
-              >
-                Tu Oráculo
-              </span>
-            </Link>
-            <CtaButton href="/tarot" className="text-[11px] px-3.5 py-2 rounded-full">
-              Ver Tu Tirada →
-            </CtaButton>
-          </div>
-
-          {/* panel de texto flotante */}
-          <div className="fi1 absolute left-4 right-4 z-10" style={{ top: "31%" }}>
-            <div
-              className="rounded-2xl p-5"
-              style={{ background: "rgba(14,8,28,0.48)", backdropFilter: "blur(18px)", border: "1px solid rgba(240,197,90,0.20)", boxShadow: "0 8px 32px rgba(0,0,0,0.35)" }}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
-                Experiencias digitales de autoconocimiento
-              </p>
-              <h1
-                className="mb-3"
-                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "1.7rem", lineHeight: 1.14 }}
-              >
-                Tu espacio de guía, claridad y autoconocimiento
-              </h1>
-              <p className="text-white/70 text-[13px] leading-relaxed mb-4">
-                En Tu Oráculo creamos experiencias digitales de autoconocimiento. Hoy podés vivir{" "}
-                <strong className="text-white/90">Tu Tirada Tarot</strong>, directo a tu WhatsApp en
-                menos de 15 minutos.
-              </p>
-              <CtaButton href="#producto-destacado" className="px-6 py-3 text-[13px]">
-                Explorar experiencias →
-              </CtaButton>
+        <div className="max-w-[960px] mx-auto">
+          <HomeBackgroundStage>
+            <HeaderHome />
+            <HeroExperiencias />
+            <div className="relative px-5 md:px-8 mt-10 md:mt-14">
+              <ProductoDestacado />
             </div>
-          </div>
-
-          {/* celular flotante, con la captura real de cuando llega la tirada */}
-          <div className="fi2 absolute z-10" style={{ top: "63%", right: "8%", width: "21%" }}>
-            <CelularMock pantalla="whatsapp" alt="Mensaje de WhatsApp con tu tirada de tarot" priority />
-          </div>
-
-          {/* fila de confianza flotante */}
-          <div className="fi3 absolute left-4 right-4 z-10" style={{ bottom: "4%" }}>
-            <div
-              className="rounded-2xl px-3 py-3.5 grid grid-cols-3 gap-2"
-              style={{ background: "rgba(14,8,28,0.52)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.10)" }}
-            >
-              {[
-                { Icon: Sparkles, label: "Más claridad", sub: "para tus decisiones" },
-                { Icon: Moon, label: "Más conexión", sub: "contigo misma/o" },
-                { Icon: Leaf, label: "Más bienestar", sub: "en tu día a día" },
-              ].map(({ Icon, label, sub }) => (
-                <div key={label} className="text-center">
-                  <Icon size={16} style={{ color: GOLD, margin: "0 auto 4px" }} />
-                  <p className="text-[10px] text-white/80 font-semibold leading-tight">{label}</p>
-                  <p className="text-[9px] text-white/40 leading-tight">{sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+            <BloqueExperiencias />
+            <ComoFunciona />
+            <BloqueConfianza />
+          </HomeBackgroundStage>
         </div>
-
-        {/* ── Hero (desktop): borde a borde, misma imagen continua,
-            texto flotante sobre un degradado — mismo criterio que mobile,
-            reusando hero-escena.webp (pensada originalmente para media
-            columna; se evalúa acá si funciona full-bleed sin generar una
-            versión nueva más ancha). ────────────────────────────────── */}
-        <section className="hidden md:block relative overflow-hidden" style={{ minHeight: "82vh" }}>
-          <div
-            className="hero-visual"
-            style={{ position: "absolute", inset: 0, backgroundSize: "cover", backgroundPosition: "center" }}
-          />
-          {/* Scrim izquierda→derecha: oscuro donde va el texto, transparente hacia la escena */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(100deg, rgba(9,6,20,0.88) 0%, rgba(9,6,20,0.72) 28%, rgba(9,6,20,0.30) 52%, rgba(9,6,20,0.05) 70%)",
-          }} />
-          {/* Fundido inferior hacia el fondo sólido de la página */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(180deg, transparent 72%, #0b0818 100%)",
-          }} />
-
-          <div className="relative max-w-6xl mx-auto px-10 grid grid-cols-2 gap-10 items-center" style={{ minHeight: "82vh" }}>
-            <div className="fi1">
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
-                Experiencias digitales de autoconocimiento
-              </p>
-              <h1
-                className="mb-4"
-                style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2rem, 4vw, 3.1rem)", lineHeight: 1.1, textShadow: "0 2px 20px rgba(0,0,0,0.5)" }}
-              >
-                Tu espacio de guía,<br />claridad y autoconocimiento
-              </h1>
-              <p className="text-white/70 text-[15px] leading-relaxed mb-6 max-w-md" style={{ textShadow: "0 1px 12px rgba(0,0,0,0.6)" }}>
-                En Tu Oráculo creamos experiencias digitales de autoconocimiento. Hoy podés vivir{" "}
-                <strong className="text-white/95">Tu Tirada Tarot</strong>: una lectura personalizada que
-                te llega directo a tu WhatsApp, en menos de 15 minutos, estés donde estés en Uruguay.
-              </p>
-              <CtaButton href="/tarot" className="px-7 py-3.5 text-sm mb-8">
-                Quiero mi tirada →
-              </CtaButton>
-              <div className="grid grid-cols-3 gap-4 max-w-sm">
-                {[
-                  { Icon: Sparkles, label: "Más claridad", sub: "para tus decisiones" },
-                  { Icon: Zap, label: "Respuesta", sub: "en minutos" },
-                  { Icon: ShieldCheck, label: "100% privado", sub: "" },
-                ].map(({ Icon, label, sub }) => (
-                  <div key={label} className="text-center">
-                    <Icon size={18} style={{ color: GOLD, margin: "0 auto 6px" }} />
-                    <p className="text-[11px] text-white/80 font-semibold leading-tight" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{label}</p>
-                    {sub && <p className="text-[10px] text-white/50" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{sub}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="fi2 relative" style={{ height: "78%" }}>
-              <img
-                src="/img/home/carta-la-estrella.webp"
-                alt=""
-                aria-hidden="true"
-                className="home-carta home-carta-l"
-                style={{ position: "absolute", left: "2%", bottom: "4%", width: "19%" }}
-              />
-              <img
-                src="/img/home/carta-la-luna.webp"
-                alt=""
-                aria-hidden="true"
-                className="home-carta home-carta-r"
-                style={{ position: "absolute", left: "13%", bottom: "1%", width: "19%" }}
-              />
-              <CelularMock
-                pantalla="whatsapp"
-                alt="Mensaje de WhatsApp con tu tirada de tarot"
-                style={{ position: "absolute", right: "12%", top: "4%", width: "30%" }}
-                priority
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ── Producto destacado ──────────────────────────────── */}
-        <section id="producto-destacado" className="px-5 md:px-10 py-10 max-w-6xl mx-auto scroll-mt-16">
-          <div
-            className="fi3 rounded-3xl p-6 md:p-10 grid md:grid-cols-[200px,1fr] gap-8 items-center"
-            style={{ background: "linear-gradient(160deg, rgba(130,88,0,0.16) 0%, rgba(80,50,0,0.06) 100%)", border: "1px solid rgba(240,197,90,0.28)" }}
-          >
-            <div className="relative mx-auto md:mx-0" style={{ width: 150, height: 180 }}>
-              <img
-                src="/img/home/carta-el-loco.webp"
-                alt=""
-                aria-hidden="true"
-                className="home-carta home-carta-l"
-                style={{ position: "absolute", left: 0, top: 10, width: 115 }}
-              />
-              <img
-                src="/img/home/carta-la-estrella.webp"
-                alt=""
-                aria-hidden="true"
-                className="home-carta home-carta-r"
-                style={{ position: "absolute", left: 38, top: 0, width: 115 }}
-              />
-            </div>
-
-            <div>
-              <p
-                className="inline-block text-[10px] font-bold uppercase tracking-widest mb-3 px-3 py-1 rounded-full"
-                style={{ color: GOLD, background: "rgba(240,197,90,0.10)", border: "1px solid rgba(240,197,90,0.25)" }}
-              >
-                Producto destacado
-              </p>
-              <div className="flex flex-wrap items-baseline justify-between gap-3 mb-1">
-                <h2 className="text-2xl md:text-3xl font-extrabold">Tu Tirada Tarot</h2>
-                <p className="text-xl font-bold" style={{ color: GOLD }}>
-                  {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
-                  <span className="font-normal text-xs text-white/40"> · pago único</span>
-                </p>
-              </div>
-              <p className="text-[12px] uppercase tracking-wide text-white/40 mb-4">
-                Una guía personalizada para tu momento actual
-              </p>
-              <p className="text-white/70 text-[15px] leading-relaxed mb-5 max-w-lg">
-                Recibí una lectura de tarot clara, profunda y práctica, directo a tu WhatsApp, en menos
-                de 15 minutos: una lectura online pensada para el celular y un PDF de 3 páginas para
-                guardar.
-              </p>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-6">
-                {[
-                  "Lectura personalizada",
-                  "Interpretación clara y práctica",
-                  "PDF de 3 páginas para guardar",
-                  "Entrega por WhatsApp",
-                  "Desde cualquier lugar de Uruguay",
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-[13px] text-white/65">
-                    <span style={{ color: GOLD, fontSize: 9 }}>✦</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <CtaButton href="/tarot" className="px-6 py-3 text-sm">
-                Quiero mi tirada →
-              </CtaButton>
-            </div>
-          </div>
-
-          <div
-            className="fi3 mt-6 max-w-md mx-auto rounded-2xl p-5 text-center"
-            style={{ border: "1px dashed rgba(240,197,90,0.28)", background: "rgba(255,255,255,0.02)" }}
-          >
-            <Sparkles size={18} style={{ color: GOLD, margin: "0 auto 8px" }} />
-            <p className="text-sm font-semibold text-white/75 mb-1">Próximamente</p>
-            <p className="text-white/40 text-xs leading-relaxed">
-              Estamos trabajando en nuevas experiencias para vos.
-            </p>
-          </div>
-        </section>
-
-        {/* ── Cómo funciona ───────────────────────────────────── */}
-        <section id="como-funciona" className="px-5 md:px-10 py-14 max-w-5xl mx-auto text-center scroll-mt-16">
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
-            Simple, rápido y desde tu celular
-          </p>
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-10">¿Cómo funciona?</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { n: "1", Icon: ClipboardList, t: "Elegís tu tema", d: "Amor, trabajo, dinero, salud, o una consulta general." },
-              { n: "2", Icon: CreditCard, t: "Pagás con Mercado Pago", d: "De forma segura, en minutos." },
-              { n: "3", Icon: MessageCircle, t: "Recibís tu tirada", d: "Directo a tu WhatsApp." },
-              { n: "4", Icon: Smartphone, t: "Vivís la experiencia", d: "Leelo a tu ritmo, cuando quieras." },
-            ].map(({ n, Icon, t, d }) => (
-              <div key={n}>
-                <div
-                  className="mx-auto mb-3 flex items-center justify-center rounded-full"
-                  style={{ width: 52, height: 52, border: "1px solid rgba(240,197,90,0.35)" }}
-                >
-                  <Icon size={20} style={{ color: GOLD }} />
-                </div>
-                <p className="text-[11px] font-bold mb-1" style={{ color: GOLD }}>{n}</p>
-                <p className="text-sm font-semibold mb-1">{t}</p>
-                <p className="text-[12px] text-white/45 leading-snug">{d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Barra de confianza ──────────────────────────────── */}
-        <section className="px-5 pb-14 max-w-3xl mx-auto">
-          <div
-            className="rounded-2xl px-5 py-3.5 flex flex-wrap items-center justify-center gap-5"
-            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            {[
-              { Icon: MapPin, label: "Disponible en Uruguay" },
-              { Icon: ShieldCheck, label: "Pago seguro" },
-              { Icon: Zap, label: "Entrega rápida" },
-              { Icon: Smartphone, label: "Pensado para el celular" },
-            ].map(({ Icon, label }) => (
-              <div key={label} className="flex items-center gap-1.5 text-xs text-white/45">
-                <Icon size={13} style={{ color: GOLD }} />
-                <span>{label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     </>
   );
