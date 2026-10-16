@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Send,
   MessageCircle,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -55,6 +56,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/pagos",    icon: CreditCard,   label: "Pagos" },
       { href: "/admin/tarot/facturacion", icon: Receipt,   label: "Facturación" },
       { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
+      { href: "/admin/tarot/testimonios", icon: Star,      label: "Testimonios" },
     ],
   },
   {
