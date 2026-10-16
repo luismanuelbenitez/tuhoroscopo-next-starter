@@ -3,16 +3,28 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
-import Image from 'next/image';
-import { ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, CreditCard, Sparkles, MessageCircle } from 'lucide-react';
+import {
+  ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
+  ArrowLeft, User, Mail, Calendar, List, PenLine, Zap,
+} from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
+import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
+import { PaginaMarca } from '@/components/marca/PaginaMarca';
+import { HeaderMarca } from '@/components/marca/HeaderMarca';
+import { TarotBackgroundStage } from '@/components/tarot/TarotBackgroundStage';
+import { ResumenCompra } from '@/components/tarot/checkout/ResumenCompra';
+import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
+import { Etiqueta, ConIcono, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
 // 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
 
-const GOLD = '#FFCE4D';
-const GOLD_DIM = 'rgba(251,191,36,0.70)';
+const MP_LOGO = '/img/tarot/generales/MP_RGB_HANDSHAKE_pluma_horizontal.png';
+const TEXT_SHADOW = '0 2px 14px rgba(0,0,0,0.65)';
+// Checkout es más corto que la landing: solo la segunda imagen de fondo
+// (adornos en los bordes, centro limpio para el formulario).
+const FONDO_CHECKOUT = ['/img/tarot/generales/tarot-fondo-desktop2.webp'];
 // PRECIO_BASE is now passed as prop from the server page
 
 const PAISES = [
@@ -102,9 +114,6 @@ function formatearTelefono(raw: string, pais: string): string {
   }
   return '';
 }
-
-const inputBase =
-  'w-full rounded-xl bg-white/8 px-4 py-3 ring-1 ring-white/15 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60';
 
 export default function TarotCheckoutContent({ temaInicial, precioBase }: { temaInicial?: string; precioBase: number | null }) {
   const PRECIO_BASE = precioBase;
@@ -312,80 +321,75 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
     }
   }
 
+  // Mismo esquema que Home y /tarot (PaginaMarca → escenario → header →
+  // contenido). Solo presentación: todos los handlers y estados de arriba
+  // son los mismos de antes del rediseño.
   return (
-    <>
-      <style jsx global>{`
-        body {
-          background-image: none !important;
-          background-color: #0e0b22 !important;
-        }
-        body::before { display: none !important; }
-      `}</style>
+    <PaginaMarca>
+      <TarotBackgroundStage fondos={FONDO_CHECKOUT}>
+        <HeaderMarca variante="minimo" />
 
-      <div
-        className="min-h-screen text-white"
-        style={{ background: 'linear-gradient(180deg, #110927 0%, #0d0820 55%, #0e0b22 100%)' }}
-      >
-        {/* Gold glow top */}
-        <div
-          className="pointer-events-none fixed inset-x-0 top-0 h-72 z-0"
-          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(251,191,36,0.07), transparent)' }}
-        />
+        <div className="relative px-5 md:px-8 pt-6 pb-14 md:pb-20">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] gap-8 md:gap-9 md:items-start">
 
-        <div className="relative z-[1] mx-auto max-w-5xl px-4 py-8 md:py-12">
+            {/* ── Columna formulario ─────────────────────────────── */}
+            <div className="min-w-0">
+              <Link
+                href={'/tarot' as never}
+                className="inline-flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white transition-colors mb-6"
+              >
+                <ArrowLeft size={15} />
+                Volver a Tu Tirada
+              </Link>
 
-          {/* Back link */}
-          <Link
-            href={'/tarot' as never}
-            className="inline-flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors mb-8"
-          >
-            ← Volver al inicio
-          </Link>
-
-          <div className="flex flex-col md:flex-row gap-8 md:gap-12 md:items-start">
-
-            {/* ── Formulario ─────────────────────────────────────── */}
-            <div className="flex-1">
-              <div className="mb-6">
-                <p
-                  className="text-[11px] font-semibold uppercase tracking-widest mb-2"
-                  style={{ color: GOLD_DIM }}
-                >
-                  Tu consulta de tarot
+              {/* Velo oscuro detrás del título: el fondo tiene adornos (luna,
+                  hojas) justo en esta zona — mismo recurso de legibilidad
+                  que HeroTarot (text-shadow) más un degradé radial suave. */}
+              <div className="relative isolate mb-6" style={{ textShadow: TEXT_SHADOW }}>
+                <div
+                  aria-hidden="true"
+                  className="absolute -inset-x-8 -inset-y-6 -z-10 pointer-events-none"
+                  style={{ background: 'radial-gradient(ellipse 75% 85% at 35% 50%, rgba(6,4,14,0.72), transparent 75%)' }}
+                />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: GOLD }}>
+                  Tu Tirada Tarot
                 </p>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
-                  Contame tu consulta
+                <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
+                  Completá tu experiencia
                 </h1>
-                <p className="text-white/55 text-sm mt-2">
-                  Si tenés una pregunta puntual, te ayuda a enfocar la lectura. Si preferís venir sin una pregunta armada, también recibís una lectura completa sobre tu momento actual.
+                <p className="text-white/75 text-[14.5px] leading-relaxed mt-3 max-w-[480px]">
+                  Contanos un poco sobre vos y tu consulta. Podés hacer una pregunta puntual o simplemente recibir una lectura completa sobre tu momento actual.
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form
+                onSubmit={handleSubmit}
+                className="rounded-2xl p-5 md:p-6 space-y-5"
+                style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
+              >
 
                 {/* Nombre */}
                 <div>
-                  <label htmlFor="nombre" className="block text-sm text-white/80 mb-1">
-                    Tu nombre <span className="text-white/35">(requerido)</span>
-                  </label>
-                  <input
-                    id="nombre"
-                    name="nombre"
-                    className={inputBase}
-                    placeholder="¿Cómo te llamás?"
-                    value={form.nombre}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    required
-                  />
+                  <Etiqueta htmlFor="nombre" texto="Tu nombre" nota="requerido" />
+                  <ConIcono Icon={User}>
+                    <input
+                      id="nombre"
+                      name="nombre"
+                      className={`${inputCheckout} pl-11`}
+                      style={inputBg}
+                      placeholder="¿Cómo te llamás?"
+                      value={form.nombre}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      required
+                    />
+                  </ConIcono>
                 </div>
 
                 {/* Teléfono */}
                 <div>
-                  <label htmlFor="telefono" className="block text-sm text-white/80 mb-1">
-                    Tu WhatsApp <span className="text-white/35">(requerido)</span>
-                  </label>
-                  <div className="flex gap-2 items-center">
+                  <Etiqueta htmlFor="telefono" texto="Tu WhatsApp" nota="requerido" />
+                  <div className="flex gap-2.5 items-center">
                     {/* Selector de país */}
                     <div className="relative shrink-0">
                       <select
@@ -395,35 +399,41 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                           setForm(prev => ({ ...prev, telefono: '' }));
                         }}
                         disabled={isLoading}
-                        className="appearance-none rounded-xl bg-white/8 pl-3 pr-8 ring-1 ring-white/15 h-[52px] text-white/70 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60 cursor-pointer text-sm"
-                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                        aria-label="País"
+                        className="appearance-none rounded-xl pl-4 pr-9 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[14px]"
+                        style={inputBg}
                       >
                         {PAISES.map(p => (
                           <option key={p.codigo} value={p.codigo} style={{ background: '#1a0a3a', color: 'white' }}>
-                            {p.bandera} {p.prefijo}
+                            {p.codigo} {p.prefijo}
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
                     </div>
-                    <input
-                      id="telefono"
-                      name="telefono"
-                      className={`flex-1 rounded-xl bg-white/8 px-4 py-3 h-[52px] ring-1 focus:outline-none focus:ring-2 placeholder:text-white/40 disabled:opacity-60 text-white transition-shadow ${
-                        telefonoValido(form.telefono, pais)
-                          ? 'ring-emerald-500/50 focus:ring-emerald-400/60'
-                          : 'ring-white/15 focus:ring-amber-400/60'
-                      }`}
-                      placeholder={paisInfo.placeholder}
-                      inputMode="numeric"
-                      value={form.telefono}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, paisInfo.maxDigits);
-                        setForm(prev => ({ ...prev, telefono: digits }));
-                      }}
-                      disabled={isLoading}
-                      required
-                    />
+                    <div className="flex-1 min-w-0">
+                      <ConIcono Icon={MessageCircle}>
+                        <input
+                          id="telefono"
+                          name="telefono"
+                          className={`${inputCheckout} pl-11 ${
+                            telefonoValido(form.telefono, pais)
+                              ? '!ring-emerald-500/55 focus:!ring-emerald-400/60'
+                              : ''
+                          }`}
+                          style={inputBg}
+                          placeholder={paisInfo.placeholder}
+                          inputMode="numeric"
+                          value={form.telefono}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, paisInfo.maxDigits);
+                            setForm(prev => ({ ...prev, telefono: digits }));
+                          }}
+                          disabled={isLoading}
+                          required
+                        />
+                      </ConIcono>
+                    </div>
                   </div>
                   {telefonoValido(form.telefono, pais) ? (
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
@@ -431,7 +441,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                       <span>Número confirmado: <span className="font-semibold font-mono">{formatearTelefono(form.telefono, pais)}</span></span>
                     </div>
                   ) : form.telefono.length >= 3 ? (
-                    <p className="mt-1.5 text-xs text-amber-400/70">
+                    <p className="mt-1.5 text-xs text-amber-300/80">
                       {pais === 'UY'
                         ? (form.telefono.length < 9
                             ? `Faltan ${9 - form.telefono.length} dígito${9 - form.telefono.length !== 1 ? 's' : ''}`
@@ -441,16 +451,13 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                             : 'Ingresá el número sin el 0 inicial ni el 15')}
                     </p>
                   ) : (
-                    <p className="mt-1 text-xs text-white/45">{paisInfo.hint}</p>
+                    <p className="mt-1.5 text-xs text-white/55">{paisInfo.hint}</p>
                   )}
                 </div>
 
                 {/* Email (opcional, requerido solo si se pide como canal) */}
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
-                    <label htmlFor="email" className="text-sm text-white/80">
-                      Email <span className="text-white/35">{emailSolicitado ? '(requerido)' : '(opcional)'}</span>
-                    </label>
+                  <Etiqueta htmlFor="email" texto="Email" nota={emailSolicitado ? 'requerido' : 'opcional'}>
                     <button
                       type="button"
                       role="switch"
@@ -461,97 +468,106 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                         setEmailSolicitado(v => !v);
                       }}
                       disabled={isLoading}
-                      className="flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                      className="flex items-center gap-2 shrink-0 py-1.5 -my-1.5 disabled:opacity-50"
                     >
-                      <span className="text-[11px] text-white/45 whitespace-nowrap">Recibir por email</span>
+                      <span className="text-[12px] text-white/60 whitespace-nowrap">Recibir por email</span>
                       <span
-                        className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${emailSolicitado ? 'bg-amber-400' : 'bg-white/15'}`}
+                        className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                        style={{ background: emailSolicitado ? GOLD : 'rgba(255,255,255,0.18)' }}
                       >
                         <span
-                          className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${emailSolicitado ? 'translate-x-3.5' : 'translate-x-0.5'}`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${emailSolicitado ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
                         />
                       </span>
                     </button>
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    className={inputBase}
-                    placeholder="tu@email.com"
-                    value={form.email}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    required={emailSolicitado}
-                  />
+                  </Etiqueta>
+                  <ConIcono Icon={Mail}>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      className={`${inputCheckout} pl-11`}
+                      style={inputBg}
+                      placeholder="tu@email.com"
+                      value={form.email}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      required={emailSolicitado}
+                    />
+                  </ConIcono>
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
                 <div>
-                  <label htmlFor="fecha_nacimiento" className="block text-sm text-white/80 mb-1">
-                    Fecha de nacimiento <span className="text-white/35">(opcional — ayuda a personalizar)</span>
-                  </label>
-                  <input
-                    id="fecha_nacimiento"
-                    name="fecha_nacimiento"
-                    type="date"
-                    className={`${inputBase} [color-scheme:dark]`}
-                    value={form.fecha_nacimiento}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
+                  <Etiqueta htmlFor="fecha_nacimiento" texto="Fecha de nacimiento" nota="opcional" />
+                  <ConIcono Icon={Calendar}>
+                    <input
+                      id="fecha_nacimiento"
+                      name="fecha_nacimiento"
+                      type="date"
+                      className={`${inputCheckout} pl-11 [color-scheme:dark]`}
+                      style={inputBg}
+                      value={form.fecha_nacimiento}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                  </ConIcono>
                 </div>
 
                 {/* Tema */}
-                <div className="relative">
-                  <label htmlFor="tema" className="block text-sm text-white/80 mb-1">
-                    Tema de la consulta <span className="text-white/35">(requerido)</span>
-                  </label>
-                  <select
-                    id="tema"
-                    name="tema"
-                    className={`${inputBase} appearance-none pr-10`}
-                    value={form.tema}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    required
-                  >
-                    <option value="" disabled>Elegí un área</option>
-                    {TEMAS.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-9 h-5 w-5 text-white/50 pointer-events-none" />
+                <div>
+                  <Etiqueta htmlFor="tema" texto="Tema de la consulta" nota="requerido" />
+                  <div className="relative">
+                    <ConIcono Icon={List}>
+                      <select
+                        id="tema"
+                        name="tema"
+                        className={`${inputCheckout} pl-11 pr-10 appearance-none cursor-pointer ${form.tema ? '' : 'text-white/40'}`}
+                        style={inputBg}
+                        value={form.tema}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                        required
+                      >
+                        <option value="" disabled style={{ background: '#1a0a3a' }}>Elegí un área</option>
+                        {TEMAS.map(t => (
+                          <option key={t.value} value={t.value} style={{ background: '#1a0a3a', color: 'white' }}>{t.label}</option>
+                        ))}
+                      </select>
+                    </ConIcono>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Pregunta (opcional) */}
                 <div>
-                  <label htmlFor="pregunta" className="block text-sm text-white/80 mb-1">
-                    Tu pregunta <span className="text-white/35">(opcional)</span>
-                  </label>
-                  <textarea
-                    id="pregunta"
-                    name="pregunta"
-                    rows={4}
-                    className={`${inputBase} resize-none`}
-                    placeholder={`Si hay algo puntual que quieras explorar, contámelo. Si no, podés recibir una lectura abierta sobre tu momento actual.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
-                    value={form.pregunta}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                    maxLength={500}
-                  />
-                  <p className="mt-1 text-xs text-white/35 text-right">{form.pregunta.length}/500</p>
+                  <Etiqueta htmlFor="pregunta" texto="Tu pregunta" nota="opcional" />
+                  <ConIcono Icon={PenLine} arriba>
+                    <textarea
+                      id="pregunta"
+                      name="pregunta"
+                      rows={4}
+                      className={`${inputCheckout} !h-auto pl-11 resize-none leading-relaxed`}
+                      style={inputBg}
+                      placeholder={`Si hay algo puntual que quieras explorar, contámelo. Si no, podés recibir una lectura abierta sobre tu momento actual.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
+                      value={form.pregunta}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      maxLength={500}
+                    />
+                  </ConIcono>
+                  <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
                 </div>
 
                 {/* ── Código de descuento ──────────────────────────── */}
                 <div
                   className="rounded-xl p-4"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(240,197,90,0.20)' }}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-3 flex items-center gap-1.5" style={{ color: GOLD_DIM }}>
-                    <Tag size={12} />
+                  <p className="text-[13px] font-medium mb-3 flex items-center gap-1.5" style={{ color: GOLD }}>
+                    <Tag size={14} />
                     Código de descuento
-                    <span className="text-white/25 font-normal normal-case tracking-normal">(opcional)</span>
+                    <span className="text-white/45 text-[12px] font-normal">(opcional)</span>
                   </p>
 
                   {descuento ? (
@@ -573,7 +589,7 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                         type="button"
                         onClick={handleQuitarCodigo}
                         disabled={isLoading}
-                        className="text-white/40 hover:text-white/70 transition-colors shrink-0"
+                        className="text-white/50 hover:text-white/80 transition-colors shrink-0"
                         aria-label="Quitar código"
                       >
                         <X size={16} />
@@ -581,10 +597,12 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                     </div>
                   ) : (
                     /* Input para ingresar código */
-                    <div className="flex gap-2">
+                    <div className="flex gap-2.5">
                       <input
                         type="text"
-                        className="flex-1 rounded-xl bg-white/8 px-4 py-2.5 ring-1 ring-white/15 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-amber-400/60 disabled:opacity-60 text-sm uppercase tracking-widest"
+                        aria-label="Código de descuento"
+                        className="flex-1 min-w-0 rounded-xl px-4 h-11 ring-1 ring-white/15 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 text-sm uppercase tracking-widest"
+                        style={inputBg}
                         placeholder="TU-CODIGO"
                         value={codigoCampo}
                         onChange={e => {
@@ -601,8 +619,8 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                         type="button"
                         onClick={handleValidarCodigo}
                         disabled={!codigoCampo.trim() || isLoading || codigoValidando}
-                        className="rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                        style={{ background: 'rgba(251,191,36,0.15)', color: GOLD, border: '1px solid rgba(251,191,36,0.3)' }}
+                        className="rounded-xl px-5 h-11 text-sm font-semibold transition-colors hover:bg-[#F0C55A]/15 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        style={{ color: GOLD, border: '1px solid rgba(240,197,90,0.45)' }}
                       >
                         {codigoValidando ? '...' : 'Aplicar'}
                       </button>
@@ -618,43 +636,42 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                 </div>
 
                 {/* Checkbox */}
-                <div className="pt-1">
-                  <label className="flex items-start gap-2 text-sm text-white/70 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={aceptaTerminos}
-                      onChange={e => setAceptaTerminos(e.target.checked)}
-                      disabled={isLoading}
-                      required
-                      className="mt-0.5 accent-amber-400 shrink-0"
-                    />
-                    <span>
-                      Leí y acepto la{' '}
-                      <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline hover:text-amber-300 transition-colors">
-                        Política de privacidad
-                      </a>{' '}
-                      y los{' '}
-                      <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline hover:text-amber-300 transition-colors">
-                        Términos del servicio
-                      </a>
-                      , incluyendo que la lectura es generada por IA con fines simbólicos.
-                    </span>
-                  </label>
-                </div>
+                <label className="flex items-start gap-3 text-[13.5px] text-white/75 cursor-pointer leading-relaxed">
+                  <input
+                    type="checkbox"
+                    checked={aceptaTerminos}
+                    onChange={e => setAceptaTerminos(e.target.checked)}
+                    disabled={isLoading}
+                    required
+                    className="mt-1 h-[18px] w-[18px] shrink-0 cursor-pointer accent-[#F0C55A]"
+                  />
+                  <span>
+                    Leí y acepto la{' '}
+                    <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
+                      Política de privacidad
+                    </a>{' '}
+                    y los{' '}
+                    <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
+                      Términos del servicio
+                    </a>
+                    , incluyendo que la lectura es generada por IA con fines simbólicos.
+                  </span>
+                </label>
 
                 {/* Reassurance pre-pago */}
                 <div
-                  className="rounded-xl px-4 py-3 text-center text-sm"
-                  style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.12)' }}
+                  className="rounded-xl px-4 py-3.5 flex items-start gap-3"
+                  style={{ background: 'rgba(240,197,90,0.06)', border: '1px solid rgba(240,197,90,0.40)' }}
                 >
-                  <span className="text-white/60">
-                    Tu lectura llega a tu WhatsApp{' '}
-                    <span className="font-semibold" style={{ color: GOLD_DIM }}>en menos de 15 minutos</span>
-                    . Pago único · Sin renovaciones.
-                  </span>
-                  <p className="text-[11px] mt-1.5" style={{ color: 'rgba(251,191,36,0.42)' }}>
-                    ✦ Te avisamos por WhatsApp apenas tus cartas estén listas.
-                  </p>
+                  <Zap size={20} className="shrink-0 mt-0.5" style={{ color: GOLD }} fill={GOLD} />
+                  <div>
+                    <p className="text-[14px] font-semibold text-white/90">
+                      Tu lectura llega por WhatsApp <span style={{ color: GOLD }}>en menos de 15 minutos</span>.
+                    </p>
+                    <p className="text-[12.5px] text-white/60 mt-0.5">
+                      <span style={{ color: GOLD }}>✦</span> Pago único · Sin suscripción · Podés recibirla también por email.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Error */}
@@ -672,17 +689,14 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                 )}
 
                 {/* Submit */}
-                <div className="pt-2">
+                <div>
                   <button
                     type="submit"
                     disabled={isLoading || precioNoDisponible}
-                    className="w-full rounded-xl py-4 text-base font-bold transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-                    style={{
-                      background: 'linear-gradient(135deg, #d4a017 0%, #FFCE4D 60%, #f0c840 100%)',
-                      color: '#0f0820',
-                      boxShadow: '0 4px 20px rgba(251,191,36,0.28)',
-                    }}
+                    className="w-full rounded-xl py-4 text-[17px] font-bold flex items-center justify-center gap-2.5 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: '0 6px 24px rgba(240,197,90,0.32)' }}
                   >
+                    {!isLoading && !precioNoDisponible && <Lock size={18} className="shrink-0" />}
                     {isLoading
                       ? 'Procesando...'
                       : precioNoDisponible
@@ -690,127 +704,35 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                         : `Pagar $U ${precioFinal} →`}
                   </button>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12px] text-white/40">
-                    <span className="flex items-center gap-1">
-                      <Lock size={10} style={{ color: GOLD_DIM }} className="shrink-0" />
-                      <span>Procesado por <strong className="text-white/60 font-semibold">Mercado Pago</strong></span>
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[12.5px] text-white/55">
+                    <span className="flex items-center gap-1.5">
+                      Procesado por
+                      <img src={MP_LOGO} alt="Mercado Pago" style={{ height: 30, width: 'auto' }} />
                     </span>
-                    {!precioNoDisponible && (
-                      <>
-                        <span className="text-white/20">·</span>
-                        <span>
-                          {descuento ? (
-                            <>
-                              <span className="line-through text-white/25 mr-1">${PRECIO_BASE}</span>
-                              <span className="text-emerald-400 font-semibold">$U {precioFinal}</span>
-                            </>
-                          ) : (
-                            `$U ${PRECIO_BASE}`
-                          )}
-                        </span>
-                        <span className="text-white/20">·</span>
-                        <span>Pago único</span>
-                      </>
-                    )}
+                    <span className="text-white/25">·</span>
+                    <span>Pago único</span>
+                    <span className="text-white/25">·</span>
+                    <span>Sin suscripción</span>
                   </div>
                 </div>
 
               </form>
             </div>
 
-            {/* ── Sidebar ────────────────────────────────────────── */}
-            <div className="w-full md:w-72 shrink-0 space-y-4">
+            {/* ── Columna lateral ────────────────────────────────── */}
+            <aside className="w-full space-y-5">
+              <ResumenCompra
+                nombre={form.nombre}
+                precioBase={PRECIO_BASE}
+                precioFinal={precioNoDisponible ? null : precioFinal}
+                descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
+              />
+              <QuePasaDespues />
+            </aside>
 
-              {/* Resumen */}
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(251,191,36,0.18)' }}
-              >
-                {/* Preview PDF */}
-                <div style={{ position: 'relative', height: 160 }}>
-                  <Image
-                    src="/img/tarot/pdf-p1.jpg"
-                    alt="Vista previa de tu lectura de tarot"
-                    fill
-                    style={{ objectFit: 'cover', objectPosition: 'top' }}
-                  />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(15,8,32,0.97) 100%)' }} />
-                  <p style={{ position: 'absolute', bottom: 10, left: 14, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(251,191,36,0.70)', fontWeight: 600, margin: 0 }}>
-                    PDF · 3 páginas · diseño premium
-                  </p>
-                </div>
-
-                <div className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: GOLD_DIM }}>
-                    Tu lectura incluye
-                  </p>
-                  <div className="space-y-2.5">
-                    {[
-                      'Tirada de 5 cartas',
-                      'Lectura narrativa personalizada',
-                      'Por WhatsApp: lectura online + PDF',
-                      'En menos de 15 minutos',
-                      'Pago único · Sin suscripción',
-                    ].map(text => (
-                      <div key={text} className="flex items-start gap-2">
-                        <span className="text-xs font-bold shrink-0 mt-0.5" style={{ color: GOLD_DIM }}>✓</span>
-                        <span className="text-white/65 text-sm leading-snug">{text}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-white/8">
-                    <div className="flex items-end justify-between">
-                      <span className="text-white/50 text-sm">Total</span>
-                      <div className="text-right">
-                        {precioNoDisponible ? (
-                          <span className="text-sm font-semibold text-amber-300/80">No disponible</span>
-                        ) : descuento ? (
-                          <>
-                            <span className="text-sm line-through text-white/30 mr-2">$U {PRECIO_BASE}</span>
-                            <span className="text-2xl font-extrabold text-emerald-400">$U {precioFinal}</span>
-                          </>
-                        ) : (
-                          <span className="text-2xl font-extrabold text-white">$U {PRECIO_BASE}</span>
-                        )}
-                      </div>
-                    </div>
-                    {descuento && (
-                      <div className="mt-2 rounded-lg px-3 py-1.5 text-xs text-emerald-400 bg-emerald-400/8 border border-emerald-400/20 flex items-center gap-1.5">
-                        <Tag size={11} className="shrink-0" />
-                        Ahorrás $U {descuento.descuento_aplicado}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Cómo funciona */}
-              <div
-                className="rounded-2xl p-5"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD_DIM }}>
-                  ¿Qué pasa después?
-                </p>
-                <ol className="space-y-3">
-                  {[
-                    { Icon: CreditCard,    text: 'Confirmás el pago en Mercado Pago.' },
-                    { Icon: Sparkles,      text: 'La IA genera tu lectura personalizada.' },
-                    { Icon: MessageCircle, text: 'La recibís por WhatsApp en minutos.' },
-                  ].map(({ Icon, text }, i) => (
-                    <li key={i} className="flex gap-2.5 items-start text-sm text-white/60">
-                      <Icon size={15} className="shrink-0 mt-0.5" style={{ color: GOLD_DIM }} />
-                      {text}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-
-            </div>
           </div>
         </div>
-      </div>
-    </>
+      </TarotBackgroundStage>
+    </PaginaMarca>
   );
 }
