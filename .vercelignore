@@ -2,3 +2,8 @@ backend/
 docs/
 claude/
 credenciales*.txt
+# Archivos fuente de imágenes (no se publican)
+public/**/originales/
+public/**/no-subir/
+public/**/originales-no-subir/
+supabase/.temp/

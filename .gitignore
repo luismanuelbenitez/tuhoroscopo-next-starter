@@ -45,3 +45,11 @@ backend/scripts/
 
 # Documentación interna — local-only, no debe estar en el repo público
 docs/
+
+# Archivos fuente de imágenes (no se publican; ver claude.leeme.txt en cada carpeta)
+public/**/originales/
+public/**/no-subir/
+public/**/originales-no-subir/
+
+# Temporales de la CLI de Supabase
+supabase/.temp/
