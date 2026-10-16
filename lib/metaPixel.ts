@@ -127,7 +127,7 @@ export function metaPageView(): void {
   fbqCall('track', 'PageView');
 }
 
-/** Visita relevante a la landing de Tu Tirada. */
+/** Visita relevante a la landing del Tarot. */
 export function metaViewContent(valuePeso?: number): void {
   fbqCall('track', 'ViewContent', {
     content_type: 'product',

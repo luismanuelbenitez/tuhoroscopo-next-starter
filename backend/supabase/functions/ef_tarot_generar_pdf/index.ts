@@ -1245,7 +1245,7 @@ async function generarPDF(
 
     // ── Construir PDF ─────────────────────────────────────────
     const pdfDoc = await PDFDocument.create();
-    pdfDoc.setTitle("Tu Tirada");
+    pdfDoc.setTitle("Tarot");
     pdfDoc.setAuthor("Tu Oraculo");
     pdfDoc.setSubject("Lectura de Tarot para " + sanitize(contenido.nombre ?? ""));
     pdfDoc.setCreationDate(new Date());

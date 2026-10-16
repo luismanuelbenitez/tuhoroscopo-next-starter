@@ -108,7 +108,7 @@ type CartaConPosicion = {
 const FALLBACK_PROMPT_SISTEMA =
 `Sos un tarotista experto con décadas de experiencia en el sistema Rider-Waite-Smith.
 Tu estilo es cálido, empático, profundo y esperanzador — nunca alarmista ni fatalista.
-Usás el voseo rioplatense (vos, tu, tus) de forma natural y cercana.
+Usás el voseo rioplatense (vos, tu, tus) de forma natural y cercana: le hablás siempre directamente a quien lee, nunca narrás en tercera persona sobre el consultante usando su nombre como sujeto (nunca "las cartas de [nombre] cuentan..."). El nombre suma calidez — usalo como llamado directo ("[Nombre], esto es lo que tus cartas muestran...") o entretejido en una frase dirigida a "vos", nunca como sujeto de una narración externa.
 Tus lecturas son profundamente personalizadas: conectás cada carta con la situación real del consultante.
 Cuando una carta aparece invertida, su energía es más interna, bloqueada o en proceso de transformación — nunca "mala".
 Sos honesto pero siempre constructivo: si hay un desafío, también señalás el camino.
@@ -136,8 +136,8 @@ CARTAS QUE SALIERON:
 INSTRUCCIONES:
 - Comenzá con una descripción general de la tirada (campo descripcion_general_tirada) que enmarque la energía global.
 - Interpretá cada carta en el contexto de su posición Y de la pregunta/tema del consultante.
-- Usá el voseo rioplatense de forma natural.
-- Sé específico: mencioná detalles del consultante (nombre, tema) en la interpretación.
+- Usá el voseo rioplatense de forma natural: dirigite siempre en segunda persona (vos/tu/tus) a quien lee. El nombre del consultante no se deja afuera, pero nunca es sujeto de una narración en tercera persona (evitá "las cartas de [nombre] cuentan...", "[nombre] tiene..." — usalo como llamado directo, ej. "[Nombre], esto es lo que tus cartas muestran...").
+- Sé específico: mencioná detalles del consultante (nombre, tema) en la interpretación, siempre dirigiéndote a él/ella en segunda persona.
 - Las cartas invertidas no son "malas" — representan energías internas o en proceso.
 - El resumen final debe integrar cómo las 5 cartas cuentan una historia coherente.
 - Incluí el disclaimer estándar en el campo correspondiente.
@@ -231,7 +231,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   // 1. Fetch orden + slug del mazo (necesario para pasar deck al PDF EF)
   const { data: orden, error: errOrden } = await supabase
     .from("tarot_ordenes")
-    .select("id, estado, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, funnel_session_id, external_reference, nombre_snapshot, fecha_nacimiento_snapshot, hora_nacimiento_snapshot, lugar_nacimiento_snapshot, tarot_mazos(slug)")
+    .select("id, estado, created_at, cliente_id, tipo_tirada_id, mazo_id, pregunta_usuario, tema, funnel_session_id, external_reference, nombre_snapshot, fecha_nacimiento_snapshot, hora_nacimiento_snapshot, lugar_nacimiento_snapshot, tarot_mazos(slug)")
     .eq("id", ordenId)
     .maybeSingle();
 
@@ -458,340 +458,407 @@ async function generarLectura(ordenId: string): Promise<void> {
   };
   const lecturaTool = buildLecturaTool(wordLimits);
 
-  // 12. Crear registro de lectura
-  const { data: lecturaRow, error: errLectura } = await supabase
-    .from("tarot_lecturas")
-    .insert({
-      orden_id:            ordenId,
-      estado:              "generando",
-      numero_intento:      numeroIntento,
-      es_vigente:          false,
-      ia_modelo:           iaModelo,
-      producto_config_id:  productoConfigRow?.id ?? null,
-      prompt_version_id:   productoConfigRow?.current_prompt_version_id ?? null,
-    })
-    .select("id")
-    .single();
+  // 12. Reintento inmediato dentro de esta misma invocación (UX primero: el
+  // cliente no debe notar un fallo transitorio del modelo — se reintenta al
+  // toque, sin cron ni demora artificial, hasta maxReintentos). Se reusan
+  // las mismas cartas y los mismos prompts ya construidos arriba: la causa
+  // típica de fallo es una respuesta de Anthropic que no cumple el schema
+  // (LecturaInvalidaError), no las cartas elegidas. Cada intento sigue
+  // dejando su propia fila en tarot_lecturas (numero_intento), igual que
+  // antes. Solo si se agotan TODOS los intentos se marca error_critico y se
+  // dispara una única alerta con la cronología completa — ver más abajo.
+  type IntentoFallido = {
+    intento: number;
+    horaInicio: string;
+    horaFin: string;
+    duracionMs: number;
+    error: string;
+  };
+  const intentosFallidos: IntentoFallido[] = [];
 
-  if (errLectura || !lecturaRow?.id) {
-    await registrarLog(ordenId, "lectura_insert_error", "error",
-      "No se pudo crear el registro de lectura", { error: errLectura?.message });
-    return;
-  }
+  for (let intentoActual = numeroIntento; intentoActual <= maxReintentos; intentoActual++) {
+    const horaInicioIntento = new Date().toISOString();
+    const tIntento = Date.now();
 
-  const lecturaId = lecturaRow.id;
+    // Crear registro de lectura para este intento
+    const { data: lecturaRow, error: errLectura } = await supabase
+      .from("tarot_lecturas")
+      .insert({
+        orden_id:            ordenId,
+        estado:              "generando",
+        numero_intento:      intentoActual,
+        es_vigente:          false,
+        ia_modelo:           iaModelo,
+        producto_config_id:  productoConfigRow?.id ?? null,
+        prompt_version_id:   productoConfigRow?.current_prompt_version_id ?? null,
+      })
+      .select("id")
+      .single();
 
-  await registrarLog(ordenId, "lectura_iniciada", "info",
-    `Iniciando generación de lectura (intento ${numeroIntento}/${maxReintentos})`,
-    {
-      lectura_id:         lecturaId,
-      modelo:             iaModelo,
-      producto_config_id: productoConfig.id,
-      cartas: cartasSeleccionadas.map((c) => ({ nombre: c.nombre_es, invertida: c.invertida })),
-    });
-
-  await logFunnelEvent({
-    order_id:   ordenId,
-    session_id: orden.funnel_session_id ?? null,
-    event_name: "generation_started",
-    metadata: {
-      external_reference: orden.external_reference ?? null,
-      lectura_id:         lecturaId,
-      modelo_ia:          iaModelo,
-      intento:            numeroIntento,
-      max_reintentos:     maxReintentos,
-    },
-  });
-
-  // 13. Llamada a Anthropic API
-  try {
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key":           ANTHROPIC_API_KEY,
-        "anthropic-version":   "2023-06-01",
-        "content-type":        "application/json",
-      },
-      body: JSON.stringify({
-        model:        iaModelo,
-        max_tokens:   iaMaxTokens,
-        temperature:  iaTemperatura,
-        system:       promptSistema,
-        tools:        [lecturaTool],
-        tool_choice:  { type: "tool", name: "entregar_lectura_tarot" },
-        messages:     [{ role: "user", content: promptUsuario }],
-      }),
-    });
-
-    if (!anthropicRes.ok) {
-      const errData = await anthropicRes.json().catch(() => ({}));
-      throw new Error(`Anthropic API ${anthropicRes.status}: ${JSON.stringify(errData)}`);
+    if (errLectura || !lecturaRow?.id) {
+      await registrarLog(ordenId, "lectura_insert_error", "error",
+        "No se pudo crear el registro de lectura", { error: errLectura?.message, intento: intentoActual });
+      intentosFallidos.push({
+        intento:    intentoActual,
+        horaInicio: horaInicioIntento,
+        horaFin:    new Date().toISOString(),
+        duracionMs: Date.now() - tIntento,
+        error:      `No se pudo crear el registro de lectura: ${errLectura?.message ?? "desconocido"}`,
+      });
+      continue;
     }
 
-    const anthropicData = await anthropicRes.json();
+    const lecturaId = lecturaRow.id;
 
-    const tokensEntrada = anthropicData.usage?.input_tokens ?? 0;
-    const tokensSalida  = anthropicData.usage?.output_tokens ?? 0;
-    const costoUsd = Number(
-      ((tokensEntrada / 1_000_000) * PRECIO_INPUT_POR_MTOKEN +
-       (tokensSalida  / 1_000_000) * PRECIO_OUTPUT_POR_MTOKEN).toFixed(6)
-    );
-
-    const stopReason = anthropicData.stop_reason ?? null;
-    const toolBlock = (anthropicData.content ?? [])
-      .find((b: { type: string }) => b.type === "tool_use");
-
-    if (!toolBlock?.input) {
-      throw new LecturaInvalidaError(
-        "Anthropic no devolvió un tool_use block válido",
-        { stop_reason: stopReason, content_types: (anthropicData.content ?? []).map((b: { type: string }) => b.type) },
-      );
-    }
-
-    // `toolBlock.input` es `unknown` en runtime — Anthropic garantiza el
-    // schema en la mayoría de los casos, pero NO siempre (incidente
-    // 2026-08-17). validateLectura() es la única fuente de verdad; recién
-    // después de que confirma la forma es seguro tratarlo como
-    // LecturaIAOutput. Un `as LecturaIAOutput` ANTES de esto no sería
-    // validación real, solo una promesa de TypeScript sin respaldo en runtime.
-    const rawInput: unknown = toolBlock.input;
-    const validacion = validateLectura(rawInput);
-    if (!validacion.valida) {
-      throw new LecturaInvalidaError(
-        `lectura_invalida: ${validacion.campo} — ${validacion.detalle}`,
-        { stop_reason: stopReason, campo: validacion.campo, detalle: validacion.detalle, forma: resumenTipos(rawInput) },
-      );
-    }
-    const iaOutput = rawInput as LecturaIAOutput;
-
-    const cartasIA = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
-
-    // 14. Construir contenido_json final
-    const fechaLectura = new Date().toLocaleDateString("es-UY", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-    });
-
-    const contenidoJson = {
-      producto:                   "Tu Tirada",
-      nombre:                     nombreFinal,
-      fecha_nacimiento:           fechaFinal,
-      fecha_lectura:              fechaLectura,
-      tipo_tirada:                tiradaNombre,
-      tema:                       orden.tema,
-      pregunta:                   preguntaFinal,
-      descripcion_general_tirada: iaOutput.descripcion_general_tirada,
-      cartas: cartasSeleccionadas.map((carta, i) => ({
-        posicion:       carta.posicion.numero,
-        nombre_posicion: carta.posicion.nombre,
-        carta_id:       carta.id,
-        nombre_carta:   carta.nombre_es,
-        orientacion:    carta.invertida ? "invertida" : "derecha",
-        interpretacion: cartasIA[i]?.interpretacion ?? "",
-        consejo:        cartasIA[i]?.consejo ?? "",
-      })),
-      resumen_lectura: iaOutput.resumen_lectura,
-      mensaje_final:   iaOutput.mensaje_final,
-      proximos_pasos:  iaOutput.proximos_pasos,
-      disclaimer: iaOutput.disclaimer ||
-        "Lectura simbólica generada con inteligencia artificial con fines reflexivos y de entretenimiento. No sustituye asesoramiento profesional.",
-    };
-
-    const ahoraNow = new Date().toISOString();
-
-    // 15. Actualizar lectura como completada.
-    //
-    // tarot_lecturas tiene un índice único parcial UNIQUE(orden_id) WHERE
-    // es_vigente=true (migración 2026-09-22, ver docs/product/DECISIONS.md)
-    // que existe exactamente para este caso: si otra invocación concurrente
-    // de esta misma función para la MISMA orden (ej. dos webhooks de MP
-    // casi simultáneos) ya ganó la carrera y marcó su propia fila como
-    // vigente, este UPDATE viola esa constraint y falla con 23505. Es
-    // esperado y NO es un error real — se descarta este intento duplicado
-    // sin tocar tarot_ordenes ni disparar alertas, para no pisar el
-    // resultado (correcto) de la invocación que sí ganó.
-    const { error: errCompletar } = await supabase.from("tarot_lecturas").update({
-      estado:           "completada",
-      es_vigente:       true,
-      prompt_sistema:   promptSistema,
-      prompt_usuario:   promptUsuario,
-      ia_tokens_entrada: tokensEntrada,
-      ia_tokens_salida:  tokensSalida,
-      ia_costo_usd:      costoUsd,
-      contenido_json:    contenidoJson,
-      resumen_lectura:   contenidoJson.resumen_lectura,
-      mensaje_final:     contenidoJson.mensaje_final,
-      generado_at:       ahoraNow,
-      updated_at:        ahoraNow,
-    }).eq("id", lecturaId);
-
-    if (errCompletar) {
-      if (errCompletar.code === "23505") {
-        await registrarLog(ordenId, "lectura_descartada_concurrencia", "warning",
-          "Otra invocación concurrente ya generó la lectura vigente para esta orden — se descarta este intento duplicado",
-          { lectura_id: lecturaId, error: errCompletar.message });
-        return;
-      }
-      throw new Error(`No se pudo guardar la lectura completada: ${errCompletar.message}`);
-    }
-
-    // 16. Insertar tarot_lecturas_cartas (descomposición relacional)
-    const registrosCartas = cartasSeleccionadas.map((carta, i) => ({
-      lectura_id:       lecturaId,
-      carta_id:         carta.id,
-      posicion_id:      carta.posicion.id,
-      numero_posicion:  carta.posicion.numero,
-      invertida:        carta.invertida,
-      interpretacion:   cartasIA[i]?.interpretacion ?? "",
-      consejo:          cartasIA[i]?.consejo ?? "",
-    }));
-
-    await supabase.from("tarot_lecturas_cartas").insert(registrosCartas);
-
-    // 17. Actualizar orden
-    await supabase.from("tarot_ordenes")
-      .update({ estado: "lectura_lista", updated_at: ahoraNow })
-      .eq("id", ordenId);
-
-    const duracionMs = Date.now() - t0;
-    await registrarLog(ordenId, "lectura_completada", "info",
-      "Lectura generada correctamente con IA",
+    await registrarLog(ordenId, "lectura_iniciada", "info",
+      `Iniciando generación de lectura (intento ${intentoActual}/${maxReintentos})`,
       {
         lectura_id:         lecturaId,
         modelo:             iaModelo,
         producto_config_id: productoConfig.id,
-        tokens_entrada:     tokensEntrada,
-        tokens_salida:      tokensSalida,
-        costo_usd:          costoUsd,
-        duracion_ms:        duracionMs,
-      },
-      duracionMs,
-    );
+        cartas: cartasSeleccionadas.map((c) => ({ nombre: c.nombre_es, invertida: c.invertida })),
+      });
 
     await logFunnelEvent({
       order_id:   ordenId,
       session_id: orden.funnel_session_id ?? null,
-      event_name: "generation_succeeded",
+      event_name: "generation_started",
       metadata: {
         external_reference: orden.external_reference ?? null,
         lectura_id:         lecturaId,
-        duracion_ms:        duracionMs,
-        tokens_entrada:     tokensEntrada,
-        tokens_salida:      tokensSalida,
-        costo_usd:          costoUsd,
-        intento:            numeroIntento,
+        modelo_ia:          iaModelo,
+        intento:            intentoActual,
+        max_reintentos:     maxReintentos,
       },
     });
 
-    // 18. Disparar ef_tarot_generar_pdf (fire-and-forget)
-    // EdgeRuntime.waitUntil() (2026-09-24): generarLectura() en sí ya corre
-    // dentro de un waitUntil() del caller (ver serve() más abajo), pero eso
-    // solo protege la promesa de generarLectura() — este fetch() nunca fue
-    // esperado por generarLectura(), así que queda huérfano igual en cuanto
-    // generarLectura() termina. Mismo bug, un nivel más adentro — ver
-    // docs/product/DECISIONS.md.
-    const pdfUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_pdf`;
-    EdgeRuntime.waitUntil(
-      fetch(pdfUrl, {
+    // 13. Llamada a Anthropic API
+    try {
+      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Content-Type":   "application/json",
-          Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-internal-key": TAROT_INTERNAL_KEY,
+          "x-api-key":           ANTHROPIC_API_KEY,
+          "anthropic-version":   "2023-06-01",
+          "content-type":        "application/json",
         },
         body: JSON.stringify({
-          orden_id:   ordenId,
-          lectura_id: lecturaId,
-          deck: (orden as unknown as { tarot_mazos?: { slug?: string } }).tarot_mazos?.slug ?? null,
+          model:        iaModelo,
+          max_tokens:   iaMaxTokens,
+          temperature:  iaTemperatura,
+          system:       promptSistema,
+          tools:        [lecturaTool],
+          tool_choice:  { type: "tool", name: "entregar_lectura_tarot" },
+          messages:     [{ role: "user", content: promptUsuario }],
         }),
-      }).catch(async (err) => {
-        await registrarLog(ordenId, "pdf_dispatch_error", "warning",
-          "No se pudo disparar ef_tarot_generar_pdf",
-          { error: String(err), lectura_id: lecturaId });
-      }),
-    );
+      });
 
-    // 19. Disparar ef_tarot_generar_audio_resumen (fire-and-forget, en
-    // paralelo al PDF). Narración opcional del Resumen — gateada por
-    // tts_activo dentro de la propia función; si está apagado o falla,
-    // no afecta en nada la entrega (mismo criterio que el sonido
-    // ambiente de /lectura). Ver docs/product/DECISIONS.md.
-    const audioUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_audio_resumen`;
-    EdgeRuntime.waitUntil(
-      fetch(audioUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type":   "application/json",
-          Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "x-internal-key": TAROT_INTERNAL_KEY,
+      if (!anthropicRes.ok) {
+        const errData = await anthropicRes.json().catch(() => ({}));
+        throw new Error(`Anthropic API ${anthropicRes.status}: ${JSON.stringify(errData)}`);
+      }
+
+      const anthropicData = await anthropicRes.json();
+
+      const tokensEntrada = anthropicData.usage?.input_tokens ?? 0;
+      const tokensSalida  = anthropicData.usage?.output_tokens ?? 0;
+      const costoUsd = Number(
+        ((tokensEntrada / 1_000_000) * PRECIO_INPUT_POR_MTOKEN +
+         (tokensSalida  / 1_000_000) * PRECIO_OUTPUT_POR_MTOKEN).toFixed(6)
+      );
+
+      const stopReason = anthropicData.stop_reason ?? null;
+      const toolBlock = (anthropicData.content ?? [])
+        .find((b: { type: string }) => b.type === "tool_use");
+
+      if (!toolBlock?.input) {
+        throw new LecturaInvalidaError(
+          "Anthropic no devolvió un tool_use block válido",
+          { stop_reason: stopReason, content_types: (anthropicData.content ?? []).map((b: { type: string }) => b.type) },
+        );
+      }
+
+      // `toolBlock.input` es `unknown` en runtime — Anthropic garantiza el
+      // schema en la mayoría de los casos, pero NO siempre (incidente
+      // 2026-08-17). validateLectura() es la única fuente de verdad; recién
+      // después de que confirma la forma es seguro tratarlo como
+      // LecturaIAOutput. Un `as LecturaIAOutput` ANTES de esto no sería
+      // validación real, solo una promesa de TypeScript sin respaldo en runtime.
+      const rawInput: unknown = toolBlock.input;
+      const validacion = validateLectura(rawInput);
+      if (!validacion.valida) {
+        throw new LecturaInvalidaError(
+          `lectura_invalida: ${validacion.campo} — ${validacion.detalle}`,
+          { stop_reason: stopReason, campo: validacion.campo, detalle: validacion.detalle, forma: resumenTipos(rawInput) },
+        );
+      }
+      const iaOutput = rawInput as LecturaIAOutput;
+
+      const cartasIA = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
+
+      // 14. Construir contenido_json final
+      const fechaLectura = new Date().toLocaleDateString("es-UY", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+      });
+
+      const contenidoJson = {
+        producto:                   "Tarot",
+        nombre:                     nombreFinal,
+        fecha_nacimiento:           fechaFinal,
+        fecha_lectura:              fechaLectura,
+        tipo_tirada:                tiradaNombre,
+        tema:                       orden.tema,
+        pregunta:                   preguntaFinal,
+        descripcion_general_tirada: iaOutput.descripcion_general_tirada,
+        cartas: cartasSeleccionadas.map((carta, i) => ({
+          posicion:       carta.posicion.numero,
+          nombre_posicion: carta.posicion.nombre,
+          carta_id:       carta.id,
+          nombre_carta:   carta.nombre_es,
+          orientacion:    carta.invertida ? "invertida" : "derecha",
+          interpretacion: cartasIA[i]?.interpretacion ?? "",
+          consejo:        cartasIA[i]?.consejo ?? "",
+        })),
+        resumen_lectura: iaOutput.resumen_lectura,
+        mensaje_final:   iaOutput.mensaje_final,
+        proximos_pasos:  iaOutput.proximos_pasos,
+        disclaimer: iaOutput.disclaimer ||
+          "Lectura simbólica generada con inteligencia artificial con fines reflexivos y de entretenimiento. No sustituye asesoramiento profesional.",
+      };
+
+      const ahoraNow = new Date().toISOString();
+
+      // 15. Actualizar lectura como completada.
+      //
+      // tarot_lecturas tiene un índice único parcial UNIQUE(orden_id) WHERE
+      // es_vigente=true (migración 2026-09-22, ver docs/product/DECISIONS.md)
+      // que existe exactamente para este caso: si otra invocación concurrente
+      // de esta misma función para la MISMA orden (ej. dos webhooks de MP
+      // casi simultáneos) ya ganó la carrera y marcó su propia fila como
+      // vigente, este UPDATE viola esa constraint y falla con 23505. Es
+      // esperado y NO es un error real — se descarta este intento duplicado
+      // sin tocar tarot_ordenes ni disparar alertas, para no pisar el
+      // resultado (correcto) de la invocación que sí ganó.
+      const { error: errCompletar } = await supabase.from("tarot_lecturas").update({
+        estado:           "completada",
+        es_vigente:       true,
+        prompt_sistema:   promptSistema,
+        prompt_usuario:   promptUsuario,
+        ia_tokens_entrada: tokensEntrada,
+        ia_tokens_salida:  tokensSalida,
+        ia_costo_usd:      costoUsd,
+        contenido_json:    contenidoJson,
+        resumen_lectura:   contenidoJson.resumen_lectura,
+        mensaje_final:     contenidoJson.mensaje_final,
+        generado_at:       ahoraNow,
+        updated_at:        ahoraNow,
+      }).eq("id", lecturaId);
+
+      if (errCompletar) {
+        if (errCompletar.code === "23505") {
+          await registrarLog(ordenId, "lectura_descartada_concurrencia", "warning",
+            "Otra invocación concurrente ya generó la lectura vigente para esta orden — se descarta este intento duplicado",
+            { lectura_id: lecturaId, error: errCompletar.message });
+          return;
+        }
+        throw new Error(`No se pudo guardar la lectura completada: ${errCompletar.message}`);
+      }
+
+      // 16. Insertar tarot_lecturas_cartas (descomposición relacional)
+      const registrosCartas = cartasSeleccionadas.map((carta, i) => ({
+        lectura_id:       lecturaId,
+        carta_id:         carta.id,
+        posicion_id:      carta.posicion.id,
+        numero_posicion:  carta.posicion.numero,
+        invertida:        carta.invertida,
+        interpretacion:   cartasIA[i]?.interpretacion ?? "",
+        consejo:          cartasIA[i]?.consejo ?? "",
+      }));
+
+      await supabase.from("tarot_lecturas_cartas").insert(registrosCartas);
+
+      // 17. Actualizar orden
+      await supabase.from("tarot_ordenes")
+        .update({ estado: "lectura_lista", updated_at: ahoraNow })
+        .eq("id", ordenId);
+
+      const duracionMs = Date.now() - t0;
+      await registrarLog(ordenId, "lectura_completada", "info",
+        "Lectura generada correctamente con IA",
+        {
+          lectura_id:         lecturaId,
+          modelo:             iaModelo,
+          producto_config_id: productoConfig.id,
+          tokens_entrada:     tokensEntrada,
+          tokens_salida:      tokensSalida,
+          costo_usd:          costoUsd,
+          duracion_ms:        duracionMs,
+          reintentos_previos: intentosFallidos.length,
         },
-        body: JSON.stringify({ modo: "produccion", lectura_id: lecturaId }),
-      }).catch(async (err) => {
-        await registrarLog(ordenId, "audio_resumen_dispatch_error", "warning",
-          "No se pudo disparar ef_tarot_generar_audio_resumen",
-          { error: String(err), lectura_id: lecturaId });
-      }),
-    );
+        duracionMs,
+      );
 
-  } catch (err) {
-    const errMsg   = String(err);
-    const ahoraNow = new Date().toISOString();
-    const errorDetalle = err instanceof LecturaInvalidaError
-      ? { raw: errMsg, ...err.diagnostico }
-      : { raw: errMsg };
+      await logFunnelEvent({
+        order_id:   ordenId,
+        session_id: orden.funnel_session_id ?? null,
+        event_name: "generation_succeeded",
+        metadata: {
+          external_reference: orden.external_reference ?? null,
+          lectura_id:         lecturaId,
+          duracion_ms:        duracionMs,
+          tokens_entrada:     tokensEntrada,
+          tokens_salida:      tokensSalida,
+          costo_usd:          costoUsd,
+          intento:            intentoActual,
+        },
+      });
 
-    await supabase.from("tarot_lecturas").update({
-      estado:         "error",
-      error_codigo:   "IA_ERROR",
-      error_mensaje:  errMsg.substring(0, 500),
-      error_detalle:  errorDetalle,
-      prompt_sistema: promptSistema,
-      prompt_usuario: promptUsuario,
-      updated_at:     ahoraNow,
-    }).eq("id", lecturaId);
+      // 18. Disparar ef_tarot_generar_pdf (fire-and-forget)
+      // EdgeRuntime.waitUntil() (2026-09-24): generarLectura() en sí ya corre
+      // dentro de un waitUntil() del caller (ver serve() más abajo), pero eso
+      // solo protege la promesa de generarLectura() — este fetch() nunca fue
+      // esperado por generarLectura(), así que queda huérfano igual en cuanto
+      // generarLectura() termina. Mismo bug, un nivel más adentro — ver
+      // docs/product/DECISIONS.md.
+      const pdfUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_pdf`;
+      EdgeRuntime.waitUntil(
+        fetch(pdfUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type":   "application/json",
+            Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "x-internal-key": TAROT_INTERNAL_KEY,
+          },
+          body: JSON.stringify({
+            orden_id:   ordenId,
+            lectura_id: lecturaId,
+            deck: (orden as unknown as { tarot_mazos?: { slug?: string } }).tarot_mazos?.slug ?? null,
+          }),
+        }).catch(async (err) => {
+          await registrarLog(ordenId, "pdf_dispatch_error", "warning",
+            "No se pudo disparar ef_tarot_generar_pdf",
+            { error: String(err), lectura_id: lecturaId });
+        }),
+      );
 
-    const estadoOrden = numeroIntento >= maxReintentos ? "error_critico" : "error_lectura";
-    await supabase.from("tarot_ordenes")
-      .update({ estado: estadoOrden, updated_at: ahoraNow })
-      .eq("id", ordenId);
+      // 19. Disparar ef_tarot_generar_audio_resumen (fire-and-forget, en
+      // paralelo al PDF). Narración opcional del Resumen — gateada por
+      // tts_activo dentro de la propia función; si está apagado o falla,
+      // no afecta en nada la entrega (mismo criterio que el sonido
+      // ambiente de /lectura). Ver docs/product/DECISIONS.md.
+      const audioUrl = `${SUPABASE_URL}/functions/v1/ef_tarot_generar_audio_resumen`;
+      EdgeRuntime.waitUntil(
+        fetch(audioUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type":   "application/json",
+            Authorization:    `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "x-internal-key": TAROT_INTERNAL_KEY,
+          },
+          body: JSON.stringify({ modo: "produccion", lectura_id: lecturaId }),
+        }).catch(async (err) => {
+          await registrarLog(ordenId, "audio_resumen_dispatch_error", "warning",
+            "No se pudo disparar ef_tarot_generar_audio_resumen",
+            { error: String(err), lectura_id: lecturaId });
+        }),
+      );
 
-    // Alerta: error de generación (fire-and-forget)
-    dispararAlerta(supabase, "error_generacion", {
-      ordenId,
-      ordenRef: orden.external_reference ?? undefined,
-      error:    errMsg.substring(0, 300),
-      fecha:    ahoraNow,
-    }).catch(() => {});
+      return; // éxito — no hay más intentos que hacer
 
-    const duracionMs = Date.now() - t0;
-    await registrarLog(ordenId, "lectura_error", "error",
-      `Error en generación IA (intento ${numeroIntento}/${maxReintentos})`,
-      {
-        error:          errMsg,
-        lectura_id:     lecturaId,
-        intento:        numeroIntento,
-        max_reintentos: maxReintentos,
-        estado_orden:   estadoOrden,
-        duracion_ms:    duracionMs,
-        ...(err instanceof LecturaInvalidaError ? { diagnostico: err.diagnostico } : {}),
-      },
-      duracionMs,
-    );
+    } catch (err) {
+      const errMsg       = String(err);
+      const horaFinIntento = new Date().toISOString();
+      const duracionIntentoMs = Date.now() - tIntento;
+      const errorDetalle = err instanceof LecturaInvalidaError
+        ? { raw: errMsg, ...err.diagnostico }
+        : { raw: errMsg };
 
-    await logFunnelEvent({
-      order_id:   ordenId,
-      session_id: orden.funnel_session_id ?? null,
-      event_name: "generation_failed",
-      metadata: {
-        external_reference: orden.external_reference ?? null,
-        error_code:         "IA_ERROR",
-        error_message:      errMsg.substring(0, 200),
-        lectura_id:         lecturaId,
-        intento:            numeroIntento,
-        estado_orden:       estadoOrden,
-        duracion_ms:        duracionMs,
-      },
-    });
+      await supabase.from("tarot_lecturas").update({
+        estado:         "error",
+        error_codigo:   "IA_ERROR",
+        error_mensaje:  errMsg.substring(0, 500),
+        error_detalle:  errorDetalle,
+        prompt_sistema: promptSistema,
+        prompt_usuario: promptUsuario,
+        updated_at:     horaFinIntento,
+      }).eq("id", lecturaId);
+
+      intentosFallidos.push({
+        intento:    intentoActual,
+        horaInicio: horaInicioIntento,
+        horaFin:    horaFinIntento,
+        duracionMs: duracionIntentoMs,
+        error:      errMsg.substring(0, 300),
+      });
+
+      await registrarLog(ordenId, "lectura_error", "error",
+        `Error en generación IA (intento ${intentoActual}/${maxReintentos})`,
+        {
+          error:          errMsg,
+          lectura_id:     lecturaId,
+          intento:        intentoActual,
+          max_reintentos: maxReintentos,
+          duracion_ms:    duracionIntentoMs,
+          ...(err instanceof LecturaInvalidaError ? { diagnostico: err.diagnostico } : {}),
+        },
+        duracionIntentoMs,
+      );
+
+      await logFunnelEvent({
+        order_id:   ordenId,
+        session_id: orden.funnel_session_id ?? null,
+        event_name: "generation_failed",
+        metadata: {
+          external_reference: orden.external_reference ?? null,
+          error_code:         "IA_ERROR",
+          error_message:      errMsg.substring(0, 200),
+          lectura_id:         lecturaId,
+          intento:            intentoActual,
+          duracion_ms:        duracionIntentoMs,
+        },
+      });
+
+      // Sigue al próximo intento del loop (si queda alguno) — sin demora,
+      // sin tocar tarot_ordenes.estado todavía: solo se marca error_critico
+      // y se alerta si se agotan TODOS los intentos, más abajo.
+    }
   }
+
+  // Se agotaron los maxReintentos intentos dentro de esta misma invocación
+  // sin éxito. Única alerta (no una por intento) con la cronología completa
+  // para que la gestión manual no tenga que ir a tarot_logs a reconstruirla.
+  const ahoraFinal = new Date().toISOString();
+  await supabase.from("tarot_ordenes")
+    .update({ estado: "error_critico", updated_at: ahoraFinal })
+    .eq("id", ordenId);
+
+  const fmtUY = (iso: string) => new Date(iso).toLocaleString("es-UY", {
+    timeZone: "America/Montevideo", day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+
+  const detalleExtendido = [
+    `Cliente: ${nombreFinal ?? "—"}`,
+    `Hora de compra: ${orden.created_at ? fmtUY(orden.created_at) : "—"}`,
+    `Intentos fallidos: ${intentosFallidos.length}/${maxReintentos}`,
+    "",
+    ...intentosFallidos.map((i) =>
+      `Intento ${i.intento}/${maxReintentos} — inicio ${fmtUY(i.horaInicio)}, duración ${(i.duracionMs / 1000).toFixed(1)}s\n  Error: ${i.error}`
+    ),
+  ].join("\n");
+
+  // Alerta: se agotaron todos los reintentos automáticos (fire-and-forget)
+  dispararAlerta(supabase, "error_generacion", {
+    ordenId,
+    ordenRef:      orden.external_reference ?? undefined,
+    clienteNombre: nombreFinal ?? undefined,
+    error:         intentosFallidos[intentosFallidos.length - 1]?.error ?? "Sin detalle",
+    fecha:         ahoraFinal,
+    detalleExtendido,
+  }).catch(() => {});
+
+  await registrarLog(ordenId, "lectura_max_reintentos_alcanzado", "critical",
+    `Se agotaron los ${maxReintentos} intentos de generación IA en esta misma invocación (reintento inmediato). Intervención manual requerida.`,
+    { intentos: intentosFallidos, hora_compra: orden.created_at, max_reintentos: maxReintentos });
 }
 
 // ── Router principal ─────────────────────────────────────────

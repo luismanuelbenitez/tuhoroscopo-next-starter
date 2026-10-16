@@ -1,6 +1,6 @@
 // ============================================================
 // _shared/tarot-precio.ts — Validación canónica del precio base
-// comercial de Tu Tirada.
+// comercial del Tarot.
 //
 // Única fuente de verdad: tarot_configuracion.precio_base_uyu /
 // precio_base_ars. El cliente nunca es autoridad sobre este valor —

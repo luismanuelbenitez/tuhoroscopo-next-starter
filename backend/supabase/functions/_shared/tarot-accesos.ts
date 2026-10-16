@@ -1,5 +1,5 @@
 // ============================================================
-// _shared/tarot-accesos.ts — Acceso web temporal a "Tu Tirada"
+// _shared/tarot-accesos.ts — Acceso web temporal al Tarot
 //
 // Token criptográficamente aleatorio (32 bytes, base64url) que NUNCA se
 // persiste en texto plano — solo su hash SHA-256 vive en

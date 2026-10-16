@@ -280,7 +280,7 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   const emailPayload: Record<string, unknown> = {
     from:    RESEND_FROM,
     to:      [emailDestino],
-    subject: `✨ Tu Tirada está lista, ${nombreCorto}`,
+    subject: `✨ Tu Tarot está listo, ${nombreCorto}`,
     html,
   };
 

@@ -214,7 +214,7 @@ serve(async (req) => {
     canalPrincipal = cfg.canal_entrega_principal ?? "both";
     fallbackMail   = cfg.fallback_email_si_falla_whatsapp !== "false";
     emailActivo    = cfg.envio_email_activo !== "false";
-    // Template de WhatsApp para "Tu Tirada" (header imagen + body {{1}} nombre +
+    // Template de WhatsApp para el Tarot (header imagen + body {{1}} nombre +
     // 2 botones URL dinámicos). Debe existir y estar APROBADO en Meta Business
     // Manager con este nombre/idioma exactos antes de que whatsapp_modo pase a
     // "production" — este código no puede verificar eso, solo lo asume. Se
@@ -445,7 +445,7 @@ serve(async (req) => {
         messaging_product: "whatsapp",
         to: telefonoDest,
         type: "document",
-        document: { link: pdf!.storage_url, filename: `Tu Tirada - ${nombrePila}.pdf`, caption },
+        document: { link: pdf!.storage_url, filename: `Tarot - ${nombrePila}.pdf`, caption },
       };
     }
 

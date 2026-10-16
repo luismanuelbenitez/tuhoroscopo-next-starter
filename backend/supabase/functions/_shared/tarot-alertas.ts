@@ -43,6 +43,12 @@ export interface AlertaDatos {
   // cobro manual de prueba/sandbox se ve idéntico a una venta real en la
   // alerta — ver auditoría "Juan Felipe González", 2026-08-28.
   esCobroManual?: boolean;
+  // Solo aplica a tipo "error_generacion" cuando se agotan los reintentos
+  // automáticos inmediatos (ver ef_tarot_generar_lectura): texto plano con
+  // la cronología completa de los intentos (hora de compra, hora/duración/
+  // error de cada intento) para que la gestión manual no tenga que ir a
+  // revisar tarot_logs a ciegas.
+  detalleExtendido?: string;
 }
 
 const ETAPA_LABEL: Record<AlertaTipo, string> = {
@@ -121,7 +127,7 @@ function htmlNuevaVenta(datos: AlertaDatos): string {
     : "background:#052e16;border:1px solid #166534;color:#4ade80;";
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#111;font-family:sans-serif;">
 <div style="max-width:560px;margin:32px auto;padding:28px;background:#1a1a1a;border-radius:10px;border:1px solid #2a2a2a;color:#e5e5e5;">
-  <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tu Tirada — Alerta operativa</p>
+  <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tarot — Alerta operativa</p>
   <h2 style="margin:0 0 20px;font-size:20px;color:#fbbf24;">${titulo}</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <tr><td style="padding:6px 0;color:#9ca3af;width:110px;">Cliente</td><td style="padding:6px 0;font-weight:600;">${datos.clienteNombre ?? "—"}</td></tr>
@@ -144,7 +150,7 @@ function htmlError(tipo: AlertaTipo, datos: AlertaDatos): string {
     : null;
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#111;font-family:sans-serif;">
 <div style="max-width:560px;margin:32px auto;padding:28px;background:#1a1a1a;border-radius:10px;border:1px solid #2a2a2a;color:#e5e5e5;">
-  <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tu Tirada — Alerta operativa</p>
+  <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tarot — Alerta operativa</p>
   <h2 style="margin:0 0 20px;font-size:20px;color:#f87171;">⚠️ Error: ${etiqueta}</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <tr><td style="padding:6px 0;color:#9ca3af;width:110px;">Etapa</td><td style="padding:6px 0;font-weight:600;">${etiqueta}</td></tr>
@@ -152,6 +158,11 @@ function htmlError(tipo: AlertaTipo, datos: AlertaDatos): string {
     <tr><td style="padding:6px 0;color:#9ca3af;">Fecha/hora</td><td style="padding:6px 0;">${fmtFecha(datos.fecha)}</td></tr>
     ${errorSeguro ? `<tr><td style="padding:6px 0;color:#9ca3af;vertical-align:top;">Error</td><td style="padding:6px 0;font-family:monospace;font-size:11px;color:#fca5a5;word-break:break-all;">${errorSeguro}</td></tr>` : ""}
   </table>
+  ${datos.detalleExtendido ? `
+  <div style="margin-top:16px;">
+    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Detalle de la gestión manual</p>
+    <pre style="margin:0;padding:12px;background:#0d0d0d;border:1px solid #292524;border-radius:6px;font-size:11.5px;line-height:1.5;color:#e5e5e5;white-space:pre-wrap;word-break:break-word;">${datos.detalleExtendido.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!))}</pre>
+  </div>` : ""}
   <div style="margin-top:20px;padding:10px 14px;background:#1c1917;border:1px solid #292524;border-radius:6px;">
     <a href="https://tuoraculo.uy/admin/tarot/ordenes" style="font-size:12px;color:#a78bfa;text-decoration:none;">Ver órdenes en el panel admin →</a>
   </div>
@@ -173,6 +184,7 @@ export async function dispararAlerta(
     if (datos.moneda)        metadata.moneda        = datos.moneda;
     if (datos.etapa)         metadata.etapa         = datos.etapa;
     if (datos.error)         metadata.error         = datos.error.substring(0, 300);
+    if (datos.detalleExtendido) metadata.detalleExtendido = datos.detalleExtendido.substring(0, 2000);
 
     // ignoreDuplicates=true → ON CONFLICT DO NOTHING (idempotencia nueva_venta)
     await supabase.from("tarot_alertas_eventos").upsert(
@@ -214,8 +226,8 @@ export async function dispararAlerta(
 
     // ── 4. Construir y enviar email ────────────────────────────────────────────
     const asunto = tipo === "nueva_venta"
-      ? (datos.esCobroManual ? "🖊️ Cobro manual confirmado — Tu Tirada" : "💰 Nueva venta — Tu Tirada")
-      : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tu Tirada`;
+      ? (datos.esCobroManual ? "🖊️ Cobro manual confirmado — Tarot" : "💰 Nueva venta — Tarot")
+      : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tarot`;
     const html = tipo === "nueva_venta"
       ? htmlNuevaVenta(datos)
       : htmlError(tipo, datos);

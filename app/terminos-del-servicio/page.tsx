@@ -16,14 +16,14 @@ export default async function TerminosServicio() {
   const SECTIONS = [
     {
       title: '1. Descripción del servicio',
-      content: 'Tu Oráculo es una empresa uruguaya de experiencias digitales de autoconocimiento. Hoy ofrece un producto en producción: Tu Tirada, lecturas de tarot individuales generadas por inteligencia artificial y entregadas vía WhatsApp ("Tarot"). También existe la Guía Diaria, una suscripción mensual de mensajes personalizados por WhatsApp, no comercializada actualmente. Ambos son de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
+      content: 'Tu Oráculo es una empresa uruguaya de experiencias digitales de autoconocimiento. Hoy ofrece un producto en producción: Tarot, lecturas individuales generadas por inteligencia artificial y entregadas vía WhatsApp. También existe la Guía Diaria, una suscripción mensual de mensajes personalizados por WhatsApp, no comercializada actualmente. Ambos son de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
     },
     {
       title: '2. Condiciones de uso',
       content: 'Al usar nuestros servicios aceptás estos Términos en su totalidad. Debés ser mayor de 18 años para contratar una lectura o suscribirte. No podés usar el servicio con fines comerciales, revender el contenido ni reproducirlo sin autorización.',
     },
     {
-      title: '3. Tu Tirada Tarot — Pago único',
+      title: '3. Tarot — Pago único',
       content: `Las lecturas de tarot son un producto de pago único: cuestan ${precioTarotTexto}, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
     },
     {
@@ -72,7 +72,7 @@ export default async function TerminosServicio() {
           Términos del servicio
         </h1>
         <p className="text-white/70 text-sm leading-relaxed">
-          Estas condiciones regulan el uso de Tu Tirada (lecturas de tarot) y, cuando esté disponible, de la Guía Diaria.
+          Estas condiciones regulan el uso del Tarot y, cuando esté disponible, de la Guía Diaria.
         </p>
         <p className="text-white/40 text-xs mt-2">Última actualización: septiembre 2026</p>
       </div>

@@ -4,7 +4,7 @@ import { AlertCircle, RefreshCw, Target, Plus, X, Pencil } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 
 // ============================================================================
-// Panel de Adquisición — discovery comercial V1 (Tu Tirada)
+// Panel de Adquisición — discovery comercial V1 (Tarot)
 // Ver docs/product/DECISIONS.md (2026-08-20) para las decisiones y fórmulas.
 //
 // Combina, sin duplicar lógica:
@@ -530,7 +530,7 @@ export default function AdquisicionPage() {
       <main className="px-6 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-base font-semibold text-white">Adquisición · Tu Tirada</h2>
+            <h2 className="text-base font-semibold text-white">Adquisición · Tarot</h2>
             <p className="text-xs text-gray-500 mt-0.5">Discovery comercial — CAC, ROAS y unit economics del experimento</p>
           </div>
           <div className="flex items-center gap-2">

@@ -30,7 +30,7 @@ export default function QuienesSomos() {
         <p className="text-white/70 text-base md:text-lg leading-relaxed max-w-xl">
           Tu Oráculo es una empresa uruguaya que crea experiencias de autoconocimiento
           personalizadas, entregadas directo a tu WhatsApp. Hoy tenemos un producto disponible:{' '}
-          <span className="text-white/90 font-semibold">Tu Tirada</span>, lecturas de tarot con
+          <span className="text-white/90 font-semibold">Tarot</span>, lecturas personalizadas con
           inteligencia artificial.
         </p>
       </div>
@@ -43,13 +43,13 @@ export default function QuienesSomos() {
           entregadas donde ya estás: tu WhatsApp.
         </p>
         <p className="text-white/80 text-sm leading-relaxed">
-          Por ahora nuestro único producto en producción es <strong className="text-white/95">Tu Tirada</strong>.
+          Por ahora nuestro único producto en producción es <strong className="text-white/95">Tarot</strong>.
           Estamos construyendo más experiencias para sumar a futuro — cuando eso pase, las vas a
           encontrar todas acá.
         </p>
       </Seccion>
 
-      <Seccion titulo="Tu Tirada Tarot — nuestro primer producto">
+      <Seccion titulo="Tarot — nuestro primer producto">
         <p className="text-white/80 text-sm leading-relaxed mb-3">
           Una lectura de tarot personalizada: se sortean 5 cartas para tu consulta y se
           interpretan en relación con tu nombre, tu fecha de nacimiento y lo que quieras

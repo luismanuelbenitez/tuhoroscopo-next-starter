@@ -1,5 +1,5 @@
 // ============================================================
-// _shared/tarot-email-entrega.ts — HTML del email de entrega de "Tu Tirada"
+// _shared/tarot-email-entrega.ts — HTML del email de entrega del Tarot
 //
 // Puerta de entrada al MISMO producto que WhatsApp — no una experiencia
 // paralela: cabezal personalizado (mismo PNG real 1600×800, mismas 5
@@ -35,7 +35,7 @@ export function buildHtmlEntregaEmail(datos: DatosEmailEntrega): string {
           <tr>
             <td style="padding-bottom:28px;">
               ${lecturaUrl ? `<a href="${lecturaUrl}" style="display:block;text-decoration:none;border:0;">` : ""}
-              <img src="${cabezalUrl}" alt="Tu Oráculo · Tu Tirada — cabezal personalizado con tus 5 cartas para ${nombreCorto}"
+              <img src="${cabezalUrl}" alt="Tu Oráculo · Tarot — cabezal personalizado con tus 5 cartas para ${nombreCorto}"
                    width="560"
                    style="display:block;width:100%;max-width:560px;height:auto;border-radius:14px;border:1px solid rgba(251,191,36,0.20);outline:none;text-decoration:none;" />
               ${lecturaUrl ? `</a>` : ""}
@@ -58,7 +58,7 @@ export function buildHtmlEntregaEmail(datos: DatosEmailEntrega): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Tu Tirada · Tu Oráculo</title>
+  <title>Tarot · Tu Oráculo</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0d0820;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
 

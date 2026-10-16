@@ -54,7 +54,7 @@ export function ProductoDestacado() {
         <div className="relative" style={{ minHeight: 260 }}>
           <img
             src="/img/home/destacado/producto-destacado.png"
-            alt="Tu Tirada Tarot"
+            alt="Tarot"
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
           />
           <div
@@ -82,7 +82,7 @@ export function ProductoDestacado() {
           >
             Producto destacado
           </p>
-          <h2 className="text-2xl md:text-[28px] font-extrabold mb-2">Tu Tirada Tarot</h2>
+          <h2 className="text-2xl md:text-[28px] font-extrabold mb-2">Tarot</h2>
           <p className="text-[12px] uppercase tracking-wide text-white/40 mb-5">
             Una guía personalizada para tu momento actual
           </p>

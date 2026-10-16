@@ -522,7 +522,7 @@ serve(async (req) => {
     items: [
       {
         id: "tarot-lectura-personalizada",
-        title: "Tu Tirada de Tarot Personalizada",
+        title: "Tarot — Lectura Personalizada",
         description: "Lectura de tarot con IA. Recibirás tu PDF por WhatsApp al número que registraste.",
         quantity: 1,
         currency_id: monedaNorm,

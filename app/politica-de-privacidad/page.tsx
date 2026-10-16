@@ -5,7 +5,7 @@ const GOLD = '#F0C55A';
 const SECTIONS = [
   {
     title: '1. Datos que recopilamos',
-    content: 'El responsable de Tu Oráculo es Luis Manuel Benítez Rodríguez, RUT 214998320016, Uruguay. Para Tu Tirada (tarot), al completar el checkout recopilamos: tu nombre, tu número de WhatsApp, el tema de tu consulta y, si los completás, tu fecha de nacimiento, tu email y tu pregunta puntual — estos tres últimos son opcionales. Si en algún momento contratás la Guía Diaria (horóscopo por suscripción), recopilamos tu nombre, tu signo zodiacal, tu número de WhatsApp y tu preferencia de contenido. En ambos casos, la información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
+    content: 'El responsable de Tu Oráculo es Luis Manuel Benítez Rodríguez, RUT 214998320016, Uruguay. Para el Tarot, al completar el checkout recopilamos: tu nombre, tu número de WhatsApp, el tema de tu consulta y, si los completás, tu fecha de nacimiento, tu email y tu pregunta puntual — estos tres últimos son opcionales. Si en algún momento contratás la Guía Diaria (horóscopo por suscripción), recopilamos tu nombre, tu signo zodiacal, tu número de WhatsApp y tu preferencia de contenido. En ambos casos, la información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
   },
   {
     title: '2. Para qué usamos tu información',

@@ -302,7 +302,7 @@ serve(async (req: Request) => {
   const cartasOrdenadas = [...iaOutput.cartas].sort((a, b) => a.posicion - b.posicion);
 
   const contenidoJson = {
-    producto:                   "Tu Tirada — Laboratorio",
+    producto:                   "Tarot — Laboratorio",
     nombre:                     consultante.nombre,
     fecha_nacimiento:           consultante.fecha_nacimiento,
     fecha_lectura:              new Date().toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" }),

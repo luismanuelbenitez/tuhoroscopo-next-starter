@@ -9,7 +9,7 @@ import { Carousel } from "./Carousel";
 
 const CARD_BG = "#120b22";
 
-function CardTuTirada() {
+function CardTarot() {
   const precioTarot = usePrecioTarot();
   return (
     <div
@@ -19,7 +19,7 @@ function CardTuTirada() {
       <div className="relative" style={{ height: 180 }}>
         <img
           src="/img/home/experiencias/tarot.webp"
-          alt="Tu Tirada Tarot"
+          alt="Tarot"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
         />
         <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent 55%, ${CARD_BG} 100%)` }} />
@@ -31,7 +31,7 @@ function CardTuTirada() {
         </p>
       </div>
       <div className="p-6 flex flex-col flex-1">
-        <h3 className="text-lg font-extrabold mb-1.5">Tu Tirada Tarot</h3>
+        <h3 className="text-lg font-extrabold mb-1.5">Tarot</h3>
         <p className="text-white/60 text-[13px] leading-relaxed mb-4 flex-1">
           Una lectura de tarot personalizada, clara y práctica, directo a tu WhatsApp en minutos.
         </p>
@@ -130,11 +130,11 @@ export function BloqueExperiencias() {
         Experiencias de Tu Oráculo
       </h2>
       <p className="text-white/55 text-[13px] md:text-[14px] mb-8 md:mb-9 max-w-lg mx-auto">
-        Hoy podés vivir Tu Tirada Tarot y muy pronto, nuevas experiencias para seguir explorando tu camino.
+        Hoy podés vivir el Tarot y muy pronto, nuevas experiencias para seguir explorando tu camino.
       </p>
       <Carousel>
         {[
-          <CardTuTirada key="tirada" />,
+          <CardTarot key="tarot" />,
           <CardProximamente
             key="compatibilidad"
             archivo="compatibilidad-astral.webp"

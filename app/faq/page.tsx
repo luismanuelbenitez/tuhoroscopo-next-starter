@@ -28,7 +28,7 @@ export default async function FAQ() {
     },
     {
       q: '¿Cuánto cuesta?',
-      a: `Tu Tirada cuesta ${precioTexto}, un pago único. Sin suscripción, sin renovaciones ni cargos futuros.`,
+      a: `El Tarot cuesta ${precioTexto}, un pago único. Sin suscripción, sin renovaciones ni cargos futuros.`,
     },
     {
       q: '¿Cómo se paga?',
@@ -51,8 +51,8 @@ export default async function FAQ() {
       a: 'No. Todo llega directo a tu WhatsApp, que ya tenés instalado. La lectura online se abre en el navegador del celular, sin descargar nada.',
     },
     {
-      q: '¿Tienen otros productos además de Tu Tirada?',
-      a: 'Por ahora Tu Tirada es el único producto disponible. Somos una empresa nueva y estamos construyendo más experiencias — cuando estén listas, las vas a encontrar en este mismo sitio.',
+      q: '¿Tienen otros productos además del Tarot?',
+      a: 'Por ahora el Tarot es el único producto disponible. Somos una empresa nueva y estamos construyendo más experiencias — cuando estén listas, las vas a encontrar en este mismo sitio.',
     },
   ];
 
@@ -68,7 +68,7 @@ export default async function FAQ() {
           Preguntas frecuentes
         </h1>
         <p className="text-white/70 text-base leading-relaxed">
-          Todo lo que necesitás saber sobre Tu Tirada Tarot, antes o después de comprar.
+          Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.
         </p>
       </div>
 

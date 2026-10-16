@@ -12,9 +12,9 @@ const ITEMS = [
   { icon: "b5_experiencia_movil.webp", t: "Pensada para tu celular", d: "Una experiencia digital, simple y a tu ritmo." },
 ];
 
-function ItemConfianza({ icon, t, d }: (typeof ITEMS)[number]) {
+function ItemConfianza({ icon, t, d, fullWidth }: (typeof ITEMS)[number] & { fullWidth?: boolean }) {
   return (
-    <div className="text-center px-5" style={{ width: "min(84vw, 300px)" }}>
+    <div className="text-center px-5" style={fullWidth ? undefined : { width: "min(84vw, 300px)" }}>
       <IconoConFallback src={`/img/home/bloque_final/${icon}`} size={48} className="mx-auto mb-3" />
       <p className="text-sm font-semibold mb-1">{t}</p>
       <p className="text-[12px] text-white/45 leading-snug">{d}</p>
@@ -37,8 +37,8 @@ export function BloqueConfianza() {
         style={{ background: CARD_BG, border: "1px solid rgba(240,197,90,0.28)" }}
       >
         {ITEMS.map((item, i) => (
-          <div key={item.t} className="flex-1 flex items-center justify-center" style={{ borderLeft: i > 0 ? "1px solid rgba(205,165,90,0.22)" : "none" }}>
-            <ItemConfianza {...item} />
+          <div key={item.t} className="flex-1 min-w-0 flex items-center justify-center" style={{ borderLeft: i > 0 ? "1px solid rgba(205,165,90,0.22)" : "none" }}>
+            <ItemConfianza {...item} fullWidth />
           </div>
         ))}
       </div>

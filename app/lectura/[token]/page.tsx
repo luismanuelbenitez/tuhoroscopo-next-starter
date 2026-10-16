@@ -20,7 +20,7 @@ const serif = Cormorant_Garamond({
 
 export function generateMetadata(): Metadata {
   return {
-    title: "Tu Tirada — Tu Oráculo",
+    title: "Tarot — Tu Oráculo",
     robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   };
 }
