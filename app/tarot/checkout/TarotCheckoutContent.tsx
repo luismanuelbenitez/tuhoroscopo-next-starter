@@ -11,10 +11,10 @@ import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
-import { TarotBackgroundStage } from '@/components/tarot/TarotBackgroundStage';
 import { ResumenCompra, ResumenCompacto } from '@/components/tarot/checkout/ResumenCompra';
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
-import { Etiqueta, ConIcono, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
+import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
+import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
@@ -22,9 +22,6 @@ import { metaInitiateCheckout } from '@/lib/metaPixel';
 
 const MP_LOGO = '/img/tarot/generales/MP_RGB_HANDSHAKE_pluma_horizontal.png';
 const TEXT_SHADOW = '0 2px 14px rgba(0,0,0,0.65)';
-// Checkout es más corto que la landing: solo la segunda imagen de fondo
-// (adornos en los bordes, centro limpio para el formulario).
-const FONDO_CHECKOUT = ['/img/tarot/generales/tarot-fondo-desktop2.webp'];
 // PRECIO_BASE is now passed as prop from the server page
 
 const PAISES = [
@@ -347,12 +344,12 @@ export default function TarotCheckoutContent({
   // contenido). Solo presentación: todos los handlers y estados de arriba
   // son los mismos de antes del rediseño.
   return (
-    <PaginaMarca>
-      <TarotBackgroundStage fondos={FONDO_CHECKOUT}>
+    <PaginaMarca fondo={<FondoCheckout />}>
+      <div className="relative">
         <HeaderMarca variante="minimo" />
 
-        <div className="relative px-5 md:px-8 pt-6 pb-14 md:pb-20">
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] gap-8 md:gap-9 md:items-start">
+        <div className="relative px-5 md:px-8 pt-6 pb-10 md:pb-14">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_330px] gap-8 md:gap-7 md:items-start">
 
             {/* ── Columna formulario ─────────────────────────────── */}
             <div className="min-w-0">
@@ -400,6 +397,9 @@ export default function TarotCheckoutContent({
                 style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
               >
 
+                <Paso n={1} titulo="Tus datos" bajada="Así personalizamos tu lectura." />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
+
                 {/* Nombre */}
                 <div>
                   <Etiqueta htmlFor="nombre" texto="Tu nombre" nota="requerido" />
@@ -432,7 +432,7 @@ export default function TarotCheckoutContent({
                         }}
                         disabled={isLoading}
                         aria-label="País"
-                        className="appearance-none rounded-xl pl-4 pr-9 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[14px]"
+                        className="appearance-none rounded-xl pl-4 pr-9 md:pl-3 md:pr-7 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[14px]"
                         style={inputBg}
                       >
                         {PAISES.map(p => (
@@ -441,14 +441,14 @@ export default function TarotCheckoutContent({
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
+                      <ChevronDown className="absolute right-3 md:right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <ConIcono Icon={MessageCircle}>
+                      <ConIcono Icon={MessageCircle} iconoClase="md:hidden">
                         <input
                           id="telefono"
                           name="telefono"
-                          className={`${inputCheckout} pl-11 ${
+                          className={`${inputCheckout} pl-11 md:pl-4 ${
                             telefonoValido(form.telefono, pais)
                               ? '!ring-emerald-500/55 focus:!ring-emerald-400/60'
                               : ''
@@ -545,6 +545,9 @@ export default function TarotCheckoutContent({
                     />
                   </ConIcono>
                 </div>
+                </div>
+
+                <Paso n={2} titulo="Tu consulta" bajada="Podés hacer una pregunta puntual o dejar que la lectura sea general." separado />
 
                 {/* Tema */}
                 <div>
@@ -590,6 +593,8 @@ export default function TarotCheckoutContent({
                   </ConIcono>
                   <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
                 </div>
+
+                <Paso n={3} titulo="Tu compra" bajada="Revisá y confirmá tu pago." separado />
 
                 {/* ── Código de descuento ──────────────────────────── */}
                 <div
@@ -776,7 +781,13 @@ export default function TarotCheckoutContent({
 
           </div>
         </div>
-      </TarotBackgroundStage>
+
+        {/* Cierre simple, igual que /tarot (sin footer global). */}
+        <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; }" }} />
+        <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
+          © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
+        </p>
+      </div>
     </PaginaMarca>
   );
 }

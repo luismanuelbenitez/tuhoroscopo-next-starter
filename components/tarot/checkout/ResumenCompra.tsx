@@ -3,10 +3,8 @@
 import { Layers, BookOpen, Volume2, FileText, MessageCircle, Mail, Tag } from "lucide-react";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 
-// Imagen provisoria (la misma de la card de producto en Home) hasta tener
-// la ilustración definitiva. El pergamino es código, no imagen: así puede
-// mostrar el nombre que el cliente va escribiendo en el formulario.
-const IMAGEN = "/img/home/destacado/producto-destacado.png";
+// Cabecera de la card completa (desktop): captura real de /lectura.
+const CABECERA = "/img/tarot/contenedores/checkout/cabecera-card-tarot.webp";
 const CARD_BG = "#0c0718";
 
 const INCLUYE = [
@@ -27,41 +25,28 @@ interface Props {
 
 export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplicado }: Props) {
   const primerNombre = nombre.trim().split(/\s+/)[0];
-  const titulo = primerNombre ? `Lectura para ${primerNombre}` : "Tu lectura";
 
   return (
     <div
       className="rounded-2xl overflow-hidden"
       style={{ background: CARD_BG, border: "1px solid rgba(240,197,90,0.45)", boxShadow: "0 0 0 1px rgba(240,197,90,0.06), 0 18px 48px rgba(0,0,0,0.45), 0 0 32px rgba(240,197,90,0.08)" }}
     >
-      <div className="relative" style={{ height: 220 }}>
+      {/* Cabecera: captura REAL de /lectura (cabecera-card-tarot.webp), lo que
+          recibe el cliente. Fundido inferior hacia el cuerpo de la card. */}
+      <div className="relative overflow-hidden" style={{ height: 210 }}>
         <img
-          src={IMAGEN}
-          alt="Cartas de tarot sobre una mesa con velas"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 35%" }}
+          src={CABECERA}
+          alt="Vista real de la lectura online: el nombre, la consulta y las 5 cartas"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center bottom" }}
         />
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, rgba(12,7,24,0.15) 0%, transparent 35%, ${CARD_BG} 100%)` }} />
-
-        {/* Pergamino con el nombre */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-4 max-w-[85%]">
-          <div
-            className="px-6 py-1.5 rounded-[4px] text-center truncate"
-            style={{
-              fontFamily: SERIF,
-              fontWeight: 700,
-              fontSize: 17,
-              color: "#291408",
-              background: "linear-gradient(180deg, #f6e8c6 0%, #e6cf9c 100%)",
-              border: "1px solid #b8913e",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.45), inset 0 0 10px rgba(150,110,40,0.25)",
-            }}
-          >
-            {titulo}
-          </div>
-        </div>
+        <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent 70%, ${CARD_BG} 100%)` }} />
       </div>
-
       <div className="px-6 pb-6 -mt-2 relative">
+        {primerNombre && (
+          <p className="mb-1 truncate" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 16, fontStyle: "italic", color: "rgba(245,239,224,0.75)" }}>
+            Lectura para {primerNombre}
+          </p>
+        )}
         <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 30, lineHeight: 1.1, color: CREMA }}>
           Lectura de Tarot
         </h2>
@@ -122,11 +107,11 @@ export function ResumenCompacto({ nombre, precioBase, precioFinal, descuentoApli
       style={{ background: CARD_BG, border: "1px solid rgba(240,197,90,0.45)", boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }}
     >
       <img
-        src={IMAGEN}
+        src={CABECERA}
         alt=""
         aria-hidden="true"
         className="shrink-0 rounded-xl"
-        style={{ width: 64, height: 64, objectFit: "cover", objectPosition: "center 35%" }}
+        style={{ width: 64, height: 64, objectFit: "cover", objectPosition: "center 85%" }}
       />
       <div className="flex-1 min-w-0">
         <p className="line-clamp-2 break-words" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, lineHeight: 1.12, color: CREMA }}>

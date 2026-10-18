@@ -25,15 +25,35 @@ export function Etiqueta({ htmlFor, texto, nota, children }: { htmlFor?: string;
 
 // Ícono a la izquierda del input. `arriba` para textarea (ícono alineado
 // a la primera línea en vez de centrado).
-export function ConIcono({ Icon, arriba, children }: { Icon: LucideIcon; arriba?: boolean; children: ReactNode }) {
+// `iconoClase`: clases extra del ícono (ej. "md:hidden" en campos angostos).
+export function ConIcono({ Icon, arriba, iconoClase = "", children }: { Icon: LucideIcon; arriba?: boolean; iconoClase?: string; children: ReactNode }) {
   return (
     <div className="relative">
       <Icon
         size={17}
         aria-hidden="true"
-        className={`absolute left-4 text-white/45 pointer-events-none ${arriba ? "top-[15px]" : "top-1/2 -translate-y-1/2"}`}
+        className={`absolute left-4 text-white/45 pointer-events-none ${arriba ? "top-[15px]" : "top-1/2 -translate-y-1/2"} ${iconoClase}`}
       />
       {children}
+    </div>
+  );
+}
+
+// Encabezado de cada paso del formulario (1 Tus datos · 2 Tu consulta ·
+// 3 Tu compra): número dorado + título serif + bajada.
+export function Paso({ n, titulo, bajada, separado = false }: { n: number; titulo: string; bajada: string; separado?: boolean }) {
+  return (
+    <div className={`flex items-start gap-3 ${separado ? "pt-5 border-t border-white/10" : ""}`}>
+      <span
+        className="shrink-0 flex items-center justify-center rounded-full text-[15px] font-bold"
+        style={{ width: 32, height: 32, color: "#180e00", background: "linear-gradient(135deg, #c8980e 0%, #FFCE4D 60%, #e8bc3a 100%)", boxShadow: "0 0 12px rgba(240,197,90,0.30)", fontVariantNumeric: "lining-nums" }}
+      >
+        {n}
+      </span>
+      <div>
+        <p className="text-[21px] leading-tight" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, color: "#F5EFE0" }}>{titulo}</p>
+        <p className="text-[12.5px] text-white/55 mt-0.5">{bajada}</p>
+      </div>
     </div>
   );
 }

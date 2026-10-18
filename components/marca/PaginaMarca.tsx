@@ -11,7 +11,10 @@ import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
 //
 // Por ahora lo usa el checkout de Tarot; Home y /tarot se migran después
 // (hoy repiten este mismo bloque a mano).
-export function PaginaMarca({ children, fuera }: { children: ReactNode; fuera?: ReactNode }) {
+// `fondo`: capa decorativa opcional que puede ser más ancha que 960 (ej.
+// checkout: escena de 1280 con adornos fuera del contenido). Se recorta al
+// viewport, nunca genera scroll horizontal.
+export function PaginaMarca({ children, fuera, fondo }: { children: ReactNode; fuera?: ReactNode; fondo?: ReactNode }) {
   return (
     <>
       <GlobalHomeStyles />
@@ -22,10 +25,11 @@ export function PaginaMarca({ children, fuera }: { children: ReactNode; fuera?: 
       `}</style>
 
       <div
-        className="min-h-screen text-white"
+        className="relative min-h-screen text-white overflow-x-clip"
         style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)" }}
       >
-        <div className="max-w-[960px] mx-auto">{children}</div>
+        {fondo}
+        <div className="relative max-w-[960px] mx-auto">{children}</div>
       </div>
 
       {fuera}
