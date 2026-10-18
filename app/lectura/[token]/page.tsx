@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 import { resolverLecturaPublica, resolverUrlAudioResumenPublica } from "@/lib/tarotLecturaPublica";
-import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
-import { ResumenAudioControls } from "@/components/lectura/ResumenAudioControls";
-import { Reveal } from "@/components/lectura/Reveal";
-import {
-  CartaEnMarco, Divisor, FONDO_TERCIOPELO, GOLD as GOLD_TINTA, IMG, INK, INK_TEXTO, IconoClaves, IconoMensaje, IconoResumen, PanelOscuro, PanelPergamino, PlacaTitulo,
-} from "@/components/lectura/Marcos";
+import { LecturaVista } from "@/components/lectura/vista/LecturaVista";
+import { EstadoLectura } from "@/components/lectura/vista/EstadoLectura";
+
+// Lógica de esta página CONGELADA (docs/product/DECISIONS.md 2026-10-17):
+// resolución por token, estados y URLs de audio/PDF no se tocan sin
+// aprobación de Manuel. La presentación vive en components/lectura/vista/.
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -25,102 +25,12 @@ export function generateMetadata(): Metadata {
   };
 }
 
-const POSICIONES: Record<number, string> = {
-  1: "Tu momento actual",
-  2: "El desafío",
-  3: "Lo que no estás viendo",
-  4: "Consejo para avanzar",
-  5: "Lo que viene",
-};
-
-// Versión corta de POSICIONES para la tira de miniaturas (caben en ~60 px, 2 líneas).
-const ETIQUETA_CORTA: Record<number, string> = {
-  1: "Momento actual",
-  2: "Desafío",
-  3: "Lo que no ves",
-  4: "Consejo",
-  5: "Lo que viene",
-};
-
-const GOLD = "#FFCE4D";
-const SERIF_FONT = "var(--font-serif-editorial), serif";
-
-// Fondo compartido: terciopelo repetible (public/img/lectura) + halo dorado
-// superior — mismo lenguaje visual que el cabezal y el PDF. "El fondo
-// acompaña, nunca compite". position:fixed + pointer-events-none.
-function FondoCelestial() {
-  return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden" style={FONDO_TERCIOPELO} aria-hidden="true">
-      <div
-        className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse 90% 45% at 50% 0%, rgba(240,197,90,0.10), transparent)" }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, rgba(6,3,14,0.55))" }}
-      />
-    </div>
-  );
-}
-
-// Tamaño del nombre dentro del pergamino según su largo (el pergamino tiene
-// un ancho fijo de zona de texto).
-function tamanoNombre(nombre: string): number {
-  const n = nombre.length;
-  if (n <= 12) return 32;
-  if (n <= 18) return 26;
-  if (n <= 24) return 21;
-  return 17;
-}
-
-function ErrorShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className={`${serif.variable} min-h-screen flex items-center justify-center px-6 py-16 text-center relative`} style={{ background: "#140a24" }}>
-      <FondoCelestial />
-      <div className="max-w-sm relative">{children}</div>
-    </main>
-  );
-}
-
-function ExpiradoView() {
-  return (
-    <ErrorShell>
-      <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
-        Tu Oráculo
-      </p>
-      <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: SERIF_FONT }}>
-        Este acceso online expiró
-      </h1>
-      <p className="text-sm text-[#c9c4d6] leading-relaxed">
-        El acceso web a esta tirada estuvo disponible durante 30 días y ya no está activo.
-        Si guardaste el PDF, tu lectura sigue disponible ahí para siempre.
-      </p>
-    </ErrorShell>
-  );
-}
-
-function NoEncontradoView() {
-  return (
-    <ErrorShell>
-      <p className="text-xs tracking-[0.25em] uppercase mb-6" style={{ color: GOLD }}>
-        Tu Oráculo
-      </p>
-      <h1 className="text-2xl font-semibold text-[#F0F1F5] mb-4" style={{ fontFamily: SERIF_FONT }}>
-        No encontramos esta tirada
-      </h1>
-      <p className="text-sm text-[#c9c4d6] leading-relaxed">
-        Revisá que el enlace esté completo, tal como lo recibiste por WhatsApp.
-      </p>
-    </ErrorShell>
-  );
-}
-
 export default async function LecturaPage({ params }: { params: { token: string } }) {
   const resultado = await resolverLecturaPublica(params.token);
 
   if (!resultado.ok) {
-    if (resultado.motivo === "expirado") return <ExpiradoView />;
-    return <NoEncontradoView />;
+    if (resultado.motivo === "expirado") return <EstadoLectura variante="expirado" fontClass={serif.variable} />;
+    return <EstadoLectura variante="no_encontrado" fontClass={serif.variable} />;
   }
 
   // Best-effort: si tts está apagado o el audio no está listo, esto
@@ -128,258 +38,12 @@ export default async function LecturaPage({ params }: { params: { token: string 
   const audioResumen = await resolverUrlAudioResumenPublica(params.token);
   const audioResumenUrl = audioResumen.ok ? audioResumen.url : null;
 
-  const nombreCompleto = resultado.nombre?.trim() ?? "";
-  const primerNombre = nombreCompleto.split(" ")[0] ?? "";
-  // Fecha de nacimiento opcional ("YYYY-MM-DD"); UTC para que no se corra un día.
-  const fechaNacimiento = resultado.fecha_nacimiento
-    ? new Date(`${resultado.fecha_nacimiento}T00:00:00Z`).toLocaleDateString("es-UY", {
-        day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-      })
-    : null;
-
   return (
-    <main className={`${serif.variable} min-h-screen text-[#F0F1F5] relative`} style={{ background: "#140a24" }}>
-      <FondoCelestial />
-
-      <div className="relative max-w-md mx-auto px-4 pb-10">
-        {/* Portada: marca + pergamino con el nombre (texto HTML sobre la imagen) */}
-        <header className="pt-5 pb-6 text-center relative">
-          <div className="flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/marca-isotipo-dorada.svg`} alt="Tu Oráculo" width={190} height={25} style={{ width: 190, height: "auto" }} />
-          </div>
-          <p className="mt-1.5 text-[12px] font-semibold tracking-[0.55em] uppercase pl-[0.55em]" style={{ color: GOLD_TINTA, fontFamily: SERIF_FONT }}>
-            Tarot
-          </p>
-
-          <div className="relative mx-auto mt-4" style={{ width: "100%", maxWidth: 360 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/pergamino-titulo.png`} alt="" aria-hidden="true" width={512} height={189} style={{ width: "100%", height: "auto", display: "block" }} />
-            <h1
-              className="absolute inset-0 flex items-center justify-center text-center font-bold px-[17%] leading-tight"
-              style={{ fontFamily: SERIF_FONT, color: INK, fontSize: tamanoNombre(nombreCompleto || primerNombre) }}
-            >
-              {nombreCompleto || primerNombre}
-            </h1>
-          </div>
-
-          {/* Sol y luna debajo del pergamino; la fecha de nacimiento (si el cliente la cargó) va en el centro */}
-          <div className="flex items-center justify-between px-1 mt-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/sol.png`} alt="" aria-hidden="true" width={64} height={64} style={{ width: 64, height: 64 }} />
-            {fechaNacimiento && (
-              <p className="text-[21px] font-bold tracking-[0.04em]" style={{ color: "#FFE9A6", fontFamily: SERIF_FONT, textShadow: "0 1px 10px rgba(240,197,90,0.35)" }}>
-                {fechaNacimiento}
-              </p>
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`${IMG}/luna.png`} alt="" aria-hidden="true" width={64} height={64} style={{ width: 64, height: 64 }} />
-          </div>
-        </header>
-
-        {/* Pregunta + audio ambiental */}
-        <section className="text-center mb-6 px-1">
-          {resultado.pregunta && (
-            <div
-              className="mb-7 mx-auto max-w-[330px] rounded-2xl px-5 py-4"
-              style={{ border: "1px solid rgba(240,197,90,0.35)", background: "rgba(10,6,20,0.55)" }}
-            >
-              <p className="text-[12px] tracking-[0.3em] uppercase mb-2" style={{ color: GOLD_TINTA }}>
-                Tu consulta
-              </p>
-              <p className="text-[18px] text-[#F3ECD9] italic leading-snug" style={{ fontFamily: SERIF_FONT, fontWeight: 600 }}>
-                &ldquo;{resultado.pregunta}&rdquo;
-              </p>
-            </div>
-          )}
-          <AmbientAudioControls />
-        </section>
-
-        {/* Tira de las 5 cartas: índice tocable */}
-        <nav aria-label="Tus cartas" className="mb-2">
-          <PlacaTitulo className="relative z-10 -mb-5">Tu tirada</PlacaTitulo>
-          <PanelOscuro className="px-2 pt-9 pb-4">
-            <ul className="flex justify-between gap-1.5">
-              {resultado.cartas.map((c) => (
-                <li key={`nav-${c.posicion}`} className="flex-1 text-center">
-                  <a href={`#carta-${c.posicion}`} className="group block py-1 rounded-md transition-transform duration-200 ease-out hover:-translate-y-1 active:translate-y-0 focus-visible:-translate-y-1 outline-none">
-                    {c.imagen_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={c.imagen_url}
-                        alt={c.nombre_carta}
-                        width={60}
-                        height={90}
-                        loading="eager"
-                        className={`mx-auto rounded-[3px] transition duration-200 group-hover:brightness-125 group-hover:saturate-110 group-hover:shadow-[0_0_16px_3px_rgba(240,197,90,0.7)] group-focus-visible:shadow-[0_0_16px_3px_rgba(240,197,90,0.7)] ${c.orientacion === "invertida" ? "rotate-180" : ""}`}
-                        style={{ width: "100%", maxWidth: 58, height: "auto", aspectRatio: "2 / 3", objectFit: "cover", border: `1.5px solid ${GOLD_TINTA}` }}
-                      />
-                    ) : (
-                      <div className="mx-auto rounded-[3px]" style={{ width: 58, aspectRatio: "2 / 3", border: `1.5px solid ${GOLD_TINTA}` }} />
-                    )}
-                    <span
-                      className="block mt-1.5 text-[10.5px] font-semibold uppercase leading-[1.15] tracking-[0.04em]"
-                      style={{ color: "#F3DFA5", fontFamily: SERIF_FONT }}
-                    >
-                      {ETIQUETA_CORTA[c.posicion] ?? `Carta ${c.posicion}`}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-
-            <p className="text-center text-[12px] mt-2 mb-3" style={{ color: "#b4adc7" }}>
-              Toca una carta para leerla
-            </p>
-            <ul className="flex justify-between gap-1.5 px-0.5">
-              {[
-                { href: "#resumen", label: "Resumen", Icono: IconoResumen },
-                { href: "#mensaje", label: "Mensaje", Icono: IconoMensaje },
-                { href: "#claves", label: "Claves", Icono: IconoClaves },
-              ].map(({ href, label, Icono }) => (
-                <li key={href} className="flex-1">
-                  <a
-                    href={href}
-                    className="flex items-center justify-center gap-1.5 rounded-full min-h-[44px] px-2 text-[13px] font-semibold uppercase tracking-[0.08em]"
-                    style={{ border: `1.5px solid ${GOLD_TINTA}`, background: "rgba(240,197,90,0.08)", color: "#F3DFA5", fontFamily: SERIF_FONT }}
-                  >
-                    <Icono />
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </PanelOscuro>
-        </nav>
-
-        <Divisor />
-
-        {/* Las 5 cartas, con ritmo entre posiciones */}
-        <section className="mb-2">
-          {resultado.cartas.flatMap((c, idx) => {
-            const nodos: React.ReactNode[] = [
-              <Reveal key={`carta-${c.posicion}`}>
-                <article
-                  id={`carta-${c.posicion}`}
-                  className="rounded-2xl px-4 pt-6 pb-7 scroll-mt-4"
-                  style={{ background: "rgba(10,6,20,0.55)", border: "1px solid rgba(240,197,90,0.14)" }}
-                >
-                  <PlacaTitulo className="mb-5">
-                    {POSICIONES[c.posicion] ?? `Carta ${c.posicion}`}
-                  </PlacaTitulo>
-
-                  <CartaEnMarco
-                    src={c.imagen_url ?? null}
-                    alt={c.nombre_carta}
-                    invertida={c.orientacion === "invertida"}
-                    eager={idx === 0}
-                  />
-
-                  {c.orientacion === "invertida" && (
-                    <p className="text-center mt-4 text-[12px] tracking-[0.25em] uppercase" style={{ color: "#a79fbd" }}>
-                      Carta invertida
-                    </p>
-                  )}
-
-                  <p className="text-[16px] leading-[1.75] text-[#e6e2f0] mt-3">
-                    {c.interpretacion}
-                  </p>
-                </article>
-              </Reveal>,
-            ];
-            if (idx < resultado.cartas.length - 1) {
-              nodos.push(<Divisor key={`orn-${c.posicion}`} />);
-            }
-            return nodos;
-          })}
-        </section>
-
-        <Divisor />
-
-        {/* Resumen — pergamino claro, como el PDF */}
-        <Reveal className="block">
-          <section id="resumen" className="mt-2 mb-9 scroll-mt-4">
-            <PlacaTitulo className="relative z-10 -mb-5">Resumen</PlacaTitulo>
-            <PanelPergamino className="px-4 pb-8 pt-11">
-              <p className="text-[17.5px] leading-[1.75] whitespace-pre-line" style={{ fontFamily: SERIF_FONT, fontWeight: 700, color: INK_TEXTO }}>
-                {resultado.resumen_lectura}
-              </p>
-            </PanelPergamino>
-            {audioResumenUrl && (
-              <div className="text-center mt-4">
-                <ResumenAudioControls audioUrl={audioResumenUrl} />
-              </div>
-            )}
-          </section>
-        </Reveal>
-
-        {/* Mensaje personal — cierre humano */}
-        <Reveal className="block">
-          <section id="mensaje" className="mb-10 scroll-mt-4">
-            <PlacaTitulo className="relative z-10 -mb-5">Mensaje personal</PlacaTitulo>
-            <PanelPergamino className="px-4 pb-8 pt-11">
-              <p className="text-[18px] leading-[1.75] text-center" style={{ fontFamily: SERIF_FONT, fontWeight: 700, color: INK_TEXTO }}>
-                {resultado.mensaje_final}
-              </p>
-            </PanelPergamino>
-          </section>
-        </Reveal>
-
-        {/* Claves / próximos pasos */}
-        {resultado.proximos_pasos?.length > 0 && (
-          <Reveal className="block">
-            <section id="claves" className="mb-10 scroll-mt-4">
-              <PlacaTitulo className="mb-6">Claves para avanzar</PlacaTitulo>
-              <ol className="space-y-4">
-                {resultado.proximos_pasos.map((paso, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span
-                      className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ background: "#2a1424", border: `1.5px solid ${GOLD_TINTA}`, color: "#F3DFA5", fontFamily: SERIF_FONT, fontVariantNumeric: "lining-nums", lineHeight: 1 }}
-                    >
-                      {i + 1}
-                    </span>
-                    <p className="text-[16px] leading-relaxed text-[#e6e2f0]">{paso}</p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </Reveal>
-        )}
-
-        {/* Cierre / PDF — utilidad, no CTA comercial */}
-        <Reveal className="block">
-          <section className="text-center relative pb-4">
-            <Divisor />
-            <p className="text-[13px] tracking-[0.2em] uppercase mt-1 mb-1.5" style={{ color: GOLD }}>
-              Guardá tu tirada
-            </p>
-            <p className="text-[14px] text-[#b4adc7] mb-6">
-              Tu PDF queda como tu versión para conservar.
-            </p>
-            <a
-              href={`/api/lectura/${params.token}/pdf`}
-              className="inline-flex items-center justify-center rounded-full px-8 min-h-[48px] text-[15px] font-semibold transition-colors"
-              style={{ border: `1.5px solid ${GOLD_TINTA}`, background: "rgba(240,197,90,0.10)", color: "#F8F2E0" }}
-            >
-              📜 Ver / descargar PDF
-            </a>
-
-            <p className="mt-6 text-center text-xs text-[#a79fbd]">
-              Este acceso online estará disponible durante 30 días.
-            </p>
-
-            <div className="relative mt-8" style={{ height: 132 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/marca-dorada.svg`} alt="Tu Oráculo" width={150} height={17} loading="lazy" className="mx-auto block" style={{ width: 150, height: "auto" }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/cristales-izq.png`} alt="" aria-hidden="true" width={88} height={88} loading="lazy" className="absolute left-0 bottom-0" style={{ width: 88, height: 88 }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${IMG}/cristales-der.png`} alt="" aria-hidden="true" width={88} height={88} loading="lazy" className="absolute right-0 bottom-0" style={{ width: 88, height: 88 }} />
-            </div>
-          </section>
-        </Reveal>
-      </div>
-    </main>
+    <LecturaVista
+      lectura={resultado}
+      audioResumenUrl={audioResumenUrl}
+      pdfHref={`/api/lectura/${params.token}/pdf`}
+      fontClass={serif.variable}
+    />
   );
 }

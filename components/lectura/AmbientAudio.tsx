@@ -17,13 +17,15 @@ import { useEffect, useRef, useState } from "react";
 const AUDIO_SRC = "/audio/tarot-ambiente.mp3";
 const VOLUMEN_OBJETIVO = 0.25;
 const FADE_IN_MS = 2600;
-const GOLD = "#FFCE4D";
+const GOLD = "#F0C55A"; // dorado de marca (antes #FFCE4D) — solo color
 
 type Estado = "idle" | "cargando" | "reproduciendo" | "pausado" | "error";
 
 // Único componente: un solo <audio> interno controla tanto el botón del
 // hero como el botón flotante — nunca dos reproductores independientes.
-export function AmbientAudioControls() {
+// `variante` solo cambia la piel del botón principal (rediseño 2026-10-18:
+// "pergamino" = botón claro sobre el panel del resumen). Lógica sin cambios.
+export function AmbientAudioControls({ variante = "oscuro" }: { variante?: "oscuro" | "pergamino" } = {}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeRef = useRef<number | null>(null);
   const heroBtnRef = useRef<HTMLDivElement>(null);
@@ -130,13 +132,17 @@ export function AmbientAudioControls() {
           type="button"
           onClick={toggle}
           disabled={estado === "cargando"}
-          className="relative inline-flex items-center gap-2.5 rounded-full border-[1.5px] border-[rgba(240,197,90,0.75)] bg-[#241751]/90 px-7 py-3.5 text-[15px] font-semibold tracking-wide text-[#F3E7C4] shadow-[0_6px_22px_rgba(0,0,0,0.45),0_0_18px_rgba(240,197,90,0.18)] backdrop-blur transition-colors hover:bg-[#2e1d63] hover:border-[rgba(240,197,90,0.95)] disabled:opacity-60"
+          className={variante === "pergamino"
+            ? "relative inline-flex items-center justify-center gap-2 rounded-full min-h-[40px] px-4 text-[13.5px] font-medium text-[#4a3522] border border-[rgba(90,60,20,0.3)] bg-transparent transition-colors hover:bg-[rgba(255,250,235,0.5)] disabled:opacity-60"
+            : "relative inline-flex items-center justify-center gap-2.5 rounded-full min-h-[50px] px-7 text-[15.5px] font-semibold text-[#F5EFE0] border border-[rgba(231,184,71,0.75)] bg-[linear-gradient(180deg,#2a1648,#170c2c)] shadow-[0_6px_22px_rgba(0,0,0,0.35)] transition-colors hover:border-[rgba(240,197,90,0.95)] disabled:opacity-60"}
         >
-          <span style={{ color: GOLD }} aria-hidden="true">
+          <span style={{ color: variante === "pergamino" ? "#7a5418" : GOLD }} aria-hidden="true">
             {reproduciendo ? (
               <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
             ) : (
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>
+              variante === "pergamino"
+                ? <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>
+                : <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4Z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>
             )}
           </span>
           <span>
