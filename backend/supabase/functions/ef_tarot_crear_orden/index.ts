@@ -9,6 +9,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
 import { normalizarTelefono, normalizarEmailIdentidad } from "../_shared/tarot-identidad.ts";
+import { ejecutarPipelinePostCobro } from "../_shared/tarot-pipeline.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -26,6 +27,8 @@ const MP_ACCESS_TOKEN_TEST = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_TEST")
 const MP_ACCESS_TOKEN_PROD = Deno.env.get("MERCADOPAGO_TAROT_ACCESS_TOKEN_PROD") ?? "";
 // URL base a donde redirigir al usuario tras el pago (back_urls de MP)
 // Ejemplo: https://tuhoroscopocosmico.com/tarot/estado/
+// Solo para disparar el pipeline de una orden de cortesía (2026-10-18).
+const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const FN = "ef_tarot_crear_orden";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -271,15 +274,39 @@ serve(async (req) => {
     ? codigo_descuento_uso_id.trim().toLowerCase()
     : null;
 
+  // Cortesía (2026-10-18): orden gratuita habilitada EXPLÍCITAMENTE por un
+
+  // código con habilita_orden_gratuita = true (CHECK en BD: siempre
+
+  // porcentaje 100). Sin Mercado Pago, sin pago, sin facturación; entra al
+
+  // mismo pipeline de generación/entrega. Ver docs/product/DECISIONS.md.
+
+  let cortesia: { codigoId: string; codigo: string; maxPorCliente: number } | null = null;
+
   if (usoIdNorm) {
     const { data: uso, error: errUso } = await supabase
       .from("tarot_codigos_descuento_usos")
-      .select("id, estado_uso, precio_aplicado, fecha_expiracion, moneda")
+      .select("id, codigo_id, codigo, orden_id, estado_uso, precio_aplicado, fecha_expiracion, moneda")
       .eq("id", usoIdNorm)
       .single();
 
     if (errUso || !uso) {
       return json({ ok: false, error: "CODIGO_DESCUENTO_NO_ENCONTRADO" }, 400);
+    }
+    // Idempotencia de cortesía (doble clic / reintento / refresh): si esta
+    // reserva ya generó su orden de cortesía, se devuelve ESA orden — nunca
+    // una segunda. Va antes del chequeo de estado_uso porque, una vez
+    // disparado el pipeline, ef_tarot_aplicar_codigo pasa el uso a "aplicado".
+    if (uso.orden_id) {
+      const { data: previa } = await supabase.from("tarot_ordenes")
+        .select("id, external_reference, tipo_orden").eq("id", uso.orden_id).maybeSingle();
+      if (previa?.tipo_orden === "cortesia") {
+        await registrarLog(previa.id, null, "orden_cortesia_reintento", "info",
+          "Reintento con la misma reserva de cortesía — se devuelve la orden existente, no se crea otra",
+          { uso_id: usoIdNorm }, ip);
+        return json({ ok: true, gratuita: true, orden_id: previa.id, external_reference: previa.external_reference, link_pago: null });
+      }
     }
     if (uso.estado_uso !== "reservado") {
       return json({ ok: false, error: "CODIGO_DESCUENTO_NO_RESERVADO" }, 409);
@@ -290,6 +317,51 @@ serve(async (req) => {
     // Usar el precio descontado
     if (uso.precio_aplicado !== null && uso.precio_aplicado >= 0) {
       precio = Number(uso.precio_aplicado);
+    }
+    // ¿Es una cortesía autorizada? Se re-chequea la vigencia del código acá
+    // (no solo al reservar): si el admin lo desactiva, las reservas
+    // pendientes ya no generan órdenes gratuitas.
+    if (Number(uso.precio_aplicado) === 0) {
+      const { data: cod } = await supabase.from("tarot_codigos_descuento")
+        .select("id, habilita_orden_gratuita, activo, fecha_inicio, fecha_fin, max_usos_por_cliente")
+        .eq("id", uso.codigo_id).maybeSingle();
+      if (cod?.habilita_orden_gratuita === true) {
+        const ahoraMs = Date.now();
+        if (!cod.activo
+          || (cod.fecha_inicio && new Date(cod.fecha_inicio).getTime() > ahoraMs)
+          || (cod.fecha_fin && new Date(cod.fecha_fin).getTime() < ahoraMs)) {
+          return json({ ok: false, error: "CODIGO_CORTESIA_NO_VIGENTE" }, 409);
+        }
+        cortesia = { codigoId: cod.id, codigo: uso.codigo, maxPorCliente: Number(cod.max_usos_por_cliente ?? 1) || 1 };
+      }
+    }
+  }
+
+  // Una orden de $0 SOLO existe como cortesía explícita: un descuento que
+  // llega a 100% sin habilita_orden_gratuita no abre el bypass de pago (y
+  // antes terminaba igual en error de preferencia de MP).
+  if (precio <= 0 && !cortesia) {
+    await registrarLog(null, null, "orden_sin_importe_rechazada", "warning",
+      "Orden de $0 sin código de cortesía autorizado — no se crea", { uso_id: usoIdNorm }, ip);
+    return json({ ok: false, error: "ORDEN_SIN_IMPORTE_NO_AUTORIZADA" }, 400);
+  }
+  // Límite de cortesías por cliente, server-side y por teléfono normalizado:
+  // la reserva del checkout solo controla "por cliente" si recibió teléfono;
+  // acá se controla siempre.
+  if (cortesia) {
+    const { data: usosPrevios } = await supabase.from("tarot_codigos_descuento_usos")
+      .select("orden_id").eq("codigo_id", cortesia.codigoId).neq("id", usoIdNorm).not("orden_id", "is", null);
+    const idsPrevios = (usosPrevios ?? []).map((u: { orden_id: string | null }) => u.orden_id).filter(Boolean);
+    if (idsPrevios.length > 0) {
+      const { count } = await supabase.from("tarot_ordenes")
+        .select("id", { count: "exact", head: true })
+        .in("id", idsPrevios).eq("tipo_orden", "cortesia").eq("telefono_snapshot", telefono).neq("estado", "cancelado");
+      if ((count ?? 0) >= cortesia.maxPorCliente) {
+        await registrarLog(null, null, "cortesia_limite_cliente", "warning",
+          "Código de cortesía ya usado por este teléfono — orden no creada",
+          { codigo: cortesia.codigo, telefono, previas: count }, ip);
+        return json({ ok: false, error: "CODIGO_CORTESIA_LIMITE_CLIENTE" }, 409);
+      }
     }
   }
 
@@ -458,6 +530,7 @@ serve(async (req) => {
       pregunta_usuario: pregunta_usuario ?? null,
       tema: temaNorm,
       precio_cobrado: precio,
+      tipo_orden: cortesia ? "cortesia" : "venta",
       moneda: monedaNorm,
       origen_canal: "web",
       utm_source: utm_source ?? null,
@@ -484,11 +557,74 @@ serve(async (req) => {
     "Orden creada", { external_reference: externalReference, precio, moneda: monedaNorm }, ip);
 
   // ── 5b. Vincular uso de código de descuento a la orden ───
-  if (usoIdNorm) {
+  // (la cortesía lo reclama de forma atómica en 5c)
+  if (usoIdNorm && !cortesia) {
     await supabase
       .from("tarot_codigos_descuento_usos")
       .update({ orden_id: ordenId })
       .eq("id", usoIdNorm);
+  }
+
+  // ── 5c. Cortesía: sin Mercado Pago (2026-10-18) ──────────
+  // Sin tarot_pagos, sin preferencia, sin payment_id: no hubo pago. Entra
+  // directo al pipeline canónico (estado → generación → PDF → entrega).
+  if (cortesia && usoIdNorm) {
+    // Reclamo atómico de la reserva: solo UNA orden puede quedarse con ella
+    // (dos envíos simultáneos → el segundo pierde, se cancela y devuelve la
+    // orden ganadora).
+    const { data: reclamado } = await supabase.from("tarot_codigos_descuento_usos")
+      .update({ orden_id: ordenId, cliente_id: clienteId })
+      .eq("id", usoIdNorm).is("orden_id", null).select("id");
+    if (!reclamado || reclamado.length === 0) {
+      await supabase.from("tarot_ordenes").update({
+        estado: "cancelado",
+        notas_internas: "Cortesía duplicada por envío simultáneo — se usó la otra orden",
+        updated_at: new Date().toISOString(),
+      }).eq("id", ordenId);
+      const { data: usoActual } = await supabase.from("tarot_codigos_descuento_usos")
+        .select("orden_id").eq("id", usoIdNorm).maybeSingle();
+      const { data: ganadora } = usoActual?.orden_id
+        ? await supabase.from("tarot_ordenes").select("id, external_reference").eq("id", usoActual.orden_id).maybeSingle()
+        : { data: null };
+      await registrarLog(ordenId, clienteId, "orden_cortesia_duplicada", "warning",
+        "Envío simultáneo de la misma cortesía — esta orden se cancela",
+        { orden_ganadora: ganadora?.id ?? null, uso_id: usoIdNorm }, ip);
+      if (ganadora?.id) {
+        return json({ ok: true, gratuita: true, orden_id: ganadora.id, external_reference: ganadora.external_reference, link_pago: null });
+      }
+      return json({ ok: false, error: "ERROR_CREAR_ORDEN" }, 500);
+    }
+
+    await registrarLog(ordenId, clienteId, "orden_cortesia_confirmada", "info",
+      "Orden de cortesía: sin Mercado Pago, sin pago, sin facturación. Disparando generación.",
+      { codigo: cortesia.codigo, codigo_id: cortesia.codigoId, uso_id: usoIdNorm, duracion_ms: Date.now() - t0 }, ip);
+
+    await ejecutarPipelinePostCobro(
+      supabase,
+      { supabaseUrl: SUPABASE_URL, serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY, internalKey: TAROT_INTERNAL_KEY, funcionOrigen: FN },
+      {
+        ordenId,
+        clienteId,
+        externalReference,
+        funnelSessionId:   (funnel_session_id as string | null) ?? null,
+        monto:             0,
+        moneda:            monedaNorm,
+        // ≠ payment_approved: nunca cuenta como pago/venta en el funnel
+        analyticsEvent:    "courtesy_order_confirmed",
+        analyticsMetadata: {
+          external_reference: externalReference,
+          tipo_orden:         "cortesia",
+          codigo:             cortesia.codigo,
+          codigo_id:          cortesia.codigoId,
+          uso_id:             usoIdNorm,
+        },
+        mpPaymentId: null,
+        ahora,
+        esCortesia:  true,
+      },
+    );
+
+    return json({ ok: true, gratuita: true, orden_id: ordenId, external_reference: externalReference, link_pago: null });
   }
 
   // ── 6. Crear registro de pago skeleton ───────────────────

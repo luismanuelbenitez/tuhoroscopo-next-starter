@@ -59,6 +59,7 @@ interface MetricasTTC {
     completadas: number;
     con_error: number;
     cobro_manual_periodo?: number;
+    cortesias_periodo?: number;
   };
   lecturas: { total: number; hoy: number };
   pdfs: { total: number; hoy: number };
@@ -161,6 +162,7 @@ function CardOrdenes({ m }: { m: MetricasTTC | null }) {
           <Row label="Con pago" valor={m.ordenes.pagadas} />
           <Row label="Completadas" valor={m.ordenes.completadas} />
           <Row label="· de las cuales, cobro manual" valor={m.ordenes.cobro_manual_periodo ?? 0} />
+          <Row label="Cortesías ($0, no son ventas)" valor={m.ordenes.cortesias_periodo ?? 0} />
           <Row label="Con error" valor={m.ordenes.con_error} />
         </div>
       )}

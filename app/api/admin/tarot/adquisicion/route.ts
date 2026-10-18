@@ -142,6 +142,8 @@ export async function GET(req: NextRequest) {
       .from("tarot_ordenes")
       .select("id, precio_cobrado, moneda, created_at")
       .in("estado", ESTADOS_PAGADO)
+      // Cortesías (2026-10-18): sin pago → no son compradores ni ingreso.
+      .neq("tipo_orden", "cortesia")
       .gte("created_at", desde);
     const { data: ordenesPagadas } = hasta
       ? await ordenesQuery.lte("created_at", hasta)

@@ -32,6 +32,8 @@ interface Orden {
   updated_at: string;
   estado_resumen: string;
   warnings: string[];
+  tipo_orden?: "venta" | "cortesia";
+  codigo_cortesia?: string | null;
 }
 
 interface Paginacion {
@@ -299,7 +301,10 @@ export default function TarotOrdenesPage() {
                   </tr>
                 )}
                 {!cargando && ordenes.map((o) => {
-                  const estadoBadge = ESTADO_ORDEN[o.estado] ?? { label: o.estado, cls: "bg-gray-800 text-gray-400" };
+                  // Cortesía: "pago_confirmado" no implica pago — se muestra como confirmada.
+                  const estadoBadge = o.tipo_orden === "cortesia" && o.estado === "pago_confirmado"
+                    ? { label: "Confirmada", cls: "bg-sky-900/50 text-sky-300" }
+                    : ESTADO_ORDEN[o.estado] ?? { label: o.estado, cls: "bg-gray-800 text-gray-400" };
                   const tieneError = o.estado.startsWith("error_");
                   const rowHighlight = tieneError ? "bg-red-950/10" : "";
                   const isSelected = selectedOrden?.id === o.id;
@@ -323,6 +328,11 @@ export default function TarotOrdenesPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-300 whitespace-nowrap font-mono text-xs">
                         {o.moneda} {o.precio_cobrado}
+                        {o.tipo_orden === "cortesia" && (
+                          <span className="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold bg-fuchsia-900/50 text-fuchsia-300" title={o.codigo_cortesia ? `Código ${o.codigo_cortesia}` : undefined}>
+                            Cortesía
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Badge text={estadoBadge.label} cls={estadoBadge.cls} />

@@ -41,6 +41,37 @@ function getEnvOrError(): { supabaseUrl: string; internalKey: string; serviceRol
   return { supabaseUrl, internalKey, serviceRoleKey };
 }
 
+// Cortesía (2026-10-18): ef_tarot_admin_listar_ordenes no trae tipo_orden;
+// se completa acá con una consulta liviana sobre los ids de la página (y el
+// código usado), para no tener que redesplegar la EF. Best-effort: si falla,
+// las órdenes se muestran como siempre.
+async function cortesiasDePagina(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  ids: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (ids.length === 0) return out;
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+  try {
+    const lista = ids.map(encodeURIComponent).join(",");
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/tarot_ordenes?id=in.(${lista})&tipo_orden=eq.cortesia&select=id`,
+      { headers, cache: "no-store" },
+    );
+    const rows = await res.json().catch(() => []);
+    if (!Array.isArray(rows) || rows.length === 0) return out;
+    for (const r of rows) out.set(String(r.id), null);
+    const resUsos = await fetch(
+      `${supabaseUrl}/rest/v1/tarot_codigos_descuento_usos?orden_id=in.(${[...out.keys()].join(",")})&select=orden_id,codigo`,
+      { headers, cache: "no-store" },
+    );
+    const usos = await resUsos.json().catch(() => []);
+    if (Array.isArray(usos)) for (const u of usos) out.set(String(u.orden_id), u.codigo ?? null);
+  } catch { /* best-effort */ }
+  return out;
+}
+
 async function callEF(
   efUrl: string,
   internalKey: string,
@@ -142,11 +173,18 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
+  const cortesias = await cortesiasDePagina(supabaseUrl, serviceRoleKey, ordenes.map((o) => o.id).filter(Boolean));
+  const ordenesConTipo = ordenes.map((o) => ({
+    ...o,
+    tipo_orden:      cortesias.has(o.id) ? "cortesia" : "venta",
+    codigo_cortesia: cortesias.get(o.id) ?? null,
+  }));
+
   return NextResponse.json({
     ok: data.ok ?? false,
     paginacion: data.paginacion ?? null,
     conteos_pagina: data.conteos_pagina ?? null,
     resumen_texto: data.resumen_texto ?? null,
-    ordenes,
+    ordenes: ordenesConTipo,
   });
 }

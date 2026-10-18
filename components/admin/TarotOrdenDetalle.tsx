@@ -24,6 +24,8 @@ interface Orden {
   updated_at: string;
   estado_resumen: string;
   warnings: string[];
+  tipo_orden?: "venta" | "cortesia";
+  codigo_cortesia?: string | null;
 }
 
 interface Lectura {
@@ -444,7 +446,10 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
     }
   }
 
-  const estadoOrden = ESTADO_ORDEN[orden.estado] ?? { label: orden.estado, cls: "bg-gray-800 text-gray-400" };
+  // Cortesía: "pago_confirmado" no implica pago — se muestra como confirmada.
+  const estadoOrden = orden.tipo_orden === "cortesia" && orden.estado === "pago_confirmado"
+    ? { label: "Confirmada", cls: "bg-sky-900/50 text-sky-300" }
+    : ESTADO_ORDEN[orden.estado] ?? { label: orden.estado, cls: "bg-gray-800 text-gray-400" };
   const lectura = lecturas.find((l) => l.es_vigente) ?? lecturas[0];
   const pdf = pdfs[0];
   const pago = pagos.find((p) => p.mp_status === "approved") ?? pagos[0];
@@ -482,6 +487,11 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
             <DataRow label="Estado" value={<Badge text={estadoOrden.label} cls={estadoOrden.cls} />} />
             <DataRow label="Tema" value={orden.tema} />
             <DataRow label="Precio" value={`${orden.moneda} ${orden.precio_cobrado}`} />
+            {orden.tipo_orden === "cortesia" && (
+              <DataRow label="Tipo" value={
+                <Badge text={`Cortesía / $0${orden.codigo_cortesia ? ` · ${orden.codigo_cortesia}` : ""}`} cls="bg-fuchsia-900/50 text-fuchsia-300" />
+              } />
+            )}
             <DataRow label="Canal" value={orden.origen_canal} />
             <DataRow label="Creada" value={fmt(orden.created_at)} />
             <DataRow label="Actualizada" value={fmt(orden.updated_at)} />
@@ -509,7 +519,12 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
 
           {/* Pago */}
           <Sect title="Pago Mercado Pago">
-            {loadingRelated ? (
+            {orden.tipo_orden === "cortesia" ? (
+              <p className="text-sm text-fuchsia-300">
+                Orden de cortesía: no hubo pago ni pasó por Mercado Pago
+                {orden.codigo_cortesia ? ` (código ${orden.codigo_cortesia})` : ""}. No cuenta como venta.
+              </p>
+            ) : loadingRelated ? (
               <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
             ) : pago ? (
               <>

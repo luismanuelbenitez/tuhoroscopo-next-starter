@@ -27,6 +27,7 @@ interface Codigo {
   solo_nuevos_clientes: boolean;
   campania: string | null;
   created_at: string;
+  habilita_orden_gratuita?: boolean;
 }
 
 interface FormState {
@@ -43,6 +44,7 @@ interface FormState {
   max_usos_por_cliente: string;
   solo_nuevos_clientes: boolean;
   campania: string;
+  habilita_orden_gratuita: boolean;
 }
 
 const FORM_INICIAL: FormState = {
@@ -59,6 +61,7 @@ const FORM_INICIAL: FormState = {
   max_usos_por_cliente: "1",
   solo_nuevos_clientes: false,
   campania: "",
+  habilita_orden_gratuita: false,
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -103,6 +106,7 @@ function codigoToForm(c: Codigo): FormState {
     max_usos_por_cliente: String(c.max_usos_por_cliente ?? 1),
     solo_nuevos_clientes: c.solo_nuevos_clientes,
     campania: c.campania ?? "",
+    habilita_orden_gratuita: c.habilita_orden_gratuita === true,
   };
 }
 
@@ -143,6 +147,7 @@ function CodigoModal({
       max_usos_por_cliente: Number(form.max_usos_por_cliente) || 1,
       solo_nuevos_clientes: form.solo_nuevos_clientes,
       campania: form.campania.trim() || null,
+      habilita_orden_gratuita: form.habilita_orden_gratuita,
     };
 
     if (form.tipo_descuento === "precio_fijo") {
@@ -218,7 +223,8 @@ function CodigoModal({
             <select
               value={form.tipo_descuento}
               onChange={(e) => set("tipo_descuento", e.target.value)}
-              className={inputCls}
+              disabled={form.habilita_orden_gratuita}
+              className={inputCls + " disabled:opacity-50"}
             >
               <option value="porcentaje">Porcentaje (%)</option>
               <option value="monto_fijo">Monto fijo (resta X al precio)</option>
@@ -240,11 +246,33 @@ function CodigoModal({
                 step="0.01"
                 value={form.valor_descuento}
                 onChange={(e) => set("valor_descuento", e.target.value)}
+                disabled={form.habilita_orden_gratuita}
                 placeholder={form.tipo_descuento === "porcentaje" ? "15" : "200"}
-                className={inputCls}
+                className={inputCls + " disabled:opacity-50"}
               />
             </div>
           )}
+
+          {/* Cortesía (2026-10-18): orden gratuita SIN Mercado Pago. Solo
+              con 100%; no cuenta como venta ni revenue. */}
+          <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-lg border border-fuchsia-800/40 bg-fuchsia-950/20 px-3 py-2.5">
+            <input
+              type="checkbox" checked={form.habilita_orden_gratuita}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setForm((f) => on
+                  ? { ...f, habilita_orden_gratuita: true, tipo_descuento: "porcentaje", valor_descuento: "100" }
+                  : { ...f, habilita_orden_gratuita: false });
+              }}
+              className="w-4 h-4 mt-0.5 rounded accent-fuchsia-500"
+            />
+            <span className="text-sm text-gray-300 leading-snug">
+              Lectura de cortesía (sin cargo)
+              <span className="block text-xs text-gray-500 mt-0.5">
+                100% de descuento, sin pasar por Mercado Pago. La orden queda marcada como cortesía y no cuenta como venta. Recomendado: fecha de fin, máximo de usos y 1 uso por cliente.
+              </span>
+            </span>
+          </label>
 
           {form.tipo_descuento === "precio_fijo" && (
             <div className="grid grid-cols-2 gap-3">
@@ -610,6 +638,9 @@ export default function TarotCodigosPage() {
                         <td className="px-4 py-3">
                           <span className="text-xs text-gray-400 block">{TIPO_LABEL[c.tipo_descuento] ?? c.tipo_descuento}</span>
                           <span className="font-mono text-xs text-amber-300">{formatValor(c)}</span>
+                          {c.habilita_orden_gratuita && (
+                            <span className="block mt-1"><Badge text="Cortesía" cls="bg-fuchsia-900/50 text-fuchsia-300" /></span>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {agotado ? (

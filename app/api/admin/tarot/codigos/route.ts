@@ -137,6 +137,13 @@ export async function POST(req: NextRequest) {
     if (max > 0) record.max_usos_total = max;
   }
   if (body.campania) record.campania = String(body.campania).trim() || null;
+  // Cortesía (2026-10-18): solo porcentaje 100 (también lo exige un CHECK en BD).
+  if (body.habilita_orden_gratuita === true) {
+    if (tipo !== 'porcentaje' || Number(body.valor_descuento) !== 100) {
+      return NextResponse.json({ ok: false, motivo: 'cortesia_requiere_100', detalle: 'Una lectura de cortesía requiere porcentaje 100' }, { status: 400 });
+    }
+    record.habilita_orden_gratuita = true;
+  }
 
   const res = await fetch(`${supabaseUrl}/rest/v1/tarot_codigos_descuento`, {
     method: 'POST',

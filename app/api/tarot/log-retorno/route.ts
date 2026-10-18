@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     let canFirePurchase           = false;
     let purchaseValue:  number | null = null;
     let purchaseCurrency          = 'UYU';
+    let esCortesia                = false;
 
     if (external_reference) {
       const fetchRes = await fetch(
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
         // esto pedía "precio_final", una columna que nunca existió, por lo que
         // esta consulta fallaba con un error de PostgREST y `orden` siempre
         // quedaba null (ver DECISIONS.md 2026-08-22).
-        `${supabaseUrl}/rest/v1/tarot_ordenes?external_reference=eq.${encodeURIComponent(external_reference)}&select=id,estado,precio_cobrado,moneda,analytics_purchase_sent_at&limit=1`,
+        `${supabaseUrl}/rest/v1/tarot_ordenes?external_reference=eq.${encodeURIComponent(external_reference)}&select=id,estado,tipo_orden,precio_cobrado,moneda,analytics_purchase_sent_at&limit=1`,
         { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
       );
       const rows = await fetchRes.json().catch(() => []);
@@ -61,7 +62,11 @@ export async function POST(req: Request) {
         purchaseValue   = orden.precio_cobrado ?? null;
         purchaseCurrency = orden.moneda ?? 'UYU';
 
-        const isApproved = APPROVED_ESTADOS.has(orden.estado ?? '') || APPROVED_MP.has((mp_status ?? '').toLowerCase());
+        // Cortesía (2026-10-18): orden gratuita, sin pago real → NUNCA
+        // concede Purchase (ni GA4 ni Meta) ni marca analytics_purchase_sent_at.
+        esCortesia = orden.tipo_orden === 'cortesia';
+
+        const isApproved = !esCortesia && APPROVED_ESTADOS.has(orden.estado ?? '') || APPROVED_MP.has((mp_status ?? '').toLowerCase());
         const notTracked = !orden.analytics_purchase_sent_at;
 
         if (isApproved && notTracked) {
@@ -99,8 +104,10 @@ export async function POST(req: Request) {
         orden_id:       ordenId,
         evento:         'back_url_arrived',
         nivel:          'info',
-        mensaje:        'Usuario llegó a /tarot/estado tras el pago en MP',
-        payload:        { external_reference, estado, mp_status, can_fire_purchase: canFirePurchase, params: params ?? {} },
+        mensaje:        esCortesia
+          ? 'Usuario llegó a /tarot/gracias tras confirmar una orden de cortesía (sin pago)'
+          : 'Usuario llegó a /tarot/estado tras el pago en MP',
+        payload:        { external_reference, estado, mp_status, can_fire_purchase: canFirePurchase, es_cortesia: esCortesia, params: params ?? {} },
         ip,
         user_agent:     userAgent,
         funcion_origen: 'front_tarot_estado',
@@ -113,6 +120,7 @@ export async function POST(req: Request) {
       transaction_id:    canFirePurchase ? (external_reference ?? null) : null,
       value:             canFirePurchase ? purchaseValue : null,
       currency:          purchaseCurrency,
+      es_cortesia:       esCortesia,
     });
   } catch (e) {
     console.error('[tarot/log-retorno]', e);

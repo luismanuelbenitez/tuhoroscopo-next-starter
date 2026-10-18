@@ -1,8 +1,8 @@
 // ============================================================
 // _shared/tarot-pipeline.ts — Pipeline post-cobro canónico TTC
 //
-// Pasos comunes a ef_tarot_webhook_mp (approved) y
-// ef_tarot_confirmar_cobro_manual:
+// Pasos comunes a ef_tarot_webhook_mp (approved),
+// ef_tarot_confirmar_cobro_manual y ef_tarot_crear_orden (cortesía):
 //   1. Transición tarot_ordenes → pago_confirmado
 //   1.5. Registro administrativo interno de la venta (idempotente por
 //        constraint de BD, ver _shared/tarot-facturacion.ts — NO es un
@@ -14,6 +14,12 @@
 //
 // NO hace: auth, validación de pago MP, actualización de campos
 // mp_* ni cobro_manual_*. Eso lo hace cada EF llamador.
+//
+// Cortesía (2026-10-18, esCortesia = true): orden gratuita habilitada por
+// un código con habilita_orden_gratuita. NO hubo cobro, así que se omiten
+// el registro de facturación (1.5) y la alerta nueva_venta (2); el resto
+// (estado, analytics con su propio event_name y value 0, generación,
+// aplicar_codigo) es idéntico. Ver docs/product/DECISIONS.md 2026-10-18.
 // ============================================================
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { dispararAlerta } from "./tarot-alertas.ts";
@@ -40,8 +46,9 @@ export interface PipelinePostCobroParams {
   moneda:            string | null;
   analyticsEvent:    string;
   analyticsMetadata: Record<string, unknown>;
-  mpPaymentId:       string | null; // null para cobro manual
+  mpPaymentId:       string | null; // null para cobro manual y cortesía
   ahora:             string;
+  esCortesia?:       boolean;       // orden gratuita: sin facturación ni alerta de venta
 }
 
 async function logFunnelEvent(
@@ -90,7 +97,7 @@ export async function ejecutarPipelinePostCobro(
   const {
     ordenId, clienteId, externalReference, funnelSessionId,
     monto, moneda, analyticsEvent, analyticsMetadata,
-    mpPaymentId, ahora,
+    mpPaymentId, ahora, esCortesia = false,
   } = params;
 
   // 1. Transición de estado → pago_confirmado
@@ -102,21 +109,25 @@ export async function ejecutarPipelinePostCobro(
   // 1.5. Registro administrativo interno de la venta — awaited (no
   // fire-and-forget) porque es barato y queremos que exista apenas termine
   // el pipeline, pero internamente nunca lanza ni bloquea nada más abajo.
-  await crearRegistroFacturacion(supabase, ordenId);
+  // Cortesía: no hubo venta → no hay asiento de facturación.
+  if (!esCortesia) await crearRegistroFacturacion(supabase, ordenId);
 
   // 2. Fetch cliente para la alerta
-  const { data: cliente } = await supabase
-    .from("tarot_clientes")
-    .select("nombre_completo")
-    .eq("id", clienteId)
-    .maybeSingle();
+  const { data: cliente } = esCortesia
+    ? { data: null }
+    : await supabase
+      .from("tarot_clientes")
+      .select("nombre_completo")
+      .eq("id", clienteId)
+      .maybeSingle();
 
   // 3. Alerta nueva_venta (fire-and-forget — nunca bloquea el pipeline)
   // mpPaymentId === null es la señal ya existente de "cobro manual, no
   // Mercado Pago" (ver comentario en PipelinePostCobroParams) — se reusa acá
   // para que la alerta no confunda un cobro manual de prueba/sandbox con una
   // venta real (ver auditoría "Juan Felipe González", 2026-08-28).
-  dispararAlerta(supabase, "nueva_venta", {
+  // Cortesía: no es una venta → sin alerta nueva_venta.
+  if (!esCortesia) dispararAlerta(supabase, "nueva_venta", {
     ordenId,
     ordenRef:      externalReference ?? undefined,
     clienteNombre: cliente?.nombre_completo ?? "—",

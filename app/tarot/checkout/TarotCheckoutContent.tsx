@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import {
   ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, Calendar, List, PenLine, Zap,
+  ArrowLeft, User, Mail, Calendar, List, PenLine, Zap, Sparkles,
 } from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
@@ -80,6 +80,9 @@ interface DescuentoAplicado {
   precio_aplicado: number;
   descuento_aplicado: number;
   tipo_descuento: string;
+  // Cortesía (2026-10-18): lo decide el servidor (flag del código en
+  // tarot_codigos_descuento), nunca el frontend.
+  orden_gratuita: boolean;
 }
 
 const EMPTY: FormState = {
@@ -163,6 +166,9 @@ export default function TarotCheckoutContent({
   const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
 
   const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
+  // Lectura de cortesía: total $0 sin Mercado Pago. Solo cambia la UI; la
+  // autorización se vuelve a verificar al crear la orden.
+  const esCortesia = descuento?.orden_gratuita === true && precioFinal === 0;
 
   useEffect(() => {
     if (PRECIO_BASE === null) return; // sin precio verificado no reportamos analytics con un valor inventado
@@ -223,6 +229,7 @@ export default function TarotCheckoutContent({
         precio_aplicado:    data.precio_aplicado,
         descuento_aplicado: data.descuento_aplicado,
         tipo_descuento:     data.tipo_descuento,
+        orden_gratuita:     data.orden_gratuita === true,
       });
     } catch {
       setCodigoError('No se pudo verificar el código. Intentá de nuevo.');
@@ -316,6 +323,17 @@ export default function TarotCheckoutContent({
           setCodigoError('El código expiró. Volvé a aplicarlo antes de continuar.');
         }
         throw new Error(data?.message ?? data?.error ?? 'Error al crear la orden.');
+      }
+      // Cortesía: orden gratuita ya creada y en generación — directo a
+      // /tarot/gracias, sin Mercado Pago y sin InitiateCheckout (no hay pago).
+      if (data?.gratuita === true && data?.redirect_url) {
+        try {
+          sessionStorage.setItem('tarotCheckoutData', JSON.stringify({
+            nombre: form.nombre.trim(),
+          }));
+        } catch { /* non-blocking */ }
+        window.location.href = data.redirect_url;
+        return;
       }
       if (data?.init_point) {
         try {
@@ -620,6 +638,11 @@ export default function TarotCheckoutContent({
                               ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% de descuento`
                               : `$U ${descuento.descuento_aplicado} de descuento`}
                           </span>
+                          {esCortesia && (
+                            <span className="block text-[12px] text-white/60 mt-0.5">
+                              Lectura de cortesía: no necesitás pagar.
+                            </span>
+                          )}
                         </span>
                       </div>
                       <button
@@ -714,7 +737,7 @@ export default function TarotCheckoutContent({
                       Tu lectura llega por WhatsApp <span style={{ color: GOLD }}>en menos de 15 minutos</span>.
                     </p>
                     <p className="text-[12.5px] text-white/60 mt-0.5">
-                      <span style={{ color: GOLD }}>✦</span> Pago único · Sin suscripción · Podés recibirla también por email.
+                      <span style={{ color: GOLD }}>✦</span> {esCortesia ? 'Sin cargo' : 'Pago único · Sin suscripción'} · Podés recibirla también por email.
                     </p>
                   </div>
                 </div>
@@ -741,14 +764,23 @@ export default function TarotCheckoutContent({
                     className="w-full rounded-xl py-4 text-[17px] font-bold flex items-center justify-center gap-2.5 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: '0 6px 24px rgba(240,197,90,0.32)' }}
                   >
-                    {!isLoading && !precioNoDisponible && <Lock size={18} className="shrink-0" />}
+                    {!isLoading && !precioNoDisponible && (esCortesia
+                      ? <Sparkles size={18} className="shrink-0" />
+                      : <Lock size={18} className="shrink-0" />)}
                     {isLoading
                       ? 'Procesando...'
                       : precioNoDisponible
                         ? 'Precio no disponible'
-                        : `Pagar $U ${precioFinal} →`}
+                        : esCortesia
+                          ? 'Obtener mi lectura →'
+                          : `Pagar $U ${precioFinal} →`}
                   </button>
 
+                  {esCortesia ? (
+                    <p className="mt-3 text-center text-[12.5px] text-white/55">
+                      Lectura de cortesía · Sin cargo · No se te pide ningún dato de pago
+                    </p>
+                  ) : (
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[12.5px] text-white/55">
                     <span className="flex items-center gap-1.5">
                       Procesado por
@@ -759,6 +791,7 @@ export default function TarotCheckoutContent({
                     <span className="text-white/25">·</span>
                     <span>Sin suscripción</span>
                   </div>
+                  )}
                 </div>
 
               </form>

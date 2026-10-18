@@ -79,6 +79,15 @@ export async function PATCH(
   }
 
   if (body.solo_nuevos_clientes !== undefined) patch.solo_nuevos_clientes = body.solo_nuevos_clientes === true;
+  // Cortesía (2026-10-18): solo porcentaje 100 (también lo exige un CHECK en BD).
+  if (body.habilita_orden_gratuita !== undefined) {
+    patch.habilita_orden_gratuita = body.habilita_orden_gratuita === true;
+    if (patch.habilita_orden_gratuita) {
+      if (body.tipo_descuento !== 'porcentaje' || Number(body.valor_descuento) !== 100) {
+        return NextResponse.json({ ok: false, motivo: 'cortesia_requiere_100', detalle: 'Una lectura de cortesía requiere porcentaje 100' }, { status: 400 });
+      }
+    }
+  }
   if (body.campania !== undefined) patch.campania = body.campania ? String(body.campania).trim() || null : null;
 
   const res = await fetch(

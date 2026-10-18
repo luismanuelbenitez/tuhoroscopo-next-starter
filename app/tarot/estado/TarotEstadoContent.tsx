@@ -70,6 +70,8 @@ export default function TarotEstadoContent() {
 
   const [uiStatus, setUiStatus] = useState<"idle" | "ok" | "warn" | "error">("idle");
   const [nombre, setNombre]     = useState<string | null>(null);
+  // Cortesía (2026-10-18): orden gratuita — no hubo pago, la UI no lo dice.
+  const [esCortesia, setEsCortesia] = useState(false);
 
   // Leer nombre guardado por TarotCheckoutContent antes de redirigir a MP
   useEffect(() => {
@@ -99,6 +101,7 @@ export default function TarotEstadoContent() {
           }),
         });
         const data = await res.json().catch(() => ({}));
+        if (data.es_cortesia === true) setEsCortesia(true);
         // Solo reportamos el evento de compra con un valor verificado por el
         // servidor (precio_cobrado de la orden real) — nunca con un precio
         // histórico inventado si el dato no vino en la respuesta.
@@ -189,7 +192,7 @@ export default function TarotEstadoContent() {
                 className="inline-block px-3 py-1 rounded-full text-xs tracking-widest uppercase -mt-2"
                 style={{ border: "1px solid rgba(255,206,77,0.3)", background: "rgba(255,206,77,0.08)", color: GOLD }}
               >
-                ✦ Pago confirmado
+                {esCortesia ? "✦ Lectura confirmada" : "✦ Pago confirmado"}
               </div>
 
               <h1
@@ -212,7 +215,7 @@ export default function TarotEstadoContent() {
                   <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">1.</div>
                   <p className="text-sm text-white/75 leading-relaxed">
                     <strong className="text-white/90">Revisá tu WhatsApp.</strong>{" "}
-                    Vas a recibir tu tirada de tarot completa como PDF en el número que ingresaste al momento de compra.
+                    Vas a recibir tu tirada de tarot completa como PDF en el número que ingresaste{esCortesia ? "" : " al momento de compra"}.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">

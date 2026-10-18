@@ -122,10 +122,18 @@ interface RegistroCliente {
   created_at: string;
 }
 
+// Cortesía (2026-10-18): una orden gratuita recorre los mismos estados del
+// pipeline pero NO es una compra — no cuenta como comprador, ingreso ni
+// cliente nuevo (CAC). Ver docs/product/DECISIONS.md 2026-10-18.
+function esPagada(o: { estado: string; tipo_orden?: string | null }): boolean {
+  return ESTADOS_PAGADO.includes(o.estado) && o.tipo_orden !== "cortesia";
+}
+
 interface OrdenCruda {
   id: string;
   cliente_id: string;
   estado: string;
+  tipo_orden?: string | null;
   precio_cobrado: number;
   moneda: string;
   created_at: string;
@@ -217,7 +225,7 @@ function construirPersonas(registros: RegistroCliente[], ordenes: OrdenCruda[]):
   // Órdenes pagadas indexadas por cliente_id (registro_id)
   const ordenesPorRegistro = new Map<string, OrdenCruda[]>();
   for (const o of ordenes) {
-    if (!ESTADOS_PAGADO.includes(o.estado)) continue;
+    if (!esPagada(o)) continue;
     const lista = ordenesPorRegistro.get(o.cliente_id) ?? [];
     lista.push(o);
     ordenesPorRegistro.set(o.cliente_id, lista);
@@ -307,7 +315,7 @@ async function cargarCrudos(): Promise<{ registros: RegistroCliente[]; ordenes: 
 
   const { data: ordenes, error: errOrd } = await supabase
     .from("tarot_ordenes")
-    .select("id, cliente_id, estado, precio_cobrado, moneda, created_at, tema, pregunta_usuario, utm_source, utm_campaign");
+    .select("id, cliente_id, estado, tipo_orden, precio_cobrado, moneda, created_at, tema, pregunta_usuario, utm_source, utm_campaign");
   if (errOrd) return { error: errOrd.message };
 
   return {
@@ -346,7 +354,7 @@ function enPeriodo(fechaIso: string, desde: string, hasta: string | null): boole
 // Vista: resumen (Fase 6 — visión general)
 // ============================================================================
 function resumenPeriodo(personas: Persona[], ordenes: OrdenCruda[], desde: string, hasta: string | null) {
-  const ordenesPagadas = ordenes.filter((o) => ESTADOS_PAGADO.includes(o.estado));
+  const ordenesPagadas = ordenes.filter(esPagada);
   const ordenesPeriodo = ordenesPagadas.filter((o) => enPeriodo(o.created_at, desde, hasta));
 
   // Mapear cada orden del período a su persona (vía registro_ids)

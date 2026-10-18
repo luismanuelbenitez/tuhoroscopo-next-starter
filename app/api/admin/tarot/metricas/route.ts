@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     // ── Todas las counts en una sola ronda paralela ────────────────────────
     const [
       totalOrdenes, ordenesHoy, ordenesPagadas, ordenesCompletadas, ordenesError,
-      cobroManualPeriodo,
+      cobroManualPeriodo, cortesiasPeriodo,
       totalLecturas, lecturasHoy,
       totalPdfs, pdfsHoy,
       cVisitas, cProducto, cCheckout, cPagos,
@@ -94,7 +94,9 @@ export async function GET(req: NextRequest) {
       // Métricas existentes (sin cambios)
       countTable(base, "tarot_ordenes", "", restHeaders),
       countTable(base, "tarot_ordenes", `created_at=gte.${hoyISO}`, restHeaders),
-      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_PAGADO.join(",")})`, restHeaders),
+      // Cortesías (tipo_orden = cortesia, 2026-10-18) recorren los mismos
+      // estados pero NO son ventas: se excluyen de "pagadas" y de UTM.
+      countTable(base, "tarot_ordenes", `estado=in.(${ESTADOS_PAGADO.join(",")})&tipo_orden=neq.cortesia`, restHeaders),
       // "Completadas" es una métrica de pipeline (llegó al final sin error),
       // no de entrega real verificada — eso vive en /admin/tarot/entregas.
       // Incluye entregado_simulado para no perder continuidad histórica del
@@ -108,6 +110,7 @@ export async function GET(req: NextRequest) {
       // manual y no un pago real de Mercado Pago (ver auditoría "Juan Felipe
       // González", 2026-08-28 — sección 15/16).
       countTable(base, "tarot_pagos", `cobro_manual=eq.true&created_at=gte.${cutoffISO}`, restHeaders),
+      countTable(base, "tarot_ordenes", `tipo_orden=eq.cortesia&estado=neq.cancelado&created_at=gte.${cutoffISO}`, restHeaders),
       countTable(base, "tarot_lecturas", "es_vigente=eq.true", restHeaders),
       countTable(base, "tarot_lecturas", `es_vigente=eq.true&created_at=gte.${hoyISO}`, restHeaders),
       // "listo" es el estado real de éxito que escribe ef_tarot_generar_pdf.
@@ -157,6 +160,7 @@ export async function GET(req: NextRequest) {
       .from("tarot_ordenes")
       .select("utm_source, utm_campaign, precio_cobrado, moneda")
       .in("estado", ESTADOS_PAGADO)
+      .neq("tipo_orden", "cortesia")
       .gte("created_at", cutoffISO);
 
     type UtmEntry = { utm_source: string; utm_campaign: string | null; ventas: number; total_uyu: number };
@@ -189,6 +193,7 @@ export async function GET(req: NextRequest) {
         completadas: ordenesCompletadas,
         con_error:  ordenesError,
         cobro_manual_periodo: cobroManualPeriodo,
+        cortesias_periodo:    cortesiasPeriodo,
       },
       lecturas: { total: totalLecturas, hoy: lecturasHoy },
       pdfs:     { total: totalPdfs,     hoy: pdfsHoy     },

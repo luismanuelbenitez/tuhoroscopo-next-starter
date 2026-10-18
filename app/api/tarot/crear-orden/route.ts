@@ -63,12 +63,27 @@ export async function POST(req: Request) {
       CODIGO_DESCUENTO_NO_ENCONTRADO: 'El código de descuento no es válido.',
       CODIGO_DESCUENTO_NO_RESERVADO:  'El código de descuento ya no está reservado.',
       CODIGO_DESCUENTO_EXPIRADO:      'Tu código de descuento expiró. Volvé a aplicarlo.',
+      CODIGO_CORTESIA_NO_VIGENTE:     'Este código ya no está vigente.',
+      CODIGO_CORTESIA_LIMITE_CLIENTE: 'Ya utilizaste este código.',
+      ORDEN_SIN_IMPORTE_NO_AUTORIZADA: 'Este código no se puede usar para una lectura sin cargo.',
     };
     const friendlyError = errorMap[data?.error as string] ?? 'Error inesperado. Intentá de nuevo.';
     return NextResponse.json(
       { ok: false, error: data?.error, message: friendlyError },
       { status: efRes.ok ? 500 : efRes.status },
     );
+  }
+
+  // Cortesía (2026-10-18): orden gratuita, sin Mercado Pago. El checkout va
+  // directo a /tarot/gracias con la misma referencia que usaría MP.
+  if (data.gratuita === true && data.external_reference) {
+    return NextResponse.json({
+      ok:                 true,
+      gratuita:           true,
+      orden_id:           data.orden_id,
+      external_reference: data.external_reference,
+      redirect_url:       `/tarot/gracias?ref=${encodeURIComponent(data.external_reference)}&estado=exitoso`,
+    });
   }
 
   return NextResponse.json({

@@ -15,6 +15,19 @@ const MOTIVOS: Record<string, string> = {
   error_calculo_descuento:       'Error al calcular el descuento.',
 };
 
+async function esCodigoDeCortesia(supabaseUrl: string, serviceRoleKey: string, codigoId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/tarot_codigos_descuento?id=eq.${encodeURIComponent(codigoId)}&select=habilita_orden_gratuita&limit=1`,
+      { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` }, cache: 'no-store' },
+    );
+    const rows = await res.json().catch(() => []);
+    return Array.isArray(rows) && rows[0]?.habilita_orden_gratuita === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body?.codigo || !body?.precio_base || !body?.moneda) {
@@ -72,9 +85,18 @@ export async function POST(req: Request) {
     });
   }
 
+  // Cortesía (2026-10-18): el flag vive en tarot_codigos_descuento y se lee
+  // acá, server-side — el frontend nunca decide qué código es gratuito. Solo
+  // cambia la UI (total $0, CTA sin pago); la autorización real se vuelve a
+  // verificar en ef_tarot_crear_orden al crear la orden.
+  const ordenGratuita = Number(data.precio_aplicado) === 0 && data.codigo_id
+    ? await esCodigoDeCortesia(supabaseUrl, serviceRoleKey, String(data.codigo_id))
+    : false;
+
   return NextResponse.json({
     ok:                 true,
     valido:             true,
+    orden_gratuita:     ordenGratuita,
     uso_id:             data.uso_id,
     codigo_id:          data.codigo_id,
     tipo_descuento:     data.tipo_descuento,
