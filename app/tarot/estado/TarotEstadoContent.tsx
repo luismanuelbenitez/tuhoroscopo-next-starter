@@ -269,32 +269,8 @@ export default function TarotEstadoContent() {
                 Compartí con una amiga
               </button>
 
-              {/* Separador — marca que lo de abajo es contenido aparte, no
-                  parte del mismo momento de "tu pago se confirmó" */}
-              <div className="w-full flex items-center gap-3 pt-2 opacity-40" aria-hidden="true">
-                <div className="h-px flex-1" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)" }} />
-              </div>
-
-              {/* Cross-sell horóscopo */}
-              <div
-                className="w-full rounded-2xl border border-white/8 p-5 text-left"
-                style={{ background: "rgba(255,255,255,0.02)" }}
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 text-white/40">
-                  Mientras esperás tu lectura
-                </p>
-                <p className="text-white/70 text-sm font-semibold mb-1">Horóscopo diario por WhatsApp</p>
-                <p className="text-white/40 text-xs leading-relaxed mb-4">
-                  Cada mañana tu guía personalizada: horóscopo por signo, foco del día y número de la suerte — directo a tu WhatsApp.
-                </p>
-                <a
-                  href="/horoscopo"
-                  className="inline-block rounded-xl px-5 py-2.5 text-sm font-bold transition-all active:scale-[0.98]"
-                  style={{ background: 'rgba(139,92,246,0.14)', border: '1px solid rgba(139,92,246,0.26)', color: 'rgba(167,139,250,0.80)' }}
-                >
-                  Ver planes →
-                </a>
-              </div>
+              {/* Cross-sell de horóscopo retirado (2026-10-18): el horóscopo está
+                  deshabilitado y /horoscopo redirige a la home. */}
             </div>
           )}
 
