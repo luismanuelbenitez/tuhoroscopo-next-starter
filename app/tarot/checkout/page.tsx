@@ -9,8 +9,8 @@ export const metadata = {
 export default async function TarotCheckoutPage({
   searchParams,
 }: {
-  searchParams: { tema?: string };
+  searchParams: { tema?: string; codigo?: string; nombre?: string; nacimiento?: string };
 }) {
   const precioBase = await getPrecioTarot();
-  return <TarotCheckoutContent temaInicial={searchParams.tema} precioBase={precioBase} />;
+  return <TarotCheckoutContent temaInicial={searchParams.tema} precioBase={precioBase} codigoInicial={searchParams.codigo} nombreInicial={searchParams.nombre} nacimientoInicial={searchParams.nacimiento} />;
 }

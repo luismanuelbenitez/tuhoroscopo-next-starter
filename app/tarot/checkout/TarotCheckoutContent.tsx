@@ -115,13 +115,20 @@ function formatearTelefono(raw: string, pais: string): string {
   return '';
 }
 
-export default function TarotCheckoutContent({ temaInicial, precioBase }: { temaInicial?: string; precioBase: number | null }) {
+export default function TarotCheckoutContent({
+  temaInicial, precioBase, codigoInicial, nombreInicial, nacimientoInicial,
+}: { temaInicial?: string; precioBase: number | null; codigoInicial?: string; nombreInicial?: string; nacimientoInicial?: string }) {
   const PRECIO_BASE = precioBase;
   // El precio no pudo verificarse contra la fuente canónica (tarot_configuracion.precio_base_uyu)
   // — no se muestra ni se permite pagar un precio no verificado (ver docs/product/DECISIONS.md).
   const precioNoDisponible = PRECIO_BASE === null;
   const temaValido = TEMAS.some(t => t.value === temaInicial) ? temaInicial! : '';
-  const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido });
+  // Precarga desde la URL (?nombre=&nacimiento=), usada por "Hacer otra
+  // lectura" en /lectura (2026-10-18). Solo rellena campos editables; WhatsApp
+  // y email NUNCA viajan en la URL (datos personales en logs/analytics).
+  const nombreUrl = (nombreInicial ?? '').trim().slice(0, 100);
+  const nacimientoUrl = /^\d{4}-\d{2}-\d{2}$/.test(nacimientoInicial ?? '') ? nacimientoInicial! : '';
+  const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido, nombre: nombreUrl, fecha_nacimiento: nacimientoUrl });
   const [pais, setPais]           = useState('UY');
   const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
@@ -146,7 +153,14 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
   }, [form.email]);
 
   // Descuento
-  const [codigoCampo, setCodigoCampo]         = useState('');
+  // Código precargado desde la URL (?codigo=…), p.ej. la oferta VOLVE20 de
+  // /lectura cuando el acceso online venció (2026-10-17). Se valida recién
+  // cuando hay un WhatsApp válido: así ef_tarot_validar_codigo controla el
+  // límite de usos POR CLIENTE (sin teléfono/email ese control no corre).
+  const codigoDesdeUrl = (codigoInicial ?? '').trim().toUpperCase();
+  const codigoInicialValido = /^[A-Z0-9-]{3,50}$/.test(codigoDesdeUrl) ? codigoDesdeUrl : '';
+  const [codigoCampo, setCodigoCampo]         = useState(codigoInicialValido);
+  const autoAplicadoRef = useRef(false);
   const [codigoValidando, setCodigoValidando] = useState(false);
   const [codigoError, setCodigoError]         = useState<string | null>(null);
   const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
@@ -219,6 +233,14 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
       setCodigoValidando(false);
     }
   }
+
+  useEffect(() => {
+    if (!codigoInicialValido || autoAplicadoRef.current || descuento || codigoValidando) return;
+    if (!telefonoValido(form.telefono, pais)) return;
+    autoAplicadoRef.current = true;
+    handleValidarCodigo();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.telefono, pais]);
 
   function handleQuitarCodigo() {
     setDescuento(null);
@@ -632,6 +654,14 @@ export default function TarotCheckoutContent({ temaInicial, precioBase }: { tema
                       <AlertCircle size={12} className="shrink-0" />
                       {codigoError}
                     </div>
+                  )}
+
+                  {codigoInicialValido && !descuento && !codigoError && (
+                    <p className="mt-2 text-xs" style={{ color: GOLD }}>
+                      {codigoValidando
+                        ? 'Aplicando tu código…'
+                        : 'Tu código se aplica automáticamente al ingresar tu WhatsApp.'}
+                    </p>
                   )}
                 </div>
 
