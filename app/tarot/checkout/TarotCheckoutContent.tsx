@@ -12,7 +12,7 @@ import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
 import { TarotBackgroundStage } from '@/components/tarot/TarotBackgroundStage';
-import { ResumenCompra } from '@/components/tarot/checkout/ResumenCompra';
+import { ResumenCompra, ResumenCompacto } from '@/components/tarot/checkout/ResumenCompra';
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
 import { Etiqueta, ConIcono, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
@@ -361,7 +361,7 @@ export default function TarotCheckoutContent({
                 className="inline-flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white transition-colors mb-6"
               >
                 <ArrowLeft size={15} />
-                Volver a Tu Tirada
+                Volver a Tarot
               </Link>
 
               {/* Velo oscuro detrás del título: el fondo tiene adornos (luna,
@@ -374,7 +374,7 @@ export default function TarotCheckoutContent({
                   style={{ background: 'radial-gradient(ellipse 75% 85% at 35% 50%, rgba(6,4,14,0.72), transparent 75%)' }}
                 />
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: GOLD }}>
-                  Tu Tirada Tarot
+                  Tarot personalizado
                 </p>
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
                   Completá tu experiencia
@@ -382,6 +382,16 @@ export default function TarotCheckoutContent({
                 <p className="text-white/75 text-[14.5px] leading-relaxed mt-3 max-w-[480px]">
                   Contanos un poco sobre vos y tu consulta. Podés hacer una pregunta puntual o simplemente recibir una lectura completa sobre tu momento actual.
                 </p>
+              </div>
+
+              {/* Mobile: qué se compra y cuánto cuesta, antes del formulario. */}
+              <div className="md:hidden mb-5">
+                <ResumenCompacto
+                  nombre={form.nombre}
+                  precioBase={PRECIO_BASE}
+                  precioFinal={precioNoDisponible ? null : precioFinal}
+                  descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
+                />
               </div>
 
               <form
@@ -750,13 +760,17 @@ export default function TarotCheckoutContent({
             </div>
 
             {/* ── Columna lateral ────────────────────────────────── */}
+            {/* Desktop: card completa + pasos. Mobile: solo los pasos, al final
+                (el resumen compacto ya está arriba del formulario). */}
             <aside className="w-full space-y-5">
+              <div className="hidden md:block">
               <ResumenCompra
                 nombre={form.nombre}
                 precioBase={PRECIO_BASE}
                 precioFinal={precioNoDisponible ? null : precioFinal}
                 descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
               />
+              </div>
               <QuePasaDespues />
             </aside>
 

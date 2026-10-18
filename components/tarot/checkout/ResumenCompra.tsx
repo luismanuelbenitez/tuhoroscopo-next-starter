@@ -10,7 +10,7 @@ const IMAGEN = "/img/home/destacado/producto-destacado.png";
 const CARD_BG = "#0c0718";
 
 const INCLUYE = [
-  { Icon: Layers, label: "Tirada de 5 cartas" },
+  { Icon: Layers, label: "5 cartas interpretadas para vos" },
   { Icon: BookOpen, label: "Lectura narrativa personalizada" },
   { Icon: Volume2, label: "Lectura online con resumen en audio" },
   { Icon: FileText, label: "PDF premium para guardar" },
@@ -27,7 +27,7 @@ interface Props {
 
 export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplicado }: Props) {
   const primerNombre = nombre.trim().split(/\s+/)[0];
-  const titulo = primerNombre ? `Tirada para ${primerNombre}` : "Tu Tirada";
+  const titulo = primerNombre ? `Lectura para ${primerNombre}` : "Tu lectura";
 
   return (
     <div
@@ -63,7 +63,7 @@ export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplica
 
       <div className="px-6 pb-6 -mt-2 relative">
         <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 30, lineHeight: 1.1, color: CREMA }}>
-          Tu Tirada Tarot
+          Lectura de Tarot
         </h2>
         <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] mt-1.5" style={{ color: GOLD }}>
           Una experiencia completa de autoconocimiento
@@ -106,6 +106,43 @@ export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplica
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Versión compacta para mobile: arriba del formulario, así se ve qué se
+// compra y cuánto cuesta antes de completar datos (la card completa queda
+// solo en desktop, en la columna lateral).
+export function ResumenCompacto({ nombre, precioBase, precioFinal, descuentoAplicado }: Props) {
+  const primerNombre = nombre.trim().split(/\s+/)[0];
+  return (
+    <div
+      className="flex items-center gap-3.5 rounded-2xl p-3 pr-4"
+      style={{ background: CARD_BG, border: "1px solid rgba(240,197,90,0.45)", boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }}
+    >
+      <img
+        src={IMAGEN}
+        alt=""
+        aria-hidden="true"
+        className="shrink-0 rounded-xl"
+        style={{ width: 64, height: 64, objectFit: "cover", objectPosition: "center 35%" }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="line-clamp-2 break-words" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, lineHeight: 1.12, color: CREMA }}>
+          {primerNombre ? `Lectura para ${primerNombre}` : "Lectura de Tarot"}
+        </p>
+        <p className="mt-0.5 text-[12px] leading-snug text-white/65">5 cartas · Lectura online · Audio · PDF</p>
+      </div>
+      <div className="shrink-0 text-right">
+        {precioFinal === null ? (
+          <span className="text-xs font-semibold text-amber-300/80">No disponible</span>
+        ) : (
+          <>
+            {descuentoAplicado !== null && <span className="block text-[11px] line-through text-white/40">$U {precioBase}</span>}
+            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 24, lineHeight: 1, color: GOLD }}>$U {precioFinal}</span>
+          </>
+        )}
       </div>
     </div>
   );
