@@ -17,6 +17,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
+import { AvisosTarot } from "@/components/admin/AvisosTarot";
 import { hrefOrdenDetalle } from "@/lib/tarotAdminLinks";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
 
@@ -778,6 +779,7 @@ export default function TarotDashboardPage() {
             Config →
           </a>
         </div>
+        <AvisosTarot />
         {cargandoInicial && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-2.5 text-sm text-gray-400">
             <span className="animate-pulse">Cargando métricas…</span>

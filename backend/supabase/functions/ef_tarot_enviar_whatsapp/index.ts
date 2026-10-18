@@ -195,7 +195,8 @@ serve(async (req) => {
       .in("clave", ["mp_modo", "whatsapp_modo", "max_reintentos_wa",
                      "canal_entrega_principal", "fallback_email_si_falla_whatsapp", "envio_email_activo",
                      "whatsapp_template_lectura_nombre", "whatsapp_template_lectura_idioma",
-                     "whatsapp_numeros_autorizados_prueba"]);
+                     "whatsapp_numeros_autorizados_prueba",
+                     "whatsapp_destinos", "whatsapp_limite_diario"]);
 
     const cfg: ConfigMap = Object.fromEntries(
       (cfgRows ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]),
@@ -208,7 +209,12 @@ serve(async (req) => {
     // whatsapp_numeros_autorizados_prueba (lista editable desde
     // /admin/tarot/config, 2026-09-24 — antes un único número fijo en el
     // Secret TEST_WHATSAPP_ALLOWED_PHONE).
-    const modoControlado = !waEsSandbox && mpEsSandbox;
+    // whatsapp_destinos="lista" (2026-10-18): restringe a la lista también
+    // con MP en producción. "todos" = cualquier número (salvo modo controlado).
+    const soloLista      = cfg.whatsapp_destinos === "lista";
+    const modoControlado = !waEsSandbox && (mpEsSandbox || soloLista);
+    // Tope diario de WhatsApp reales (seguridad). 0 o inválido = sin tope.
+    const limiteDiario   = Math.max(0, Math.floor(Number(cfg.whatsapp_limite_diario ?? 0)) || 0);
     const numerosAutorizadosPrueba = parsearNumerosAutorizados(cfg.whatsapp_numeros_autorizados_prueba);
     const maxReintentos = Number(cfg.max_reintentos_wa ?? 3);
     canalPrincipal = cfg.canal_entrega_principal ?? "both";
@@ -303,6 +309,50 @@ serve(async (req) => {
         `Envío bloqueado — ${permiso.motivo}`,
         { motivo: permiso.motivo, autorizacion_id: autorizacionId });
       return json({ ok: true, ya_enviado: true, bloqueado: true, motivo: permiso.motivo });
+    }
+
+    // ── 5.5 Tope diario de envíos reales (2026-10-18) ─────────────────
+    // Solo cuenta si este envío sería REAL (no sandbox ni bloqueado por lista).
+    // Un reenvío autorizado por un admin no está sujeto al tope.
+    if (!waEsSandbox && !bloqueadoPorNumero && limiteDiario > 0 && !permiso.esReenvio) {
+      const inicioDia = inicioDiaMontevideoISO();
+      const { count: enviadosHoy } = await supabase
+        .from("tarot_envios_whatsapp")
+        .select("id", { count: "exact", head: true })
+        .eq("estado", "enviado")
+        .gte("created_at", inicioDia);
+
+      if ((enviadosHoy ?? 0) >= limiteDiario) {
+        const tsNow = now();
+        await supabase.from("tarot_ordenes")
+          .update({ estado: "error_whatsapp", updated_at: tsNow }).eq("id", ordenId);
+        await log(ordenId, "wa_limite_diario_alcanzado", "error",
+          `Tope diario de WhatsApp alcanzado (${enviadosHoy}/${limiteDiario}) — no se envió. Orden en error_whatsapp, reenviable desde el admin.`,
+          { enviados_hoy: enviadosHoy, limite: limiteDiario });
+        dispararAlerta(supabase, "error_whatsapp", {
+          ordenId,
+          ordenRef: orden.external_reference ?? undefined,
+          error: `Tope diario de WhatsApp alcanzado (${enviadosHoy}/${limiteDiario}). Subí el límite en /admin/tarot/config y reenviá la orden.`,
+          fecha: tsNow,
+        }).catch(() => {});
+        if (canalPrincipal === "whatsapp" && fallbackMail && emailActivo && emailSolicitadoOrden !== false) {
+          await log(ordenId, "entrega_fallback_email_despachado", "info", "Fallback a email por tope diario de WhatsApp");
+          EdgeRuntime.waitUntil(
+            fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                "x-internal-key": TAROT_INTERNAL_KEY,
+              },
+              body: JSON.stringify({ orden_id: ordenId }),
+            }).catch((err) => {
+              console.error(`${FN} fatal despachando fallback email (tope diario) para orden ${ordenId}:`, err);
+            }),
+          );
+        }
+        return json({ ok: false, error: "WA_LIMITE_DIARIO", enviados_hoy: enviadosHoy, limite: limiteDiario }, 429);
+      }
     }
 
     const { data: envioAnterior } = await supabase
@@ -690,6 +740,13 @@ serve(async (req) => {
     return json({ ok: false, error: "EXCEPCION", mensaje: errMsg }, 500);
   }
 });
+
+// Inicio del día de hoy en Montevideo (UTC−3, sin horario de verano), en ISO UTC.
+function inicioDiaMontevideoISO(): string {
+  const ahoraMvd = new Date(Date.now() - 3 * 3600_000);
+  const y = ahoraMvd.getUTCFullYear(), m = ahoraMvd.getUTCMonth(), d = ahoraMvd.getUTCDate();
+  return new Date(Date.UTC(y, m, d, 3, 0, 0)).toISOString();
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
