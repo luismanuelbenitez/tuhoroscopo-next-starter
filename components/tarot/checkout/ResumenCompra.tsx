@@ -67,7 +67,7 @@ export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplica
         </ul>
 
         <div className="mt-6 pt-5" style={{ borderTop: "1px solid rgba(240,197,90,0.22)" }}>
-          <div className="flex items-end justify-between gap-3">
+          <div className="flex items-baseline justify-between gap-3">
             <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 20, color: "rgba(245,239,224,0.85)" }}>Total</span>
             <div className="text-right">
               {precioFinal === null ? (
@@ -75,10 +75,13 @@ export function ResumenCompra({ nombre, precioBase, precioFinal, descuentoAplica
               ) : (
                 <>
                   {descuentoAplicado !== null && (
-                    <span className="text-sm line-through text-white/40 mr-2">$U {precioBase}</span>
+                    <span className="text-sm line-through text-white/40 mr-2" style={{ fontVariantNumeric: "lining-nums" }}>$U {precioBase}</span>
                   )}
-                  <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 36, lineHeight: 1, color: GOLD }}>
-                    $U {precioFinal}
+                  {/* lining-nums: en Cormorant los números son "de estilo
+                      antiguo" (el 6 sube, el 9 baja) y el precio se veía
+                      desalineado. "$U" más chico, alineado a la base. */}
+                  <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 36, lineHeight: 1, color: GOLD, fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 22, marginRight: 5 }}>$U</span>{precioFinal}
                   </span>
                 </>
               )}
@@ -125,7 +128,7 @@ export function ResumenCompacto({ nombre, precioBase, precioFinal, descuentoApli
         ) : (
           <>
             {descuentoAplicado !== null && <span className="block text-[11px] line-through text-white/40">$U {precioBase}</span>}
-            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 24, lineHeight: 1, color: GOLD }}>$U {precioFinal}</span>
+            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 24, lineHeight: 1, color: GOLD, fontVariantNumeric: "lining-nums tabular-nums", whiteSpace: "nowrap" }}><span style={{ fontSize: 15, marginRight: 3 }}>$U</span>{precioFinal}</span>
           </>
         )}
       </div>
