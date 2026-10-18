@@ -12,8 +12,6 @@ import { AsiSeViveTarot } from "@/components/tarot/AsiSeViveTarot";
 import { ComoFuncionaTarot } from "@/components/tarot/ComoFuncionaTarot";
 import { TestimoniosTarot } from "@/components/tarot/TestimoniosTarot";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
-import { FaqTarot } from "@/components/tarot/FaqTarot";
-import { TransparenciaTarot } from "@/components/tarot/TransparenciaTarot";
 import { CtaFinalTarot } from "@/components/tarot/CtaFinalTarot";
 import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
 
@@ -38,6 +36,8 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
         body { background-image: none !important; background-color: #0b0818 !important; }
         body::before { display: none !important; }
         header { display: none !important; }
+        /* Sin footer global en esta landing: cierra con la línea de copyright propia. */
+        footer { display: none !important; }
       `}</style>
 
       <div
@@ -52,9 +52,11 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
             <AsiSeViveTarot />
             <ComoFuncionaTarot />
             <TestimoniosTarot testimonios={testimonios} />
-            <FaqTarot />
-            <TransparenciaTarot />
             <CtaFinalTarot precioUYU={precioUYU} />
+            {/* Cierre sutil en lugar del footer global (oculto en esta página). */}
+            <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/40">
+              © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
+            </p>
           </TarotBackgroundStage>
         </div>
       </div>

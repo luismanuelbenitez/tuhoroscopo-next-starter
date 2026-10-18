@@ -22,14 +22,15 @@ const PERGAMINO_MOBILE = `${BASE}/pergamino-mobile.webp`;
 // visualmente lindas y de carga positiva: La Estrella, La Fuerza, La
 // Sacerdotisa, El Sol, El Mundo — no es la tirada real de nadie, es solo
 // para ilustrar cada posición en esta landing.
-// `e`: etiqueta corta que se muestra bajo la carta (pedido de Manuel,
-// referencia visual con una palabra por carta). `t` queda como alt.
+// `e`: etiqueta corta bajo la carta (nombres canónicos de la landing).
+// `eDesktop`: la misma con el salto de línea fijado ("\n"), para que en
+// desktop corte parejo dentro del ancho de la carta. `t` queda como alt.
 const POSICIONES = [
-  { img: "carta-tu-momento-actual.jpg", t: "Tu momento actual", e: "Presente" },
-  { img: "carta-el-desafio.jpg", t: "El desafío", e: "Desafío" },
-  { img: "carta-lo-que-no-estas-viendo.jpg", t: "Lo que no estás viendo", e: "Lo oculto" },
-  { img: "carta-consejo-para-avanzar.jpg", t: "Consejo para avanzar", e: "Consejo" },
-  { img: "carta-lo-que-viene.jpg", t: "Lo que viene", e: "Futuro" },
+  { img: "carta-tu-momento-actual.jpg", t: "Tu momento actual", e: "Momento actual", eDesktop: "Momento\nactual" },
+  { img: "carta-el-desafio.jpg", t: "El desafío", e: "Desafío", eDesktop: "Desafío" },
+  { img: "carta-lo-que-no-estas-viendo.jpg", t: "Lo que no estás viendo", e: "Lo que no ves", eDesktop: "Lo que\nno ves" },
+  { img: "carta-consejo-para-avanzar.jpg", t: "Consejo para avanzar", e: "Consejo", eDesktop: "Consejo" },
+  { img: "carta-lo-que-viene.jpg", t: "Lo que viene", e: "Lo que viene", eDesktop: "Lo que\nviene" },
 ];
 
 // Lo que conecta las 5 cartas — mapea 1:1 con los campos reales de la
@@ -88,11 +89,11 @@ function CartaConMarco({ img, alt, grosor, radio }: { img: string; alt: string; 
 
 const ETIQUETA: CSSProperties = { fontFamily: SERIF, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: COLOR_TITULO, lineHeight: 1.1 };
 
-function PosicionCardDesktop({ img, t, e }: (typeof POSICIONES)[number]) {
+function PosicionCardDesktop({ img, t, eDesktop }: (typeof POSICIONES)[number]) {
   return (
     <div className="text-center flex flex-col items-center">
       <CartaConMarco img={img} alt={t} grosor={u(3.5)} radio={u(8)} />
-      <p style={{ ...ETIQUETA, fontSize: u(16), marginTop: u(10) }}>{e}</p>
+      <p style={{ ...ETIQUETA, fontSize: u(16), marginTop: u(10), whiteSpace: "pre-line" }}>{eDesktop}</p>
     </div>
   );
 }
@@ -183,10 +184,10 @@ export function QueIncluyeTarot() {
 
         <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(190)} ${u(120)} 0` }}>
           <p className="font-bold uppercase" style={{ color: COLOR_ACENTO, letterSpacing: "0.18em", fontSize: u(11), marginBottom: u(8) }}>
-            Tu tarot, posición por posición
+            Tarot, posición por posición
           </p>
           <h2 style={{ color: COLOR_TITULO, fontWeight: 800, fontSize: u(36), lineHeight: 1.15, marginBottom: u(10) }}>
-            ¿Qué incluye tu Tarot?
+            ¿Qué incluye la lectura?
           </h2>
           <p className="mx-auto" style={{ color: COLOR_SECUNDARIO, fontSize: u(14), lineHeight: 1.6, maxWidth: u(560), marginBottom: u(34) }}>
             Una lectura personalizada de 5 cartas. Interpretamos cada carta según su posición y

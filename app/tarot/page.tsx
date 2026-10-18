@@ -5,7 +5,7 @@ import { getTestimoniosTarot, TESTIMONIOS_DEMO } from '@/lib/getTestimoniosTarot
 export const metadata = {
   title: 'Tarot personalizado | Tu Oráculo',
   description:
-    'Tu Tarot: 5 cartas creadas para vos. En menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular y un PDF para guardar. Un solo pago. Sin suscripción.',
+    'Tarot personalizado: 5 cartas interpretadas para vos. En menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular y un PDF para guardar. Un solo pago. Sin suscripción.',
 };
 
 export default async function TarotPage({

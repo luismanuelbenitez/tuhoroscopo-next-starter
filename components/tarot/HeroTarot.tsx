@@ -12,7 +12,7 @@ const BENEFICIOS = [
   { Icon: Zap, label: "Entrega en minutos" },
   { Icon: MessageCircle, label: "Por WhatsApp y/o mail" },
   { Icon: Smartphone, label: "Lectura online" },
-  { Icon: Volume2, label: "Resumen en audio + ambientación" },
+  { Icon: Volume2, label: "Resumen con voz de IA + ambientación" },
   { Icon: FileText, label: "PDF para guardar" },
 ];
 
@@ -32,7 +32,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
           <span style={{ color: CREMA }}>Tarot</span>
         </h1>
         <p className="mb-4" style={{ color: GOLD, fontSize: "clamp(1.05rem, 2.2vw, 1.3rem)", fontWeight: 600, textShadow: TEXT_SHADOW }}>
-          5 cartas, creadas para vos.
+          5 cartas, interpretadas para vos.
         </p>
         <p className="text-white/80 text-[14px] md:text-[15px] leading-relaxed mb-6" style={{ textShadow: TEXT_SHADOW }}>
           Hacé tu consulta y recibí en minutos una lectura personalizada de 5 cartas. Explorá cada

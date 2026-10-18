@@ -11,7 +11,9 @@ import { CelularMock, DocumentoMock } from "@/components/tarot/Mockups";
 const DIR = "/img/tarot/contenedores/asi-se-vive";
 const IMG = {
   separador: `${DIR}/separador_inicial.webp`,
-  ilustracionLectura: `${DIR}/ilustracion-lectura-online.webp`,
+  // Captura REAL de /lectura (mobile 390px @2x, cartas reveladas,
+  // 2026-10-18), recortada a la proporción de la pantalla de telefono.webp.
+  pantallaLecturaReal: `${DIR}/pantalla-lectura-real.webp`,
   ilustracionAudio: `${DIR}/ilustracion-audio.webp`,
   ilustracionPdf: `${DIR}/ilustracion-mensaje-pdf.webp`,
   iconoLectura: `${DIR}/icono-lectura-online.webp`,
@@ -164,12 +166,20 @@ const BLOQUES: Bloque[] = [
     Icon: Link2,
     t: "Tu lectura online",
     sub: "Acceso por link personal",
-    d: "Recibís por WhatsApp o email un link personal para acceder a tu Tarot y explorar tu lectura completa, carta por carta, desde tu celular o computadora.",
+    d: "Recibís por WhatsApp o email un link personal para acceder a tu lectura y explorarla completa, carta por carta, desde tu celular o computadora.",
+    // Esta card no tiene botón: el teléfono ocupa también ese hueco
+    // (md:-mb compensa mt-4 + 46px del slot del botón), así se ve más
+    // grande sin cambiar el alto de la card ni la alineación con las otras.
     ilustracion: (
-      <Ilustracion
-        src={IMG.ilustracionLectura}
-        fallback={<CelularMock pantalla="lectura" alt="La lectura online en el celular con tus cinco cartas" style={{ width: "38%" }} />}
-      />
+      <div className="w-full mt-auto flex items-end justify-center md:h-[292px] md:-mb-[62px]">
+        <CelularMock
+          pantalla="lectura"
+          src={IMG.pantallaLecturaReal}
+          alt="La lectura online real en el celular: tu nombre, tu consulta y tus 5 cartas reveladas"
+          style={{ height: "100%", maxHeight: 292, width: "auto" }}
+          className="h-[260px] md:h-full"
+        />
+      </div>
     ),
   },
   {
@@ -307,10 +317,10 @@ export function AsiSeViveTarot() {
           textShadow: "0 2px 14px rgba(0,0,0,0.55)",
         }}
       >
-        Así se vive tu tirada de Tarot
+        Así vivís la experiencia
       </h2>
       <p className="mt-2" style={{ fontFamily: SERIF, fontWeight: 600, fontSize: "clamp(1.15rem, 2.2vw, 1.45rem)", color: "#fff" }}>
-        Más que una lectura, es una experiencia completa.
+        Explorá tu lectura online, escuchá el resumen y descargá tu PDF para conservarla.
       </p>
 
       {/* Cápsula de entrega, con código: la imagen btn-whatsapp-email.webp

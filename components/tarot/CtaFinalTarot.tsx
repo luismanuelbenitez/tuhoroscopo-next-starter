@@ -34,18 +34,18 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
   const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
 
   return (
-    <section className="relative px-5 md:px-8 py-16 md:py-20 max-w-[760px] mx-auto text-center">
+    <section className="relative px-5 md:px-8 pt-10 pb-12 md:pt-8 md:pb-14 max-w-[760px] mx-auto text-center">
       <h2
         className="mb-4"
         style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4vw, 2.5rem)", lineHeight: 1.2 }}
       >
-        Tu momento puede verse distinto desde otra perspectiva.
+        Mirá tu momento desde otra perspectiva.
       </h2>
       <p className="text-white/60 text-[14px] md:text-[15px] leading-relaxed mb-8 max-w-md mx-auto">
-        Hacé tu consulta y descubrí qué tienen para mostrarte tus cinco cartas.
+        Hacé tu consulta y recibí tu lectura personalizada de 5 cartas en minutos.
       </p>
 
-      <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-10">
+      <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">
         {precioTexto ? `Quiero mi Tarot por ${precioTexto} →` : "Quiero mi Tarot →"}
       </CtaButton>
 

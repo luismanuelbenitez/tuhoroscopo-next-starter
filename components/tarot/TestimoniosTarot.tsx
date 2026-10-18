@@ -74,9 +74,13 @@ export function TestimoniosTarot({ testimonios }: { testimonios: TestimonioTarot
         Lo que dicen quienes ya lo vivieron
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+      {/* Fila centrada (no grilla fija): con 1 o 2 testimonios quedan al
+          centro; cada card mide siempre un tercio, igual que con 3. */}
+      <div className="flex flex-col md:flex-row md:flex-wrap md:justify-center gap-5 items-stretch">
         {testimonios.map((t) => (
-          <CardTestimonio key={t.id} {...t} />
+          <div key={t.id} className="md:w-[calc((100%-2.5rem)/3)]">
+            <CardTestimonio {...t} />
+          </div>
         ))}
       </div>
     </section>

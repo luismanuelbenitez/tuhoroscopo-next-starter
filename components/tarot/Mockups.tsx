@@ -17,14 +17,14 @@ const HOJA = { left: "0.22%", top: "0.08%", width: "90.78%", height: "93.83%" };
 
 /** Celular con una captura real dentro de la pantalla. Relación de aspecto = telefono.webp (520×1109). */
 export function CelularMock({
-  pantalla, alt, className, style, priority = false,
-}: { pantalla: "whatsapp" | "lectura"; alt: string; className?: string; style?: CSSProperties; priority?: boolean }) {
+  pantalla, src, alt, className, style, priority = false,
+}: { pantalla: "whatsapp" | "lectura"; src?: string; alt: string; className?: string; style?: CSSProperties; priority?: boolean }) {
   return (
     <div className={className} style={{ position: "relative", aspectRatio: "520 / 1109", ...style }}>
       {/* La captura va DETRÁS del marco: la pantalla del PNG es transparente. */}
       <div style={{ position: "absolute", ...PANTALLA, overflow: "hidden", borderRadius: "9%/4.2%" }}>
         <Image
-          src={`${PROPS}/pantalla-${pantalla}.webp`}
+          src={src ?? `${PROPS}/pantalla-${pantalla}.webp`}
           alt={alt}
           width={780} height={1768}
           priority={priority}

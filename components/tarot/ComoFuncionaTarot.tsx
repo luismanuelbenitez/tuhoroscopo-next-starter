@@ -15,10 +15,10 @@ const COLOR_SECUNDARIO = "#5A4632";
 // ícono de 512×512, medido por píxeles — se escala cada uno para que los 4
 // aros midan lo mismo en pantalla.
 const PASOS_DESKTOP = [
-  { icono: "icono-consulta.webp", aro: 362, t: "1. Hacés tu consulta", d: "Contanos en qué tema te gustaría recibir tu lectura." },
-  { icono: "icono-pago.webp", aro: 344, t: "2. Realizás el pago", d: "De forma segura con Mercado Pago." },
-  { icono: "icono-tarot.webp", aro: 378, t: "3. Recibís tu Tarot", d: "En minutos por WhatsApp y/o mail." },
-  { icono: "icono-experiencia.webp", aro: 390, t: "4. Leés la experiencia", d: "Accedé a tu lectura online y descargá tu PDF." },
+  { icono: "icono-consulta.webp", aro: 362, t: "1. Elegís tu tema", d: "Y, si querés, sumás una pregunta puntual." },
+  { icono: "icono-pago.webp", aro: 344, t: "2. Realizás el pago", d: "Pago único y seguro con Mercado Pago. Sin suscripción." },
+  { icono: "icono-tarot.webp", aro: 378, t: "3. Recibís tu acceso", d: "En minutos te llega por WhatsApp y/o email tu link personal." },
+  { icono: "icono-experiencia.webp", aro: 390, t: "4. Vivís la experiencia", d: "Explorá tus 5 cartas, escuchá el resumen y descargá tu PDF." },
 ];
 
 // Todo el desktop se mide en proporción al ancho del pergamino (container
@@ -28,12 +28,12 @@ const PASOS_DESKTOP = [
 // Pergamino 1920×660 → 960×330 a ese ancho; el papel visible termina en
 // y≈303 (abajo trae ~25px transparentes).
 const u = (px: number) => `${(px / 9.6).toFixed(3)}cqw`;
-const ARO = 68;
+const ARO = 60;
 
 function PasoDesktop({ icono, aro, t, d }: (typeof PASOS_DESKTOP)[number]) {
   return (
-    <div className="flex flex-col items-center text-center" style={{ width: u(160) }}>
-      <div className="flex items-center justify-center" style={{ width: u(ARO), height: u(ARO), marginBottom: u(10) }}>
+    <div className="flex flex-col items-center text-center" style={{ width: u(172) }}>
+      <div className="flex items-center justify-center" style={{ width: u(ARO), height: u(ARO), marginBottom: u(8) }}>
         <img
           src={`${DIR}/${icono}`}
           alt=""
@@ -56,11 +56,11 @@ function ComoFuncionaDesktop() {
         aria-hidden="true"
         style={{ gridArea: "1 / 1", alignSelf: "start", width: "100%", height: "auto" }}
       />
-      <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(44)} ${u(85)} 0` }}>
-        <h2 className="uppercase" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: u(34), lineHeight: 1.1, letterSpacing: "0.06em", color: COLOR_TITULO }}>
+      <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(60)} ${u(60)} 0` }}>
+        <h2 className="uppercase" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: u(30), lineHeight: 1.1, letterSpacing: "0.06em", color: COLOR_TITULO }}>
           ¿Cómo funciona?
         </h2>
-        <p style={{ fontFamily: SERIF, fontWeight: 600, fontSize: u(18), color: COLOR_TITULO, marginTop: u(2), marginBottom: u(12) }}>
+        <p style={{ fontFamily: SERIF, fontWeight: 600, fontSize: u(18), color: COLOR_TITULO, marginTop: u(2), marginBottom: u(8) }}>
           En pocos pasos, tu lectura personalizada.
         </p>
 
