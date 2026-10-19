@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { AlertCircle, Loader2, Megaphone } from "lucide-react";
+import { AlertCircle, Info, Loader2, Megaphone } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { ESTADO_CAMPANA_UI, TIPO_CAMPANA_UI, fmtFecha, fmtMoneda, fmtPct, type CampanaResumen } from "@/components/admin/campanas/ui";
 
@@ -41,6 +41,20 @@ export default function TarotCampanasPage() {
           <p className="text-xs text-gray-500 mt-0.5">
             Toda campaña nace en <strong>borrador</strong> y en modo <strong>simulado</strong>: no envía nada hasta activarla, y en simulado nunca llama a WhatsApp.
           </p>
+        </div>
+
+        {/* Cómo funciona el motor (resumen operativo para el admin). */}
+        <div className="mb-4 rounded-xl border border-sky-900/50 bg-sky-950/20 px-4 py-3 text-xs text-gray-300 leading-relaxed">
+          <p className="flex items-center gap-1.5 font-semibold text-sky-300 mb-1.5"><Info size={14} /> Cómo funciona</p>
+          <ul className="space-y-1 list-disc pl-4 marker:text-sky-700">
+            <li><strong className="text-gray-100">Motor automático cada 15 minutos</strong> (tarea programada en Supabase). Solo procesa campañas <strong>Activas</strong>; &quot;Ejecutar ahora&quot; en el detalle hace lo mismo a mano.</li>
+            <li><strong className="text-gray-100">Feedback de experiencia:</strong> se envía 24 h después de que la persona abre su lectura por primera vez; si no la abre, 48 h después de la entrega. Máximo un pedido por orden.</li>
+            <li><strong className="text-gray-100">Horario y tope:</strong> solo envía dentro de la ventana horaria (por defecto 10 a 21 h de Uruguay) y hasta el límite diario. Lo que queda afuera espera al siguiente turno, no se pierde.</li>
+            <li><strong className="text-gray-100">Estados:</strong> Borrador no hace nada · Activa envía · Pausada no envía y conserva los pendientes · Finalizada se cierra.</li>
+            <li><strong className="text-gray-100">Simulado vs. real:</strong> en simulado corre todo pero nunca manda WhatsApp. Para enviar de verdad: plantilla de Meta aprobada, costo estimado cargado, modo Real y Activar.</li>
+            <li><strong className="text-gray-100">Errores:</strong> reintenta hasta 3 veces, cada 30 minutos; el motivo queda visible en el detalle.</li>
+            <li><strong className="text-gray-100">Nuevas campañas:</strong> por ahora solo existe el tipo Feedback de experiencia. Crear otras (reactivación, abandono, lanzamientos) requiere desarrollo — ver DECISIONS.md, 2026-10-19.</li>
+          </ul>
         </div>
 
         {errorMsg && (
