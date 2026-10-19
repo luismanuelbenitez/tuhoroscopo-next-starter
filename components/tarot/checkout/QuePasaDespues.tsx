@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Receipt, LockKeyhole } from "lucide-react";
+import { ShieldCheck, Receipt, LockKeyhole, Gift } from "lucide-react";
 import { GOLD, SERIF, CTA_GRADIENT } from "@/components/home/theme";
 
 const PASOS = [
@@ -15,7 +15,22 @@ const SELLOS = [
   { Icon: LockKeyhole, label: "Tus datos protegidos" },
 ];
 
-export function QuePasaDespues() {
+// Lectura de cortesía (2026-10-18): no hay pago ni Mercado Pago — el
+// primer paso y los sellos no pueden prometer una transacción que no existe.
+const PASOS_CORTESIA = [
+  { t: "Confirmás tu lectura", d: "Es de cortesía: no tiene cargo y no pasás por Mercado Pago." },
+  ...PASOS.slice(1),
+];
+
+const SELLOS_CORTESIA = [
+  { Icon: Gift, label: "Lectura de cortesía, sin cargo" },
+  { Icon: Receipt, label: "Sin datos de pago" },
+  { Icon: LockKeyhole, label: "Tus datos protegidos" },
+];
+
+export function QuePasaDespues({ cortesia = false }: { cortesia?: boolean }) {
+  const PASOS_VISTA = cortesia ? PASOS_CORTESIA : PASOS;
+  const SELLOS_VISTA = cortesia ? SELLOS_CORTESIA : SELLOS;
   return (
     <div
       className="rounded-2xl p-6"
@@ -26,10 +41,10 @@ export function QuePasaDespues() {
       </p>
 
       <ol>
-        {PASOS.map((paso, i) => (
+        {PASOS_VISTA.map((paso, i) => (
           <li key={paso.t} className="relative flex gap-4 pb-6 last:pb-0">
             {/* Línea que une los pasos */}
-            {i < PASOS.length - 1 && (
+            {i < PASOS_VISTA.length - 1 && (
               <span aria-hidden="true" className="absolute left-[15px] top-9 bottom-1 w-px" style={{ background: "rgba(240,197,90,0.35)" }} />
             )}
             <span
@@ -49,7 +64,7 @@ export function QuePasaDespues() {
       </ol>
 
       <div className="mt-6 pt-5 grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}>
-        {SELLOS.map(({ Icon, label }, i) => (
+        {SELLOS_VISTA.map(({ Icon, label }, i) => (
           <div
             key={label}
             className="flex flex-col items-center text-center px-2"

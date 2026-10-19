@@ -103,6 +103,18 @@ function telefonoValido(raw: string, pais: string): boolean {
   return false;
 }
 
+// Teléfono en formato internacional (E.164), tal como se envía al crear la
+// orden. Se usa también al validar el código de descuento (2026-10-18) para
+// que el cupo por cliente compare siempre el mismo formato.
+function telefonoE164(raw: string, pais: string): string {
+  const phoneRaw = raw.replace(/\D/g, '');
+  if (pais === 'UY') {
+    return phoneRaw.startsWith('0') ? `+598${phoneRaw.slice(1)}` : `+598${phoneRaw}`;
+  }
+  // Argentina: +549 + número (el 9 es requerido por WhatsApp para móviles AR)
+  return `+549${phoneRaw}`;
+}
+
 function formatearTelefono(raw: string, pais: string): string {
   const digits = raw.replace(/\D/g, '');
   if (pais === 'UY' && digits.length === 9 && digits.startsWith('09')) {
@@ -134,6 +146,9 @@ export default function TarotCheckoutContent({
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [emailSolicitado, setEmailSolicitado] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
+  // Bloqueo síncrono de doble envío: dos clics en el mismo tick llegan antes
+  // de que isLoading deshabilite el botón (detectado en QA 2026-10-18).
+  const enviandoRef = useRef(false);
   const [error, setError]                   = useState<string | null>(null);
 
   // Auto-activación del checkbox "recibir por email" (sprint de auditoría de
@@ -208,7 +223,8 @@ export default function TarotCheckoutContent({
           codigo,
           moneda:      'UYU',
           precio_base: PRECIO_BASE,
-          telefono:    form.telefono || undefined,
+          // Mismo formato que la orden (E.164); incompleto → no se manda.
+          telefono:    telefonoValido(form.telefono, pais) ? telefonoE164(form.telefono, pais) : undefined,
           email:       form.email    || undefined,
         }),
       });
@@ -266,18 +282,13 @@ export default function TarotCheckoutContent({
       setError('Ingresá un email válido para recibir también tu lectura por ese medio.');
       return;
     }
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
     setError(null);
     setIsLoading(true);
 
     // Normalizar teléfono al formato internacional para WhatsApp
-    const phoneRaw = form.telefono.replace(/\D/g, '');
-    let phone: string;
-    if (pais === 'UY') {
-      phone = phoneRaw.startsWith('0') ? `+598${phoneRaw.slice(1)}` : `+598${phoneRaw}`;
-    } else {
-      // Argentina: +549 + número (el 9 es requerido por WhatsApp para móviles AR)
-      phone = `+549${phoneRaw}`;
-    }
+    const phone = telefonoE164(form.telefono, pais);
 
     // Atribución capturada en storeAttributionFromUrl() al aterrizar en /tarot —
     // se reenvía recién ahora, al confirmar la orden, para no acoplar el
@@ -355,6 +366,7 @@ export default function TarotCheckoutContent({
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error inesperado. Intentá de nuevo.');
       setIsLoading(false);
+      enviandoRef.current = false;
     }
   }
 
@@ -612,7 +624,7 @@ export default function TarotCheckoutContent({
                   <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
                 </div>
 
-                <Paso n={3} titulo="Tu compra" bajada="Revisá y confirmá tu pago." separado />
+                <Paso n={3} titulo="Tu compra" bajada={esCortesia ? 'Revisá y confirmá tu lectura.' : 'Revisá y confirmá tu pago.'} separado />
 
                 {/* ── Código de descuento ──────────────────────────── */}
                 <div
@@ -809,7 +821,7 @@ export default function TarotCheckoutContent({
                 descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
               />
               </div>
-              <QuePasaDespues />
+              <QuePasaDespues cortesia={esCortesia} />
             </aside>
 
           </div>

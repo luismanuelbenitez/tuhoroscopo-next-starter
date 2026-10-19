@@ -28,6 +28,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { parsePrecioBaseCanonico } from "../_shared/tarot-precio.ts";
+import { normalizarTelefono } from "../_shared/tarot-identidad.ts";
 
 const SUPABASE_URL            = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -132,7 +133,12 @@ serve(async (req) => {
   const moneda     = normTexto(body.moneda)?.toUpperCase() ?? "UYU";
   const clienteId  = normUUID(body.cliente_id);
   const ordenId    = normUUID(body.orden_id);
-  const telefono   = normTexto(body.telefono);
+  // Teléfono a E.164 con la normalización canónica (_shared/tarot-identidad.ts)
+  // antes del cupo por cliente y de guardarlo en el uso (2026-10-18): 099…,
+  // +59899… y 59899… son el mismo cliente. Si no se puede normalizar se
+  // conserva tal cual (comportamiento anterior).
+  const telefonoRaw = normTexto(body.telefono);
+  const telefono   = telefonoRaw ? (normalizarTelefono(telefonoRaw) ?? telefonoRaw) : null;
   const email      = normTexto(body.email);
   const origen     = normTexto(body.origen) ?? "api";
 

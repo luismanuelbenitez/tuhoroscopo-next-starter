@@ -13,6 +13,9 @@ export function normalizarTelefono(raw: string): string | null {
   const limpio = raw.replace(/[\s\-().]/g, "");
   // Ya en E.164
   if (/^\+\d{8,15}$/.test(limpio)) return limpio;
+  // Uruguay sin "+": 598 9XXXXXXX → +598 9XXXXXXX (2026-10-18: misma
+  // persona escrita como 099…, +59899… o 59899… es UN solo teléfono)
+  if (/^598\d{8}$/.test(limpio)) return "+" + limpio;
   // Uruguay: 09XXXXXXXX → +598 9XXXXXXXX
   if (/^09\d{7}$/.test(limpio)) return "+598" + limpio.slice(1);
   // Uruguay: 9XXXXXXXX → +598 9XXXXXXXX
