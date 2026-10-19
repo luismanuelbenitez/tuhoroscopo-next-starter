@@ -25,6 +25,7 @@ import {
   MessageCircle,
   Star,
   type LucideIcon,
+  Megaphone,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -57,6 +58,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/facturacion", icon: Receipt,   label: "Facturación" },
       { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
       { href: "/admin/tarot/testimonios", icon: Star,      label: "Testimonios" },
+      { href: "/admin/tarot/campanas", icon: Megaphone,   label: "Campañas" },
     ],
   },
   {

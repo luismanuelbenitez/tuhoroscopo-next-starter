@@ -30,7 +30,9 @@ function Estrellas({ n }: { n: number }) {
   );
 }
 
-function CardTestimonio({ opinion, puntuacion, nombre, ciudad }: TestimonioTarot) {
+// Exportada: la mini web de feedback (/opinion) la usa como vista previa
+// REAL de cómo se vería la opinión publicada (2026-10-19).
+export function CardTestimonio({ opinion, puntuacion, nombre, ciudad }: Pick<TestimonioTarot, "opinion" | "puntuacion" | "nombre" | "ciudad">) {
   const firma = [nombre, ciudad].filter(Boolean).join(", ");
   return (
     <figure

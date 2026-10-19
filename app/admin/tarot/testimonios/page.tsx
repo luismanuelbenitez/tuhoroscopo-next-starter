@@ -17,6 +17,9 @@ interface Testimonio {
   nombre: string | null;
   ciudad: string | null;
   autoriza_publicacion: boolean;
+  autoriza_difusion?: boolean;
+  campana_id?: string | null;
+  feedback_respuesta_id?: string | null;
   publicado: boolean;
   publicado_at: string | null;
   orden_visual: number;
@@ -387,7 +390,10 @@ export default function TarotTestimoniosPage() {
                             ? <Badge text="Autorizado" cls="bg-sky-900/40 text-sky-300" />
                             : <Badge text="Sin autorización" cls="bg-orange-900/40 text-orange-300" />}
                         </div>
-                        <div className="text-[11px] text-gray-500">{ESTADO_LABEL[t.estado_encuesta] ?? t.estado_encuesta} · {t.canal}</div>
+                        {t.autoriza_difusion && (
+                          <div><Badge text="Autoriza difusión" cls="bg-fuchsia-900/40 text-fuchsia-300" /></div>
+                        )}
+                        <div className="text-[11px] text-gray-500">{ESTADO_LABEL[t.estado_encuesta] ?? t.estado_encuesta} · {t.canal}{t.feedback_respuesta_id ? " · campaña de feedback" : ""}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">

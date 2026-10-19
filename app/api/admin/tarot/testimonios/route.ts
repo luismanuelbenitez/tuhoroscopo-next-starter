@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const estado = searchParams.get('estado_encuesta');
   if (estado) filtros.push(`estado_encuesta=eq.${encodeURIComponent(estado)}`);
 
-  const select = 'id,opinion,puntuacion,nombre,ciudad,autoriza_publicacion,publicado,publicado_at,orden_visual,canal,estado_encuesta,encuesta_enviada_at,respondida_at,notas_internas,created_at,orden_id,tarot_ordenes(external_reference)';
+  const select = 'id,opinion,puntuacion,nombre,ciudad,autoriza_publicacion,autoriza_difusion,campana_id,feedback_respuesta_id,publicado,publicado_at,orden_visual,canal,estado_encuesta,encuesta_enviada_at,respondida_at,notas_internas,created_at,orden_id,tarot_ordenes(external_reference)';
   const query = [`select=${select}`, ...filtros, 'order=created_at.desc', 'limit=200'].join('&');
 
   const res = await fetch(`${env.supabaseUrl}/rest/v1/tarot_testimonios?${query}`, {
