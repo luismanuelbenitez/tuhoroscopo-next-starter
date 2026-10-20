@@ -1,9 +1,22 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import StaticPageLayout from '@/components/StaticPageLayout';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
+import { PaginaMarca } from '@/components/marca/PaginaMarca';
+import { HeaderMarca } from '@/components/marca/HeaderMarca';
+import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
+import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 
-const GOLD = '#F0C55A';
+// Estética de marca (2026-10-19): misma estructura que /tarot y el checkout
+// (PaginaMarca + header de marca + escena de fondo del checkout + paneles
+// con filete dorado). El contenido de las preguntas no cambió.
+const NAV = [
+  { href: '/', label: 'Inicio' },
+  { href: '/tarot', label: 'Productos' },
+  { href: '/#como-funciona', label: 'Cómo funciona' },
+  { href: '/faq', label: 'Preguntas' },
+  { href: '/contacto', label: 'Contacto' },
+];
+const PANEL = { background: 'rgba(12,7,24,0.80)', border: '1px solid rgba(240,197,90,0.28)', backdropFilter: 'blur(6px)' } as const;
 
 export default async function FAQ() {
   const precio = await getPrecioTarot();
@@ -57,73 +70,74 @@ export default async function FAQ() {
   ];
 
   return (
-    <StaticPageLayout>
+    <PaginaMarca fondo={<FondoCheckout />}>
+      <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; } details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
+      <HeaderMarca variante="completo" links={NAV} cta={{ href: '/tarot', label: 'Conocer el Tarot →' }} />
 
-      {/* Header */}
-      <div className="mb-10">
-        <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
-          Dudas frecuentes
-        </p>
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
-          Preguntas frecuentes
-        </h1>
-        <p className="text-white/70 text-base leading-relaxed">
-          Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.
-        </p>
-      </div>
+      <main className="relative px-5 pt-12 md:pt-16 pb-14 mx-auto w-full max-w-[760px]">
+        {/* Encabezado */}
+        <div className="text-center mb-10">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: GOLD }}>
+            Dudas frecuentes
+          </p>
+          <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(34px, 6vw, 46px)', lineHeight: 1.1, color: CREMA }}>
+            Preguntas frecuentes
+          </h1>
+          <p className="mt-3 text-[15px] md:text-base text-white/70 leading-relaxed">
+            Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.
+          </p>
+        </div>
 
-      {/* Accordion */}
-      <div className="space-y-2 mb-10">
-        {FAQS.map((faq, i) => (
-          <details
-            key={i}
-            className="group rounded-2xl border border-white/8 overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.03)' }}
-          >
-            <summary className="px-5 py-4 flex items-center justify-between gap-3 cursor-pointer select-none">
-              <span className="text-white/95 text-sm font-semibold">{faq.q}</span>
-              <ChevronDown
-                size={15}
-                className="shrink-0 transition-transform duration-200 group-open:rotate-180"
-                style={{ color: GOLD }}
-              />
-            </summary>
-            <div className="px-5 pb-5">
-              <div className="border-t border-white/6 pt-3">
-                <p className="text-white/60 text-sm leading-relaxed">{faq.a}</p>
+        {/* Acordeón */}
+        <div className="space-y-3 mb-10">
+          {FAQS.map((faq, i) => (
+            <details key={i} className="group rounded-2xl overflow-hidden" style={PANEL}>
+              <summary className="px-5 md:px-6 py-4 flex items-center justify-between gap-4 cursor-pointer select-none transition-colors hover:bg-white/[0.03]">
+                <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 19, lineHeight: 1.25, color: CREMA }}>{faq.q}</span>
+                <span
+                  className="shrink-0 flex items-center justify-center rounded-full"
+                  style={{ width: 30, height: 30, border: '1px solid rgba(240,197,90,0.45)', background: 'rgba(240,197,90,0.06)' }}
+                >
+                  <ChevronDown size={15} className="transition-transform duration-200 group-open:rotate-180" style={{ color: GOLD }} aria-hidden="true" />
+                </span>
+              </summary>
+              <div className="px-5 md:px-6 pb-5">
+                <div className="pt-3" style={{ borderTop: '1px solid rgba(240,197,90,0.18)' }}>
+                  <p className="text-white/70 text-[15px] leading-relaxed">{faq.a}</p>
+                </div>
               </div>
-            </div>
-          </details>
-        ))}
-      </div>
+            </details>
+          ))}
+        </div>
 
-      {/* ¿Quedó alguna duda? */}
-      <div
-        className="rounded-2xl border border-white/8 p-6 mb-8 text-center"
-        style={{ background: 'rgba(255,255,255,0.03)' }}
-      >
-        <p className="text-white/80 text-sm mb-1">¿Quedó alguna duda sin responder?</p>
-        <Link href="/contacto" className="text-sm underline underline-offset-2 transition-colors" style={{ color: GOLD }}>
-          Escribinos desde la página de contacto
-        </Link>
-      </div>
+        {/* ¿Quedó alguna duda? */}
+        <div className="rounded-2xl px-6 py-6 mb-10 text-center" style={PANEL}>
+          <span className="mx-auto mb-3 flex items-center justify-center rounded-full" style={{ width: 44, height: 44, border: '1px solid rgba(240,197,90,0.45)', background: 'rgba(240,197,90,0.08)' }}>
+            <MessageCircle size={19} style={{ color: GOLD }} aria-hidden="true" />
+          </span>
+          <p style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 21, color: CREMA }}>¿Quedó alguna duda sin responder?</p>
+          <Link href="/contacto" className="mt-1 inline-block text-[14px] underline underline-offset-4 transition-colors hover:text-white" style={{ color: GOLD }}>
+            Escribinos desde la página de contacto
+          </Link>
+        </div>
 
-      {/* CTA */}
-      <div className="text-center">
-        <Link
-          href="/tarot"
-          className="inline-block rounded-xl px-8 py-3.5 text-sm font-bold"
-          style={{
-            background: `linear-gradient(135deg, #c49008 0%, ${GOLD} 55%, #f2cc44 100%)`,
-            color: '#180e00',
-            boxShadow: '0 4px 20px rgba(240,197,90,0.30)',
-          }}
-        >
-          Quiero mi tirada →
-        </Link>
-        <p className="mt-2 text-[12px] text-white/40">{precioTexto} · un pago único · te llega en menos de 15 min</p>
-      </div>
+        {/* CTA */}
+        <div className="text-center">
+          <Link
+            href="/tarot"
+            className="inline-block rounded-xl px-8 py-4 text-[16px] font-bold transition-all hover:brightness-105"
+            style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: '0 6px 24px rgba(240,197,90,0.32)' }}
+          >
+            Quiero mi tirada →
+          </Link>
+          <p className="mt-2.5 text-[12.5px] text-white/50">{precioTexto} · un pago único · te llega en menos de 15 min</p>
+        </div>
+      </main>
 
-    </StaticPageLayout>
+      {/* Cierre simple, igual que /tarot (sin footer global). */}
+      <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
+        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
+      </p>
+    </PaginaMarca>
   );
 }
