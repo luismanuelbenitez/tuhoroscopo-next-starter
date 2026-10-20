@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { Check, Hourglass, MonitorSmartphone, AudioLines, Heart, FileText, MessageCircle, UserPlus, Mail, Sparkles } from "lucide-react";
-import { GOLD, SERIF, CREMA } from "@/components/home/theme";
+import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 
 // Bloques visuales de /tarot/gracias (2026-10-19). Solo presentación: el
 // estado lo calcula TarotEstadoContent (consulta /api/tarot/estado-orden).
@@ -42,7 +43,7 @@ function MarcaPaso({ n, estado }: { n: number; estado: EstadoPaso }) {
   );
 }
 
-export function ProgresoLectura({ pasos, pie }: { pasos: Paso[]; pie: string }) {
+export function ProgresoLectura({ pasos, pie, final }: { pasos: Paso[]; pie: string; final?: React.ReactNode }) {
   return (
     <section className="mx-auto w-full max-w-[580px] rounded-2xl px-5 md:px-8 pt-6 pb-4 text-left" style={PANEL} aria-label="Avance de tu lectura">
       <ol aria-live="polite">
@@ -59,10 +60,56 @@ export function ProgresoLectura({ pasos, pie }: { pasos: Paso[]; pie: string }) 
           </li>
         ))}
       </ol>
-      <p className="flex items-center justify-center gap-2 pt-3 text-[12.5px] text-white/70" style={{ borderTop: "1px solid rgba(240,197,90,0.20)" }}>
-        <Hourglass size={14} style={{ color: GOLD }} aria-hidden="true" /> {pie}
-      </p>
+      {final ?? (
+        <p className="flex items-center justify-center gap-2 pt-3 text-[12.5px] text-white/70" style={{ borderTop: "1px solid rgba(240,197,90,0.20)" }}>
+          <Hourglass size={14} style={{ color: GOLD }} aria-hidden="true" /> {pie}
+        </p>
+      )}
     </section>
+  );
+}
+
+// ── Lectura pronta: acceso inmediato + cuenta de 5 s (2026-10-20) ──────────
+// Solo se muestra cuando /api/tarot/acceso-lectura devolvió la URL canónica
+// (handoff válido + lectura completada + acceso vigente). El botón navega ya;
+// si no se toca nada, a los 5 s se entra solo. La cuenta no se anuncia cada
+// segundo a lectores de pantalla (solo el estado "pronta", una vez).
+const SEGUNDOS_REDIRECCION = 5;
+
+export function LecturaPronta({ url }: { url: string }) {
+  const [restan, setRestan] = useState(SEGUNDOS_REDIRECCION);
+  const yendo = useRef(false);
+
+  useEffect(() => {
+    if (yendo.current) return;
+    if (restan <= 0) {
+      yendo.current = true;
+      window.location.assign(url);
+      return;
+    }
+    const t = setTimeout(() => setRestan((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [restan, url]);
+
+  return (
+    <div className="pt-4 pb-1 text-center" style={{ borderTop: "1px solid rgba(240,197,90,0.20)" }}>
+      <p role="status" className="flex items-center justify-center gap-2" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, color: GOLD }}>
+        <Sparkles size={15} aria-hidden="true" /> Tu lectura está pronta
+      </p>
+      <p className="mt-0.5 text-[13px] text-white/65">
+        Te llevamos a tu lectura en{" "}
+        <span style={{ fontVariantNumeric: "tabular-nums lining-nums" }}>{Math.max(restan, 1)}</span>{" "}
+        {Math.max(restan, 1) === 1 ? "segundo" : "segundos"}…
+      </p>
+      <a
+        href={url}
+        onClick={() => { yendo.current = true; }}
+        className="mt-3.5 inline-flex items-center justify-center rounded-xl px-7 py-3 text-[15px] font-bold transition-all hover:brightness-105 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C55A]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0718]"
+        style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 22px rgba(240,197,90,0.30)" }}
+      >
+        Explorar mi lectura →
+      </a>
+    </div>
   );
 }
 

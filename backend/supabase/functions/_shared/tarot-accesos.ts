@@ -38,6 +38,36 @@ export interface AccesoWeb {
   expiraAt: string;
 }
 
+
+// Copia CIFRADA del token (2026-10-20) para el handoff /tarot/gracias →
+// /lectura: AES-256-GCM con clave solo en Supabase Secrets
+// (TAROT_ACCESO_CIFRADO_KEY, 32 bytes en base64) y el orden_id como dato
+// asociado. Solo la lee ef_tarot_acceso_gracias. Sin clave configurada se
+// guarda NULL y /gracias degrada a "Revisá tu WhatsApp".
+const CLAVE_CIFRADO_B64 = Deno.env.get("TAROT_ACCESO_CIFRADO_KEY") ?? "";
+function b64(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+async function cifrarToken(token: string, ordenId: string): Promise<string | null> {
+  try {
+    if (!CLAVE_CIFRADO_B64) return null;
+    const raw = Uint8Array.from(atob(CLAVE_CIFRADO_B64), (c) => c.charCodeAt(0));
+    if (raw.length !== 32) return null;
+    const clave = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const datos = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(ordenId) },
+      clave,
+      new TextEncoder().encode(token),
+    );
+    return `v1:${b64(iv)}:${b64(new Uint8Array(datos))}`;
+  } catch {
+    return null; // nunca bloquea la entrega
+  }
+}
+
 /**
  * Crea o regenera el acceso web de una orden. Idempotente en el sentido de
  * que siempre deja una única fila activa por orden — llamarla de nuevo
@@ -50,6 +80,7 @@ export async function crearAccesoWeb(
 ): Promise<AccesoWeb> {
   const token = generarTokenCrudo();
   const tokenHash = await sha256Hex(token);
+  const tokenCifrado = await cifrarToken(token, ordenId);
   const ahora = new Date();
   const expiraAt = new Date(ahora.getTime() + DIAS_VALIDEZ * 24 * 3600 * 1000).toISOString();
 
@@ -59,6 +90,7 @@ export async function crearAccesoWeb(
       {
         orden_id: ordenId,
         token_hash: tokenHash,
+        token_cifrado: tokenCifrado,
         estado: "activo",
         expira_at: expiraAt,
         updated_at: ahora.toISOString(),

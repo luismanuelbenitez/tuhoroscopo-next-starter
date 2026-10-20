@@ -12,7 +12,7 @@ import { HeaderMarca } from "@/components/marca/HeaderMarca";
 import { CTA_GRADIENT, CREMA, SERIF } from "@/components/home/theme";
 import { FondoGracias } from "@/components/tarot/gracias/FondoGracias";
 import {
-  CartasRevelando, ESTILOS_GRACIAS, IconoEstado, MientrasTanto, PANEL, Pildora, PieGracias,
+  CartasRevelando, ESTILOS_GRACIAS, IconoEstado, LecturaPronta, MientrasTanto, PANEL, Pildora, PieGracias,
   ProgresoLectura, QueVasARecibir, type Paso,
 } from "@/components/tarot/gracias/Bloques";
 
@@ -185,6 +185,28 @@ export default function TarotEstadoContent() {
   }, [uiStatus]);
 
   const { pasos, pie, listo } = calcularPasos(estadoOrden, esCortesia, conEmail);
+
+  // Handoff a /lectura (2026-10-20): recién con la lectura entregada se pide
+  // el link canónico al servidor (que exige el handoff de este navegador).
+  // Una sola consulta por carga; sin link → se queda como estaba.
+  const [urlLectura, setUrlLectura] = useState<string | null>(null);
+  const linkPedido = useRef(false);
+  useEffect(() => {
+    if (!listo || !externalReference || linkPedido.current) return;
+    linkPedido.current = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/tarot/acceso-lectura", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: externalReference }),
+          cache: "no-store",
+        });
+        const d = await r.json().catch(() => null);
+        if (d?.ok && typeof d.url === "string" && d.url.startsWith("/lectura/")) setUrlLectura(d.url);
+      } catch { /* sin link: estado actual */ }
+    })();
+  }, [listo, externalReference]);
   const primerNombre = nombre?.trim().split(/\s+/)[0] ?? "";
   const saludo = primerNombre ? `${primerNombre}, tu` : "Tu";
 
@@ -209,11 +231,13 @@ export default function TarotEstadoContent() {
               {listo ? `¡${saludo} lectura ya llegó!` : `¡${saludo} lectura está en camino!`}
             </h1>
             <p className="gracias-hero mt-3 mx-auto max-w-[620px] text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
-              {listo
+              {listo && urlLectura
+                ? "Tu lectura ya está pronta. Podés explorarla ahora o abrirla desde el mensaje que te enviamos."
+                : listo
                 ? "Ya te la enviamos. Abrila desde el mensaje que te llegó y descubrí lo que tus cartas tienen para vos."
                 : "Tu lectura ya se está preparando. En cuanto esté pronta te llega directo. Podés quedarte en esta página para ver el avance."}
             </p>
-            <div className="mt-7"><ProgresoLectura pasos={pasos} pie={pie} /></div>
+            <div className="mt-7"><ProgresoLectura pasos={pasos} pie={pie} final={listo && urlLectura ? <LecturaPronta url={urlLectura} /> : undefined} /></div>
             <CartasRevelando texto={listo ? "Tus cartas ya se revelaron" : "Las cartas se están revelando…"} />
           </>
         )}

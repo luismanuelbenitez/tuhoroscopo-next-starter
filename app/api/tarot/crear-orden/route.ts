@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from 'next/server';
+import { emitirHandoffGracias } from '@/lib/handoffGracias';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -72,6 +73,12 @@ export async function POST(req: Request) {
       { ok: false, error: data?.error, message: friendlyError },
       { status: efRes.ok ? 500 : efRes.status },
     );
+  }
+
+  // Handoff efímero para /tarot/gracias → /lectura (2026-10-20): cookie
+  // sellada atada a ESTA orden en ESTE navegador. Nunca bloquea el checkout.
+  if (typeof data.external_reference === 'string') {
+    try { await emitirHandoffGracias(data.external_reference); } catch { /* sin handoff: /gracias degrada */ }
   }
 
   // Cortesía (2026-10-18): orden gratuita, sin Mercado Pago. El checkout va
