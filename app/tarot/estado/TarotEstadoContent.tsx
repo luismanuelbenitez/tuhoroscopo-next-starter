@@ -1,63 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Cormorant_Garamond } from "next/font/google";
+import Link from "next/link";
 import { trackPurchase } from "@/lib/analytics";
 import { metaPurchase } from "@/lib/metaPixel";
 import confetti from "canvas-confetti";
-import { Loader2, Layers, Eye, Lightbulb, FileText, MessageCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { PaginaMarca } from "@/components/marca/PaginaMarca";
+import { HeaderMarca } from "@/components/marca/HeaderMarca";
+import { CTA_GRADIENT, CREMA, SERIF } from "@/components/home/theme";
+import { FondoGracias } from "@/components/tarot/gracias/FondoGracias";
+import {
+  CartasRevelando, ESTILOS_GRACIAS, IconoEstado, MientrasTanto, PANEL, Pildora, PieGracias,
+  ProgresoLectura, QueVasARecibir, type Paso,
+} from "@/components/tarot/gracias/Bloques";
 
-// Mismo lenguaje editorial que /lectura/[token] — serif para los títulos,
-// para que la continuidad visual del "ritual" no se corte al llegar acá.
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-serif-editorial",
-});
-const SERIF_FONT = "var(--font-serif-editorial), serif";
-const GOLD = "#FFCE4D";
+// /tarot/gracias (y /tarot/estado) — rediseño visual 2026-10-19 (aspiracional
+// "Lectura confirmada"). La lógica de regreso de Mercado Pago y el gate
+// server-side de Purchase (log-retorno) NO cambiaron. Nuevo: el avance real
+// de la orden (/api/tarot/estado-orden) en vez de pasos fijos, sin
+// redirección automática a /lectura (el link solo viaja en WhatsApp y email:
+// decisión 2026-10-19, opción "a").
 
-function EstrellasYNebulosa() {
-  // Decorativo, no interactivo — reusa las variables --stars-1/2 y
-  // --nebula-* ya definidas en globals.css (nunca las redefine ni toca el
-  // fondo global del body, que esta página ya desactiva explícitamente más
-  // abajo con su propio <style jsx global>).
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      aria-hidden="true"
-      style={{
-        backgroundImage: "var(--stars-1), var(--stars-2), var(--nebula-3)",
-        backgroundSize: "180px 180px, 220px 220px, auto",
-        backgroundPosition: "0 0, 40px 60px, center",
-        backgroundRepeat: "repeat, repeat, no-repeat",
-        opacity: 0.5,
-      }}
-    />
-  );
-}
+const APROBADOS = new Set(["pago_confirmado", "generando_lectura", "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp", "entregado", "entregado_simulado"]);
+const ENVIANDO = new Set(["pdf_listo", "enviando_whatsapp"]);
+const ENTREGADO = new Set(["entregado", "entregado_simulado"]);
+const DEMORADOS = new Set(["error_lectura", "error_pdf", "error_whatsapp", "error_critico"]);
+const POLL_MS = 5000;
+const POLL_MAX_MS = 20 * 60 * 1000;
 
-function CheckIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={GOLD} className="w-16 h-16">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-  );
-}
-function ClockIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-amber-400">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-  );
-}
-function ErrorIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-rose-500">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-    </svg>
-  );
+function calcularPasos(estado: string | null, esCortesia: boolean, conEmail: boolean): { pasos: Paso[]; pie: string; listo: boolean } {
+  const canales = conEmail ? "WhatsApp y email" : "WhatsApp";
+  const listo = estado !== null && ENTREGADO.has(estado);
+  const demorado = estado !== null && DEMORADOS.has(estado);
+  const interpretadas = estado !== null && (ENVIANDO.has(estado) || ENTREGADO.has(estado) || estado === "error_whatsapp");
+  const p1: Paso = {
+    titulo: "Lectura confirmada",
+    texto: esCortesia ? "Tu lectura de cortesía ya está registrada." : "Tu pago fue procesado correctamente.",
+    estado: "hecho",
+  };
+  const p2: Paso = interpretadas
+    ? { titulo: "Tus 5 cartas, interpretadas", texto: "Tu lectura personalizada ya está escrita.", estado: "hecho" }
+    : demorado
+      ? { titulo: "Interpretando tus 5 cartas", texto: "Está tardando un poco más de lo normal. Ya estamos sobre ella.", estado: "demorado" }
+      : { titulo: "Interpretando tus 5 cartas", texto: "Estamos preparando tu lectura personalizada…", estado: "activo" };
+  const p3: Paso = listo
+    ? { titulo: `Enviada por ${canales}`, texto: "Ya la tenés en tu teléfono. ¡Que la disfrutes!", estado: "hecho" }
+    : interpretadas
+      ? { titulo: `Enviando acceso por ${canales}`, texto: "Te llega en instantes.", estado: estado === "error_whatsapp" ? "demorado" : "activo" }
+      : { titulo: `Enviando acceso por ${canales}`, texto: "Te avisamos apenas esté lista.", estado: "pendiente" };
+  const pie = listo
+    ? `¡Listo! Revisá tu ${canales}.`
+    : "Te la enviamos apenas esté lista. Podés quedarte en esta página para ver el avance.";
+  return { pasos: [p1, p2, p3], pie, listo };
 }
 
 export default function TarotEstadoContent() {
@@ -131,7 +127,6 @@ export default function TarotEstadoContent() {
 
     if (exitosos.includes(estadoParam) || mpOk.includes(mpStatus)) {
       setUiStatus("ok");
-      lanzarConfeti();
     } else if (pendientes.includes(estadoParam) || mpPending.includes(mpStatus)) {
       setUiStatus("warn");
     } else {
@@ -141,7 +136,7 @@ export default function TarotEstadoContent() {
   }, []);
 
   function lanzarConfeti() {
-    const colors = ['#FFCE4D', '#D4AF37', '#7c3aed', '#a855f7', '#e9d5ff', '#ffffff'];
+    const colors = ['#F0C55A', '#FFCE4D', '#D4AF37', '#C9A7FF', '#F5EFE0'];
     const duration = 8000;
     const end = Date.now() + duration;
     (function frame() {
@@ -151,191 +146,132 @@ export default function TarotEstadoContent() {
     })();
   }
 
+
+  // ── Avance real de la orden (consulta liviana, sin PII) ───────────────────
+  const [estadoOrden, setEstadoOrden] = useState<string | null>(null);
+  const [conEmail, setConEmail] = useState(false);
+  const confetiLanzado = useRef(false);
+
+  useEffect(() => {
+    if (!externalReference) return;
+    let cancelado = false;
+    const inicio = Date.now();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    async function consultar() {
+      try {
+        const r = await fetch(`/api/tarot/estado-orden?ref=${encodeURIComponent(externalReference)}`, { cache: "no-store" });
+        const d = await r.json().catch(() => null);
+        if (!cancelado && d?.ok) {
+          setEstadoOrden(d.estado);
+          setConEmail(d.email === true);
+          if (d.es_cortesia === true) setEsCortesia(true);
+          // Pago pendiente que se aprueba mientras la persona espera → pasa a "ok".
+          if (APROBADOS.has(d.estado)) setUiStatus((u) => (u === "warn" || u === "idle" ? "ok" : u));
+          if (ENTREGADO.has(d.estado)) return; // terminado: no se consulta más
+        }
+      } catch { /* reintenta en el próximo ciclo */ }
+      if (!cancelado && Date.now() - inicio < POLL_MAX_MS) timer = setTimeout(consultar, POLL_MS);
+    }
+    consultar();
+    return () => { cancelado = true; if (timer) clearTimeout(timer); };
+  }, [externalReference]);
+
+  useEffect(() => {
+    if (uiStatus === "ok" && !confetiLanzado.current) {
+      confetiLanzado.current = true;
+      if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) lanzarConfeti();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiStatus]);
+
+  const { pasos, pie, listo } = calcularPasos(estadoOrden, esCortesia, conEmail);
+  const primerNombre = nombre?.trim().split(/\s+/)[0] ?? "";
+  const saludo = primerNombre ? `${primerNombre}, tu` : "Tu";
+
   return (
-    <>
-      <style jsx global>{`
-        body { background-image: none !important; background-color: #0e0b22 !important; }
-        body::before { display: none !important; }
-      `}</style>
+    <PaginaMarca fondo={<FondoGracias />}>
+      <style dangerouslySetInnerHTML={{ __html: `body > footer { display: none !important; } ${ESTILOS_GRACIAS}` }} />
+      <HeaderMarca variante="minimo" />
 
-      <div
-        className={`${serif.variable} min-h-screen text-white relative z-[1] overflow-hidden`}
-        style={{ background: "linear-gradient(180deg, #110927 0%, #0d0820 55%, #0e0b22 100%)" }}
-      >
-        <EstrellasYNebulosa />
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-72"
-          style={{ background: "radial-gradient(ellipse 70% 60% at 50% 0%, rgba(88,28,180,0.13), transparent)", zIndex: 0 }}
-        />
+      <main className="gracias-raiz relative px-4 md:px-6 pt-8 md:pt-10 text-center">
+        {uiStatus === "idle" && (
+          <div className="py-24 flex flex-col items-center gap-4 text-white/70">
+            <Loader2 size={34} className="animate-spin" style={{ color: "#F0C55A" }} aria-hidden="true" />
+            <p>Confirmando tu lectura…</p>
+          </div>
+        )}
 
-        <div className="relative mx-auto max-w-xl px-4 py-16 sm:py-24 text-center" style={{ zIndex: 1 }}>
+        {uiStatus === "ok" && (
+          <>
+            <IconoEstado tipo="ok" />
+            <div className="mt-5"><Pildora>Lectura confirmada</Pildora></div>
+            <h1 className="gracias-hero mt-4 px-2" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(30px, 6vw, 46px)", lineHeight: 1.1, color: CREMA }}>
+              {listo ? `¡${saludo} lectura ya llegó!` : `¡${saludo} lectura está en camino!`}
+            </h1>
+            <p className="gracias-hero mt-3 mx-auto max-w-[620px] text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
+              {listo
+                ? "Ya te la enviamos. Abrila desde el mensaje que te llegó y descubrí lo que tus cartas tienen para vos."
+                : "Tu lectura ya se está preparando. En cuanto esté pronta te llega directo. Podés quedarte en esta página para ver el avance."}
+            </p>
+            <div className="mt-7"><ProgresoLectura pasos={pasos} pie={pie} /></div>
+            <CartasRevelando texto={listo ? "Tus cartas ya se revelaron" : "Las cartas se están revelando…"} />
+          </>
+        )}
 
-          {/* Cargando */}
-          {uiStatus === "idle" && (
-            <div className="space-y-6 flex flex-col items-center">
-              <Loader2 className="w-12 h-12 animate-spin" style={{ color: GOLD }} />
-              <h1 className="text-2xl sm:text-3xl font-semibold text-white/80" style={{ fontFamily: SERIF_FONT }}>
-                Procesando tu pago…
-              </h1>
+        {uiStatus === "warn" && (
+          <>
+            <IconoEstado tipo="espera" />
+            <div className="mt-5"><Pildora>Pago en proceso</Pildora></div>
+            <h1 className="gracias-hero mt-4" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(30px, 6vw, 44px)", lineHeight: 1.1, color: CREMA }}>
+              Tu pago está en proceso
+            </h1>
+            <p className="gracias-hero mt-3 mx-auto max-w-[600px] text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
+              Mercado Pago puede tardar unos minutos en confirmarlo. En cuanto se apruebe, empezamos a preparar tu lectura automáticamente: no necesitás hacer nada.
+            </p>
+            <div className="mt-7">
+              <ProgresoLectura
+                pasos={[
+                  { titulo: "Esperando la confirmación del pago", texto: "Esta página se actualiza sola cuando se apruebe.", estado: "activo" },
+                  { titulo: "Interpretando tus 5 cartas", texto: "Empieza apenas se confirme el pago.", estado: "pendiente" },
+                  { titulo: "Enviando acceso por WhatsApp", texto: "Te avisamos apenas esté lista.", estado: "pendiente" },
+                ]}
+                pie="Si en 30 minutos no recibís nada, escribinos a hola@tuoraculo.uy."
+              />
             </div>
-          )}
+          </>
+        )}
 
-          {/* Pago exitoso */}
-          {uiStatus === "ok" && (
-            <div className="space-y-6 flex flex-col items-center">
-              <div className="relative flex items-center justify-center">
-                <div className="absolute w-28 h-28 rounded-full blur-2xl" style={{ background: "rgba(255,206,77,0.18)" }} />
-                <CheckIcon />
-              </div>
-
-              <div
-                className="inline-block px-3 py-1 rounded-full text-xs tracking-widest uppercase -mt-2"
-                style={{ border: "1px solid rgba(255,206,77,0.3)", background: "rgba(255,206,77,0.08)", color: GOLD }}
+        {uiStatus === "error" && (
+          <section className="mx-auto max-w-[580px] pb-48 md:pb-72">
+            <IconoEstado tipo="error" />
+            <h1 className="mt-6" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(30px, 6vw, 42px)", lineHeight: 1.1, color: CREMA }}>
+              No pudimos confirmar tu pago
+            </h1>
+            <p className="mt-3 text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
+              No se realizó ningún cargo. El pago pudo ser rechazado o faltaron datos: podés volver a intentarlo sin problema.
+            </p>
+            <div className="mt-7 rounded-2xl px-6 py-6" style={PANEL}>
+              <Link
+                href="/tarot/checkout"
+                className="block w-full rounded-xl py-4 text-[17px] font-bold transition-all hover:brightness-105 active:scale-[0.98]"
+                style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 24px rgba(240,197,90,0.30)" }}
               >
-                {esCortesia ? "✦ Lectura confirmada" : "✦ Pago confirmado"}
-              </div>
-
-              <h1
-                className="text-3xl sm:text-4xl font-semibold text-white -mt-2"
-                style={{ fontFamily: SERIF_FONT }}
-              >
-                ¡{nombre ? `${nombre}, tu` : "Tu"} tirada está en camino!
-              </h1>
-
-              <p className="text-white/70 text-base -mt-2 leading-relaxed">
-                Las cartas ya fueron reveladas para vos. En los próximos minutos, tu lectura completa llega por WhatsApp al número que registraste.
-              </p>
-
-              <div
-                className="w-full rounded-2xl border border-white/8 p-6 text-left space-y-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <h2 className="text-base font-semibold text-white/90">Próximos pasos</h2>
-                <div className="flex items-start gap-3">
-                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">1.</div>
-                  <p className="text-sm text-white/75 leading-relaxed">
-                    <strong className="text-white/90">Revisá tu WhatsApp.</strong>{" "}
-                    Vas a recibir tu tirada de tarot completa como PDF en el número que ingresaste{esCortesia ? "" : " al momento de compra"}.
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">2.</div>
-                  <p className="text-sm text-white/75 leading-relaxed">
-                    <strong className="text-white/90">Guardá el número.</strong>{" "}
-                    Agreganos a tus contactos para que el mensaje siempre llegue sin problemas.
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="font-extrabold text-xl text-violet-400 leading-none w-5 shrink-0 mt-0.5">3.</div>
-                  <p className="text-sm text-white/75 leading-relaxed">
-                    <strong className="text-white/90">¿No llegó nada en 15 minutos?</strong>{" "}
-                    Escribinos a{" "}
-                    <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200">
-                      hola@tuoraculo.uy
-                    </a>.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className="w-full rounded-2xl border border-violet-500/15 p-5 text-left"
-                style={{ background: "rgba(88,28,180,0.07)" }}
-              >
-                <p className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest mb-3">
-                  Tu tirada incluye
-                </p>
-                <ul className="space-y-2.5">
-                  {[
-                    { Icon: Layers,   text: "5 cartas en cruz con interpretación personalizada" },
-                    { Icon: Eye,      text: "Situación actual · Obstáculo · Base inconsciente" },
-                    { Icon: Lightbulb,text: "Consejo práctico · Tendencia próxima" },
-                    { Icon: FileText, text: "PDF premium enviado por WhatsApp" },
-                  ].map(({ Icon, text }) => (
-                    <li key={text} className="flex items-start gap-2.5 text-sm text-white/65 leading-relaxed">
-                      <Icon size={14} className="shrink-0 mt-0.5" style={{ color: "rgba(167,139,250,0.65)" }} />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Compartir */}
-              <button
-                onClick={() => {
-                  const text = encodeURIComponent('Pedí una lectura de tarot en Tu Oráculo y fue increíble 🔮 tuoraculo.uy/tarot');
-                  window.open(`https://wa.me/?text=${text}`, '_blank');
-                }}
-                className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                style={{ background: 'rgba(255,206,77,0.07)', border: '1px solid rgba(255,206,77,0.25)', color: GOLD }}
-              >
-                <MessageCircle size={15} />
-                Compartí con una amiga
-              </button>
-
-              {/* Cross-sell de horóscopo retirado (2026-10-18): el horóscopo está
-                  deshabilitado y /horoscopo redirige a la home. */}
+                Intentar de nuevo →
+              </Link>
+              <p className="mt-3 text-[13px] text-white/55">¿Necesitás ayuda? Escribinos a <a href="mailto:hola@tuoraculo.uy" className="underline" style={{ color: "#C9A7FF" }}>hola@tuoraculo.uy</a></p>
             </div>
-          )}
+          </section>
+        )}
 
-          {/* Pago pendiente */}
-          {uiStatus === "warn" && (
-            <div className="space-y-6 flex flex-col items-center">
-              <ClockIcon />
-              <h1 className="text-3xl sm:text-4xl font-semibold text-amber-400" style={{ fontFamily: SERIF_FONT }}>
-                Tu pago está en proceso.
-              </h1>
-              <p className="text-white/70 text-base leading-relaxed">
-                Mercado Pago puede tardar unos minutos en confirmar el pago. En cuanto se apruebe, comenzamos a preparar tu tirada automáticamente.
-              </p>
-              <div
-                className="w-full rounded-2xl border border-white/8 p-6 space-y-4"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <p className="text-sm font-semibold text-white/80">¿Qué hacer mientras tanto?</p>
-                <p className="text-sm text-white/60 leading-relaxed">
-                  No necesitás hacer nada. En cuanto Mercado Pago confirme el pago, tu lectura se genera y te llega por WhatsApp en minutos.
-                </p>
-                <p className="text-sm text-white/45 leading-relaxed">
-                  Si en 30 minutos no recibís nada, escribinos a{" "}
-                  <a href="mailto:hola@tuoraculo.uy" className="text-violet-300 underline hover:text-violet-200 transition-colors">
-                    hola@tuoraculo.uy
-                  </a>
-                  {" "}y lo resolvemos de inmediato.
-                </p>
-              </div>
-            </div>
-          )}
+        {(uiStatus === "ok" || uiStatus === "warn") && (
+          <div className="mt-10 mx-auto max-w-[960px] grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
+            <QueVasARecibir />
+            <MientrasTanto />
+          </div>
+        )}
+      </main>
 
-          {/* Error */}
-          {uiStatus === "error" && (
-            <div className="space-y-6 flex flex-col items-center">
-              <ErrorIcon />
-              <h1 className="text-3xl sm:text-4xl font-semibold text-white" style={{ fontFamily: SERIF_FONT }}>
-                Algo salió mal.
-              </h1>
-              <p className="text-white/70 text-base leading-relaxed">
-                No se realizó ningún cargo en tu tarjeta.
-              </p>
-              <div
-                className="w-full rounded-2xl border border-white/8 p-6 space-y-5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                <p className="text-sm text-white/65 leading-relaxed">
-                  El pago pudo ser rechazado o faltaron datos. Podés volver a intentarlo sin problema.
-                </p>
-                <a
-                  href="/tarot/checkout"
-                  className="inline-block w-full rounded-xl bg-gradient-to-r from-violet-700 to-violet-500 py-4 text-base font-bold text-white text-center transition-all hover:from-violet-600 hover:to-violet-400 active:scale-[0.98]"
-                  style={{ boxShadow: "0 4px 24px rgba(109,40,217,0.35)" }}
-                >
-                  Intentar de nuevo →
-                </a>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-    </>
+      <PieGracias />
+    </PaginaMarca>
   );
 }
