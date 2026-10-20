@@ -1,22 +1,10 @@
 import { ChevronDown, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
-import { PaginaMarca } from '@/components/marca/PaginaMarca';
-import { HeaderMarca } from '@/components/marca/HeaderMarca';
-import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
+import { PaginaInstitucional, EncabezadoInstitucional, PANEL_INSTITUCIONAL as PANEL } from '@/components/marca/PaginaInstitucional';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 
-// Estética de marca (2026-10-19): misma estructura que /tarot y el checkout
-// (PaginaMarca + header de marca + escena de fondo del checkout + paneles
-// con filete dorado). El contenido de las preguntas no cambió.
-const NAV = [
-  { href: '/', label: 'Inicio' },
-  { href: '/tarot', label: 'Productos' },
-  { href: '/#como-funciona', label: 'Cómo funciona' },
-  { href: '/faq', label: 'Preguntas' },
-  { href: '/contacto', label: 'Contacto' },
-];
-const PANEL = { background: 'rgba(12,7,24,0.80)', border: '1px solid rgba(240,197,90,0.28)', backdropFilter: 'blur(6px)' } as const;
+// Estética de marca (2026-10-19): envoltorio común PaginaInstitucional.
 
 export default async function FAQ() {
   const precio = await getPrecioTarot();
@@ -70,23 +58,10 @@ export default async function FAQ() {
   ];
 
   return (
-    <PaginaMarca fondo={<FondoCheckout />}>
-      <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; } details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
-      <HeaderMarca variante="completo" links={NAV} cta={{ href: '/tarot', label: 'Conocer el Tarot →' }} />
-
-      <main className="relative px-5 pt-12 md:pt-16 pb-14 mx-auto w-full max-w-[760px]">
-        {/* Encabezado */}
-        <div className="text-center mb-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: GOLD }}>
-            Dudas frecuentes
-          </p>
-          <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(34px, 6vw, 46px)', lineHeight: 1.1, color: CREMA }}>
-            Preguntas frecuentes
-          </h1>
-          <p className="mt-3 text-[15px] md:text-base text-white/70 leading-relaxed">
-            Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.
-          </p>
-        </div>
+    <PaginaInstitucional>
+        <EncabezadoInstitucional eyebrow="Dudas frecuentes" titulo="Preguntas frecuentes">
+          <p>Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.</p>
+        </EncabezadoInstitucional>
 
         {/* Acordeón */}
         <div className="space-y-3 mb-10">
@@ -132,12 +107,6 @@ export default async function FAQ() {
           </Link>
           <p className="mt-2.5 text-[12.5px] text-white/50">{precioTexto} · un pago único · te llega en menos de 15 min</p>
         </div>
-      </main>
-
-      {/* Cierre simple, igual que /tarot (sin footer global). */}
-      <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
-        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
-      </p>
-    </PaginaMarca>
+    </PaginaInstitucional>
   );
 }

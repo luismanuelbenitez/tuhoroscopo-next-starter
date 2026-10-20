@@ -1,6 +1,6 @@
-import StaticPageLayout from '@/components/StaticPageLayout';
+import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL } from '@/components/marca/PaginaInstitucional';
+import { GOLD } from '@/components/home/theme';
 
-const GOLD = '#F0C55A';
 
 const SECTIONS = [
   {
@@ -39,53 +39,28 @@ const SECTIONS = [
 
 export default function PoliticaPrivacidad() {
   return (
-    <StaticPageLayout>
+    <PaginaInstitucional>
+      <EncabezadoInstitucional eyebrow="Legal" titulo="Política de privacidad">
+        <p>En Tu Oráculo valoramos tu confianza. Esta política explica qué datos recopilamos y cómo los usamos.</p>
+        <p className="text-white/45 text-[13px] mt-2">Última actualización: septiembre 2026</p>
+      </EncabezadoInstitucional>
 
-      {/* Header */}
-      <div className="mb-10">
-        <p className="text-[11px] font-semibold uppercase tracking-widest mb-3" style={{ color: GOLD }}>
-          Legal
-        </p>
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white leading-tight mb-4">
-          Política de privacidad
-        </h1>
-        <p className="text-white/70 text-sm leading-relaxed">
-          En Tu Oráculo valoramos tu confianza. Esta política explica qué datos recopilamos y cómo los usamos.
-        </p>
-        <p className="text-white/40 text-xs mt-2">Última actualización: septiembre 2026</p>
-      </div>
-
-      {/* Sections */}
       <div className="space-y-3 mb-10">
         {SECTIONS.map(section => (
-          <div
-            key={section.title}
-            className="rounded-2xl border border-white/8 px-5 py-4"
-            style={{ background: 'rgba(255,255,255,0.03)' }}
-          >
-            <h2 className="text-sm font-semibold mb-2" style={{ color: GOLD }}>{section.title}</h2>
-            <p className="text-white/70 text-sm leading-relaxed">{section.content}</p>
-          </div>
+          <PanelInstitucional key={section.title} titulo={section.title}>
+            <p>{section.content}</p>
+          </PanelInstitucional>
         ))}
       </div>
 
-      {/* Contacto */}
-      <div
-        className="rounded-2xl border border-white/8 p-5 text-center"
-        style={{ background: 'rgba(255,255,255,0.03)' }}
-      >
-        <p className="text-white/60 text-sm">
+      <div className="rounded-2xl px-6 py-5 text-center" style={PANEL_INSTITUCIONAL}>
+        <p className="text-white/70 text-[15px]">
           Consultas sobre privacidad:{' '}
-          <a
-            href="mailto:hola@tuoraculo.uy"
-            className="transition-colors"
-            style={{ color: GOLD }}
-          >
+          <a href="mailto:hola@tuoraculo.uy" className="underline underline-offset-2" style={{ color: GOLD }}>
             hola@tuoraculo.uy
           </a>
         </p>
       </div>
-
-    </StaticPageLayout>
+    </PaginaInstitucional>
   );
 }
