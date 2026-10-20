@@ -50,7 +50,11 @@ function tamanoNombre(nombre: string): string {
   return "clamp(1rem, 3.8vw, 1.3rem)";
 }
 
-function Carta({ carta, i, revelada, viva }: { carta: CartaPublica; i: number; revelada: boolean; viva: boolean }) {
+function Carta({ carta, i, revelada, viva, sola, onVoltear }: {
+  carta: CartaPublica; i: number; revelada: boolean; viva: boolean;
+  // sola: esta carta se dio vuelta con su propio clic (gira sin escalón).
+  sola: boolean; onVoltear: () => void;
+}) {
   const { rot, y } = ABANICO[i] ?? ABANICO[2];
   const cara: CSSProperties = {
     position: "absolute",
@@ -62,9 +66,13 @@ function Carta({ carta, i, revelada, viva }: { carta: CartaPublica; i: number; r
   return (
     <a
       href={revelada ? `#carta-${carta.posicion}` : undefined}
-      aria-label={revelada ? `${carta.nombre_carta}: ir a esta carta` : undefined}
-      tabIndex={revelada ? 0 : -1}
-      className="block shrink-0 w-[70px] sm:w-[84px] md:w-[116px] -mx-[3px] md:mx-[6px] outline-none"
+      // Boca abajo, un clic da vuelta solo esta carta (2026-10-20).
+      role={revelada ? undefined : "button"}
+      aria-label={revelada ? `${carta.nombre_carta}: ir a esta carta` : `Dar vuelta la carta ${carta.posicion}`}
+      tabIndex={0}
+      onClick={revelada ? undefined : (e) => { e.preventDefault(); onVoltear(); }}
+      onKeyDown={revelada ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onVoltear(); } }}
+      className={`block shrink-0 ${revelada ? "" : "cursor-pointer"} w-[70px] sm:w-[84px] md:w-[116px] -mx-[3px] md:mx-[6px] outline-none`}
       style={{ transform: `translateY(${y}px) rotate(${rot}deg)` }}
     >
       {/* "Carta viva": envoltorio aparte del flip (nunca se animan juntos:
@@ -81,7 +89,7 @@ function Carta({ carta, i, revelada, viva }: { carta: CartaPublica; i: number; r
           aspectRatio: "2 / 3",
           transformStyle: "preserve-3d",
           transition: `transform ${GIRO_MS}ms cubic-bezier(.25,.6,.25,1)`,
-          transitionDelay: `${i * ESCALON_MS}ms`,
+          transitionDelay: sola ? "0ms" : `${i * ESCALON_MS}ms`,
           transform: revelada ? "rotateY(180deg)" : "rotateY(0deg)",
         }}
       >
@@ -135,9 +143,30 @@ export function HeroLectura({
   // vista (se revela de nuevo en cada visita, decisión de Manuel).
   const [revelada, setRevelada] = useState(false);
   const [completa, setCompleta] = useState(false);
+  // Cartas dadas vuelta de a una con clic (antes de revelar todas) y las que
+  // ya terminaron ese giro. Si se dan vuelta las 5, cuenta como revelada.
+  const [volteadas, setVolteadas] = useState<ReadonlySet<number>>(new Set());
+  const [asentadas, setAsentadas] = useState<ReadonlySet<number>>(new Set());
+  const todas = revelada || volteadas.size >= Math.min(5, cartas.length);
   // Carta viva: sobre los dorsos antes de revelar y sobre las cartas reales
-  // recién cuando terminó el giro; apagada durante el flip.
-  const viva = !revelada || completa;
+  // recién cuando terminó el giro; apagada durante el flip de esa carta.
+  const vivaDe = (i: number) => !(revelada || volteadas.has(i)) || completa || asentadas.has(i);
+
+  function voltear(i: number) {
+    if (revelada || volteadas.has(i)) return;
+    setVolteadas((v) => new Set(v).add(i));
+    const sinAnimacion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    window.setTimeout(() => setAsentadas((a) => new Set(a).add(i)), sinAnimacion ? 0 : GIRO_MS);
+  }
+
+  // El primer scroll hacia abajo revela la lectura, igual que el botón
+  // (2026-10-20: igual la va a mirar al bajar).
+  useEffect(() => {
+    if (todas) return;
+    const onScroll = () => { if (window.scrollY > 40) setRevelada(true); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [todas]);
 
   // Parallax mínimo solo con mouse (desktop): la fila de cartas se corre
   // ±4px / ±2px. Variables CSS vía ref + rAF: sin estado de React ni
@@ -162,11 +191,13 @@ export function HeroLectura({
   }
 
   useEffect(() => {
-    if (!revelada) return;
+    if (!todas) return;
     const sinAnimacion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const t = window.setTimeout(() => setCompleta(true), sinAnimacion ? 0 : REVELADO_MS);
+    // Revelado con botón/scroll: espera el escalón completo. Si la última
+    // carta se dio vuelta con clic, alcanza con su propio giro.
+    const t = window.setTimeout(() => setCompleta(true), sinAnimacion ? 0 : revelada ? REVELADO_MS : GIRO_MS);
     return () => window.clearTimeout(t);
-  }, [revelada]);
+  }, [todas, revelada]);
 
   return (
     <section className="relative overflow-hidden min-h-[800px] md:min-h-[640px] flex flex-col" aria-label="Tu lectura" onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
@@ -233,7 +264,11 @@ export function HeroLectura({
           style={{ minHeight: 150, transform: "translate3d(calc(var(--px, 0) * 4px), calc(var(--py, 0) * 2px), 0)", transition: "transform 700ms ease-out" }}
         >
           {cartas.slice(0, 5).map((c, i) => (
-            <Carta key={c.posicion} carta={c} i={i} revelada={revelada} viva={viva} />
+            <Carta
+              key={c.posicion} carta={c} i={i}
+              revelada={revelada || volteadas.has(i)} viva={vivaDe(i)}
+              sola={volteadas.has(i)} onVoltear={() => voltear(i)}
+            />
           ))}
         </div>
 
@@ -250,8 +285,8 @@ export function HeroLectura({
             <button
               type="button"
               onClick={() => setRevelada(true)}
-              disabled={revelada}
-              aria-busy={revelada && !completa}
+              disabled={todas}
+              aria-busy={todas && !completa}
               className="inline-flex items-center justify-center gap-2.5 rounded-full px-9 min-h-[54px] text-[17px] font-bold transition hover:brightness-105 disabled:cursor-default disabled:hover:brightness-100"
               style={{ fontFamily: SERIF, background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 26px rgba(240,197,90,0.40)" }}
             >
