@@ -258,11 +258,38 @@ async function enviarEmail(ordenId: string, autorizacionId: string | null, token
   // igual sin la imagen (CTA + PDF intactos).
   let cabezalUrl: string | null = null;
   try {
-    const cabezal = await generarImagenWhatsapp(supabase, ordenId);
-    if (cabezal) {
-      const { data: signed } = await supabase.storage
-        .from(BUCKET_ASSETS)
-        .createSignedUrl(`tarot/whatsapp/${ordenId}.png`, EMAIL_IMG_TTL_SEG);
+    // 2026-10-20: el email NO dibuja el cabezal si WhatsApp también fue
+    // despachado — dibujarlo (Satori + resvg) es pesado en CPU y, cuando el
+    // email llegaba primero, el runtime lo cortaba por CPUTime justo después
+    // de "email_preparado" (órdenes 6c22dbc9 y 08f7a78a: email nunca enviado).
+    // Espera hasta ~24 s el PNG que genera WhatsApp (tarda ~5-10 s); si no
+    // aparece, el email sale sin imagen. Solo si la orden no tiene envío de
+    // WhatsApp (email como único canal) lo dibuja él mismo, como antes.
+    const archivo = `tarot/whatsapp/${ordenId}.png`;
+    const existe = async () => {
+      const { data } = await supabase.storage.from(BUCKET_ASSETS).list("tarot/whatsapp", { search: `${ordenId}.png` });
+      return !!data && data.length > 0;
+    };
+    const { count: enviosWa } = await supabase.from("tarot_envios_whatsapp")
+      .select("id", { count: "exact", head: true }).eq("orden_id", ordenId);
+    const { count: waDespachado } = await supabase.from("tarot_logs")
+      .select("id", { count: "exact", head: true }).eq("orden_id", ordenId).eq("evento", "entrega_whatsapp_despachada");
+    const hayWhatsapp = (enviosWa ?? 0) > 0 || (waDespachado ?? 0) > 0;
+    let listo = await existe();
+    if (!listo && hayWhatsapp) {
+      for (let k = 0; k < 8 && !listo; k++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        listo = await existe();
+      }
+      if (!listo) {
+        await log(ordenId, "email_cabezal_no_listo", "info",
+          "El cabezal de WhatsApp no estuvo listo a tiempo — el email sale sin imagen", {});
+      }
+    } else if (!listo) {
+      listo = !!(await generarImagenWhatsapp(supabase, ordenId));
+    }
+    if (listo) {
+      const { data: signed } = await supabase.storage.from(BUCKET_ASSETS).createSignedUrl(archivo, EMAIL_IMG_TTL_SEG);
       cabezalUrl = signed?.signedUrl ?? null;
     }
   } catch (e) {

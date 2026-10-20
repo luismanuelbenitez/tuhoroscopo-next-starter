@@ -82,6 +82,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { dispararAlerta } from "../_shared/tarot-alertas.ts";
 const FUNCION = "ef_webhook_whatsapp_events";
 // ============================================================================
 // ENV
@@ -101,6 +102,7 @@ const WHATSAPP_INBOUND_FUNCTION_URL = Deno.env.get("WHATSAPP_INBOUND_FUNCTION_UR
 // Clave interna que CAPA 1 envía a CAPA 2.
 // Esto te permite validar que la llamada viene de tu backend.
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
+const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 // JWT para llamar a CAPA 2 si esa función tiene verify_jwt=true.
 // SUPABASE_ANON_KEY: auto-inyectada por Supabase (siempre válida, publishable key vigente)
 // ANON_KEY_SUPABASE: secret manual legacy (fallback)
@@ -300,6 +302,56 @@ const ESTADO_MENSAJE_POR_STATUS = {
   read: "leido",
   failed: "error"
 };
+// ============================================================================
+// FALLO DE ENTREGA INFORMADO POR META (2026-10-20)
+// ============================================================================
+// Meta puede aceptar el envío (wa_enviado) y rechazarlo minutos después con
+// un status "failed" — p. ej. 131049 ("healthy ecosystem engagement", tope
+// de frecuencia de plantillas Marketing). Antes eso solo actualizaba
+// tarot_envios_whatsapp y nadie se enteraba. Ahora, si el wamid es una
+// entrega de producto: (1) log en la orden, (2) si la persona pidió email y
+// todavía no se le envió, se despacha ef_tarot_enviar_email como respaldo
+// (tiene su propia idempotencia), (3) alerta error_whatsapp al admin.
+async function manejarFalloEntrega(supabase, resumen) {
+  try {
+    const { data: envio } = await supabase.from("tarot_envios_whatsapp")
+      .select("orden_id").eq("wa_message_id", resumen.wamid).maybeSingle();
+    const ordenId = envio?.orden_id;
+    if (!ordenId) return;
+    const { data: orden } = await supabase.from("tarot_ordenes")
+      .select("external_reference, email_solicitado, nombre_snapshot").eq("id", ordenId).maybeSingle();
+    const { count: emailsEnviados } = await supabase.from("tarot_envios_email")
+      .select("id", { count: "exact", head: true }).eq("orden_id", ordenId).eq("estado", "enviado");
+    let respaldo = "no_corresponde";
+    if (orden?.email_solicitado && (emailsEnviados ?? 0) === 0) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "x-internal-key": TAROT_INTERNAL_KEY },
+          body: JSON.stringify({ orden_id: ordenId }),
+        });
+        respaldo = `email_despachado_${r.status}`;
+      } catch (e) {
+        respaldo = "email_error: " + String(e?.message || e);
+      }
+    } else if ((emailsEnviados ?? 0) > 0) {
+      respaldo = "email_ya_enviado";
+    }
+    await supabase.from("tarot_logs").insert({
+      orden_id: ordenId, evento: "wa_rechazado_por_meta", nivel: "warning",
+      mensaje: `Meta rechazó la entrega por WhatsApp (${resumen.status_error_code ?? "sin código"}) — respaldo: ${respaldo}`,
+      payload: { wamid: resumen.wamid, error_code: resumen.status_error_code, error: resumen.status_error_message, respaldo },
+      funcion_origen: FUNCION,
+    });
+    await dispararAlerta(supabase, "error_whatsapp", {
+      ordenId, ordenRef: orden?.external_reference ?? undefined, clienteNombre: orden?.nombre_snapshot ?? undefined,
+      etapa: "Envío por WhatsApp (rechazado por Meta)",
+      error: `${resumen.status_error_code ?? "?"}: ${resumen.status_error_message ?? ""} — respaldo: ${respaldo}`,
+    });
+  } catch (e) {
+    console.error(`[${FUNCION}] manejarFalloEntrega:`, e);
+  }
+}
 async function actualizarPorStatus(supabase, resumen) {
   if (!resumen.wamid || !resumen.status) return { mensajes_actualizados: 0, envios_actualizados: 0 };
   const nuevoEstadoMensaje = ESTADO_MENSAJE_POR_STATUS[resumen.status];
@@ -344,6 +396,9 @@ async function actualizarPorStatus(supabase, resumen) {
     enviosActualizados = Array.isArray(data) ? data.length : 0;
   } catch (e) {
     await registrarLog(supabase, "status_update_envios_error", { wamid: resumen.wamid, status: resumen.status, error: String(e?.message || e) }, false);
+  }
+  if (resumen.status === "failed" && enviosActualizados > 0) {
+    await manejarFalloEntrega(supabase, resumen);
   }
   return { mensajes_actualizados: mensajesActualizados, envios_actualizados: enviosActualizados };
 }

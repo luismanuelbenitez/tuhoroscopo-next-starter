@@ -584,6 +584,24 @@ async function generarLectura(ordenId: string): Promise<void> {
       // LecturaIAOutput. Un `as LecturaIAOutput` ANTES de esto no sería
       // validación real, solo una promesa de TypeScript sin respaldo en runtime.
       const rawInput: unknown = toolBlock.input;
+      // 2026-10-20: a veces el modelo devuelve proximos_pasos como un STRING
+      // que contiene un array JSON (orden af7ddc46, 7/10 — lo salvó el
+      // reintento, pero cuesta ~40 s y una llamada). Solo ese caso, que es
+      // inequívoco, se normaliza antes de validar; cualquier otra forma
+      // sigue fallando la validación estricta como antes.
+      if (rawInput && typeof rawInput === "object") {
+        const ri = rawInput as Record<string, unknown>;
+        if (typeof ri.proximos_pasos === "string" && ri.proximos_pasos.trim().startsWith("[")) {
+          try {
+            const arr = JSON.parse(ri.proximos_pasos);
+            if (Array.isArray(arr) && arr.every((x) => typeof x === "string")) {
+              ri.proximos_pasos = arr;
+              await registrarLog(ordenId, "lectura_proximos_pasos_normalizado", "info",
+                "proximos_pasos llegó como string JSON y se convirtió a array", { lectura_intento: intentoActual, items: arr.length });
+            }
+          } catch { /* no es JSON válido: que lo rechace validateLectura */ }
+        }
+      }
       const validacion = validateLectura(rawInput);
       if (!validacion.valida) {
         throw new LecturaInvalidaError(
