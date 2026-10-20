@@ -69,6 +69,10 @@ const IMAGE_SIGNED_TTL_SEG = 24 * 3600;
 // 1600×800 se dibuja con objectFit cover y escala solo. Las medidas del
 // asset citadas en los comentarios de abajo están en px del asset (1600).
 export const LAYOUT = {
+  // Cabezal v2 (2026-10-20, publicado): 1200×600 sobre
+  // _shared/assets/tarot-cabezal-fondo.jpg (pergamino arriba, mesa de
+  // terciopelo). Medidas tomadas por píxeles de ESE asset: papel liso del
+  // pergamino y≈30–92, x≈470–730. Si se reemplaza el fondo, volver a medir.
   CANVAS_WIDTH: 1200,
   CANVAS_HEIGHT: 600,
 
@@ -77,51 +81,26 @@ export const LAYOUT = {
   SAFE_RIGHT: 1080,
   SAFE_WIDTH: 960,
 
-  // Nombre dentro del pergamino (2026-09-24, rediseño "alineado con el PDF"):
-  // coordenadas medidas por muestreo de píxeles del asset real
-  // (_shared/assets/tarot-cabezal-fondo.jpg) — la zona plana y legible de la
-  // cinta de pergamino (excluyendo los extremos enrollados y el pequeño
-  // emblema ornamental impreso en el borde superior/inferior de la cinta)
-  // va de y≈36 a y≈129, centrada en x≈797, ancho medido ≈590px. Estas
-  // coordenadas son propias de ESTE asset — si se reemplaza el fondo otra
-  // vez, hay que volver a medir (no son una propiedad del diseño en
-  // general, son geometría de esta imagen puntual). NAME_SCROLL_MAX_WIDTH
-  // se dejó más angosto que el ancho medido a propósito, como margen de
-  // seguridad contra los bordes curvos.
-  // Fondo 2026-10-18 (escena terciopelo/velas): papel liso medido y≈80–153, x≈560–1040.
-  NAME_SCROLL_CENTER_Y: 87,
-  NAME_SCROLL_MAX_WIDTH: 330,
-  NAME_SCROLL_MAX_FONT: 35,
-  NAME_SCROLL_MIN_FONT: 18,
+  NAME_SCROLL_CENTER_Y: 61,
+  NAME_SCROLL_HEIGHT: 62,
+  NAME_SCROLL_MAX_WIDTH: 240,
+  NAME_SCROLL_MAX_FONT: 36,
+  NAME_SCROLL_MIN_FONT: 19,
 
-  // Fecha de nacimiento (opcional — solo si el cliente la cargó en el
-  // checkout, ver fecha_nacimiento_snapshot). Debajo del pergamino, ya
-  // sobre el fondo oscuro.
-  BIRTHDATE_TOP: 171,
+  // Cartas reales protagonistas: 176×264 (proporción del mazo 767×1151),
+  // fila centrada x 132–1068, y 210–474, apoyadas sobre el terciopelo.
+  CARDS_WRAPPER_TOP: 210,
+  CARDS_WRAPPER_HEIGHT: 264,
+  CARD_WIDTH: 176,
+  CARD_HEIGHT: 264,
+  CARD_GAP: 14,
+  CARDS_LEFT: 132,
+  // Inclinación suave por carta (grados, giro desde la base). Extremos
+  // ±2,5° para que las esquinas no salgan de la zona segura.
+  CARD_ROTATIONS: [-2.5, -1, 0, 1, 2.5],
 
-  CARDS_WRAPPER_TOP: 214,
-  CARDS_WRAPPER_HEIGHT: 259,
-  CARD_WIDTH: 150,
-  CARD_HEIGHT: 259, // ratio ≈0.579, igual que las cartas reales del mazo
-  // Reducido de 26 a 10 (2026-09-24, ajuste "premium"): con 26px las cartas
-  // de los extremos perdían texto real del título impreso (ej. "CABALLERO
-  // DE ORO" sin la S final) y parte del arte — 10px conserva el efecto
-  // abanico/solapado sin cortar contenido legible. Hay margen de sobra:
-  // con 10px el ancho total de las 5 cartas (968px) sigue muy por debajo
-  // de SAFE_WIDTH (1280px).
-  // Fila recta y ordenada (2026-09-24): sin rotación ni solapamiento — el abanico
-  // tapaba arte/títulos y chocaba con el diseño simétrico del marco. 5×214 +
-  // 4×20 = 1150px, dentro de SAFE_WIDTH (1280).
-  CARD_GAP: 11,
-  // Fila centrada: (1200 − (5×150 + 4×11)) / 2 = 203. El fondo 2026-10-18
-  // ya no trae marcos horneados por carta.
-  CARDS_LEFT: 203,
-
-  // Marca al pie (2026-09-24): antes "TU ORÁCULO / TU TIRADA" era el título
-  // principal, arriba de todo. Con el nombre ahora protagonista dentro del
-  // pergamino, la marca pasa a un rol secundario de cierre, debajo de las
-  // cartas. Fondo 2026-10-18: ya no la trae horneada, se dibuja acá.
-  BRAND_TOP: 501,
+  // Marca "TU ORÁCULO" por código, como firma discreta bajo las cartas.
+  BRAND_TOP: 500,
 } as const;
 
 // Decisión (Task G): esta imagen NO imprime labels de posición bajo cada
@@ -334,7 +313,7 @@ function capaDebug(nombreBoxWidth: number) {
     linea(LAYOUT.SAFE_RIGHT),
     caja(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT, "rgba(0,255,140,0.9)"),
     ...cardsBoxes,
-    caja((LAYOUT.CANVAS_WIDTH - nombreBoxWidth) / 2, LAYOUT.NAME_SCROLL_CENTER_Y - 38, nombreBoxWidth, 75, "rgba(80,160,255,0.9)"),
+    caja((LAYOUT.CANVAS_WIDTH - nombreBoxWidth) / 2, LAYOUT.NAME_SCROLL_CENTER_Y - LAYOUT.NAME_SCROLL_HEIGHT / 2, nombreBoxWidth, LAYOUT.NAME_SCROLL_HEIGHT, "rgba(80,160,255,0.9)"),
   );
 }
 
@@ -433,16 +412,6 @@ export async function generarImagenWhatsapp(
   // maneja el caso en que igual sea muy largo.
   const nombreAjustado = fitNameToWidth(orden.nombre_snapshot);
 
-  // Fecha de nacimiento (2026-09-24, rediseño): opcional — el checkout no la
-  // exige (ver TarotCheckoutContent.tsx, campo "opcional — ayuda a
-  // personalizar"). Mismo formato ya usado en el resto del proyecto para
-  // fechas orientadas al cliente (ver ef_tarot_enviar_email.ts,
-  // ef_tarot_admin_orden_experiencia.ts): "es-UY", día + mes largo + año.
-  const fechaNacimientoTexto = orden.fecha_nacimiento_snapshot
-    ? new Date(`${orden.fecha_nacimiento_snapshot}T00:00:00`).toLocaleDateString("es-UY", {
-        day: "numeric", month: "long", year: "numeric",
-      })
-    : null;
 
   const totalCardsWidth = 5 * LAYOUT.CARD_WIDTH + 4 * LAYOUT.CARD_GAP;
 
@@ -477,6 +446,8 @@ export async function generarImagenWhatsapp(
             // anterior — se repite la misma regla acá para la rotación del
             // abanico y para la inversión de la carta.
                         zIndex: i,
+            transform: `rotate(${LAYOUT.CARD_ROTATIONS[i] ?? 0}deg)`,
+            transformOrigin: "50% 100%",
           },
         },
         // Glow detrás de la protagonista (2026-09-24) — gradiente radial
@@ -499,6 +470,15 @@ export async function generarImagenWhatsapp(
             ? h("img", { src: dataUris[i] as string, width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT, style: { objectFit: "cover" } })
             : h("div", { style: { display: "flex", width: "100%", height: "100%" } }),
         ),
+        // Filete dorado fino (v2): capa encima de la carta, sin cambiar su
+        // tamaño; gira con ella. Sin sombras (WORKER_RESOURCE_LIMIT).
+        h("div", {
+          style: {
+            display: "flex", position: "absolute", top: 0, left: 0,
+            width: LAYOUT.CARD_WIDTH, height: LAYOUT.CARD_HEIGHT,
+            border: "1.5px solid rgba(236,201,120,0.75)", borderRadius: 3,
+          },
+        }),
       );
     }),
   );
@@ -546,21 +526,13 @@ export async function generarImagenWhatsapp(
       {
         style: {
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          position: "absolute", top: LAYOUT.NAME_SCROLL_CENTER_Y - 38, height: 75, width: LAYOUT.CANVAS_WIDTH,
+          position: "absolute", top: LAYOUT.NAME_SCROLL_CENTER_Y - LAYOUT.NAME_SCROLL_HEIGHT / 2, height: LAYOUT.NAME_SCROLL_HEIGHT, width: LAYOUT.CANVAS_WIDTH,
         },
       },
       ...nameLines,
     ),
-    // Fecha de nacimiento (opcional) — debajo del pergamino, ya sobre el
-    // fondo oscuro. Se omite el bloque entero si la orden no la tiene
-    // cargada (campo opcional en el checkout).
-    fechaNacimientoTexto
-      ? h(
-          "div",
-          { style: { display: "flex", position: "absolute", top: LAYOUT.BIRTHDATE_TOP, width: LAYOUT.CANVAS_WIDTH, justifyContent: "center" } },
-          h("span", { style: { fontSize: 24, color: "#F0C55A", fontWeight: 700, letterSpacing: 1.5, fontFamily: "Cormorant Garamond" } }, fechaNacimientoTexto),
-        )
-      : null,
+    // (2026-10-20) Sin fecha de nacimiento en el cabezal: menos texto y menos
+    // dato personal dentro de la imagen.
     // Cartas
     h(
       "div",
@@ -597,7 +569,7 @@ export async function generarImagenWhatsapp(
     h(
       "div",
       { style: { display: "flex", position: "absolute", top: LAYOUT.BRAND_TOP, width: LAYOUT.CANVAS_WIDTH, justifyContent: "center" } },
-      h("span", { style: { fontSize: 28, color: "#F0C55A", fontWeight: 700, letterSpacing: 4.5, fontFamily: "Cormorant Garamond" } }, "TU ORÁCULO"),
+      h("span", { style: { fontSize: 23, color: "rgba(232,194,106,0.86)", fontWeight: 700, letterSpacing: 9, fontFamily: "Cormorant Garamond" } }, "TU ORÁCULO"),
     ),
     opts.debugLayout ? capaDebug(LAYOUT.NAME_SCROLL_MAX_WIDTH) : null,
   );
