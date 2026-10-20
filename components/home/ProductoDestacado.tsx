@@ -112,7 +112,7 @@ export function ProductoDestacado() {
             {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
           </p>
           <p className="text-[11px] text-white/40 mb-8">pago único</p>
-          <CtaButton href="/tarot" className="px-6 py-3 text-sm mb-9 w-full text-center md:w-auto">
+          <CtaButton href="/tarot/checkout" className="px-6 py-3 text-sm mb-9 w-full text-center md:w-auto">
             Quiero mi tirada →
           </CtaButton>
           <div className="space-y-4">

@@ -39,7 +39,7 @@ function CardTarot() {
           <span className="text-sm font-bold" style={{ color: GOLD }}>
             {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
           </span>
-          <CtaButton href="/tarot" className="px-4 py-2 text-[12px]">
+          <CtaButton href="/tarot/checkout" className="px-4 py-2 text-[12px]">
             Quiero mi tirada →
           </CtaButton>
         </div>
