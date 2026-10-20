@@ -29,6 +29,12 @@ const VOCES_VALIDAS = new Set([
 ]);
 const VOZ_DEFAULT = "nova";
 const MODELO_DEFAULT = "gpt-4o-mini-tts";
+// Tope de la llamada a OpenAI (2026-10-20). El runtime corta la función a
+// los 150 s (WallClockTime) sin pasar por el catch: el audio quedaba
+// trabado en "generando" sin log (órdenes 05ee6281 y f6e0a032, OpenAI tardó
+// >150 s; lo normal es ~55 s). Con este tope el error se registra y queda
+// tiempo para disparar el reintento.
+const TTS_TIMEOUT_MS = 110_000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -61,6 +67,7 @@ async function llamarOpenAiTts(params: {
 
   const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
+    signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
@@ -83,7 +90,7 @@ async function llamarOpenAiTts(params: {
 }
 
 // ── Modo producción ─────────────────────────────────────────
-async function generarAudioProduccion(lecturaId: string) {
+async function generarAudioProduccion(lecturaId: string, esReintento = false) {
   const { data: cfgRows } = await supabase
     .from("tarot_configuracion")
     .select("clave, valor")
@@ -154,7 +161,25 @@ async function generarAudioProduccion(lecturaId: string) {
       audio_resumen_caracteres: caracteres,
     }).eq("id", lecturaId);
     await log(ordenId, "audio_resumen_error", "warning",
-      "Fallo al generar el audio del resumen (no bloquea la entrega)", { lectura_id: lecturaId, error: errMsg, intentos });
+      "Fallo al generar el audio del resumen (no bloquea la entrega)", { lectura_id: lecturaId, error: errMsg, intentos, reintento: esReintento });
+    // UN reintento automático, en una invocación nueva (con sus propios
+    // 150 s). El reintento no vuelve a reintentar.
+    if (!esReintento) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/${FN}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "x-internal-key": TAROT_INTERNAL_KEY,
+          },
+          body: JSON.stringify({ modo: "produccion", lectura_id: lecturaId, reintento: true }),
+        });
+        await log(ordenId, "audio_resumen_reintento", "info", "Reintento automático del audio disparado", { lectura_id: lecturaId, status: r.status });
+      } catch (e) {
+        await log(ordenId, "audio_resumen_reintento_error", "warning", "No se pudo disparar el reintento del audio", { lectura_id: lecturaId, error: String(e) });
+      }
+    }
   }
 }
 
@@ -203,7 +228,7 @@ serve(async (req) => {
   // actualizar la fila) sigue corriendo después de la respuesta. Sin esto,
   // el runtime puede cortar la instancia antes de terminar.
   EdgeRuntime.waitUntil(
-    generarAudioProduccion(lecturaId).catch((err) =>
+    generarAudioProduccion(lecturaId, body.reintento === true).catch((err) =>
       log(null, "audio_resumen_excepcion", "error", "Excepción no manejada", { lectura_id: lecturaId, error: String(err) })),
   );
 
