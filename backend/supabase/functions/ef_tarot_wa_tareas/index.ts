@@ -64,11 +64,23 @@ async function tareaSinResponder() {
   for (const f of (filas ?? []) as Array<{ conversacion_id: string; nombre: string | null; ultimo_inbound_at: string; preview: string | null }>) {
     // Se marca ANTES de avisar: si el email falla no se reintenta en loop
     // (el evento queda igual en el panel de alertas del admin).
-    const { data: marcada } = await supabase.from("tarot_whatsapp_conversaciones")
-      .update({ alerta_sin_respuesta_at: new Date().toISOString() })
-      .eq("id", f.conversacion_id)
-      .or(`alerta_sin_respuesta_at.is.null,alerta_sin_respuesta_at.lt.${f.ultimo_inbound_at}`)
+    // Dos filtros simples en vez de .or() con la fecha embebida: en
+    // producción (zona America/Montevideo) el or() no matcheaba nada.
+    const marcaAhora = new Date().toISOString();
+    let { data: marcada, error: errMarca } = await supabase.from("tarot_whatsapp_conversaciones")
+      .update({ alerta_sin_respuesta_at: marcaAhora })
+      .eq("id", f.conversacion_id).is("alerta_sin_respuesta_at", null)
       .select("id");
+    if (!errMarca && !marcada?.length) {
+      ({ data: marcada, error: errMarca } = await supabase.from("tarot_whatsapp_conversaciones")
+        .update({ alerta_sin_respuesta_at: marcaAhora })
+        .eq("id", f.conversacion_id).lt("alerta_sin_respuesta_at", new Date(f.ultimo_inbound_at).toISOString())
+        .select("id"));
+    }
+    if (errMarca) {
+      await log("wa_sin_responder_error", "error", "No se pudo marcar la conversación como avisada", { conversacion_id: f.conversacion_id, error: errMarca.message });
+      continue;
+    }
     if (!marcada?.length) continue; // otra ejecución ya avisó
     await dispararAlerta(supabase, "wa_sin_responder", {
       clienteNombre: (f.nombre ?? "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 80) || undefined,
