@@ -15,7 +15,13 @@
 //                          conversación (abierta:true) también se marca leído en Meta
 //   - marcar_no_leido:     no_leidos = max(no_leidos, 1)
 //   - responder:           { conversacion_id, texto } — texto libre, solo si hay ventana 24h activa
+//   - responder admite responder_a (id de un mensaje de la conversación) → se
+//                          envía como respuesta citada (context.message_id)
 //   - reintentar:          { mensaje_id } — reintenta un outbound en estado 'error'
+//   - plantilla_estado:    estado en Meta de la plantilla de reapertura
+//   - plantilla_solicitar: la crea en Meta (categoría UTILITY) → queda en revisión
+//   - reabrir:             { conversacion_id } — fuera de la ventana de 24 h envía la
+//                          plantilla aprobada (1 vez hasta que el contacto responda)
 //   - eventos_resumen / eventos_listar / evento_detalle: visibilidad de TODO lo que
 //     llega al webhook de Meta (whatsapp_webhook_events), no solo mensajes de clientes
 //
@@ -40,6 +46,7 @@
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { GRAPH_BASE } from "../_shared/wa-graph.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -49,9 +56,9 @@ const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 const FN = "ef_tarot_admin_whatsapp";
-// Base de la Graph API — misma versión que hoy (actualizarla es P1).
-// Configurable solo para QA local (mock de Meta).
-const GRAPH_BASE = Deno.env.get("WHATSAPP_GRAPH_BASE") || "https://graph.facebook.com/v18.0";
+// Plantilla de reapertura (2026-10-21): texto que se solicita a Meta. Una
+// vez aprobada, el texto vigente es el que devuelve Meta (no este).
+const TEXTO_REAPERTURA = "Hola, te escribimos de Tu Oráculo por tu consulta. Si querés continuarla, respondé este mensaje y seguimos por acá.";
 const TEXTO_MAX_LEN = 4096; // límite de WhatsApp Cloud API para mensajes de texto
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -158,7 +165,17 @@ interface ResultadoEnvioWA {
   errorDetalle: string | null;
 }
 
-async function enviarWhatsappTexto(telefono: string, mensajeTexto: string): Promise<ResultadoEnvioWA> {
+type ContenidoWA =
+  | { type: "text"; text: { body: string }; context?: { message_id: string } }
+  | { type: "template"; template: { name: string; language: { code: string } } };
+
+async function enviarWhatsappTexto(telefono: string, mensajeTexto: string, contexto: string | null = null): Promise<ResultadoEnvioWA> {
+  return enviarWhatsapp(telefono, {
+    type: "text", text: { body: mensajeTexto }, ...(contexto ? { context: { message_id: contexto } } : {}),
+  });
+}
+
+async function enviarWhatsapp(telefono: string, contenido: ContenidoWA): Promise<ResultadoEnvioWA> {
   if (await esModoSandbox()) {
     return { ok: true, simulado: true, waMessageId: `sandbox_${crypto.randomUUID()}`, httpStatus: null, errorCode: null, errorDetalle: null };
   }
@@ -170,7 +187,7 @@ async function enviarWhatsappTexto(telefono: string, mensajeTexto: string): Prom
     const res = await fetch(`${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: telefonoDest, type: "text", text: { body: mensajeTexto } }),
+      body: JSON.stringify({ messaging_product: "whatsapp", to: telefonoDest, ...contenido }),
     });
     const data = await res.json().catch(() => ({})) as { messages?: { id: string }[]; error?: { code?: number; message?: string } };
     if (res.ok && data?.messages?.[0]?.id) {
@@ -189,10 +206,17 @@ async function enviarWhatsappTexto(telefono: string, mensajeTexto: string): Prom
 // Único punto de escritura para un intento de outbound — usado por
 // "responder" (mensaje nuevo) y "reintentar" (mismo texto, intento nuevo,
 // NUNCA reutiliza whatsapp_message_id ni la fila anterior — ver docs).
-async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: string, mensajeTexto: string) {
+async function ejecutarEnvioOutbound(
+  conversacionId: string, telefonoDestino: string, mensajeTexto: string,
+  opts: { contexto?: string | null; plantilla?: { nombre: string; idioma: string } } = {},
+) {
   const { data: fila, error: insErr } = await supabase
     .from("tarot_whatsapp_mensajes")
-    .insert({ conversacion_id: conversacionId, direccion: "outbound", tipo: "text", origen: "manual", texto: mensajeTexto, estado: "preparando" })
+    .insert({
+      conversacion_id: conversacionId, direccion: "outbound", tipo: "text",
+      origen: opts.plantilla ? "plantilla" : "manual", texto: mensajeTexto,
+      contexto_wamid: opts.contexto ?? null, estado: "preparando",
+    })
     .select("id")
     .single();
   if (insErr || !fila) {
@@ -201,7 +225,9 @@ async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: st
 
   await log("wa_outbound_preparando", "info", "Preparando envío outbound", { conversacion_id: conversacionId, mensaje_id: fila.id, longitud_texto: mensajeTexto.length });
 
-  const envio = await enviarWhatsappTexto(telefonoDestino, mensajeTexto);
+  const envio = opts.plantilla
+    ? await enviarWhatsapp(telefonoDestino, { type: "template", template: { name: opts.plantilla.nombre, language: { code: opts.plantilla.idioma } } })
+    : await enviarWhatsappTexto(telefonoDestino, mensajeTexto, opts.contexto ?? null);
   const estadoFinal = envio.ok ? (envio.simulado ? "simulado" : "enviado") : "error";
   const ahora = new Date().toISOString();
 
@@ -239,6 +265,49 @@ async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: st
     simulado: envio.simulado,
     error_code: envio.errorCode,
     error_detalle: envio.errorDetalle,
+  };
+}
+
+// ── Plantilla de reapertura (2026-10-21) ───────────────────────────────────
+async function configPlantilla(): Promise<{ nombre: string; idioma: string }> {
+  const { data } = await supabase.from("tarot_configuracion").select("clave, valor")
+    .in("clave", ["whatsapp_template_reapertura_nombre", "whatsapp_template_reapertura_idioma"]);
+  const cfg = Object.fromEntries((data ?? []).map((r: { clave: string; valor: string }) => [r.clave, r.valor]));
+  return { nombre: cfg.whatsapp_template_reapertura_nombre ?? "seguimiento_consulta_v1", idioma: cfg.whatsapp_template_reapertura_idioma ?? "es" };
+}
+
+async function graphGet(path: string) {
+  const res = await fetch(`${GRAPH_BASE}/${path}`, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
+  return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) as Record<string, unknown> };
+}
+
+async function wabaId(): Promise<string | null> {
+  const r = await graphGet(`${WHATSAPP_PHONE_NUMBER_ID}?fields=whatsapp_business_account`);
+  const waba = (r.data as { whatsapp_business_account?: { id?: string } }).whatsapp_business_account?.id;
+  return r.ok && waba ? waba : null;
+}
+
+type EstadoPlantilla = {
+  ok: boolean; nombre: string; idioma: string;
+  estado: string; // no_creada | PENDING | APPROVED | REJECTED | PAUSED | DISABLED | error
+  categoria?: string | null; texto: string; motivo_rechazo?: string | null; detalle?: string;
+};
+async function estadoPlantilla(): Promise<EstadoPlantilla> {
+  const { nombre, idioma } = await configPlantilla();
+  const base = { nombre, idioma, texto: TEXTO_REAPERTURA };
+  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) return { ok: false, ...base, estado: "error", detalle: "credenciales_no_configuradas" };
+  const waba = await wabaId();
+  if (!waba) return { ok: false, ...base, estado: "error", detalle: "no_se_pudo_obtener_waba" };
+  const r = await graphGet(`${waba}/message_templates?name=${encodeURIComponent(nombre)}&fields=name,status,category,language,rejected_reason,components`);
+  if (!r.ok) return { ok: false, ...base, estado: "error", detalle: `meta_${r.status}` };
+  const lista = ((r.data as { data?: Array<Record<string, unknown>> }).data ?? [])
+    .filter((t) => t.name === nombre && t.language === idioma);
+  const t = lista[0];
+  if (!t) return { ok: true, ...base, estado: "no_creada" };
+  const cuerpo = ((t.components as Array<{ type?: string; text?: string }> | undefined) ?? []).find((c) => c.type === "BODY")?.text;
+  return {
+    ok: true, nombre, idioma, estado: String(t.status ?? "desconocido"), categoria: (t.category as string) ?? null,
+    texto: cuerpo ?? TEXTO_REAPERTURA, motivo_rechazo: (t.rejected_reason as string) ?? null,
   };
 }
 
@@ -503,7 +572,7 @@ serve(async (req) => {
     const [mensajesRes, clienteRes, ventana, sandbox] = await Promise.all([
       conv
         ? supabase.from("tarot_whatsapp_mensajes")
-            .select("id, whatsapp_message_id, direccion, tipo, origen, texto, media_id, mime_type, filename, payload_meta, contexto_wamid, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, leido_at, created_at")
+            .select("id, whatsapp_message_id, direccion, tipo, origen, texto, media_id, mime_type, filename, payload_meta, contexto_wamid, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, leido_at, media_estado, created_at")
             .eq("conversacion_id", conv.id).order("timestamp_whatsapp", { ascending: true })
         : Promise.resolve({ data: [] }),
       clienteIdRes
@@ -672,7 +741,76 @@ serve(async (req) => {
       return jsonResponse({ ok: false, motivo: "ventana_24h_vencida", ventana_24h: ventana }, 409);
     }
 
-    const resultado = await ejecutarEnvioOutbound(conversacionId, conv.telefono_normalizado, mensajeTexto);
+    // Respuesta citada (2026-10-21): el wamid se resuelve SIEMPRE acá, desde
+    // un mensaje de ESTA conversación con id real de Meta.
+    let contexto: string | null = null;
+    const responderA = texto(body.responder_a, 100);
+    if (responderA) {
+      const { data: citado } = await supabase.from("tarot_whatsapp_mensajes")
+        .select("whatsapp_message_id, conversacion_id, tipo")
+        .eq("id", responderA).maybeSingle();
+      if (!citado || citado.conversacion_id !== conversacionId || citado.tipo === "reaction"
+        || !citado.whatsapp_message_id || citado.whatsapp_message_id.startsWith("sandbox_")) {
+        return jsonResponse({ ok: false, motivo: "mensaje_citado_invalido" }, 400);
+      }
+      contexto = citado.whatsapp_message_id;
+    }
+
+    const resultado = await ejecutarEnvioOutbound(conversacionId, conv.telefono_normalizado, mensajeTexto, { contexto });
+    return jsonResponse(resultado, resultado.ok ? 200 : 502);
+  }
+
+  // ── plantilla de reapertura: estado / solicitar (2026-10-21) ────────────
+  if (accion === "plantilla_estado") {
+    return jsonResponse(await estadoPlantilla());
+  }
+
+  if (accion === "plantilla_solicitar") {
+    const actual = await estadoPlantilla();
+    if (actual.estado !== "no_creada") return jsonResponse({ ...actual, motivo: "ya_existe" }, actual.ok ? 200 : 502);
+    const waba = await wabaId();
+    if (!waba) return jsonResponse({ ok: false, motivo: "no_se_pudo_obtener_waba" }, 502);
+    const res = await fetch(`${GRAPH_BASE}/${waba}/message_templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+      body: JSON.stringify({
+        name: actual.nombre, language: actual.idioma, category: "UTILITY",
+        components: [{ type: "BODY", text: TEXTO_REAPERTURA }],
+      }),
+    });
+    const data = await res.json().catch(() => ({})) as { id?: string; status?: string; category?: string; error?: { message?: string; error_user_msg?: string } };
+    await log(res.ok ? "wa_plantilla_solicitada" : "wa_plantilla_error", res.ok ? "info" : "error",
+      res.ok ? "Plantilla de reapertura enviada a revisión de Meta" : "Meta rechazó la creación de la plantilla",
+      { nombre: actual.nombre, http_status: res.status, estado: data.status ?? null, categoria: data.category ?? null, error: data.error?.message ?? null });
+    if (!res.ok) return jsonResponse({ ok: false, motivo: "meta_error", detalle: data.error?.error_user_msg ?? data.error?.message ?? `HTTP ${res.status}` }, 502);
+    return jsonResponse({ ...(await estadoPlantilla()), ok: true });
+  }
+
+  // ── reabrir (2026-10-21): plantilla aprobada fuera de la ventana ────────
+  if (accion === "reabrir") {
+    const conversacionId = texto(body.conversacion_id, 100);
+    if (!conversacionId) return jsonResponse({ ok: false, motivo: "conversacion_id_requerido" }, 400);
+    const { data: conv } = await supabase.from("tarot_whatsapp_conversaciones")
+      .select("id, telefono_normalizado").eq("id", conversacionId).maybeSingle();
+    if (!conv) return jsonResponse({ ok: false, motivo: "conversacion_no_encontrada" }, 404);
+
+    const ventana = await calcularVentana24h(conversacionId);
+    if (ventana.activa) return jsonResponse({ ok: false, motivo: "ventana_activa", detalle: "La ventana está abierta: respondé con texto libre." }, 409);
+
+    // Anti-spam: una sola plantilla hasta que el contacto responda.
+    const { data: ultimaPlantilla } = await supabase.from("tarot_whatsapp_mensajes")
+      .select("created_at").eq("conversacion_id", conversacionId).eq("origen", "plantilla").neq("estado", "error")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (ultimaPlantilla && (!ventana.ultimo_inbound_at || new Date(ultimaPlantilla.created_at) > new Date(ventana.ultimo_inbound_at))) {
+      return jsonResponse({ ok: false, motivo: "plantilla_ya_enviada", detalle: "Ya enviaste la plantilla; esperá a que el contacto responda." }, 409);
+    }
+
+    const plantilla = await estadoPlantilla();
+    if (plantilla.estado !== "APPROVED") {
+      return jsonResponse({ ok: false, motivo: "plantilla_no_aprobada", estado: plantilla.estado }, 409);
+    }
+    const resultado = await ejecutarEnvioOutbound(conversacionId, conv.telefono_normalizado, plantilla.texto,
+      { plantilla: { nombre: plantilla.nombre, idioma: plantilla.idioma } });
     return jsonResponse(resultado, resultado.ok ? 200 : 502);
   }
 

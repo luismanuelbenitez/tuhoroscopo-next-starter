@@ -43,7 +43,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json(data, { status: res.status });
 }
 
-// Acciones: marcar_leido | marcar_no_leido | responder | reintentar
+// Acciones: marcar_leido | marcar_no_leido | responder | reintentar |
+// plantilla_estado | plantilla_solicitar | reabrir
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const accion = typeof body.accion === "string" ? body.accion : "";
-  if (!["marcar_leido", "marcar_no_leido", "responder", "reintentar"].includes(accion)) {
+  if (!["marcar_leido", "marcar_no_leido", "responder", "reintentar", "plantilla_estado", "plantilla_solicitar", "reabrir"].includes(accion)) {
     return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
   }
 
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // teléfono arbitrario, eso lo resuelve la EF desde la conversación).
   const extra: Record<string, unknown> = {};
   if (accion === "responder" && typeof body.texto === "string") extra.texto = body.texto;
+  // Respuesta citada: solo el id del mensaje; el wamid lo resuelve la EF.
+  if (accion === "responder" && typeof body.responder_a === "string") extra.responder_a = body.responder_a;
   if (accion === "reintentar" && typeof body.mensaje_id === "string") extra.mensaje_id = body.mensaje_id;
   // marcar_leido con abierta:true = el admin ABRIÓ la conversación → también
   // se marca leído en Meta (2026-10-21). Sin abierta, solo estado interno.

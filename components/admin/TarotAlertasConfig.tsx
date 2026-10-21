@@ -18,6 +18,7 @@ const ALERTA_META: Record<string, { label: string; badge: string; nota?: string 
   error_whatsapp:      { label: "Error de WhatsApp",   badge: "bg-red-500/20 text-red-400" },
   error_email_cliente: { label: "Error de email",      badge: "bg-red-500/20 text-red-400" },
   orden_trabada:       { label: "Orden trabada",       badge: "bg-orange-500/20 text-orange-400" },
+  wa_sin_responder:    { label: "WhatsApp sin responder", badge: "bg-emerald-500/20 text-emerald-300" },
 };
 
 const TIPO_ORDER = [
@@ -27,6 +28,7 @@ const TIPO_ORDER = [
   "error_whatsapp",
   "error_email_cliente",
   "orden_trabada",
+  "wa_sin_responder",
 ];
 
 function ResultMsg({ ok, texto }: { ok: boolean; texto: string }) {

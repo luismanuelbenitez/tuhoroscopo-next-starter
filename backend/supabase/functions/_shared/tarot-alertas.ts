@@ -26,7 +26,8 @@ export type AlertaTipo =
   | "error_email_cliente"
   | "orden_trabada"
   | "reenvio_pendiente_autorizacion"
-  | "pago_monto_incoherente";
+  | "pago_monto_incoherente"
+  | "wa_sin_responder";
 
 export interface AlertaDatos {
   ordenId?:       string;
@@ -60,6 +61,7 @@ const ETAPA_LABEL: Record<AlertaTipo, string> = {
   orden_trabada:       "Orden trabada",
   reenvio_pendiente_autorizacion: "Reenvío pendiente de autorización",
   pago_monto_incoherente: "Monto de pago incoherente (Mercado Pago)",
+  wa_sin_responder:    "WhatsApp sin responder",
 };
 
 const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
@@ -71,6 +73,7 @@ const SEVERIDAD: Record<AlertaTipo, "success" | "warning" | "error"> = {
   error_email_cliente: "error",
   reenvio_pendiente_autorizacion: "warning",
   pago_monto_incoherente: "error",
+  wa_sin_responder:    "warning",
 };
 
 function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; mensaje: string } {
@@ -97,6 +100,11 @@ function tituloMensaje(tipo: AlertaTipo, datos: AlertaDatos): { titulo: string; 
       return {
         titulo:  "Reenvío pendiente de autorización",
         mensaje: datos.error?.substring(0, 200) ?? "Solicitud de reenvío creada — requiere autorización en el admin",
+      };
+    case "wa_sin_responder":
+      return {
+        titulo:  "WhatsApp sin responder",
+        mensaje: `${datos.clienteNombre ?? "Un contacto"} espera respuesta${datos.error ? `: ${datos.error.substring(0, 160)}` : ""}`,
       };
     case "pago_monto_incoherente":
       return {
@@ -138,6 +146,25 @@ function htmlNuevaVenta(datos: AlertaDatos): string {
   <div style="margin-top:20px;padding:12px 16px;border-radius:6px;${estadoColor}">
     <span style="font-size:13px;font-weight:600;">${estadoTxt}</span>
   </div>
+</div></body></html>`;
+}
+
+// WhatsApp sin responder (2026-10-21): el texto lo escribió un contacto
+// externo → se escapa SIEMPRE antes de meterlo en el HTML del email.
+function escaparHtml(t: string): string {
+  return t.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+function htmlWaSinResponder(datos: AlertaDatos): string {
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#111;font-family:sans-serif;">
+<div style="max-width:560px;margin:32px auto;padding:28px;background:#1a1a1a;border-radius:10px;border:1px solid #2a2a2a;color:#e5e5e5;">
+  <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;">Tarot — Bandeja de WhatsApp</p>
+  <h2 style="margin:0 0 20px;font-size:20px;color:#fbbf24;">💬 Mensaje sin responder</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr><td style="padding:6px 0;color:#9ca3af;width:110px;">Contacto</td><td style="padding:6px 0;font-weight:600;">${escaparHtml(datos.clienteNombre ?? "Sin nombre")}</td></tr>
+    <tr><td style="padding:6px 0;color:#9ca3af;">Recibido</td><td style="padding:6px 0;">${fmtFecha(datos.fecha)}</td></tr>
+    ${datos.error ? `<tr><td style="padding:6px 0;color:#9ca3af;vertical-align:top;">Mensaje</td><td style="padding:6px 0;color:#d1d5db;">${escaparHtml(datos.error.substring(0, 160))}</td></tr>` : ""}
+  </table>
+  <p style="margin:20px 0 0;"><a href="https://tuoraculo.uy/admin/tarot/whatsapp" style="color:#34d399;">Abrir la bandeja de WhatsApp →</a></p>
 </div></body></html>`;
 }
 
@@ -227,10 +254,14 @@ export async function dispararAlerta(
     // ── 4. Construir y enviar email ────────────────────────────────────────────
     const asunto = tipo === "nueva_venta"
       ? (datos.esCobroManual ? "🖊️ Cobro manual confirmado — Tarot" : "💰 Nueva venta — Tarot")
-      : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tarot`;
+      : tipo === "wa_sin_responder"
+        ? `💬 WhatsApp sin responder: ${datos.clienteNombre ?? "contacto"} — Tarot`
+        : `⚠️ Error: ${datos.etapa ?? ETAPA_LABEL[tipo]} — Tarot`;
     const html = tipo === "nueva_venta"
       ? htmlNuevaVenta(datos)
-      : htmlError(tipo, datos);
+      : tipo === "wa_sin_responder"
+        ? htmlWaSinResponder(datos)
+        : htmlError(tipo, datos);
 
     const resendKey  = Deno.env.get("RESEND_API_KEY");
     const resendFrom = Deno.env.get("RESEND_FROM") ?? "Tu Oráculo <hola@tuoraculo.uy>";

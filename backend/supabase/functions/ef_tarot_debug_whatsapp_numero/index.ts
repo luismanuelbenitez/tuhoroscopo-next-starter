@@ -15,6 +15,7 @@
 // pipeline real.
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
+import { GRAPH_BASE } from "../_shared/wa-graph.ts";
 
 const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
@@ -38,14 +39,14 @@ serve(async (req) => {
 
   // 1) Identidad del número configurado.
   const numeroRes = await fetch(
-    `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}?fields=id,display_phone_number,verified_name,quality_rating`,
+    `${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}?fields=id,display_phone_number,verified_name,quality_rating`,
     { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } },
   );
   const numeroData = await numeroRes.json().catch(() => ({}));
 
   // 2) WABA dueño de ese número (para poder listar templates después).
   const wabaRes = await fetch(
-    `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}?fields=whatsapp_business_account`,
+    `${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}?fields=whatsapp_business_account`,
     { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } },
   );
   const wabaData = await wabaRes.json().catch(() => ({}));
@@ -56,7 +57,7 @@ serve(async (req) => {
   let templateHttpStatus: number | null = null;
   if (wabaId) {
     const tplRes = await fetch(
-      `https://graph.facebook.com/v18.0/${wabaId}/message_templates?name=tu_tirada_lista_v1`,
+      `${GRAPH_BASE}/${wabaId}/message_templates?name=tu_tirada_lista_v1`,
       { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } },
     );
     templateHttpStatus = tplRes.status;
@@ -68,9 +69,9 @@ serve(async (req) => {
   //    token nunca se devuelve.
   const cab = { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } };
   const [subsRes, cfgRes, dbgRes] = await Promise.all([
-    wabaId ? fetch(`https://graph.facebook.com/v18.0/${wabaId}/subscribed_apps`, cab) : Promise.resolve(null),
-    fetch(`https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}?fields=webhook_configuration`, cab),
-    fetch(`https://graph.facebook.com/v18.0/debug_token?input_token=${encodeURIComponent(WHATSAPP_TAROT_TOKEN_PROD)}`, cab),
+    wabaId ? fetch(`${GRAPH_BASE}/${wabaId}/subscribed_apps`, cab) : Promise.resolve(null),
+    fetch(`${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}?fields=webhook_configuration`, cab),
+    fetch(`${GRAPH_BASE}/debug_token?input_token=${encodeURIComponent(WHATSAPP_TAROT_TOKEN_PROD)}`, cab),
   ]);
   const subs = subsRes ? await subsRes.json().catch(() => ({})) : null;
   const cfg = await cfgRes.json().catch(() => ({}));
@@ -78,7 +79,7 @@ serve(async (req) => {
   // WABAs a los que el token tiene acceso (target_ids de whatsapp_business_management).
   const wabaIds = (dbg.data?.granular_scopes ?? []).filter((g) => g.scope === "whatsapp_business_management").flatMap((g) => g.target_ids ?? []);
   const suscripciones = await Promise.all(wabaIds.map(async (id) => {
-    const r = await fetch(`https://graph.facebook.com/v18.0/${id}/subscribed_apps`, cab);
+    const r = await fetch(`${GRAPH_BASE}/${id}/subscribed_apps`, cab);
     return { waba_id: id, http_status: r.status, data: await r.json().catch(() => ({})) };
   }));
 

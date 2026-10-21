@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, Check, EyeOff, ExternalLink, FileImage, FileText, Music, Video, Smile,
   MapPin, User, MousePointerClick, HelpCircle, Send, Clock, AlertCircle,
-  RotateCcw, CheckCheck, FlaskConical, ChevronDown,
+  RotateCcw, CheckCheck, FlaskConical, ChevronDown, Reply, MessageSquareShare,
 } from "lucide-react";
 
 interface Mensaje {
@@ -12,6 +12,8 @@ interface Mensaje {
   direccion: "inbound" | "outbound";
   tipo: string;
   origen?: string | null;
+  contexto_wamid?: string | null;
+  media_estado?: string | null;
   texto: string | null;
   media_id: string | null;
   mime_type: string | null;
@@ -45,6 +47,33 @@ function urlMedia(conversacionId: string, mensajeId: string) {
 }
 function verMedia(conversacionId: string, mensajeId: string) {
   window.open(urlMedia(conversacionId, mensajeId), "_blank", "noopener,noreferrer");
+}
+
+// Errores de Meta en lenguaje claro (2026-10-21). El código técnico sigue
+// visible en el detalle del error.
+const ERRORES_META: Record<string, string> = {
+  "131047": "Pasaron más de 24 h desde el último mensaje del contacto: solo se puede escribir con una plantilla aprobada.",
+  "131049": "Meta no entregó el mensaje para cuidar la experiencia del usuario (límite de mensajes de marketing). Probá más tarde o por otro canal.",
+  "131026": "El número no puede recibir el mensaje (no tiene WhatsApp, versión vieja o no aceptó las condiciones).",
+  "131021": "No se puede enviar un mensaje a tu propio número.",
+  "131051": "Tipo de mensaje no soportado por WhatsApp.",
+  "131052": "No se pudo descargar la media del mensaje.",
+  "131053": "No se pudo subir la media (tipo o tamaño no válido).",
+  "131056": "Demasiados mensajes seguidos a este número. Esperá unos minutos.",
+  "130429": "Se alcanzó el límite de envíos por segundo de WhatsApp. Reintentá en un momento.",
+  "131000": "Error interno de WhatsApp. Reintentá en un momento.",
+  "131009": "Algún dato del mensaje no es válido.",
+  "132000": "La cantidad de variables no coincide con la plantilla.",
+  "132001": "La plantilla no existe o no está aprobada en ese idioma.",
+  "132015": "La plantilla está pausada por baja calidad.",
+  "132016": "La plantilla está deshabilitada.",
+  "190": "El token de acceso de WhatsApp venció o fue revocado.",
+  "470": "Pasaron más de 24 h desde el último mensaje del contacto.",
+  "config_error": "Faltan credenciales de WhatsApp en el servidor.",
+  "exception": "No se pudo contactar a WhatsApp (error de red).",
+};
+export function errorLegible(code: string | null | undefined): string | null {
+  return code ? ERRORES_META[code] ?? null : null;
 }
 
 // Origen del mensaje saliente (2026-10-21): manual / automático / campaña.
@@ -102,8 +131,8 @@ function EstadoOutbound({ msg, onVerError, onReintentar, reintentando }: {
   if (msg.estado === "error") {
     return (
       <span className="inline-flex items-center gap-1.5">
-        <button onClick={onVerError} className="inline-flex items-center gap-1 text-red-400 hover:text-red-300 underline underline-offset-2">
-          <AlertCircle size={10} /> Error
+        <button onClick={onVerError} title={errorLegible(msg.error_code) ?? undefined} className="inline-flex items-center gap-1 text-red-400 hover:text-red-300 underline underline-offset-2">
+          <AlertCircle size={10} /> {errorLegible(msg.error_code) ? "No enviado" : "Error"}
         </button>
         <button
           onClick={onReintentar}
@@ -131,12 +160,15 @@ function EstadoOutbound({ msg, onVerError, onReintentar, reintentando }: {
 }
 
 function BurbujaMensaje({
-  msg, conversacionId, modoSandbox, onVerError, onReintentar, onSimularStatus, reintentandoId,
+  msg, conversacionId, modoSandbox, onVerError, onReintentar, onSimularStatus, reintentandoId, citado, onResponder,
 }: {
   msg: Mensaje; conversacionId: string; modoSandbox: boolean;
   onVerError: (msg: Mensaje) => void; onReintentar: (mensajeId: string) => void;
   onSimularStatus: (waMessageId: string, status: "sent" | "delivered" | "read" | "failed") => void;
   reintentandoId: string | null;
+  // Mensaje al que este responde (cita), si está en el hilo.
+  citado?: Mensaje | null;
+  onResponder?: (msg: Mensaje) => void;
 }) {
   const esInbound = msg.direccion === "inbound";
   const esMedia = ["image", "document", "audio", "video", "sticker"].includes(msg.tipo);
@@ -160,10 +192,18 @@ function BurbujaMensaje({
             esInbound ? "bg-gray-800 text-gray-100" : "bg-emerald-900/50 text-emerald-50"
           }`}
         >
+          {/* Respuesta citada (2026-10-21): como en WhatsApp, arriba del mensaje. */}
+          {msg.contexto_wamid && (
+            <div className={`mb-1.5 rounded-md border-l-2 px-2 py-1 text-[11.5px] ${esInbound ? "border-emerald-500/70 bg-black/20 text-gray-400" : "border-emerald-300/70 bg-black/20 text-emerald-100/70"}`}>
+              {citado
+                ? <span className="line-clamp-2">{citado.texto ?? TIPO_LABEL[citado.tipo] ?? "Mensaje"}</span>
+                : <span className="italic">Responde a un mensaje anterior</span>}
+            </div>
+          )}
           {msg.tipo === "text" && <p className="whitespace-pre-wrap break-words">{msg.texto}</p>}
 
           {/* Imagen/sticker: vista previa dentro del hilo (vía el proxy protegido). */}
-          {esVisual && msg.media_id && !mediaFallo && (
+          {esVisual && msg.media_id && !mediaFallo && msg.media_estado !== "bloqueada" && msg.media_estado !== "vencida" && (
             <button onClick={() => verMedia(conversacionId, msg.id)} className="mb-1.5 block" title="Abrir">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -180,7 +220,7 @@ function BurbujaMensaje({
               {TIPO_ICONO[msg.tipo]}
               <span>{TIPO_LABEL[msg.tipo] ?? "Media recibida"}</span>
               {msg.filename && <span className="text-xs text-gray-500">({msg.filename})</span>}
-              {msg.media_id && (
+              {msg.media_id && msg.media_estado !== "bloqueada" && msg.media_estado !== "vencida" && (
                 <button
                   onClick={() => verMedia(conversacionId, msg.id)}
                   className="text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
@@ -188,7 +228,11 @@ function BurbujaMensaje({
                   {msg.tipo === "document" ? "Descargar" : "Ver"}
                 </button>
               )}
-              {mediaFallo && <span className="text-[10px] text-amber-500/80">no disponible</span>}
+              {msg.media_estado === "bloqueada"
+                ? <span className="text-[10px] text-red-400/80">bloqueada por seguridad</span>
+                : msg.media_estado === "vencida"
+                  ? <span className="text-[10px] text-amber-500/80">ya no disponible (más de 7 días)</span>
+                  : mediaFallo && <span className="text-[10px] text-amber-500/80">no disponible</span>}
             </div>
           )}
           {esMedia && msg.texto && <p className="mt-1 text-xs text-gray-400 whitespace-pre-wrap">{msg.texto}</p>}
@@ -226,6 +270,11 @@ function BurbujaMensaje({
 
           <div className={`mt-1 flex items-center gap-2 text-[10px] ${esInbound ? "text-gray-500" : "text-emerald-400/60"}`}>
             <span>{fmtHora(msg.timestamp_whatsapp ?? msg.created_at)}</span>
+            {onResponder && msg.whatsapp_message_id && !msg.whatsapp_message_id.startsWith("sandbox_") && (
+              <button onClick={() => onResponder(msg)} className="inline-flex items-center gap-0.5 hover:text-emerald-300" title="Responder citando este mensaje">
+                <Reply size={10} /> Responder
+              </button>
+            )}
             {!esInbound && msg.origen && ORIGEN_LABEL[msg.origen] && (
               <span className={msg.origen === "automatico" ? "text-amber-300/70" : ""}>· {ORIGEN_LABEL[msg.origen]}</span>
             )}
@@ -318,7 +367,7 @@ function EnvioBurbuja({ envio }: { envio: EnvioWA }) {
             <p className="mt-0.5 text-right text-[10px] text-gray-500">{lineas.join(" · ")}</p>
           )}
           {error && envio.wa_error_mensaje && (
-            <p className="mt-1 text-[11px] text-red-400 break-words">{envio.wa_error_mensaje}</p>
+            <p className="mt-1 text-[11px] text-red-400 break-words">{errorLegible(envio.wa_error_code) ?? envio.wa_error_mensaje}</p>
           )}
         </div>
         <Reacciones lista={envio.reacciones} alinear="end" />
@@ -349,6 +398,13 @@ export function TarotWhatsappConversacionDetalle({
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [reintentandoId, setReintentandoId] = useState<string | null>(null);
   const [errorDetalleVisto, setErrorDetalleVisto] = useState<Mensaje | null>(null);
+  const [respondiendoA, setRespondiendoA] = useState<Mensaje | null>(null);
+
+  // Plantilla de reapertura (fuera de la ventana de 24 h)
+  type EstadoPlantilla = { ok: boolean; estado: string; texto: string; categoria?: string | null; motivo_rechazo?: string | null; detalle?: string; nombre?: string };
+  const [plantilla, setPlantilla] = useState<EstadoPlantilla | null>(null);
+  const [plantillaCargando, setPlantillaCargando] = useState(false);
+  const [reabriendo, setReabriendo] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -418,7 +474,7 @@ export function TarotWhatsappConversacionDetalle({
       const r = await fetch(`/api/admin/tarot/whatsapp/${conversacionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion: "responder", texto: textoLimpio }),
+        body: JSON.stringify({ accion: "responder", texto: textoLimpio, ...(respondiendoA ? { responder_a: respondiendoA.id } : {}) }),
       });
       const json = await r.json().catch(() => null);
       if (!r.ok || !json?.ok) {
@@ -430,6 +486,7 @@ export function TarotWhatsappConversacionDetalle({
         );
       } else {
         setTexto(""); // Solo se limpia si Meta aceptó (o se simuló en sandbox).
+        setRespondiendoA(null);
         await cargar();
       }
     } catch (e: unknown) {
@@ -468,6 +525,54 @@ export function TarotWhatsappConversacionDetalle({
       });
     } finally {
       await cargar();
+    }
+  }
+
+  const ventanaCerrada = !!conv && !!ventana && !ventana.activa;
+  const cargarPlantilla = useCallback(async () => {
+    setPlantillaCargando(true);
+    try {
+      const r = await fetch(`/api/admin/tarot/whatsapp/${conversacionId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "plantilla_estado" }),
+      });
+      setPlantilla(await r.json().catch(() => null));
+    } finally {
+      setPlantillaCargando(false);
+    }
+  }, [conversacionId]);
+  useEffect(() => { if (ventanaCerrada && !plantilla) cargarPlantilla(); }, [ventanaCerrada, plantilla, cargarPlantilla]);
+
+  async function solicitarPlantilla() {
+    setPlantillaCargando(true); setErrorEnvio(null);
+    try {
+      const r = await fetch(`/api/admin/tarot/whatsapp/${conversacionId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "plantilla_solicitar" }),
+      });
+      const json = await r.json().catch(() => null);
+      if (!r.ok || !json?.ok) setErrorEnvio(`No se pudo solicitar la plantilla: ${json?.detalle ?? json?.motivo ?? r.status}`);
+      else setPlantilla(json);
+    } finally {
+      setPlantillaCargando(false);
+    }
+  }
+
+  async function reabrir() {
+    if (reabriendo) return;
+    setReabriendo(true); setErrorEnvio(null);
+    try {
+      const r = await fetch(`/api/admin/tarot/whatsapp/${conversacionId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "reabrir" }),
+      });
+      const json = await r.json().catch(() => null);
+      if (!r.ok || !json?.ok) {
+        setErrorEnvio(json?.detalle ?? errorLegible(json?.error_code) ?? json?.error_detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
+      }
+      await cargar();
+    } finally {
+      setReabriendo(false);
     }
   }
 
@@ -570,6 +675,8 @@ export function TarotWhatsappConversacionDetalle({
                   onReintentar={reintentar}
                   onSimularStatus={simularStatus}
                   reintentandoId={reintentandoId}
+                  citado={item.data.contexto_wamid ? mensajes.find((m) => m.whatsapp_message_id === item.data.contexto_wamid) ?? null : null}
+                  onResponder={ventana?.activa && item.data.tipo !== "reaction" ? setRespondiendoA : undefined}
                 />
               )
               : <EnvioBurbuja key={item.data.id} envio={item.data} />
@@ -581,6 +688,9 @@ export function TarotWhatsappConversacionDetalle({
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70" onClick={() => setErrorDetalleVisto(null)}>
             <div className="max-w-sm w-full mx-4 rounded-lg border border-red-800/60 bg-gray-950 p-4" onClick={(e) => e.stopPropagation()}>
               <p className="text-sm text-red-300 font-medium mb-1.5">Error al enviar</p>
+              {errorLegible(errorDetalleVisto.error_code) && (
+                <p className="text-sm text-gray-200 mb-2">{errorLegible(errorDetalleVisto.error_code)}</p>
+              )}
               <p className="text-xs text-gray-400 mb-1">Código: {errorDetalleVisto.error_code ?? "—"}</p>
               <p className="text-xs text-gray-400 break-words">{errorDetalleVisto.error_detalle ?? "Sin detalle adicional."}</p>
               <button
@@ -613,8 +723,42 @@ export function TarotWhatsappConversacionDetalle({
                 <Clock size={11} /> Ventana de 24h vencida
               </p>
               <p className="mt-1 text-[11px] text-amber-500/70">
-                Para volver a contactar al cliente fuera de la ventana de 24 horas se requiere una plantilla aprobada por Meta.
+                Para volver a escribirle hace falta una plantilla aprobada por Meta.
               </p>
+              {plantillaCargando && <p className="mt-1.5 text-[11px] text-gray-500">Consultando la plantilla…</p>}
+              {!plantillaCargando && plantilla && (
+                plantilla.estado === "APPROVED" ? (
+                  <button
+                    onClick={reabrir}
+                    disabled={reabriendo}
+                    className="mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-emerald-700/60 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/50 disabled:opacity-40"
+                    title={plantilla.texto}
+                  >
+                    <MessageSquareShare size={12} /> {reabriendo ? "Enviando…" : "Reabrir conversación (envía la plantilla)"}
+                  </button>
+                ) : plantilla.estado === "no_creada" ? (
+                  <div className="mt-2">
+                    <p className="text-[11px] text-gray-400">Plantilla a solicitar (categoría Utilidad):</p>
+                    <p className="mt-1 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-[11px] text-gray-300">{plantilla.texto}</p>
+                    <button onClick={solicitarPlantilla} className="mt-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-300 hover:bg-amber-900/30">
+                      Solicitar aprobación a Meta
+                    </button>
+                  </div>
+                ) : plantilla.estado === "PENDING" ? (
+                  <p className="mt-1.5 text-[11px] text-sky-400">La plantilla está en revisión por Meta. Cuando la aprueben vas a poder reabrir desde acá.</p>
+                ) : plantilla.estado === "REJECTED" ? (
+                  <p className="mt-1.5 text-[11px] text-red-400">Meta rechazó la plantilla{plantilla.motivo_rechazo ? ` (${plantilla.motivo_rechazo})` : ""}.</p>
+                ) : (
+                  <p className="mt-1.5 text-[11px] text-gray-400">Plantilla: {plantilla.estado}{plantilla.detalle ? ` — ${plantilla.detalle}` : ""}</p>
+                )
+              )}
+            </div>
+          )}
+
+          {respondiendoA && ventana?.activa && (
+            <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-emerald-500/70 bg-gray-900 px-2.5 py-1.5">
+              <p className="text-[11.5px] text-gray-400 line-clamp-2"><span className="text-emerald-400">Respondiendo a:</span> {respondiendoA.texto ?? TIPO_LABEL[respondiendoA.tipo] ?? "Mensaje"}</p>
+              <button onClick={() => setRespondiendoA(null)} className="text-gray-500 hover:text-gray-300 shrink-0"><X size={13} /></button>
             </div>
           )}
 

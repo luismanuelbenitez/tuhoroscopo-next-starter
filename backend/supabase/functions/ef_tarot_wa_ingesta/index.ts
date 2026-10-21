@@ -30,11 +30,15 @@
 // No suman no leídos, no cambian el resumen de la conversación y nunca
 // disparan respuestas.
 //
-// Media: solo metadata (media_id, mime, filename). La descarga es a demanda
-// desde el Admin vía ef_tarot_whatsapp_media (con allowlist de tipos).
+// Media (P0-c, 2026-10-21): Meta la conserva solo 7 días, así que se copia
+// al bucket privado wa-media en SEGUNDO PLANO (no demora la respuesta al
+// webhook). Si falla, ef_tarot_wa_tareas reintenta; el Admin, en último
+// caso, la copia al verla. Validación (allowlist + firma) en _shared/wa-media.ts.
 // ============================================================================
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+import { GRAPH_BASE } from "../_shared/wa-graph.ts";
+import { guardarMedia } from "../_shared/wa-media.ts";
 
 const FN = "ef_tarot_wa_ingesta";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -43,9 +47,6 @@ const INGESTA_KEY = Deno.env.get("TAROT_WA_INGESTA_KEY") ?? "";
 const INGESTA_KEY_MIN = 32;
 const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
-// Base de la Graph API. Misma versión que el resto del sistema hoy (v18.0;
-// su actualización es un pendiente de P1). Configurable solo para QA local.
-const GRAPH_BASE = Deno.env.get("WHATSAPP_GRAPH_BASE") || "https://graph.facebook.com/v18.0";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -297,15 +298,25 @@ serve(async (req) => {
     return json({ ok: false, motivo: "error_conversacion" }, 500); // 500 → CAPA 1 lo registra como error (el crudo queda para reprocesar)
   }
 
-  const { error: errMsg } = await supabase.from("tarot_whatsapp_mensajes").insert({
+  const { data: filaMsg, error: errMsg } = await supabase.from("tarot_whatsapp_mensajes").insert({
     conversacion_id: conversacionId, whatsapp_message_id: m.wamid, direccion: "inbound", origen: "cliente",
     tipo: m.tipo, texto: m.texto, media_id: m.mediaId, mime_type: m.mimeType, filename: m.filename,
+    media_estado: m.mediaId ? "pendiente" : null,
     payload_meta: m.payloadMeta, contexto_wamid: m.contextoWamid, timestamp_whatsapp: m.timestampISO,
-  });
+  }).select("id").single();
   if (errMsg) {
     if (errMsg.code === "23505") return json({ ok: true, resultado: "duplicado", conversacion_id: conversacionId });
     await log("wa_ingesta_mensaje_error", "error", "No se pudo persistir el mensaje", { wamid: m.wamid, tipo: m.tipo, error: errMsg.message, id_evento: idEvento }, cliente?.id ?? null);
     return json({ ok: false, motivo: "error_mensaje" }, 500);
+  }
+
+  // Copia de la media al bucket privado, en segundo plano.
+  if (m.mediaId && filaMsg?.id) {
+    const tarea = guardarMedia(supabase, { id: filaMsg.id, conversacion_id: conversacionId, media_id: m.mediaId, mime_type: m.mimeType, media_intentos: 0 })
+      .catch(() => null);
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(tarea); else await tarea;
   }
 
   // Las reacciones no son "mensajes nuevos": no suman no leídos ni cambian

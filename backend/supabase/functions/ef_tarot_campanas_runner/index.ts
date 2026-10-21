@@ -24,8 +24,12 @@
 // Autoaislada a propósito (no importa _shared/*): esos módulos tienen
 // divergencias repo/producción documentadas.
 // ============================================================
+
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
+// Graph API: misma versión que _shared/wa-graph.ts (no se importa: esta
+// función es autoaislada). 2026-10-21: v18.0 → v26.0.
+const GRAPH_BASE = Deno.env.get("WHATSAPP_GRAPH_BASE") || "https://graph.facebook.com/v26.0";
 
 const SUPABASE_URL              = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -141,11 +145,17 @@ async function configWA(): Promise<{ modo: string; destinos: string; autorizados
 
 // Registro en la bandeja de WhatsApp (outbound) — el webhook de estados ya
 // actualiza tarot_whatsapp_mensajes por whatsapp_message_id.
+// 2026-10-21: el teléfono se guarda con "+" (igual que la ingesta y
+// tarot_clientes; antes iba sin "+" y un mismo contacto quedaba en DOS
+// conversaciones), origen 'campana', y se aplican los avisos de Meta que
+// hayan llegado antes de registrar el wamid (tarot_wa_reconciliar_status).
 async function registrarEnBandeja(telefono: string, clienteId: string | null, ordenId: string, texto: string, wamid: string): Promise<string | null> {
   try {
-    const telNorm = telefono.replace(/\D/g, "");
+    const digitos = telefono.replace(/\D/g, "");
+    const telNorm = `+${digitos}`;
     let { data: conv } = await supabase.from("tarot_whatsapp_conversaciones")
-      .select("id").eq("telefono_normalizado", telNorm).maybeSingle();
+      .select("id").in("telefono_normalizado", [telNorm, digitos])
+      .order("created_at", { ascending: true }).limit(1).maybeSingle();
     if (!conv) {
       const ins = await supabase.from("tarot_whatsapp_conversaciones")
         .insert({ telefono_normalizado: telNorm, cliente_id: clienteId, orden_id: ordenId, estado: "abierta" })
@@ -155,9 +165,10 @@ async function registrarEnBandeja(telefono: string, clienteId: string | null, or
     if (!conv) return null;
     const ahora = new Date().toISOString();
     const { data: msg } = await supabase.from("tarot_whatsapp_mensajes").insert({
-      conversacion_id: conv.id, whatsapp_message_id: wamid, direccion: "outbound", tipo: "text",
+      conversacion_id: conv.id, whatsapp_message_id: wamid, direccion: "outbound", tipo: "text", origen: "campana",
       texto, estado: "enviado", enviado_at: ahora, timestamp_whatsapp: ahora,
     }).select("id").single();
+    if (msg?.id) await supabase.rpc("tarot_wa_reconciliar_status", { p_mensaje_id: msg.id });
     await supabase.from("tarot_whatsapp_conversaciones").update({
       ultimo_mensaje_at: ahora, ultimo_mensaje_preview: texto.slice(0, 120), ultimo_mensaje_direccion: "outbound", updated_at: ahora,
     }).eq("id", conv.id);
@@ -187,7 +198,7 @@ async function enviarTemplate(c: Campana, telefono: string, nombre: string, toke
     },
   };
   try {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    const res = await fetch(`${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
