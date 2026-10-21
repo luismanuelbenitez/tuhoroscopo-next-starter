@@ -50,7 +50,16 @@ serve(async (req) => {
     { headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` } },
   );
   const wabaData = await wabaRes.json().catch(() => ({}));
-  const wabaId = (wabaData as { whatsapp_business_account?: { id?: string } })?.whatsapp_business_account?.id ?? null;
+  // Graph v26 ya no expone whatsapp_business_account en el número: se usa
+  // tarot_configuracion.whatsapp_waba_id (2026-10-21) como respaldo.
+  let wabaId = (wabaData as { whatsapp_business_account?: { id?: string } })?.whatsapp_business_account?.id ?? null;
+  if (!wabaId) {
+    const url = Deno.env.get("SUPABASE_URL") ?? "";
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const r = await fetch(`${url}/rest/v1/tarot_configuracion?select=valor&clave=eq.whatsapp_waba_id`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }).catch(() => null);
+    const filas = r && r.ok ? await r.json().catch(() => []) as Array<{ valor: string }> : [];
+    wabaId = filas[0]?.valor ?? null;
+  }
 
   // 3) Si se resolvió el WABA, buscar el template puntual ahí.
   let templateData: unknown = null;

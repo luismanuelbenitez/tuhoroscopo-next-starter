@@ -281,10 +281,24 @@ async function graphGet(path: string) {
   return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) as Record<string, unknown> };
 }
 
+// ID de la cuenta de WhatsApp Business (WABA). 1) config explícita;
+// 2) campo del número; 3) permisos del token (debug_token → granular_scopes
+// whatsapp_business_management). Se recuerda el último error para el admin.
+let ultimoErrorWaba = "";
 async function wabaId(): Promise<string | null> {
+  const { data: cfg } = await supabase.from("tarot_configuracion").select("valor").eq("clave", "whatsapp_waba_id").maybeSingle();
+  if (cfg?.valor) return cfg.valor;
   const r = await graphGet(`${WHATSAPP_PHONE_NUMBER_ID}?fields=whatsapp_business_account`);
   const waba = (r.data as { whatsapp_business_account?: { id?: string } }).whatsapp_business_account?.id;
-  return r.ok && waba ? waba : null;
+  if (r.ok && waba) return waba;
+  const err1 = (r.data as { error?: { message?: string } }).error?.message ?? `HTTP ${r.status}`;
+  const d = await graphGet(`debug_token?input_token=${encodeURIComponent(WHATSAPP_TOKEN)}`);
+  const scopes = ((d.data as { data?: { granular_scopes?: Array<{ scope: string; target_ids?: string[] }> } }).data?.granular_scopes) ?? [];
+  const desdeToken = scopes.find((x) => x.scope === "whatsapp_business_management")?.target_ids?.[0];
+  if (desdeToken) return desdeToken;
+  const err2 = (d.data as { error?: { message?: string } }).error?.message ?? `scopes: ${scopes.map((x) => x.scope).join(",") || "ninguno"}`;
+  ultimoErrorWaba = `numero: ${err1} | token: ${err2}`.slice(0, 300);
+  return null;
 }
 
 type EstadoPlantilla = {
@@ -297,7 +311,7 @@ async function estadoPlantilla(): Promise<EstadoPlantilla> {
   const base = { nombre, idioma, texto: TEXTO_REAPERTURA };
   if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) return { ok: false, ...base, estado: "error", detalle: "credenciales_no_configuradas" };
   const waba = await wabaId();
-  if (!waba) return { ok: false, ...base, estado: "error", detalle: "no_se_pudo_obtener_waba" };
+  if (!waba) return { ok: false, ...base, estado: "error", detalle: `no_se_pudo_obtener_waba (${ultimoErrorWaba})` };
   const r = await graphGet(`${waba}/message_templates?name=${encodeURIComponent(nombre)}&fields=name,status,category,language,rejected_reason,components`);
   if (!r.ok) return { ok: false, ...base, estado: "error", detalle: `meta_${r.status}` };
   const lista = ((r.data as { data?: Array<Record<string, unknown>> }).data ?? [])
