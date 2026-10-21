@@ -365,22 +365,22 @@ async function actualizarPorStatus(supabase, resumen) {
   const nuevoEstadoMensaje = ESTADO_MENSAJE_POR_STATUS[resumen.status];
   let mensajesActualizados = 0;
   let enviosActualizados = 0;
-  // 1) tarot_whatsapp_mensajes — solo outbound (un status jamás debe tocar
-  // un mensaje inbound, que no tiene sentido que lo reciba).
+  // 1) tarot_whatsapp_mensajes — solo outbound. Desde 2026-10-21 vía
+  // tarot_wa_aplicar_status: el estado solo AVANZA (preparando < enviado <
+  // entregado < leido), así un aviso que llega desordenado no lo hace
+  // retroceder; "failed" solo sobre preparando/enviado. Si el mensaje
+  // todavía no tiene wamid (Meta avisó antes de que el envío lo guardara),
+  // no hay match acá: lo aplica la reconciliación del lado que envió.
   if (nuevoEstadoMensaje) {
     try {
-      const patchMensaje = {
-        estado: nuevoEstadoMensaje,
-        error_code: resumen.status === "failed" ? resumen.status_error_code : undefined,
-        error_detalle: resumen.status === "failed" ? resumen.status_error_message : undefined,
-      };
-      const { data } = await supabase
-        .from("tarot_whatsapp_mensajes")
-        .update(patchMensaje)
-        .eq("whatsapp_message_id", resumen.wamid)
-        .eq("direccion", "outbound")
-        .select("id");
-      mensajesActualizados = Array.isArray(data) ? data.length : 0;
+      const { data, error } = await supabase.rpc("tarot_wa_aplicar_status", {
+        p_wamid: resumen.wamid,
+        p_status: resumen.status,
+        p_error_code: resumen.status === "failed" ? resumen.status_error_code : null,
+        p_error_detalle: resumen.status === "failed" ? resumen.status_error_message : null,
+      });
+      if (error) throw error;
+      mensajesActualizados = typeof data === "number" ? data : 0;
     } catch (e) {
       await registrarLog(supabase, "status_update_mensajes_error", { wamid: resumen.wamid, status: resumen.status, error: String(e?.message || e) }, false);
     }

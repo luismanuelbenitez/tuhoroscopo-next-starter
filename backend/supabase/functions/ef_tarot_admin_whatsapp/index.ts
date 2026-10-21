@@ -212,6 +212,8 @@ async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: st
     error_code: envio.errorCode,
     error_detalle: envio.errorDetalle,
   }).eq("id", fila.id);
+  // Avisos de Meta que llegaron antes de guardar el wamid (2026-10-21).
+  if (envio.ok && !envio.simulado) await supabase.rpc("tarot_wa_reconciliar_status", { p_mensaje_id: fila.id });
 
   if (envio.ok) {
     const preview = mensajeTexto.length > 200 ? mensajeTexto.slice(0, 200) : mensajeTexto;

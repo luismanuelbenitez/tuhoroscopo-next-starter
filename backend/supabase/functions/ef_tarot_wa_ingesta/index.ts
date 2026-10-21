@@ -252,6 +252,9 @@ async function aplicarAutoRespuesta(p: { conversacionId: string; telefono: strin
   await supabase.from("tarot_whatsapp_mensajes").update({
     whatsapp_message_id: wamid, estado, enviado_at: estado === "error" ? null : ahora, error_code: errorCode, error_detalle: errorDetalle,
   }).eq("id", fila.id);
+  // Meta puede haber avisado sent/delivered/read antes de que se guardara
+  // el wamid: se aplican ahora (solo avanzan, ver migración 20261021000003).
+  if (estado === "enviado") await supabase.rpc("tarot_wa_reconciliar_status", { p_mensaje_id: fila.id });
   if (estado !== "error") {
     await supabase.rpc("tarot_wa_registrar_mensaje_outbound", { p_conversacion_id: p.conversacionId, p_timestamp: ahora, p_preview: cuerpo.slice(0, 200) });
   }
