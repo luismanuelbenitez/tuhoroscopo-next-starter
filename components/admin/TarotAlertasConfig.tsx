@@ -17,8 +17,7 @@ const ALERTA_META: Record<string, { label: string; badge: string; nota?: string 
   error_pdf:           { label: "Error de PDF",        badge: "bg-red-500/20 text-red-400" },
   error_whatsapp:      { label: "Error de WhatsApp",   badge: "bg-red-500/20 text-red-400" },
   error_email_cliente: { label: "Error de email",      badge: "bg-red-500/20 text-red-400" },
-  orden_trabada:       { label: "Orden trabada",       badge: "bg-orange-500/20 text-orange-400",
-                         nota: "Trigger pendiente — se disparará cuando se configure el mecanismo de cron." },
+  orden_trabada:       { label: "Orden trabada",       badge: "bg-orange-500/20 text-orange-400" },
 };
 
 const TIPO_ORDER = [
