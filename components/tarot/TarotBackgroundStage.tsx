@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { fluido } from "@/lib/imagen";
 
 // A diferencia de HomeBackgroundStage, acá el fondo NO se estira a todo el
 // alto del escenario: cada imagen se apoya a su tamaño natural (ancho 100%,
@@ -20,6 +21,15 @@ const FONDOS = [
   "/img/tarot/generales/tarot-fondo-desktop.webp",
   "/img/tarot/generales/tarot-fondo-desktop2.webp",
 ];
+// Tamaño natural de cada fondo (proporción para el optimizador). Paquete SEO
+// 2: el primero es el elemento LCP de /tarot en mobile — antes bajaba el
+// archivo de 488 KB entero para pintarlo a 412 px; ahora va al ancho real,
+// en AVIF/WebP y con prioridad. El segundo queda debajo del pliegue: diferido.
+const TAMANOS: Record<string, [number, number]> = {
+  "/img/tarot/generales/tarot-fondo-desktop.webp": [793, 1983],
+  "/img/tarot/generales/tarot-fondo-desktop2.webp": [793, 1763],
+};
+const SIZES = "(max-width: 960px) 100vw, 960px";
 
 // `fondos` permite que otra página del túnel (ej: checkout, más corta que
 // la landing) use solo una de las imágenes; por defecto, las dos de /tarot.
@@ -31,9 +41,10 @@ export function TarotBackgroundStage({ children, fondos = FONDOS }: { children: 
     // del escenario — pudo verse en el footer mientras no tenían overflow.
     <div className="relative overflow-hidden">
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", display: "flex", flexDirection: "column" }}>
-        {fondos.map((src) => (
-          <img key={src} src={src} alt="" aria-hidden="true" style={{ width: "100%", height: "auto", display: "block" }} />
-        ))}
+        {fondos.map((src, i) => {
+          const [w, h] = TAMANOS[src] ?? [793, 1983];
+          return <img key={src} {...fluido(src, w, h, SIZES, { prioridad: i === 0 })} alt="" aria-hidden="true" style={{ width: "100%", height: "auto", display: "block" }} />;
+        })}
       </div>
       {/* Degradé suave para legibilidad del texto del Hero, mismo recurso que Home */}
       <div
@@ -43,6 +54,24 @@ export function TarotBackgroundStage({ children, fondos = FONDOS }: { children: 
           inset: 0,
           height: 600,
           background: "linear-gradient(180deg, rgba(6,4,14,0.46) 0%, rgba(6,4,14,0.22) 20%, rgba(6,4,14,0.06) 38%, transparent 50%)",
+        }}
+      />
+      {/* Velo al pie, solo desktop (Paquete SEO 2, decisión de Manuel
+          2026-10-21): con el bloque de dudas la página creció y quedó a la
+          vista la escena de velas/cristales del final de la 2ª imagen, detrás
+          de los beneficios y los enlaces del pie. La atenúa sin ocultarla. En
+          mobile el fondo termina mucho antes: ahí no hace falta. */}
+      <div
+        aria-hidden="true"
+        className="hidden md:block"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 760,
+          pointerEvents: "none",
+          background: "linear-gradient(180deg, transparent 0%, rgba(11,8,24,0.55) 35%, rgba(11,8,24,0.82) 70%, rgba(11,8,24,0.9) 100%)",
         }}
       />
       {children}

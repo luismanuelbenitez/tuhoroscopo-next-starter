@@ -2,6 +2,7 @@
 
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
+import { fijo } from "@/lib/imagen";
 
 const BENEFICIOS = [
   { icon: "mas-claridad.png", label: "Más claridad", sub: "para tus decisiones" },
@@ -34,7 +35,7 @@ export function HeroExperiencias() {
         </p>
         <h1
           className="mb-4"
-          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4.4vw, 2.7rem)", lineHeight: 1.15, textShadow: TEXT_SHADOW }}
+          style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4.4vw, 2.7rem)", lineHeight: 1.15, textShadow: TEXT_SHADOW }}
         >
           <span style={{ color: CREMA }}>Tu espacio de guía,</span>
           <br />
@@ -53,7 +54,8 @@ export function HeroExperiencias() {
           {BENEFICIOS.map(({ icon, label, sub }) => (
             <div key={label} className="text-center">
               <img
-                src={`/img/home/inicio/${icon}`}
+                // Paquete SEO 2: 512 px → se pinta a 20 px
+                {...fijo(`/img/home/inicio/${icon}`, 20)}
                 alt=""
                 aria-hidden="true"
                 style={{ width: 20, height: 20, objectFit: "contain", margin: "0 auto 6px", filter: "drop-shadow(0 1px 6px rgba(0,0,0,0.6))" }}

@@ -4,6 +4,7 @@ import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { PaginaInstitucional, EncabezadoInstitucional, PANEL_INSTITUCIONAL as PANEL } from '@/components/marca/PaginaInstitucional';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
+import { htmlJsonLd } from '@/lib/seo/jsonLd';
 
 // Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
 export const metadata = metadataPagina(
@@ -68,8 +69,20 @@ export default async function FAQ() {
     },
   ];
 
+  // FAQPage (Paquete SEO 2): mismas preguntas y respuestas visibles, en texto plano.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQS.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+
   return (
     <PaginaInstitucional>
+        <script type="application/ld+json" dangerouslySetInnerHTML={htmlJsonLd(jsonLd)} />
         <EncabezadoInstitucional eyebrow="Dudas frecuentes" titulo="Preguntas frecuentes">
           <p>Todo lo que necesitás saber sobre el Tarot, antes o después de comprar.</p>
         </EncabezadoInstitucional>
@@ -79,7 +92,8 @@ export default async function FAQ() {
           {FAQS.map((faq, i) => (
             <details key={i} className="group rounded-2xl overflow-hidden" style={PANEL}>
               <summary className="px-5 md:px-6 py-4 flex items-center justify-between gap-4 cursor-pointer select-none transition-colors hover:bg-white/[0.03]">
-                <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 19, lineHeight: 1.25, color: CREMA }}>{faq.q}</span>
+                {/* Paquete SEO 2: cada pregunta es un h2 (mismo estilo que el span anterior) */}
+                <h2 className="m-0" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 19, lineHeight: 1.25, color: CREMA }}>{faq.q}</h2>
                 <span
                   className="shrink-0 flex items-center justify-center rounded-full"
                   style={{ width: 30, height: 30, border: '1px solid rgba(240,197,90,0.45)', background: 'rgba(240,197,90,0.06)' }}

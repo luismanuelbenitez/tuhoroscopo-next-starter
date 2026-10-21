@@ -51,7 +51,7 @@ export function Paso({ n, titulo, bajada, separado = false }: { n: number; titul
         {n}
       </span>
       <div>
-        <p className="text-[21px] leading-tight" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, color: "#F5EFE0" }}>{titulo}</p>
+        <p className="text-[21px] leading-tight" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, color: "#F5EFE0" }}>{titulo}</p>
         <p className="text-[12.5px] text-white/55 mt-0.5">{bajada}</p>
       </div>
     </div>

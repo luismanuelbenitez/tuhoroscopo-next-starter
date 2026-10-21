@@ -1,5 +1,6 @@
 import { HomePage } from "@/components/home/HomePage";
 import { metadataPagina } from "@/lib/seo/metadataPagina";
+import { htmlJsonLd, jsonLdHome } from "@/lib/seo/jsonLd";
 
 // Home (marca). Server Component solo para declarar metadata propia
 // (Paquete SEO 1, 2026-10-21); el contenido vive en components/home/HomePage.
@@ -10,5 +11,10 @@ export const metadata = metadataPagina(
 );
 
 export default function Page() {
-  return <HomePage />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={htmlJsonLd(jsonLdHome())} />
+      <HomePage />
+    </>
+  );
 }

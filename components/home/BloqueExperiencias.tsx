@@ -6,6 +6,7 @@ import { usePrecioTarot } from "@/lib/usePrecioTarot";
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
 import { Carousel } from "./Carousel";
+import { fluido } from "@/lib/imagen";
 
 const CARD_BG = "#120b22";
 
@@ -18,7 +19,8 @@ function CardTarot() {
     >
       <div className="relative" style={{ height: 180 }}>
         <img
-          src="/img/home/experiencias/tarot.webp"
+          // Paquete SEO 2: 1774×887 (~160 KB) → card de 318×180
+          {...fluido("/img/home/experiencias/tarot.webp", 1774, 887, "(max-width: 767px) 84vw, 320px")}
           alt="Tarot"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
         />
@@ -72,7 +74,8 @@ function ImagenCard({ archivo, Fallback }: { archivo: string; Fallback: ElementT
   return (
     <img
       ref={ref}
-      src={`/img/home/experiencias/${archivo}`}
+      // Paquete SEO 2: ~1672×941 (110–180 KB) → card de 318×180
+      {...fluido(`/img/home/experiencias/${archivo}`, 1672, 941, "(max-width: 767px) 84vw, 320px")}
       alt=""
       aria-hidden="true"
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
@@ -125,7 +128,7 @@ export function BloqueExperiencias() {
       </p>
       <h2
         className="mb-3"
-        style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(1.6rem, 3.2vw, 2.3rem)" }}
+        style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.6rem, 3.2vw, 2.3rem)" }}
       >
         Experiencias de Tu Oráculo
       </h2>

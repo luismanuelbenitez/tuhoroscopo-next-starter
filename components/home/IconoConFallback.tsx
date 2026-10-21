@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fijo } from "@/lib/imagen";
 
 // <img onError> solo no alcanza acá: si la imagen falla muy rápido (un
 // 404, por ejemplo), el evento "error" del navegador puede dispararse
@@ -24,7 +25,8 @@ export function IconoConFallback({
   return (
     <img
       ref={ref}
-      src={src}
+      // Paquete SEO 2: archivos de 1024 px → se pintan a 48–56 px
+      {...fijo(src, size)}
       alt=""
       aria-hidden="true"
       className={className}

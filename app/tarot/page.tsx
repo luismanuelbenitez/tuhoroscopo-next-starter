@@ -2,6 +2,7 @@ import TarotLandingContent from './TarotLandingContent';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { getTestimoniosTarot, TESTIMONIOS_DEMO } from '@/lib/getTestimoniosTarot';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
+import { htmlJsonLd, jsonLdTarot } from '@/lib/seo/jsonLd';
 
 // Página dueña de la intención principal "tarot online personalizado" y hub
 // de las páginas por tema (Paquete SEO 1, 2026-10-21).
@@ -24,5 +25,10 @@ export default async function TarotPage({
     getPrecioTarot(),
     demoTestimonios ? Promise.resolve(TESTIMONIOS_DEMO) : getTestimoniosTarot(),
   ]);
-  return <TarotLandingContent precioUYU={precioUYU} testimonios={testimonios} />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={htmlJsonLd(jsonLdTarot(precioUYU))} />
+      <TarotLandingContent precioUYU={precioUYU} testimonios={testimonios} />
+    </>
+  );
 }

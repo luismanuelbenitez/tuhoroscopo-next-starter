@@ -9,7 +9,7 @@ import { NavLink, CtaButton } from "@/components/home/CtaButton";
 // Mismo criterio que HeaderHome (components/home/): vive DENTRO del
 // escenario (TarotBackgroundStage), sticky, fondo translúcido + blur.
 const WORDMARK_STYLE = {
-  fontFamily: "'Cormorant Garamond', Georgia, serif",
+  fontFamily: "var(--font-cormorant), Georgia, serif",
   letterSpacing: "0.08em",
 } as const;
 

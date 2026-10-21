@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -6,6 +7,7 @@ import { headers } from "next/headers";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { MetaPixel } from "@/components/MetaPixel";
+import { StyledJsxRegistry } from "@/components/StyledJsxRegistry";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tuoraculo.uy"),
@@ -40,17 +42,31 @@ export const metadata: Metadata = {
   },
 };
 
+// Cormorant Garamond (marca) con next/font (Paquete SEO 2, 2026-10-21): se
+// sirve desde el propio dominio, con preload y respaldo de métricas ajustadas
+// (sin salto de layout). Reemplaza el @import de Google Fonts que estaba en
+// GlobalHomeStyles (cadena HTML → CSS de Google → fuente, sin preload). Los
+// componentes la usan vía var(--font-cormorant) (components/home/theme SERIF).
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin", "latin-ext"],
+  weight: ["600", "700"],
+  display: "swap",
+  variable: "--font-cormorant",
+});
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const isAdmin = headers().get("x-is-admin") === "1";
   const hideChrome = isAdmin || headers().get("x-hide-chrome") === "1";
 
   return (
-    <html lang="es">
+    <html lang="es" className={cormorant.variable}>
       <body className="bg-cosmic min-h-screen flex flex-col">
-        <AnalyticsProvider />
-        {!hideChrome && <Header />}
-        <main className="flex-1">{children}</main>
-        {!hideChrome && <Footer />}
+        <StyledJsxRegistry>
+          <AnalyticsProvider />
+          {!hideChrome && <Header />}
+          <main className="flex-1">{children}</main>
+          {!hideChrome && <Footer />}
+        </StyledJsxRegistry>
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         )}

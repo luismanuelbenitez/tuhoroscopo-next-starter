@@ -18,7 +18,7 @@ export default async function TarotOnlineUruguay() {
   const precio = precioTexto(precioUYU);
 
   return (
-    <PaginaSeo clave="uruguay" precioUYU={precioUYU} ctaHref={CHECKOUT}>
+    <PaginaSeo clave="uruguay" ctaHref={CHECKOUT}>
       <HeroSeo
         eyebrow="Tarot online · Uruguay"
         titulo="Tarot online en Uruguay, desde tu celular"
@@ -37,7 +37,7 @@ export default async function TarotOnlineUruguay() {
           Si querés, sumás una pregunta puntual.
         </p>
         <p>
-          Después de pagar, se sortean tus 5 cartas y se interpretan para tu consulta. Lo recibís como un link personal a
+          Después de pagar se hace tu tirada de tarot: se sortean tus 5 cartas y se interpretan para tu consulta. Lo recibís como un link personal a
           tu lectura online, pensada para leer en el celular, y un PDF de 3 páginas para guardar.
         </p>
       </Seccion>

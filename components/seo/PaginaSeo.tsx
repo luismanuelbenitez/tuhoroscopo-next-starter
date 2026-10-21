@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { preload } from "react-dom";
 import type { Route } from "next";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
-import { FondoCheckout } from "@/components/tarot/checkout/FondoCheckout";
+import { FondoCheckout, FONDO_CHECKOUT_MOBILE } from "@/components/tarot/checkout/FondoCheckout";
 import { SeoTracking } from "@/components/seo/SeoTracking";
 import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
 import { jsonLdSeo, PAGINAS_SEO, type ClavePaginaSeo } from "@/lib/seo/paginasSeo";
@@ -79,9 +80,12 @@ const NAV = [
 ];
 
 export function PaginaSeo({
-  clave, precioUYU, ctaHref, children,
-}: { clave: ClavePaginaSeo; precioUYU: number | null; ctaHref: string; children: ReactNode }) {
-  const jsonLd = jsonLdSeo(clave, precioUYU);
+  clave, ctaHref, children,
+}: { clave: ClavePaginaSeo; ctaHref: string; children: ReactNode }) {
+  const jsonLd = jsonLdSeo(clave);
+  // Paquete SEO 2: el fondo mobile es el LCP en celular y, al ser un
+  // background CSS, el navegador lo descubre tarde. Precarga solo en mobile.
+  preload(FONDO_CHECKOUT_MOBILE, { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
   return (
     <PaginaMarca fondo={<FondoCheckout />}>
       <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; } details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />

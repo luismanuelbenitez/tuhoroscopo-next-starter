@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Carousel } from "@/components/home/Carousel";
 import { SERIF } from "@/components/home/theme";
+import { fijo, fluido } from "@/lib/imagen";
 
 const BASE = "/img/tarot/contenedores/que-incluye";
 
@@ -16,7 +17,8 @@ const COLOR_ACENTO = "#A9791F";     // dorado ocre
 // adaptando desktop) — FondoConFallback no renderiza nada si 404, así que
 // mientras tanto el bloque mobile queda sin pergamino, sin romperse.
 const PERGAMINO_DESKTOP = `${BASE}/pergamino-desktop.webp`;
-const PERGAMINO_MOBILE = `${BASE}/pergamino-mobile.webp`;
+// pergamino-mobile.webp nunca se subió (daba 404 y el bloque mobile se
+// mostraba sin pergamino): ya no se pide. Mismo resultado visual.
 
 // Cartas reales del mazo personalizado (THC Tarot), elegidas por ser
 // visualmente lindas y de carga positiva: La Estrella, La Fuerza, La
@@ -48,7 +50,8 @@ const CONECTA = [
 function Medallon({ img, size }: { img: string; size: string }) {
   return (
     <img
-      src={`${BASE}/${img}`}
+      // Paquete SEO 2: 512 px → se pinta a ≤52 px
+      {...fijo(`${BASE}/${img}`, 56)}
       alt=""
       aria-hidden="true"
       style={{ width: size, height: size, flexShrink: 0, objectFit: "contain", filter: "drop-shadow(0 3px 6px rgba(40,20,0,0.30))" }}
@@ -79,7 +82,8 @@ function CartaConMarco({ img, alt, grosor, radio }: { img: string; alt: string; 
   return (
     <div style={{ width: "100%", padding: grosor, borderRadius: radio, background: MARCO_DORADO, boxShadow: "0 6px 18px rgba(40,20,0,0.30), 0 0 0 1px rgba(90,60,10,0.35)" }}>
       <img
-        src={`${BASE}/${img}`}
+        // Paquete SEO 2: 767×1151 (~150 KB) → se pinta a ≤202 px de ancho
+        {...fluido(`${BASE}/${img}`, 767, 1151, "(max-width: 767px) 210px, 130px")}
         alt={alt}
         style={{ display: "block", width: "100%", aspectRatio: "2 / 3", objectFit: "cover", borderRadius: `calc(${radio} - ${grosor})` }}
       />
@@ -146,7 +150,7 @@ function TarjetaConectaDesktop({ img, t, d }: (typeof CONECTA)[number]) {
 // (width:100%, height:auto, su proporción real) apilada en la MISMA celda
 // de grid que el contenido (grid-area 1/1 en ambos). Así nunca se recorta
 // ni se estira.
-function FondoConFallback({ src }: { src: string }) {
+function FondoConFallback({ src, carga }: { src: string; carga?: ReturnType<typeof fluido> }) {
   const ref = useRef<HTMLImageElement>(null);
   const [falló, setFalló] = useState(false);
 
@@ -161,6 +165,7 @@ function FondoConFallback({ src }: { src: string }) {
     <img
       ref={ref}
       src={src}
+      {...carga}
       alt=""
       aria-hidden="true"
       style={{ gridArea: "1 / 1", alignSelf: "start", width: "100%", height: "auto" }}
@@ -180,7 +185,7 @@ export function QueIncluyeTarot() {
           respeta el ancho real del contenedor en vez de inflarse con el
           contenido más ancho. */}
       <div className="hidden md:grid grid-cols-1 text-center" style={{ containerType: "inline-size" }}>
-        <FondoConFallback src={PERGAMINO_DESKTOP} />
+        <FondoConFallback src={PERGAMINO_DESKTOP} carga={fluido(PERGAMINO_DESKTOP, 1254, 1254, "(max-width: 960px) 100vw, 960px")} />
 
         <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(190)} ${u(120)} 0` }}>
           <p className="font-bold uppercase" style={{ color: COLOR_ACENTO, letterSpacing: "0.18em", fontSize: u(11), marginBottom: u(8) }}>
@@ -220,7 +225,6 @@ export function QueIncluyeTarot() {
 
       {/* ── Mobile ── (pendiente de rediseño: todavía sin pergamino propio) */}
       <div className="md:hidden grid grid-cols-1 text-center">
-        <FondoConFallback src={PERGAMINO_MOBILE} />
 
         <div className="px-6 py-12" style={{ gridArea: "1 / 1", alignSelf: "start" }}>
           <p className="text-[11px] font-bold uppercase mb-4" style={{ color: COLOR_ACENTO, letterSpacing: "0.18em" }}>

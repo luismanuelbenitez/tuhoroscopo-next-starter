@@ -6,7 +6,7 @@
 export function GlobalHomeStyles() {
   return (
     <style jsx global>{`
-      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap');
+      /* Cormorant Garamond: ahora con next/font en app/layout.tsx (var --font-cormorant). */
 
       @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
       .fi1 { animation: fadeUp 0.5s ease both; }

@@ -3,6 +3,7 @@
 import { Zap, MessageCircle, Smartphone, Volume2, FileText } from "lucide-react";
 import { GOLD } from "@/components/home/theme";
 import { CtaButton } from "@/components/home/CtaButton";
+import { fijo } from "@/lib/imagen";
 
 const CREMA = "#F5EFE0";
 const TEXT_SHADOW = "0 2px 14px rgba(0,0,0,0.65)";
@@ -31,7 +32,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
         <h1 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
           Tarot personalizado online
         </h1>
-        <p aria-hidden="true" className="mb-1" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2.2rem, 6vw, 3.6rem)", lineHeight: 1.05, textShadow: TEXT_SHADOW }}>
+        <p aria-hidden="true" className="mb-1" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(2.2rem, 6vw, 3.6rem)", lineHeight: 1.05, textShadow: TEXT_SHADOW }}>
           <span style={{ color: CREMA }}>Tarot</span>
         </p>
         <p className="mb-4" style={{ color: GOLD, fontSize: "clamp(1.05rem, 2.2vw, 1.3rem)", fontWeight: 600, textShadow: TEXT_SHADOW }}>
@@ -60,7 +61,8 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
             <p className="text-[12px] text-white/50" style={{ textShadow: TEXT_SHADOW }}>
               Pago único · Sin suscripción · Pago seguro con
             </p>
-            <img src={MP_LOGO} alt="Mercado Pago" style={{ height: 24, width: "auto", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
+            {/* Paquete SEO 2: PNG 1049×426 → se pinta a 59×24 */}
+            <img {...fijo(MP_LOGO, 60, 24)} alt="Mercado Pago" style={{ height: 24, width: "auto", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
           </div>
         </div>
       </div>

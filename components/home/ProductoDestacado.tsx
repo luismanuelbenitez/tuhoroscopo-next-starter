@@ -3,6 +3,7 @@
 import { usePrecioTarot } from "@/lib/usePrecioTarot";
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
+import { fijo, fluido } from "@/lib/imagen";
 
 const ICONS = "/img/home/destacado";
 
@@ -23,7 +24,8 @@ const MINI_BULLETS = [
 function IconoBeneficio({ icon, size }: { icon: string; size: number }) {
   return (
     <img
-      src={`${ICONS}/${icon}`}
+      // Paquete SEO 2: 512 px → se pinta a 20 px
+      {...fijo(`${ICONS}/${icon}`, size)}
       alt=""
       aria-hidden="true"
       style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }}
@@ -53,7 +55,8 @@ export function ProductoDestacado() {
             del contenedor padre. */}
         <div className="relative" style={{ minHeight: 260 }}>
           <img
-            src="/img/home/destacado/producto-destacado.png"
+            // Paquete SEO 2: PNG 568×627 de 519 KB → AVIF/WebP al ancho real
+            {...fluido("/img/home/destacado/producto-destacado.png", 568, 627, "(max-width: 767px) 92vw, 320px")}
             alt="Tarot"
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
           />

@@ -11,7 +11,7 @@ import { NavLink, CtaButton } from "./CtaButton";
 // corrige acá, el valor anterior era demasiado abierto para una marca
 // premium/mística — se leía más "institucional" que "fina").
 const WORDMARK_STYLE = {
-  fontFamily: "'Cormorant Garamond', Georgia, serif",
+  fontFamily: "var(--font-cormorant), Georgia, serif",
   letterSpacing: "0.08em",
 } as const;
 

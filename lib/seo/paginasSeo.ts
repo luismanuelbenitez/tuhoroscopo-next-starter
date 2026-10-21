@@ -88,39 +88,18 @@ export function metadataSeo(clave: ClavePaginaSeo): Metadata {
   };
 }
 
-/** JSON-LD: migas (Tu Oráculo › Tarot › página) + producto con su oferta real. */
-export function jsonLdSeo(clave: ClavePaginaSeo, precioUYU: number | null) {
+/** JSON-LD de las landings: solo migas (Tu Oráculo › Tarot › página). El
+ *  Product + Offer vive únicamente en /tarot (lib/seo/jsonLd.ts, Paquete SEO 2)
+ *  para no declarar el mismo producto en 5 URLs. */
+export function jsonLdSeo(clave: ClavePaginaSeo) {
   const p = PAGINAS_SEO[clave];
-  const url = `${SITIO}${p.slug}`;
-  const migas = {
+  return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Tu Oráculo", item: `${SITIO}/` },
       { "@type": "ListItem", position: 2, name: "Tarot", item: `${SITIO}/tarot` },
-      { "@type": "ListItem", position: 3, name: p.migaja, item: url },
+      { "@type": "ListItem", position: 3, name: p.migaja, item: `${SITIO}${p.slug}` },
     ],
   };
-  // Sin AggregateRating ni reviews: no se inventan puntajes. Sin precio
-  // verificable, se omite la oferta (nunca un precio inventado).
-  const producto = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: "Tarot personalizado — Tu Oráculo",
-    description:
-      "Lectura de tarot online de 5 cartas para tu consulta: interpretación carta por carta, resumen con audio, mensaje personal, claves prácticas y PDF. Entrega por WhatsApp y email.",
-    brand: { "@type": "Brand", name: "Tu Oráculo" },
-    image: `${SITIO}/img/whatsapp/og.jpg`,
-    url,
-    ...(precioUYU !== null && {
-      offers: {
-        "@type": "Offer",
-        price: String(precioUYU),
-        priceCurrency: "UYU",
-        availability: "https://schema.org/InStock",
-        url: `${SITIO}/tarot/checkout`,
-      },
-    }),
-  };
-  return [migas, producto];
 }

@@ -2,6 +2,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Paquete SEO 2 (2026-10-21): AVIF primero (más liviano), WebP de respaldo.
+  // Las imágenes pasan por el optimizador vía lib/imagen (getImageProps).
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   experimental: {
     typedRoutes: true
   },

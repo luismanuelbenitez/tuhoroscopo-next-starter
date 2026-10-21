@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit3, CreditCard, Sparkles, Smartphone } from "lucide-react";
+import { fijo, fluido } from "@/lib/imagen";
 import { GOLD, SERIF } from "@/components/home/theme";
 import { Carousel } from "@/components/home/Carousel";
 
@@ -35,7 +36,8 @@ function PasoDesktop({ icono, aro, t, d }: (typeof PASOS_DESKTOP)[number]) {
     <div className="flex flex-col items-center text-center" style={{ width: u(172) }}>
       <div className="flex items-center justify-center" style={{ width: u(ARO), height: u(ARO), marginBottom: u(8) }}>
         <img
-          src={`${DIR}/${icono}`}
+          // Paquete SEO 2: 512 px → se pinta a ~70 px (desktop, diferida)
+          {...fijo(`${DIR}/${icono}`, 80)}
           alt=""
           aria-hidden="true"
           style={{ width: u((ARO * 512) / aro), height: u((ARO * 512) / aro), maxWidth: "none", flexShrink: 0, filter: "drop-shadow(0 3px 6px rgba(40,20,0,0.30))" }}
@@ -51,7 +53,9 @@ function ComoFuncionaDesktop() {
   return (
     <div className="hidden md:grid grid-cols-1 text-center" style={{ containerType: "inline-size" }}>
       <img
-        src={`${DIR}/pergamino-desktop.webp`}
+        // Paquete SEO 2: 1920×660 → 960 px de ancho; solo desktop (diferida:
+        // en mobile está oculta y no se descarga)
+        {...fluido(`${DIR}/pergamino-desktop.webp`, 1920, 660, "(max-width: 960px) 100vw, 960px")}
         alt=""
         aria-hidden="true"
         style={{ gridArea: "1 / 1", alignSelf: "start", width: "100%", height: "auto" }}
@@ -70,7 +74,7 @@ function ComoFuncionaDesktop() {
               <PasoDesktop {...paso} />
               {i < PASOS_DESKTOP.length - 1 && (
                 <img
-                  src={`${DIR}/flecha.webp`}
+                  {...fijo(`${DIR}/flecha.webp`, 60, 15)}
                   alt=""
                   aria-hidden="true"
                   // Centrada a la altura del medio del aro.

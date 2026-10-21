@@ -4,18 +4,22 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Link2, Headphones, FileText, MessageCircle, Mail, Music, Download, Play, type LucideIcon } from "lucide-react";
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 import { CelularMock, DocumentoMock } from "@/components/tarot/Mockups";
+import { fijo, fluido } from "@/lib/imagen";
 
 // Imágenes del bloque (las genera Manuel). Cada una tiene un reemplazo
 // mientras el archivo no exista (ImagenConFallback), así el bloque nunca se
 // ve roto y cada imagen aparece sola al subirla, sin tocar código.
 const DIR = "/img/tarot/contenedores/asi-se-vive";
+// Paquete SEO 2: carga optimizada (ancho real, AVIF/WebP, diferida).
+type CargaImg = ReturnType<typeof fijo>;
 const IMG = {
   separador: `${DIR}/separador_inicial.webp`,
   // Captura REAL de /lectura (mobile 390px @2x, cartas reveladas,
   // 2026-10-18), recortada a la proporción de la pantalla de telefono.webp.
   pantallaLecturaReal: `${DIR}/pantalla-lectura-real.webp`,
   ilustracionAudio: `${DIR}/ilustracion-audio.webp`,
-  ilustracionPdf: `${DIR}/ilustracion-mensaje-pdf.webp`,
+  // ilustracion-mensaje-pdf.webp nunca se subió (daba 404 y caía al mock):
+  // ya no se pide, se muestra directamente el mock (mismo resultado visual).
   iconoLectura: `${DIR}/icono-lectura-online.webp`,
   iconoAudio: `${DIR}/icono-audio.webp`,
   iconoPdf: `${DIR}/icono-pdf.webp`,
@@ -42,7 +46,7 @@ const RADIO = 18;
 // Mismo patrón que IconoConFallback (components/home/): además de onError se
 // chequea el estado real del <img> después de montar, porque un 404 muy
 // rápido puede dispararse antes de que React conecte el listener.
-function ImagenConFallback({ src, fallback, alt = "", style, className }: { src: string; fallback: ReactNode; alt?: string; style?: CSSProperties; className?: string }) {
+function ImagenConFallback({ src, fallback, alt = "", style, className, carga }: { src: string; fallback: ReactNode; alt?: string; style?: CSSProperties; className?: string; carga?: CargaImg }) {
   const ref = useRef<HTMLImageElement>(null);
   const [falló, setFalló] = useState(false);
 
@@ -52,7 +56,7 @@ function ImagenConFallback({ src, fallback, alt = "", style, className }: { src:
   }, [src]);
 
   if (falló) return <>{fallback}</>;
-  return <img ref={ref} src={src} alt={alt} aria-hidden={alt ? undefined : true} className={className} style={style} onError={() => setFalló(true)} />;
+  return <img ref={ref} src={src} {...carga} alt={alt} aria-hidden={alt ? undefined : true} className={className} style={style} onError={() => setFalló(true)} />;
 }
 
 // ── Piezas ────────────────────────────────────────────────────────────
@@ -69,6 +73,7 @@ function Medallon({ src, aro, Icon }: { src: string; aro: number; Icon: LucideIc
     <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center" style={{ top: -ARO / 2, width: ARO, height: ARO }}>
       <ImagenConFallback
         src={src}
+        carga={fijo(src, lado)}
         style={{ width: lado, height: lado, maxWidth: "none", flexShrink: 0, filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}
         fallback={
           <div
@@ -91,6 +96,8 @@ function Ilustracion({ src, fallback }: { src: string; fallback: ReactNode }) {
     <div className="w-full mt-auto flex items-center justify-center md:h-[230px]">
       <ImagenConFallback
         src={src}
+        // ilustracion-audio.webp es 640×360 y se pinta a ≤340 px de ancho
+        carga={fluido(src, 640, 360, "(max-width: 767px) 340px, 260px")}
         style={{ display: "block", width: "auto", height: "auto", maxWidth: "100%", maxHeight: 230 }}
         fallback={
           <div className="relative w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}>
@@ -203,11 +210,13 @@ const BLOQUES: Bloque[] = [
     Icon: FileText,
     t: "Mensaje personal, claves y tu PDF",
     d: "Además de la interpretación de tus cartas, recibís un mensaje personal y 3 claves para avanzar. También podés descargar tu PDF completo para conservar tu lectura.",
+    // Igual que el respaldo que mostraba Ilustracion (la imagen no existe).
     ilustracion: (
-      <Ilustracion
-        src={IMG.ilustracionPdf}
-        fallback={<DocumentoMock alt="Tu lectura en PDF: la página con tus cinco cartas" style={{ width: "42%" }} />}
-      />
+      <div className="w-full mt-auto flex items-center justify-center md:h-[230px]">
+        <div className="relative w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}>
+          <DocumentoMock alt="Tu lectura en PDF: la página con tus cinco cartas" style={{ width: "42%" }} />
+        </div>
+      </div>
     ),
     boton: <BotonVisual Icon={Download}>Ver / descargar PDF</BotonVisual>,
   },
@@ -232,7 +241,8 @@ function Tarjeta({ fondo, icono, aro, Icon, t, sub, d, destacado, ilustracion, b
       {/* Fondo propio de la tarjeta. Capa aparte con overflow-hidden: el
           medallón sobresale por arriba y no debe recortarse. */}
       <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: RADIO }}>
-        <ImagenConFallback src={fondo} fallback={null} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {/* fondo-card-*.webp: 902×1744 (~410 KB) pintado a ≤370 px */}
+        <ImagenConFallback src={fondo} carga={fluido(fondo, 902, 1744, "(max-width: 767px) 92vw, 290px")} fallback={null} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
       <Medallon src={icono} aro={aro} Icon={Icon} />
 
@@ -298,7 +308,7 @@ export function AsiSeViveTarot() {
           central ~90px de alto). Caja con la proporción de esa franja +
           object-fit:cover: muestra solo la línea y la estrella. */}
       <img
-        src={IMG.separador}
+        {...fijo(IMG.separador, 480, 160)}
         alt=""
         aria-hidden="true"
         className="block mx-auto mb-4"

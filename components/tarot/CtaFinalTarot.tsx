@@ -1,6 +1,7 @@
 "use client";
 
 import { CtaButton } from "@/components/home/CtaButton";
+import { fijo } from "@/lib/imagen";
 
 const PIE = "/img/tarot/contenedores/pie";
 
@@ -25,7 +26,8 @@ function IconoBeneficio({ img, aro }: { img: string; aro: number }) {
   const lado = Math.round((ARO_VISIBLE * 520) / aro);
   return (
     <div className="flex items-center justify-center" style={{ width: ARO_VISIBLE, height: ARO_VISIBLE }}>
-      <img src={`${PIE}/${img}`} alt="" aria-hidden="true" style={{ width: lado, height: lado, maxWidth: "none", flexShrink: 0 }} />
+      {/* Paquete SEO 2: 520 px (~80 KB c/u) → se pinta a ~90 px */}
+      <img {...fijo(`${PIE}/${img}`, lado)} alt="" aria-hidden="true" style={{ width: lado, height: lado, maxWidth: "none", flexShrink: 0 }} />
     </div>
   );
 }
@@ -37,7 +39,7 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
     <section className="relative px-5 md:px-8 pt-10 pb-12 md:pt-8 md:pb-14 max-w-[760px] mx-auto text-center">
       <h2
         className="mb-4"
-        style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4vw, 2.5rem)", lineHeight: 1.2 }}
+        style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4vw, 2.5rem)", lineHeight: 1.2 }}
       >
         Mirá tu momento desde otra perspectiva.
       </h2>

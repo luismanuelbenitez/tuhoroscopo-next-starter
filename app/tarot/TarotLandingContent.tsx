@@ -16,6 +16,7 @@ import { CtaFinalTarot } from "@/components/tarot/CtaFinalTarot";
 import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
 import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
 import { LecturasPorTema } from "@/components/tarot/LecturasPorTema";
+import { DudasTarot } from "@/components/tarot/DudasTarot";
 
 // Mismo criterio arquitectónico que la Home (app/page.tsx): se oculta el
 // header global del layout y se renderiza el propio (HeaderTarot) DENTRO
@@ -55,6 +56,7 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
             <ComoFuncionaTarot />
             <LecturasPorTema />
             <TestimoniosTarot testimonios={testimonios} />
+            <DudasTarot />
             <CtaFinalTarot precioUYU={precioUYU} />
             {/* Cierre sutil en lugar del footer global (oculto en esta página). */}
             <EnlacesTarotPie className="pb-5" />

@@ -18,7 +18,7 @@ export default async function TarotDecisiones() {
   const precioUYU = await getPrecioTarot();
 
   return (
-    <PaginaSeo clave="decisiones" precioUYU={precioUYU} ctaHref={CTA}>
+    <PaginaSeo clave="decisiones" ctaHref={CTA}>
       <HeroSeo
         eyebrow="Tarot para tomar una decisión"
         titulo="Tarot para tomar una decisión"

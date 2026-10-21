@@ -1,6 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { fluido } from "@/lib/imagen";
+
+const DESKTOP = fluido("/img/home/general/fondo-home-desktop.webp", 793, 1983, "(max-width: 960px) 100vw, 960px");
+const MOBILE = fluido("/img/home/general/fondo-home-mobile.webp", 463, 3392, "100vw", { prioridad: true });
 
 // Escenario único que envuelve TODOS los bloques de la home (hasta antes
 // del footer, que vive afuera). Ya no tiene alto fijo por aspect-ratio:
@@ -24,20 +28,18 @@ import type { ReactNode } from "react";
 export function HomeBackgroundStage({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
-      <img
-        src="/img/home/general/fondo-home-desktop.webp"
-        alt=""
-        aria-hidden="true"
-        className="hidden md:block"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-      />
-      <img
-        src="/img/home/general/fondo-home-mobile.webp"
-        alt=""
-        aria-hidden="true"
-        className="md:hidden"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-      />
+      {/* Paquete SEO 2: <picture> en vez de dos <img> ocultos por CSS — el
+          navegador descarga SOLO la variante de su breakpoint (antes bajaba
+          las dos). La mobile es el LCP de la home en celular: prioridad. */}
+      <picture>
+        <source media="(min-width: 768px)" srcSet={DESKTOP.srcSet} sizes={DESKTOP.sizes} />
+        <img
+          {...MOBILE}
+          alt=""
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      </picture>
       {/* Degradé suave, sin borde, solo para legibilidad del texto del Hero */}
       <div
         aria-hidden="true"
