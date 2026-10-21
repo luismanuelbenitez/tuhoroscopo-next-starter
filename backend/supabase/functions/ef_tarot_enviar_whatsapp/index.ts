@@ -468,6 +468,7 @@ serve(async (req) => {
       const mb = (n?: number) => typeof n === "number" ? Math.round(n / 1048576) : null;
       await log(ordenId, "wa_imagen_whatsapp_memoria", "info", "Cabezal listo", {
         ms: Date.now() - tImg, generada: Boolean(imagen?.bytes),
+        formato: imagen?.formato ?? null, kb: imagen?.bytes ? Math.round(imagen.bytes.length / 1024) : null,
         rss_mb_antes: mb(memAntes?.rss), rss_mb_despues: mb(memDespues?.rss),
         heap_mb_despues: mb(memDespues?.heapUsed), externo_mb_despues: mb(memDespues?.external),
       });

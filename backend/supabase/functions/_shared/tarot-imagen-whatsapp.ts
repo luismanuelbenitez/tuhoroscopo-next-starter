@@ -339,7 +339,7 @@ export async function generarImagenWhatsapp(
   supabase: SupabaseClient,
   ordenId: string,
   opts: { forzar?: boolean; debugLayout?: boolean } = {},
-): Promise<{ signedUrl: string; bytes?: Uint8Array } | null> {
+): Promise<{ signedUrl: string; bytes?: Uint8Array; formato?: string } | null> {
   const storagePath = `tarot/whatsapp/${ordenId}.png`;
 
   if (!opts.forzar && !opts.debugLayout) {
@@ -590,6 +590,24 @@ export async function generarImagenWhatsapp(
   });
 
   const bytes = new Uint8Array(await img.arrayBuffer());
+  // JPG (2026-10-21): el PNG del cabezal pesaba ~1,6 MB (Meta recomienda
+  // <1 MB para el header). Se re-codifica a JPEG calidad 85 → ~235 KB, ~85 ms,
+  // sin diferencia visible. imagescript (WASM puro) con versión FIJA y carga
+  // dinámica: si no carga o falla, se sube el PNG como antes — la entrega
+  // nunca se rompe por esto. Misma ruta (…/{orden}.png) para no tocar a los
+  // consumidores (email, admin); el tipo real va en contentType.
+  let salida: Uint8Array = bytes;
+  let contentType = "image/png";
+  if (!opts.debugLayout) {
+    try {
+      const { Image } = await import("https://deno.land/x/imagescript@1.3.0/mod.ts");
+      const decodificada = await Image.decode(bytes);
+      salida = await decodificada.encodeJPEG(85);
+      contentType = "image/jpeg";
+    } catch (e) {
+      console.warn("[tarot-imagen-whatsapp] conversión a JPG falló — se usa PNG:", String(e));
+    }
+  }
 
   if (opts.debugLayout) {
     // Modo debug: no toca Storage, devuelve los bytes para inspección local.
@@ -598,7 +616,7 @@ export async function generarImagenWhatsapp(
 
   const { error: uploadErr } = await supabase.storage
     .from(BUCKET_ASSETS)
-    .upload(storagePath, bytes, { contentType: "image/png", upsert: true });
+    .upload(storagePath, salida, { contentType, upsert: true });
   if (uploadErr) return null;
 
   const { data: signed, error: signedErr } = await supabase.storage
@@ -606,5 +624,5 @@ export async function generarImagenWhatsapp(
     .createSignedUrl(storagePath, IMAGE_SIGNED_TTL_SEG);
   if (signedErr || !signed?.signedUrl) return null;
 
-  return { signedUrl: signed.signedUrl, bytes };
+  return { signedUrl: signed.signedUrl, bytes: salida, formato: contentType };
 }
