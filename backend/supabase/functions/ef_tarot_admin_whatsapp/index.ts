@@ -11,7 +11,8 @@
 //   - listar:              filtros + búsqueda + paginación
 //   - contador_no_leidos:  total global de no_leidos (badge del nav)
 //   - detalle:             conversación + ventana 24h + mensajes + envíos outbound reales
-//   - marcar_leido:        no_leidos = 0
+//   - marcar_leido:        no_leidos = 0 + inbound pendientes con leido_at; al ABRIR la
+//                          conversación (abierta:true) también se marca leído en Meta
 //   - marcar_no_leido:     no_leidos = max(no_leidos, 1)
 //   - responder:           { conversacion_id, texto } — texto libre, solo si hay ventana 24h activa
 //   - reintentar:          { mensaje_id } — reintenta un outbound en estado 'error'
@@ -48,6 +49,9 @@ const TAROT_INTERNAL_KEY = Deno.env.get("TAROT_INTERNAL_KEY") ?? "";
 const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 const FN = "ef_tarot_admin_whatsapp";
+// Base de la Graph API — misma versión que hoy (actualizarla es P1).
+// Configurable solo para QA local (mock de Meta).
+const GRAPH_BASE = Deno.env.get("WHATSAPP_GRAPH_BASE") || "https://graph.facebook.com/v18.0";
 const TEXTO_MAX_LEN = 4096; // límite de WhatsApp Cloud API para mensajes de texto
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -105,13 +109,17 @@ interface Ventana24h {
 
 // Referencia = último mensaje INBOUND real de la conversación (no el
 // último mensaje en general — un outbound nuestro no reabre ni extiende
-// la ventana, solo un mensaje nuevo del cliente lo hace).
+// la ventana, solo un mensaje nuevo del cliente lo hace). Las reacciones
+// NO cuentan (2026-10-21): Meta no documenta que abran la ventana, así que
+// se toma el criterio conservador — nunca habilitar un envío que Meta
+// rechazaría con 131047.
 async function calcularVentana24h(conversacionId: string): Promise<Ventana24h> {
   const { data } = await supabase
     .from("tarot_whatsapp_mensajes")
     .select("timestamp_whatsapp")
     .eq("conversacion_id", conversacionId)
     .eq("direccion", "inbound")
+    .neq("tipo", "reaction")
     .order("timestamp_whatsapp", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -159,7 +167,7 @@ async function enviarWhatsappTexto(telefono: string, mensajeTexto: string): Prom
   }
   const telefonoDest = telefono.replace(/^\+/, "");
   try {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    const res = await fetch(`${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${WHATSAPP_TOKEN}` },
       body: JSON.stringify({ messaging_product: "whatsapp", to: telefonoDest, type: "text", text: { body: mensajeTexto } }),
@@ -184,7 +192,7 @@ async function enviarWhatsappTexto(telefono: string, mensajeTexto: string): Prom
 async function ejecutarEnvioOutbound(conversacionId: string, telefonoDestino: string, mensajeTexto: string) {
   const { data: fila, error: insErr } = await supabase
     .from("tarot_whatsapp_mensajes")
-    .insert({ conversacion_id: conversacionId, direccion: "outbound", tipo: "text", texto: mensajeTexto, estado: "preparando" })
+    .insert({ conversacion_id: conversacionId, direccion: "outbound", tipo: "text", origen: "manual", texto: mensajeTexto, estado: "preparando" })
     .select("id")
     .single();
   if (insErr || !fila) {
@@ -493,7 +501,7 @@ serve(async (req) => {
     const [mensajesRes, clienteRes, ventana, sandbox] = await Promise.all([
       conv
         ? supabase.from("tarot_whatsapp_mensajes")
-            .select("id, whatsapp_message_id, direccion, tipo, texto, media_id, mime_type, filename, payload_meta, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, created_at")
+            .select("id, whatsapp_message_id, direccion, tipo, origen, texto, media_id, mime_type, filename, payload_meta, contexto_wamid, timestamp_whatsapp, estado, enviado_at, error_code, error_detalle, leido_at, created_at")
             .eq("conversacion_id", conv.id).order("timestamp_whatsapp", { ascending: true })
         : Promise.resolve({ data: [] }),
       clienteIdRes
@@ -502,25 +510,50 @@ serve(async (req) => {
       conv ? calcularVentana24h(conv.id) : Promise.resolve({ activa: false, ultimo_inbound_at: null, expira_at: null, segundos_restantes: null } as Ventana24h),
       esModoSandbox(),
     ]);
-    const mensajes = (mensajesRes.data ?? []) as Array<{ tipo: string; payload_meta: Record<string, unknown> | null; timestamp_whatsapp: string | null; created_at: string }>;
+    type MsgRow = { id: string; tipo: string; whatsapp_message_id: string | null; payload_meta: Record<string, unknown> | null; timestamp_whatsapp: string | null; created_at: string };
+    const todos = (mensajesRes.data ?? []) as MsgRow[];
 
-    // Reacciones del cliente, agrupadas por el mensaje (wamid) al que reaccionó.
-    const reaccionesPorWamid = new Map<string, Array<{ emoji: string | null; at: string }>>();
-    for (const m of mensajes) {
+    // Reacciones (2026-10-21): como en WhatsApp, cada persona tiene UNA
+    // reacción vigente por mensaje — la última recibida gana; si la última
+    // es "quitó la reacción" (emoji ausente), no se muestra nada. En una
+    // conversación 1:1 el único que reacciona es el contacto.
+    const ultimaReaccion = new Map<string, { emoji: string | null; at: string; id: string }>();
+    for (const m of todos) {
       if (m.tipo !== "reaction") continue;
-      const wamid = typeof m.payload_meta?.message_id === "string" ? m.payload_meta.message_id : null;
-      if (!wamid) continue;
-      const arr = reaccionesPorWamid.get(wamid) ?? [];
-      arr.push({ emoji: typeof m.payload_meta?.emoji === "string" ? m.payload_meta.emoji : null, at: m.timestamp_whatsapp ?? m.created_at });
-      reaccionesPorWamid.set(wamid, arr);
+      const objetivo = typeof m.payload_meta?.message_id === "string" ? m.payload_meta.message_id : null;
+      if (!objetivo) continue;
+      const at = m.timestamp_whatsapp ?? m.created_at;
+      const previa = ultimaReaccion.get(objetivo);
+      if (!previa || new Date(at).getTime() >= new Date(previa.at).getTime()) {
+        ultimaReaccion.set(objetivo, { emoji: typeof m.payload_meta?.emoji === "string" ? m.payload_meta.emoji : null, at, id: m.id });
+      }
     }
+    const reaccionDe = (wamid: string | null) => {
+      const r = wamid ? ultimaReaccion.get(wamid) : undefined;
+      return r && r.emoji ? [{ emoji: r.emoji, at: r.at }] : [];
+    };
+    const wamidsEnHilo = new Set<string>([
+      ...todos.filter((m) => m.tipo !== "reaction" && m.whatsapp_message_id).map((m) => m.whatsapp_message_id as string),
+      ...(listaEnvios.map((e) => e.wa_message_id).filter(Boolean) as string[]),
+    ]);
+    // En el hilo: mensajes normales con su reacción vigente; de las filas de
+    // reacción solo queda la vigente cuyo mensaje objetivo NO está en el
+    // hilo (p. ej. anterior al reset) — se muestra como línea discreta.
+    const mensajesHilo = todos.flatMap((m) => {
+      if (m.tipo !== "reaction") return [{ ...m, reacciones: reaccionDe(m.whatsapp_message_id) }];
+      const objetivo = typeof m.payload_meta?.message_id === "string" ? m.payload_meta.message_id : null;
+      if (!objetivo || wamidsEnHilo.has(objetivo)) return [];
+      const vigente = ultimaReaccion.get(objetivo);
+      if (!vigente || vigente.id !== m.id || !vigente.emoji) return [];
+      return [{ ...m, reacciones: [] }];
+    });
 
     const enviosWhatsapp = listaEnvios.map((e) => {
       const o = ordenPorId.get(e.orden_id) ?? null;
       return {
         ...e,
         orden_ref: o?.external_reference ?? null,
-        reacciones: e.wa_message_id ? (reaccionesPorWamid.get(e.wa_message_id) ?? []) : [],
+        reacciones: reaccionDe(e.wa_message_id),
       };
     });
 
@@ -535,25 +568,78 @@ serve(async (req) => {
       modo_sandbox: sandbox,
       cliente: clienteRes.data ?? null,
       orden: ordenPrincipal,
-      mensajes: mensajesRes.data ?? [],
+      mensajes: mensajesHilo,
       envios_whatsapp: enviosWhatsapp,
       envios_whatsapp_orden: enviosWhatsapp, // compat con la versión anterior del componente
     });
   }
 
   // ── marcar_leido / marcar_no_leido ──────────────────────────────────────
-  if (accion === "marcar_leido" || accion === "marcar_no_leido") {
+  if (accion === "marcar_no_leido") {
     const conversacionId = texto(body.conversacion_id, 100);
     if (!conversacionId) return jsonResponse({ ok: false, motivo: "conversacion_id_requerido" }, 400);
-
-    const nuevoValor = accion === "marcar_leido" ? 0 : 1;
+    // Solo estado interno: en WhatsApp no existe "marcar como no leído".
     const { error } = await supabase
       .from("tarot_whatsapp_conversaciones")
-      .update({ no_leidos: nuevoValor, updated_at: new Date().toISOString() })
+      .update({ no_leidos: 1, updated_at: new Date().toISOString() })
+      .eq("id", conversacionId);
+    if (error) return jsonResponse({ ok: false, motivo: "error_update", detalle: error.message }, 500);
+    return jsonResponse({ ok: true, no_leidos: 1 });
+  }
+
+  // Marcar leído (2026-10-21). Interno: no_leidos = 0 y leido_at en los
+  // inbound pendientes. En Meta (solo si el admin ABRIÓ la conversación,
+  // abierta:true — nunca por aparecer en la lista): se marca leído el último
+  // inbound pendiente; WhatsApp marca leídos también los anteriores. En
+  // sandbox no se llama a Meta. Un fallo de Meta no impide el estado interno.
+  if (accion === "marcar_leido") {
+    const conversacionId = texto(body.conversacion_id, 100);
+    if (!conversacionId) return jsonResponse({ ok: false, motivo: "conversacion_id_requerido" }, 400);
+    const abierta = body.abierta === true;
+    const ahora = new Date().toISOString();
+
+    const { data: pendientes } = await supabase.from("tarot_whatsapp_mensajes")
+      .select("id, whatsapp_message_id, timestamp_whatsapp")
+      .eq("conversacion_id", conversacionId).eq("direccion", "inbound").is("leido_at", null).neq("tipo", "reaction")
+      .order("timestamp_whatsapp", { ascending: false });
+    const lista = pendientes ?? [];
+
+    let meta = "no_corresponde";
+    const ultimo = lista[0];
+    if (abierta && ultimo?.whatsapp_message_id) {
+      if (await esModoSandbox()) {
+        meta = "simulado";
+      } else if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+        meta = "config_error";
+      } else {
+        try {
+          const res = await fetch(`${GRAPH_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+            body: JSON.stringify({ messaging_product: "whatsapp", status: "read", message_id: ultimo.whatsapp_message_id }),
+          });
+          meta = res.ok ? "ok" : `error_${res.status}`;
+          if (!res.ok) {
+            const det = await res.text().catch(() => "");
+            await log("wa_marcar_leido_meta_error", "warning", "Meta no aceptó marcar como leído", { conversacion_id: conversacionId, http_status: res.status, detalle: det.slice(0, 300) });
+          }
+        } catch (e) {
+          meta = "excepcion";
+          await log("wa_marcar_leido_meta_error", "warning", "Excepción al marcar leído en Meta", { conversacion_id: conversacionId, error: String(e).slice(0, 300) });
+        }
+      }
+    }
+
+    if (lista.length) {
+      await supabase.from("tarot_whatsapp_mensajes").update({ leido_at: ahora }).in("id", lista.map((m) => m.id));
+    }
+    const { error } = await supabase
+      .from("tarot_whatsapp_conversaciones")
+      .update({ no_leidos: 0, updated_at: ahora })
       .eq("id", conversacionId);
     if (error) return jsonResponse({ ok: false, motivo: "error_update", detalle: error.message }, 500);
 
-    return jsonResponse({ ok: true, no_leidos: nuevoValor });
+    return jsonResponse({ ok: true, no_leidos: 0, marcados: lista.length, meta });
   }
 
   // ── responder ────────────────────────────────────────────────────────────

@@ -232,7 +232,13 @@ export default function TarotWhatsappPage() {
                     className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${c.no_leidos > 0 ? "bg-emerald-950/10" : ""}`}
                   >
                     <td className="px-4 py-3">
-                      <div className="text-gray-200 font-medium">{c.nombre ?? "Desconocido"}</div>
+                      <div className="flex items-center gap-1.5 text-gray-200 font-medium">
+                        {c.nombre ?? "Desconocido"}
+                        {/* Bandeja P0 (2026-10-21): un número sin cliente también es una conversación. */}
+                        {!c.cliente_id && (
+                          <span className="text-[10px] font-normal rounded-full border border-gray-700 px-1.5 py-px text-gray-500">Sin cliente</span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 font-mono">{c.telefono}</div>
                     </td>
                     <td className="px-4 py-3 text-gray-400 max-w-xs truncate">

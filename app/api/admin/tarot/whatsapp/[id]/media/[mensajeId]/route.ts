@@ -12,12 +12,23 @@ function getEnvOrError(): { supabaseUrl: string; internalKey: string; serviceRol
   return { supabaseUrl, internalKey, serviceRoleKey };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Proxy protegido: obtiene el media real de un mensaje de WhatsApp vía
 // ef_tarot_whatsapp_media (que llama a la Graph API de Meta server-side).
 // El token de Meta nunca llega al navegador — esta ruta solo reenvía bytes.
+//
+// Endurecido (2026-10-21, P0-a): la EF valida que el mensaje sea de esta
+// conversación, aplica allowlist de tipos + firma de bytes y bloquea el
+// resto. Acá, además, las cabeceras de seguridad se fijan SIEMPRE (no se
+// confía en lo que venga): nosniff + CSP sandbox, para que el contenido que
+// manda un desconocido nunca pueda ejecutarse en el dominio del Admin.
 export async function GET(_req: NextRequest, { params }: { params: { id: string; mensajeId: string } }) {
   const session = await requireAdminSession();
   if (!session) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
+  if (!UUID.test(params.id) || !UUID.test(params.mensajeId)) {
+    return NextResponse.json({ ok: false, motivo: "parametros_invalidos" }, { status: 400 });
+  }
 
   const env = getEnvOrError();
   if (env instanceof NextResponse) return env;
@@ -31,7 +42,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
         Authorization: `Bearer ${env.serviceRoleKey}`,
         "x-internal-key": env.internalKey,
       },
-      body: JSON.stringify({ mensaje_id: params.mensajeId }),
+      body: JSON.stringify({ mensaje_id: params.mensajeId, conversacion_id: params.id }),
       cache: "no-store",
     });
   } catch (e: unknown) {
@@ -44,12 +55,17 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
     return NextResponse.json(data, { status: res.status });
   }
 
+  const disposition = res.headers.get("content-disposition") ?? "";
   const bytes = await res.arrayBuffer();
   return new NextResponse(bytes, {
     status: 200,
     headers: {
       "Content-Type": contentType || "application/octet-stream",
-      "Content-Disposition": res.headers.get("content-disposition") ?? "inline",
+      // Solo inline si la EF lo marcó inline (imagen/audio/video verificados).
+      "Content-Disposition": disposition.startsWith("inline") ? disposition : (disposition || "attachment"),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox",
+      "Referrer-Policy": "no-referrer",
       "Cache-Control": "private, max-age=300",
     },
   });

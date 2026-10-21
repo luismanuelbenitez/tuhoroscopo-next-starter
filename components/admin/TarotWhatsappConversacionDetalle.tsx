@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, Check, EyeOff, ExternalLink, FileImage, FileText, Music, Video, Smile,
   MapPin, User, MousePointerClick, HelpCircle, Send, Clock, AlertCircle,
@@ -11,6 +11,7 @@ interface Mensaje {
   whatsapp_message_id: string | null;
   direccion: "inbound" | "outbound";
   tipo: string;
+  origen?: string | null;
   texto: string | null;
   media_id: string | null;
   mime_type: string | null;
@@ -22,6 +23,8 @@ interface Mensaje {
   error_code: string | null;
   error_detalle: string | null;
   created_at: string;
+  // Reacción vigente del contacto sobre este mensaje (la última gana; quitada = vacío).
+  reacciones?: Array<{ emoji: string | null; at: string }>;
 }
 interface EnvioWA {
   id: string; estado: string; numero_intento: number; wa_message_id: string | null;
@@ -37,19 +40,38 @@ interface Ventana24h { activa: boolean; ultimo_inbound_at: string | null; expira
 
 // Solo abre una pestaña — el fetch real (con el Bearer de Meta) pasa por el
 // servidor, esto nunca expone credenciales al navegador.
+function urlMedia(conversacionId: string, mensajeId: string) {
+  return `/api/admin/tarot/whatsapp/${conversacionId}/media/${mensajeId}`;
+}
 function verMedia(conversacionId: string, mensajeId: string) {
-  window.open(`/api/admin/tarot/whatsapp/${conversacionId}/media/${mensajeId}`, "_blank", "noopener,noreferrer");
+  window.open(urlMedia(conversacionId, mensajeId), "_blank", "noopener,noreferrer");
+}
+
+// Origen del mensaje saliente (2026-10-21): manual / automático / campaña.
+const ORIGEN_LABEL: Record<string, string> = { manual: "Manual", automatico: "Automático", campana: "Campaña", plantilla: "Plantilla", entrega: "Entrega" };
+
+function Reacciones({ lista, alinear }: { lista?: Array<{ emoji: string | null; at: string }>; alinear: "start" | "end" }) {
+  if (!lista?.length) return null;
+  return (
+    <div className={`-mt-1.5 mb-1 flex ${alinear === "end" ? "justify-end pr-2" : "justify-start pl-2"} gap-1 relative z-[1]`}>
+      {lista.map((r, i) => (
+        <span key={i} className="rounded-full border border-gray-700 bg-gray-900 px-1.5 py-px text-sm leading-tight" title={`Reacción ${fmtHora(r.at)}`}>
+          {r.emoji}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 const TIPO_ICONO: Record<string, React.ReactNode> = {
   image: <FileImage size={13} />, document: <FileText size={13} />, audio: <Music size={13} />,
   video: <Video size={13} />, sticker: <Smile size={13} />, location: <MapPin size={13} />,
-  contact: <User size={13} />, interactive: <MousePointerClick size={13} />, unknown: <HelpCircle size={13} />,
+  contact: <User size={13} />, interactive: <MousePointerClick size={13} />, button: <MousePointerClick size={13} />, unknown: <HelpCircle size={13} />,
 };
 const TIPO_LABEL: Record<string, string> = {
   image: "Imagen recibida", document: "Documento recibido", audio: "Audio recibido",
   video: "Video recibido", sticker: "Sticker", location: "Ubicación compartida",
-  contact: "Contacto compartido", interactive: "Respuesta a botón/lista", unknown: "Mensaje no reconocido",
+  contact: "Contacto compartido", interactive: "Respuesta a botón/lista", button: "Respuesta a botón", unknown: "Mensaje no reconocido",
 };
 
 function fmtFecha(iso: string | null) {
@@ -118,7 +140,17 @@ function BurbujaMensaje({
 }) {
   const esInbound = msg.direccion === "inbound";
   const esMedia = ["image", "document", "audio", "video", "sticker"].includes(msg.tipo);
+  const esVisual = msg.tipo === "image" || msg.tipo === "sticker";
   const [menuDebugAbierto, setMenuDebugAbierto] = useState(false);
+  const [mediaFallo, setMediaFallo] = useState(false);
+
+  if (msg.tipo === "reaction") {
+    return (
+      <p className="my-1.5 text-center text-[11px] text-gray-500">
+        Reaccionó <span className="text-sm align-middle">{msg.payload_meta?.emoji as string}</span> a un mensaje anterior · {fmtHora(msg.timestamp_whatsapp ?? msg.created_at)}
+      </p>
+    );
+  }
 
   return (
     <div className={`flex ${esInbound ? "justify-start" : "justify-end"} mb-2`}>
@@ -130,6 +162,19 @@ function BurbujaMensaje({
         >
           {msg.tipo === "text" && <p className="whitespace-pre-wrap break-words">{msg.texto}</p>}
 
+          {/* Imagen/sticker: vista previa dentro del hilo (vía el proxy protegido). */}
+          {esVisual && msg.media_id && !mediaFallo && (
+            <button onClick={() => verMedia(conversacionId, msg.id)} className="mb-1.5 block" title="Abrir">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={urlMedia(conversacionId, msg.id)}
+                alt={TIPO_LABEL[msg.tipo]}
+                loading="lazy"
+                onError={() => setMediaFallo(true)}
+                className={`rounded-lg ${msg.tipo === "sticker" ? "max-h-28" : "max-h-60"} max-w-full object-contain`}
+              />
+            </button>
+          )}
           {esMedia && (
             <div className="flex items-center gap-2 text-gray-300">
               {TIPO_ICONO[msg.tipo]}
@@ -140,9 +185,10 @@ function BurbujaMensaje({
                   onClick={() => verMedia(conversacionId, msg.id)}
                   className="text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
                 >
-                  Ver
+                  {msg.tipo === "document" ? "Descargar" : "Ver"}
                 </button>
               )}
+              {mediaFallo && <span className="text-[10px] text-amber-500/80">no disponible</span>}
             </div>
           )}
           {esMedia && msg.texto && <p className="mt-1 text-xs text-gray-400 whitespace-pre-wrap">{msg.texto}</p>}
@@ -159,6 +205,12 @@ function BurbujaMensaje({
               <span>{(msg.payload_meta?.nombre as string) ?? "Contacto"} — {(msg.payload_meta?.telefono as string) ?? ""}</span>
             </div>
           )}
+          {msg.tipo === "button" && (
+            <div className="flex items-center gap-2 text-gray-300">
+              <MousePointerClick size={13} />
+              <span>{msg.texto ?? "Respuesta a botón"}</span>
+            </div>
+          )}
           {msg.tipo === "interactive" && (
             <div className="flex items-center gap-2 text-gray-300">
               <MousePointerClick size={13} />
@@ -171,16 +223,12 @@ function BurbujaMensaje({
               <span>Tipo de mensaje no reconocido{(msg.payload_meta?.rawType as string) ? ` (${msg.payload_meta?.rawType})` : ""}</span>
             </div>
           )}
-          {msg.tipo === "reaction" && (
-            <p className="text-gray-300">
-              {typeof msg.payload_meta?.emoji === "string"
-                ? <>Reaccionó <span className="text-lg align-middle">{msg.payload_meta.emoji as string}</span> a un mensaje</>
-                : typeof msg.payload_meta?.message_id === "string" ? "Quitó su reacción" : "Reaccionó a un mensaje"}
-            </p>
-          )}
 
           <div className={`mt-1 flex items-center gap-2 text-[10px] ${esInbound ? "text-gray-500" : "text-emerald-400/60"}`}>
             <span>{fmtHora(msg.timestamp_whatsapp ?? msg.created_at)}</span>
+            {!esInbound && msg.origen && ORIGEN_LABEL[msg.origen] && (
+              <span className={msg.origen === "automatico" ? "text-amber-300/70" : ""}>· {ORIGEN_LABEL[msg.origen]}</span>
+            )}
             {!esInbound && (
               <EstadoOutbound
                 msg={msg}
@@ -191,6 +239,7 @@ function BurbujaMensaje({
             )}
           </div>
         </div>
+        <Reacciones lista={msg.reacciones} alinear={esInbound ? "start" : "end"} />
 
         {/* Modo debug: simular el status de Meta sobre ESTE mensaje outbound —
             solo visible en sandbox, nunca en Production real. */}
@@ -272,15 +321,7 @@ function EnvioBurbuja({ envio }: { envio: EnvioWA }) {
             <p className="mt-1 text-[11px] text-red-400 break-words">{envio.wa_error_mensaje}</p>
           )}
         </div>
-        {(envio.reacciones?.length ?? 0) > 0 && (
-          <div className="mt-1 flex justify-end gap-1">
-            {envio.reacciones!.map((r, i) => (
-              <span key={i} className="rounded-full border border-gray-700 bg-gray-900 px-2 py-0.5 text-sm" title={`Reacción ${fmtHora(r.at)}`}>
-                {r.emoji ?? "∅"}
-              </span>
-            ))}
-          </div>
-        )}
+        <Reacciones lista={envio.reacciones} alinear="end" />
       </div>
     </div>
   );
@@ -336,13 +377,25 @@ export function TarotWhatsappConversacionDetalle({
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  // Al ABRIR la conversación (no por aparecer en la lista), si hay mensajes
+  // sin leer se marcan leídos — en el Admin y en WhatsApp (tildes azules
+  // para el cliente). Una sola vez por apertura.
+  const marcadaAlAbrir = useRef(false);
+  useEffect(() => {
+    if (marcadaAlAbrir.current || !conv || conv.no_leidos === 0) return;
+    marcadaAlAbrir.current = true;
+    marcar("marcar_leido");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conv]);
+
   async function marcar(accion: "marcar_leido" | "marcar_no_leido") {
     setMarcando(true);
     try {
       const r = await fetch(`/api/admin/tarot/whatsapp/${conversacionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion }),
+        // abierta: el admin tiene la conversación abierta → también en Meta.
+        body: JSON.stringify(accion === "marcar_leido" ? { accion, abierta: true } : { accion }),
       });
       if (r.ok) {
         await cargar();
@@ -446,7 +499,12 @@ export function TarotWhatsappConversacionDetalle({
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-gray-800 shrink-0">
           <div className="min-w-0">
-            <h3 className="text-white font-semibold truncate">{cliente?.nombre_completo ?? conv?.wa_contact_name ?? contacto?.nombre ?? "Desconocido"}</h3>
+            <h3 className="flex items-center gap-2 text-white font-semibold truncate">
+              {cliente?.nombre_completo ?? conv?.wa_contact_name ?? contacto?.nombre ?? "Desconocido"}
+              {!cliente && (
+                <span className="text-[10px] font-normal rounded-full border border-gray-700 px-1.5 py-px text-gray-500">Sin cliente</span>
+              )}
+            </h3>
             <p className="text-xs text-gray-500 font-mono">{conv?.telefono ?? contacto?.telefono}</p>
             {orden && (
               <a
@@ -539,8 +597,8 @@ export function TarotWhatsappConversacionDetalle({
         <div className="border-t border-gray-800 px-5 py-3 shrink-0">
           {!conv ? (
             <div className="mb-2 rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2">
-              <p className="text-[11px] text-gray-400 font-medium">Este cliente todavía no escribió</p>
-              <p className="mt-1 text-[11px] text-gray-500">Solo podrás responderle con texto libre cuando él te escriba (ventana de 24 h).</p>
+              <p className="text-[11px] text-gray-400 font-medium">Este contacto todavía no escribió</p>
+              <p className="mt-1 text-[11px] text-gray-500">Solo vas a poder responderle con texto libre cuando te escriba (ventana de 24 h).</p>
             </div>
           ) : ventana?.activa ? (
             <p className="mb-2 flex items-center gap-1.5 text-[11px] text-emerald-400">

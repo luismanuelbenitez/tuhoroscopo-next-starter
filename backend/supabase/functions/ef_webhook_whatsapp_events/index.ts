@@ -99,6 +99,14 @@ const FUNCTIONS_BASE_URL = Deno.env.get("SUPABASE_FUNCTIONS_URL") || (SUPABASE_U
 // URL directa a la CAPA 2 (inbound).
 // Si no la definís explícitamente, se deriva automáticamente.
 const WHATSAPP_INBOUND_FUNCTION_URL = Deno.env.get("WHATSAPP_INBOUND_FUNCTION_URL") || (FUNCTIONS_BASE_URL ? `${FUNCTIONS_BASE_URL}/ef_webhook_whatsapp_inbound` : "");
+// Bandeja de Tarot (2026-10-21, P0): ef_tarot_wa_ingesta persiste TODO
+// mensaje entrante de cualquier número y aplica la respuesta automática.
+// Se llama por mensaje, en paralelo con CAPA 2 (que queda solo para
+// Horóscopo). Mismo contrato que CAPA 2, pero con su PROPIA clave interna
+// (TAROT_WA_INGESTA_KEY): la ingesta es pública (--no-verify-jwt) y esa
+// clave dedicada es su única puerta.
+const TAROT_WA_INGESTA_KEY = Deno.env.get("TAROT_WA_INGESTA_KEY") ?? "";
+const TAROT_INGESTA_FUNCTION_URL = Deno.env.get("TAROT_INGESTA_FUNCTION_URL") || (FUNCTIONS_BASE_URL ? `${FUNCTIONS_BASE_URL}/ef_tarot_wa_ingesta` : "");
 // Clave interna que CAPA 1 envía a CAPA 2.
 // Esto te permite validar que la llamada viene de tu backend.
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
@@ -617,16 +625,31 @@ serve(async (req)=>{
       })();
 
       let ultimoResultado = null;
+      let ultimoIngesta = null;
       for (let i = 0; i < cantidadMensajes; i++) {
         try {
-          const resInbound = await llamarInbound({
-            url: WHATSAPP_INBOUND_FUNCTION_URL,
-            internalKey: WHATSAPP_INTERNAL_KEY,
-            payload: body,
-            id_evento: idEvento,
-            message_index: i
-          });
+          // CAPA 2 (Horóscopo) y la ingesta de Tarot, en paralelo e
+          // independientes: si una falla, la otra igual corre.
+          const [resInbound, resIngesta] = await Promise.all([
+            llamarInbound({
+              url: WHATSAPP_INBOUND_FUNCTION_URL,
+              internalKey: WHATSAPP_INTERNAL_KEY,
+              payload: body,
+              id_evento: idEvento,
+              message_index: i
+            }).catch((e) => ({ ok: false, http_status: 500, body: { error: String(e?.message || e) } })),
+            TAROT_INGESTA_FUNCTION_URL && TAROT_WA_INGESTA_KEY
+              ? llamarInbound({
+                url: TAROT_INGESTA_FUNCTION_URL,
+                internalKey: TAROT_WA_INGESTA_KEY,
+                payload: body,
+                id_evento: idEvento,
+                message_index: i
+              }).catch((e) => ({ ok: false, http_status: 500, body: { error: String(e?.message || e) } }))
+              : Promise.resolve({ ok: false, http_status: 0, body: { error: "ingesta_sin_url_o_sin_TAROT_WA_INGESTA_KEY" } }),
+          ]);
           ultimoResultado = resInbound;
+          ultimoIngesta = resIngesta;
           await registrarLog(supabase, resInbound.ok ? "inbound_llamado_ok" : "inbound_llamado_error", {
             idEvento,
             resumen,
@@ -635,6 +658,12 @@ serve(async (req)=>{
             http_status: resInbound.http_status,
             respuesta_inbound: resInbound.body
           }, resInbound.ok);
+          await registrarLog(supabase, resIngesta.ok ? "ingesta_tarot_ok" : "ingesta_tarot_error", {
+            idEvento,
+            message_index: i,
+            http_status: resIngesta.http_status,
+            respuesta_ingesta: resIngesta.body
+          }, resIngesta.ok);
         } catch (e) {
           ultimoResultado = { ok: false, http_status: 500, body: { error: String(e?.message || e) } };
           await registrarLog(supabase, "error_llamando_inbound", {
@@ -650,14 +679,17 @@ serve(async (req)=>{
       // Resumen final en la tabla principal — refleja el último mensaje
       // procesado del batch (auditoría técnica, no la fuente de verdad de
       // Tarot, que ya quedó persistida mensaje a mensaje en CAPA 2).
+      // processing_status refleja AMBAS: si la ingesta de Tarot falló, el
+      // evento queda como error (y su crudo permite reprocesarlo).
       if (idEvento && ultimoResultado) {
+        const todoOk = ultimoResultado.ok && !!ultimoIngesta?.ok;
         await supabase.from("whatsapp_webhook_events").update({
           inbound_called: true,
           inbound_url: WHATSAPP_INBOUND_FUNCTION_URL,
           inbound_http_status: ultimoResultado.http_status,
-          inbound_response: ultimoResultado.body,
-          processing_status: ultimoResultado.ok ? "inbound_ok" : "inbound_error",
-          processing_error: ultimoResultado.ok ? null : JSON.stringify(ultimoResultado.body)
+          inbound_response: { ...(ultimoResultado.body ?? {}), ingesta_tarot: ultimoIngesta?.body ?? null },
+          processing_status: todoOk ? "inbound_ok" : "inbound_error",
+          processing_error: todoOk ? null : JSON.stringify({ capa2: ultimoResultado.ok ? "ok" : ultimoResultado.body, ingesta_tarot: ultimoIngesta?.ok ? "ok" : ultimoIngesta?.body })
         }).eq("id", idEvento);
       }
     }

@@ -69,6 +69,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const extra: Record<string, unknown> = {};
   if (accion === "responder" && typeof body.texto === "string") extra.texto = body.texto;
   if (accion === "reintentar" && typeof body.mensaje_id === "string") extra.mensaje_id = body.mensaje_id;
+  // marcar_leido con abierta:true = el admin ABRIÓ la conversación → también
+  // se marca leído en Meta (2026-10-21). Sin abierta, solo estado interno.
+  if (accion === "marcar_leido" && body.abierta === true) extra.abierta = true;
 
   let res: Response;
   try {

@@ -54,10 +54,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 const ANON_KEY_SUPABASE = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("ANON_KEY_SUPABASE") ?? "";
 // Seguridad entre funciones internas (recomendado)
 const WHATSAPP_INTERNAL_KEY = Deno.env.get("WHATSAPP_INTERNAL_KEY") ?? "";
-// WA Cloud API — para responder a clientes TTC dentro de ventana 24h
-// Solo se usa para responder a clientes TTC (Tarot): token de producción de Tarot con fallback al legacy (2026-09-25).
-const WHATSAPP_TOKEN = Deno.env.get("WHATSAPP_TAROT_TOKEN_PROD") || Deno.env.get("WHATSAPP_TOKEN") || "";
-const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
 // Worker/outbox (CAPA 4)
 const SENDER_FUNCTION_NAME = "ef_whatsapp_sender";
 // Menú interactivo WhatsApp
@@ -394,195 +390,9 @@ async function bienvenidaYaFueEnviada(params) {
     last
   };
 }
-// ============================================================================
-// Logger: tarot_logs (para clientes TTC)
-// ============================================================================
-async function registrarLogTarot(clienteId, evento, nivel, mensaje, payload = {}) {
-  try {
-    await supabase.from("tarot_logs").insert({
-      cliente_id: clienteId ?? null,
-      evento,
-      nivel,
-      mensaje,
-      payload: payload ?? {},
-      funcion_origen: FUNCION,
-    });
-  } catch (e) {
-    console.error(`[${FUNCION}] Error al registrar tarot_log`, e);
-  }
-}
-// ============================================================================
-// Rate-limit auto-respuesta TTC: máximo 1 respuesta cada 24h por cliente
-// ============================================================================
-async function tarotAutoRespuestaRateLimited(clienteId) {
-  try {
-    const { data } = await supabase
-      .from("tarot_logs")
-      .select("created_at")
-      .eq("cliente_id", clienteId)
-      .eq("evento", "wa_inbound_auto_reply")
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (!data || data.length === 0) return false;
-    return diffHours(new Date(nowUTCISO()), new Date(data[0].created_at)) < 24;
-  } catch {
-    return false; // ante la duda, no bloqueamos
-  }
-}
-// ============================================================================
-// Envío de texto libre a cliente TTC (ventana de servicio 24h activa)
-// ============================================================================
-async function enviarMensajeTextoWA(to, cuerpo) {
-  if (!WHATSAPP_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-    return { ok: false, error: "credenciales_wa_no_configuradas" };
-  }
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to,
-          type: "text",
-          text: { body: cuerpo },
-        }),
-      }
-    );
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, http_status: res.status, data };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-}
-// ============================================================================
-// Bandeja de WhatsApp Tarot (2026-09-05) — tarot_whatsapp_conversaciones /
-// tarot_whatsapp_mensajes. Ver docs/modules/whatsapp-inbox.md.
-//
-// Independiente de upsertConversacion() (wa_conversaciones, más abajo) —
-// esa tabla sigue existiendo tal cual, compartida con Horóscopo, sin
-// cambios. Esta es la fuente para la bandeja del Admin, con modelo
-// relacional (conversación + mensajes) y asociación a orden.
-// ============================================================================
-
-// Resuelve qué orden asociar a un cliente Tarot conocido. Nunca inventa:
-// sin órdenes → null; una sola → esa; 2+ pero la más y segunda más reciente
-// separadas por 24h o más → la más reciente (regla segura porque cliente_id
-// ya es la identidad canónica, no un match por nombre); 2+ dentro de la
-// misma ventana de 24h → ambigüedad genuina, no se asocia (se loguea aparte).
-async function resolverOrdenParaCliente(clienteId) {
-  const { data: ordenes } = await supabase
-    .from("tarot_ordenes")
-    .select("id, created_at")
-    .eq("cliente_id", clienteId)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  if (!ordenes || ordenes.length === 0) return { ordenId: null, ambigua: false };
-  if (ordenes.length === 1) return { ordenId: ordenes[0].id, ambigua: false };
-
-  const masReciente = new Date(ordenes[0].created_at).getTime();
-  const segunda = new Date(ordenes[1].created_at).getTime();
-  const horasEntreAmbas = Math.abs(masReciente - segunda) / (1000 * 60 * 60);
-  if (horasEntreAmbas < 24) {
-    return { ordenId: null, ambigua: true };
-  }
-  return { ordenId: ordenes[0].id, ambigua: false };
-}
-
-const PREVIEW_POR_TIPO = {
-  image: "📷 Imagen",
-  document: "📄 Documento",
-  audio: "🎵 Audio",
-  video: "🎬 Video",
-  sticker: "😀 Sticker",
-  location: "📍 Ubicación",
-  contact: "👤 Contacto",
-  interactive: "Respuesta a botón/lista",
-  unknown: "Mensaje no reconocido",
-};
-
-// Único punto de escritura hacia tarot_whatsapp_conversaciones/mensajes.
-// Dedup real: inserta el mensaje primero (whatsapp_message_id UNIQUE); si
-// choca (23505), el mensaje ya existía (reintento de Meta o webhook
-// repetido) — no se toca el contador no_leidos ni el resumen. Solo si el
-// insert fue genuinamente nuevo se incrementa no_leidos (atómico, ver
-// tarot_wa_registrar_mensaje_inbound en la migración).
-async function registrarMensajeTarotInbound(params) {
-  const { tarotCliente, numeroE164, parsed } = params;
-
-  const { ordenId, ambigua } = await resolverOrdenParaCliente(tarotCliente.id);
-  if (ambigua) {
-    await registrarLogTarot(tarotCliente.id, "wa_inbound_orden_ambigua", "info",
-      "Múltiples órdenes recientes del mismo cliente — no se asocia orden automáticamente",
-      { numeroE164 });
-  }
-
-  const { data: conversacionId, error: errConv } = await supabase.rpc(
-    "tarot_wa_obtener_o_crear_conversacion",
-    {
-      p_telefono: numeroE164,
-      p_cliente_id: tarotCliente.id,
-      p_orden_id: ordenId,
-      p_wa_contact_name: parsed.contactProfileName ?? null,
-    },
-  );
-  if (errConv || !conversacionId) {
-    await registrarLogTarot(tarotCliente.id, "wa_inbound_conversacion_error", "error",
-      "No se pudo crear/obtener la conversación de WhatsApp",
-      { numeroE164, error: errConv?.message });
-    return { registrado: false };
-  }
-
-  if (!parsed.msgId) {
-    // Sin id de mensaje no hay forma de deduplicar — no se persiste el
-    // mensaje individual (no debería pasar con payloads reales de Meta).
-    return { registrado: false, conversacionId };
-  }
-
-  const { error: errMsg } = await supabase.from("tarot_whatsapp_mensajes").insert({
-    conversacion_id: conversacionId,
-    whatsapp_message_id: parsed.msgId,
-    direccion: "inbound",
-    tipo: parsed.tipo,
-    texto: parsed.textBody ? parsed.textBody.slice(0, 4000) : null,
-    media_id: parsed.mediaId ?? null,
-    mime_type: parsed.mimeType ?? null,
-    filename: parsed.filename ?? null,
-    // Reacciones (2026-09-25): emoji + wamid del mensaje al que se reacciona,
-    // para mostrarlas bajo ese mensaje en el admin (emoji null = quitó la reacción).
-    payload_meta: parsed.payloadMeta
-      ?? (parsed.tipo === "reaction" ? { emoji: parsed.reactionEmoji ?? null, message_id: parsed.reactionToMessageId ?? null } : null),
-    timestamp_whatsapp: parsed.timestampUTC,
-  });
-
-  if (errMsg) {
-    if (errMsg.code === "23505") {
-      // Mensaje ya procesado — dedup por whatsapp_message_id. No es un
-      // error: es exactamente el comportamiento esperado ante un reintento
-      // de Meta o un webhook repetido.
-      return { registrado: false, conversacionId, duplicado: true };
-    }
-    await registrarLogTarot(tarotCliente.id, "wa_inbound_mensaje_error", "error",
-      "No se pudo persistir el mensaje de WhatsApp",
-      { numeroE164, msgId: parsed.msgId, error: errMsg.message });
-    return { registrado: false, conversacionId };
-  }
-
-  const preview = (parsed.textBody ?? PREVIEW_POR_TIPO[parsed.tipo] ?? "Mensaje").slice(0, 200);
-  await supabase.rpc("tarot_wa_registrar_mensaje_inbound", {
-    p_conversacion_id: conversacionId,
-    p_timestamp: parsed.timestampUTC,
-    p_preview: preview,
-  });
-
-  return { registrado: true, conversacionId, ordenId };
-}
-
+// 2026-10-21: los helpers de Tarot (logger tarot_logs, auto-respuesta,
+// envío de texto libre, bandeja tarot_whatsapp_*) se movieron a
+// ef_tarot_wa_ingesta. Esta función queda solo para Horóscopo.
 // ============================================================================
 // Registro unificado de mensajes entrantes en wa_conversaciones
 // ============================================================================
@@ -1083,39 +893,15 @@ serve(async (req)=>{
   // afecta a clientes de Tarot — un número que sea suscriptor de Horóscopo
   // enviando una imagen simplemente no genera ninguna acción, igual que
   // antes de este sprint.
+  // 2026-10-21 (bandeja P0): la persistencia de Tarot de estos tipos la hace
+  // ahora ef_tarot_wa_ingesta (llamada por CAPA 1 para TODO número). Acá
+  // solo se corta, igual que antes: nunca entran a la lógica de Horóscopo.
   const esTipoConLogicaHoroscopo = parsed.tipo === "text" || parsed.tipo === "reaction";
   if (!esTipoConLogicaHoroscopo) {
-    const { data: tarotClienteNoTexto } = await supabase
-      .from("tarot_clientes")
-      .select("id, nombre_completo")
-      .eq("telefono", numeroE164)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (!tarotClienteNoTexto) {
-      await registrarLog("mensaje_no_texto_numero_no_registrado", {
-        numeroE164, tipo: parsed.tipo, msgId: parsed.msgId, id_evento
-      }, true);
-      return jsonResponse({ resultado: "sin_accion", motivo: "numero_no_registrado" }, 200);
-    }
-
-    const resultado = await registrarMensajeTarotInbound({
-      tarotCliente: tarotClienteNoTexto,
-      numeroE164,
-      parsed,
-    });
-
-    await registrarLog("tarot_cliente_inbound_no_texto", {
-      tarot_cliente_id: tarotClienteNoTexto.id,
-      numeroE164, tipo: parsed.tipo, msgId: parsed.msgId, id_evento,
-      registrado: resultado.registrado, duplicado: !!resultado.duplicado,
+    await registrarLog("mensaje_no_texto_sin_logica_horoscopo", {
+      tipo: parsed.tipo, msgId: parsed.msgId, id_evento
     }, true);
-
-    return jsonResponse({
-      resultado: "ok",
-      accion: resultado.duplicado ? "mensaje_duplicado_ignorado" : "tarot_mensaje_no_texto_registrado",
-      tarot_cliente_id: tarotClienteNoTexto.id,
-    }, 200);
+    return jsonResponse({ resultado: "sin_accion", motivo: "tipo_sin_logica_horoscopo" }, 200);
   }
   // -------------------------------------------------------------------------
   // 4) Determinar comandos de usuario
@@ -1165,115 +951,26 @@ serve(async (req)=>{
     }, 500);
   }
   if (!suscriptor) {
-    // ── Buscar en tarot_clientes (producto TTC) ──────────────────────────
-    const { data: tarotCliente } = await supabase
-      .from("tarot_clientes")
-      .select("id, nombre_completo")
-      .eq("telefono", numeroE164)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (!tarotCliente) {
-      // Número desconocido para ambos productos
-      await registrarLog("numero_no_registrado", {
-        numeroE164,
-        msgId: parsed.msgId,
-        tipo: parsed.tipo,
-        textBody: texto,
-        reactionEmoji: parsed.reactionEmoji,
-        id_evento
-      }, true);
-      await upsertConversacion({
-        wamid:        parsed.msgId,
-        numero_wa:    numeroE164,
-        tipo_mensaje: parsed.tipo,
-        cuerpo:       texto.slice(0, 1000) || null,
-        timestamp_wa: parsed.timestampUTC,
-        producto:     "desconocido",
-        estado:       "ignorado",
-      });
-      return jsonResponse({ resultado: "sin_accion", motivo: "numero_no_registrado" }, 200);
-    }
-
-    // ── Cliente TTC identificado — auto-respuesta con rate-limit 24h ─────
-    const primerNombre = (tarotCliente.nombre_completo ?? "").split(" ")[0].trim() || "ahí";
-    const rateLimited  = await tarotAutoRespuestaRateLimited(tarotCliente.id);
-
-    let estadoConv     = "pendiente";
-    let respuestaEnv   = null;
-
-    if (!rateLimited) {
-      const msgCuerpo =
-        `Hola ${primerNombre}, gracias por escribirnos 🔮\n\n` +
-        `Para consultas sobre tu tirada de tarot escribinos a ` +
-        `*hola@tuoraculo.uy* y te ayudamos enseguida.`;
-
-      const waResult = await enviarMensajeTextoWA(numeroE164, msgCuerpo);
-
-      if (waResult.ok) {
-        estadoConv   = "auto_respondido";
-        respuestaEnv = msgCuerpo;
-      }
-
-      await registrarLogTarot(
-        tarotCliente.id,
-        "wa_inbound_auto_reply",
-        waResult.ok ? "info" : "error",
-        waResult.ok
-          ? "Auto-respuesta enviada a cliente TTC"
-          : "Error al enviar auto-respuesta a cliente TTC",
-        { numeroE164, msgId: parsed.msgId, texto_inbound: texto.slice(0, 200), waResult, id_evento }
-      );
-    } else {
-      await registrarLogTarot(
-        tarotCliente.id,
-        "wa_inbound_rate_limited",
-        "info",
-        "Mensaje de cliente TTC recibido — auto-respuesta omitida por rate-limit 24h",
-        { numeroE164, msgId: parsed.msgId, id_evento }
-      );
-    }
-
-    // Registro en wa_conversaciones (visible en panel admin) — SIN cambios,
-    // se mantiene tal cual (tabla compartida con Horóscopo).
-    await upsertConversacion({
-      wamid:            parsed.msgId,
-      numero_wa:        numeroE164,
-      nombre_remitente: tarotCliente.nombre_completo ?? null,
-      tipo_mensaje:     parsed.tipo,
-      cuerpo:           texto.slice(0, 1000) || null,
-      timestamp_wa:     parsed.timestampUTC,
-      producto:         "ttc",
-      tarot_cliente_id: tarotCliente.id,
-      estado:           estadoConv,
-      respuesta_texto:  respuestaEnv,
-    });
-
-    // Bandeja de WhatsApp Tarot (2026-09-05) — asociación a orden + modelo
-    // conversación/mensajes para el Admin. Ver registrarMensajeTarotInbound().
-    const resultadoBandeja = await registrarMensajeTarotInbound({
-      tarotCliente, numeroE164, parsed,
-    });
-
-    // Trazabilidad cruzada en log_funciones
-    await registrarLog("tarot_cliente_inbound", {
-      tarot_cliente_id: tarotCliente.id,
-      numeroE164,
+    // 2026-10-21 (bandeja P0): un número que no es suscriptor de Horóscopo no
+    // tiene nada que hacer acá. La bandeja de Tarot (cualquier número, sea o
+    // no cliente) y su respuesta automática viven en ef_tarot_wa_ingesta,
+    // que CAPA 1 llama en paralelo. Se mantiene el registro heredado en
+    // wa_conversaciones (lo lee /admin/wa), sin texto completo.
+    await registrarLog("numero_no_suscriptor", {
       msgId: parsed.msgId,
       tipo: parsed.tipo,
-      textBody: texto.slice(0, 200),
-      rateLimited,
-      estadoConv,
-      id_evento,
-      bandeja_registrado: resultadoBandeja.registrado,
-      bandeja_duplicado: !!resultadoBandeja.duplicado,
+      id_evento
     }, true);
-
-    return jsonResponse({
-      resultado: "ok",
-      accion: rateLimited ? "tarot_cliente_rate_limited" : "tarot_cliente_auto_reply",
-      tarot_cliente_id: tarotCliente.id,
-    }, 200);
+    await upsertConversacion({
+      wamid:        parsed.msgId,
+      numero_wa:    numeroE164,
+      tipo_mensaje: parsed.tipo,
+      cuerpo:       texto.slice(0, 1000) || null,
+      timestamp_wa: parsed.timestampUTC,
+      producto:     "desconocido",
+      estado:       "ignorado",
+    });
+    return jsonResponse({ resultado: "sin_accion", motivo: "numero_no_suscriptor" }, 200);
   }
   // =========================================================================
   // 5.4) AYUDA / ESTADO — COMANDOS INFORMATIVOS
