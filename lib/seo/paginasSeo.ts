@@ -27,10 +27,12 @@ export const PAGINAS_SEO = {
   },
   personalizada: {
     slug: "/tarot/lectura-personalizada",
-    titulo: "Lectura de tarot personalizada: qué recibís y cómo es | Tu Oráculo",
+    // Re-enfocada (Paquete SEO 1): "qué incluye" + "tarot gratis vs
+    // personalizado". La intención de compra principal es de /tarot.
+    titulo: "Lectura de tarot personalizada vs tarot gratis: qué incluye | Tu Oráculo",
     descripcion:
-      "Qué hace personal a una lectura de tarot: tu pregunta, tus 5 cartas, interpretación carta por carta, resumen con audio, mensaje personal y PDF.",
-    migaja: "Lectura de tarot personalizada",
+      "Qué incluye una lectura de tarot personalizada y en qué se diferencia de una tirada gratis: tu pregunta, 5 cartas, resumen con audio, mensaje y PDF.",
+    migaja: "Qué incluye una lectura personalizada",
   },
   amor: {
     slug: "/tarot/amor",

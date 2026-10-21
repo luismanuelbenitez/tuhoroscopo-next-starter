@@ -14,7 +14,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Tu Oráculo",
     description: "Tarot: lectura personalizada, directo a tu WhatsApp en menos de 15 minutos.",
-    url: "https://tuoraculo.uy",
+    // Sin `url` acá (Paquete SEO 1, 2026-10-21): heredada, hacía que TODAS las
+    // páginas declararan og:url = home. Cada página indexable declara la suya
+    // (lib/seo/metadataPagina, lib/seo/paginasSeo).
     siteName: "Tu Oráculo",
     images: [{ url: "/img/whatsapp/og.jpg", width: 1672, height: 941, alt: "Tu Oráculo" }],
     locale: "es_UY",
@@ -26,13 +28,11 @@ export const metadata: Metadata = {
     description: "Tarot: lectura personalizada, directo a tu WhatsApp en menos de 15 minutos.",
     images: ["/img/whatsapp/og.jpg"],
   },
-icons: {
-  icon: [
-    { url: "/img/logo/logo-isotipo.png", sizes: "512x512", type: "image/png" },
-    { url: "/icons/favicon.ico", type: "image/x-icon" },
-  ],
-  apple: { url: "/img/logo/logo-isotipo.png", sizes: "180x180", type: "image/png" },
-},
+  // Íconos (Paquete SEO 1, 2026-10-21): convenciones de archivo de Next en
+  // app/ (favicon.ico 16/32/48, icon.png 48, apple-icon.png 180) — con un
+  // app/favicon.ico presente Next ignora `icons` acá. Antes: el PNG de 512 px
+  // / 430 KB del logo como ícono (se descargaba en cada página) y un
+  // /icons/favicon.ico inexistente (404).
   verification: {
     other: {
       "facebook-domain-verification": "up4qonfp1o0te6emdp58buogl9ckug",

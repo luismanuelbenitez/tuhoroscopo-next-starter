@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional } from '@/components/marca/PaginaInstitucional';
 import { GOLD, CTA_GRADIENT } from '@/components/home/theme';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
+export const metadata = metadataPagina(
+  '/quienes-somos',
+  'Quiénes somos: empresa uruguaya de bienestar espiritual | Tu Oráculo',
+  'Tu Oráculo es una empresa uruguaya que crea experiencias digitales de bienestar espiritual. Conocé quién está detrás, cómo trabajamos y cómo usamos la IA.',
+);
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return <PanelInstitucional titulo={titulo}>{children}</PanelInstitucional>;

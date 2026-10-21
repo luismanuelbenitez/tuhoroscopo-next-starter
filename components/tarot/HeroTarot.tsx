@@ -25,12 +25,15 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
   return (
     <div className="relative px-6 md:px-12" style={{ paddingTop: "7%", paddingBottom: "5%" }}>
       <div className="fi1 max-w-[520px]">
-        <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
-          Tarot personalizado
-        </p>
-        <h1 className="mb-1" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2.2rem, 6vw, 3.6rem)", lineHeight: 1.05, textShadow: TEXT_SHADOW }}>
-          <span style={{ color: CREMA }}>Tarot</span>
+        {/* SEO (2026-10-21): el H1 es la intención principal de la página
+            ("tarot personalizado online") con el estilo del antetítulo; el
+            "Tarot" grande queda como título visual, sin cambiar el diseño. */}
+        <h1 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
+          Tarot personalizado online
         </h1>
+        <p aria-hidden="true" className="mb-1" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: 700, fontSize: "clamp(2.2rem, 6vw, 3.6rem)", lineHeight: 1.05, textShadow: TEXT_SHADOW }}>
+          <span style={{ color: CREMA }}>Tarot</span>
+        </p>
         <p className="mb-4" style={{ color: GOLD, fontSize: "clamp(1.05rem, 2.2vw, 1.3rem)", fontWeight: 600, textShadow: TEXT_SHADOW }}>
           5 cartas, interpretadas para vos.
         </p>

@@ -1,12 +1,15 @@
 import TarotLandingContent from './TarotLandingContent';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { getTestimoniosTarot, TESTIMONIOS_DEMO } from '@/lib/getTestimoniosTarot';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
 
-export const metadata = {
-  title: 'Tarot personalizado | Tu Oráculo',
-  description:
-    'Tarot personalizado: 5 cartas interpretadas para vos. En menos de 15 minutos te llegan por WhatsApp: una lectura online hecha para el celular y un PDF para guardar. Un solo pago. Sin suscripción.',
-};
+// Página dueña de la intención principal "tarot online personalizado" y hub
+// de las páginas por tema (Paquete SEO 1, 2026-10-21).
+export const metadata = metadataPagina(
+  '/tarot',
+  'Tarot online personalizado: tu lectura de 5 cartas | Tu Oráculo',
+  'Tarot online personalizado: 5 cartas interpretadas para tu consulta, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único, sin suscripción.',
+);
 
 export default async function TarotPage({
   searchParams,

@@ -1,5 +1,13 @@
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL } from '@/components/marca/PaginaInstitucional';
 import { GOLD } from '@/components/home/theme';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
+export const metadata = metadataPagina(
+  '/politica-de-privacidad',
+  'Política de privacidad | Tu Oráculo',
+  'Qué datos recopila Tu Oráculo, para qué los usamos, cómo usamos la inteligencia artificial y cómo ejercer tus derechos sobre tu información.',
+);
 
 
 const SECTIONS = [

@@ -3,6 +3,14 @@ import Link from 'next/link';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { PaginaInstitucional, EncabezadoInstitucional, PANEL_INSTITUCIONAL as PANEL } from '@/components/marca/PaginaInstitucional';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
+export const metadata = metadataPagina(
+  '/faq',
+  'Preguntas frecuentes sobre el Tarot online | Tu Oráculo',
+  'Cómo funciona el Tarot online de Tu Oráculo: qué recibís, cuánto tarda, cómo se paga, privacidad, uso de inteligencia artificial y qué hacer si no te llega.',
+);
 
 // Estética de marca (2026-10-19): envoltorio común PaginaInstitucional.
 
@@ -26,6 +34,8 @@ export default async function FAQ() {
     {
       q: '¿Es realmente personalizada?',
       a: 'Sí. Tus 5 cartas se sortean para vos y se interpretan con tu nombre, tu fecha de nacimiento, el tema que elegiste y tu pregunta, si la escribís. No es texto estándar ni genérico.',
+      // Enlazado interno (Paquete SEO 1, 2026-10-21)
+      extra: <>Más detalle en <Link href="/tarot/lectura-personalizada" className="underline underline-offset-2 hover:text-white" style={{ color: GOLD }}>qué incluye una lectura personalizada</Link>.</>,
     },
     {
       q: '¿Cuánto cuesta?',
@@ -46,6 +56,7 @@ export default async function FAQ() {
     {
       q: '¿Puedo consultar más de una vez?',
       a: 'Sí. Cada tirada es independiente: cada vez se sortean cartas nuevas. Podés pedir otra cuando quieras, sobre el mismo tema o uno diferente.',
+      extra: <>Mirá cómo es una lectura sobre <Link href="/tarot/amor" className="underline underline-offset-2 hover:text-white" style={{ color: GOLD }}>amor</Link>, <Link href="/tarot/trabajo-y-dinero" className="underline underline-offset-2 hover:text-white" style={{ color: GOLD }}>trabajo y dinero</Link> o <Link href="/tarot/decisiones" className="underline underline-offset-2 hover:text-white" style={{ color: GOLD }}>una decisión</Link>.</>,
     },
     {
       q: '¿Necesito instalar alguna app?',
@@ -79,6 +90,7 @@ export default async function FAQ() {
               <div className="px-5 md:px-6 pb-5">
                 <div className="pt-3" style={{ borderTop: '1px solid rgba(240,197,90,0.18)' }}>
                   <p className="text-white/70 text-[15px] leading-relaxed">{faq.a}</p>
+                  {faq.extra && <p className="mt-2 text-white/70 text-[15px] leading-relaxed">{faq.extra}</p>}
                 </div>
               </div>
             </details>

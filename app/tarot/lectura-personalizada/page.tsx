@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
 import { getTestimoniosAutorizados } from "@/lib/seo/testimoniosAutorizados";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
@@ -7,10 +8,10 @@ import {
   CtaSeo, CHECKOUT,
 } from "@/components/seo/BloquesSeo";
 
-// Intención: alguien cerca de comprar que quiere entender QUÉ es una lectura
-// personalizada y qué recibe. Incluye, como sección (no como eje), la
-// diferencia con un tarot gratis o automático. Evita el "Tarot personalizado"
-// como título para no competir con /tarot.
+// Intención (re-enfocada 2026-10-21, Paquete SEO 1): entender QUÉ incluye una
+// lectura personalizada y en qué se diferencia de una tirada gratis. La
+// intención de compra principal ("tarot online personalizado") es de /tarot:
+// esta página la explica en detalle y enlaza hacia allá.
 
 export const metadata = metadataSeo("personalizada");
 
@@ -21,12 +22,13 @@ export default async function LecturaPersonalizada() {
     <PaginaSeo clave="personalizada" precioUYU={precioUYU} ctaHref={CHECKOUT}>
       <HeroSeo
         eyebrow="Lectura de tarot personalizada"
-        titulo="Una lectura de tarot hecha para tu consulta"
+        titulo="Qué incluye una lectura de tarot personalizada"
         cta={<CtaSeo href={CHECKOUT} ubicacion="hero">Quiero mi lectura personalizada</CtaSeo>}
       >
         <p>
           Una lectura personalizada parte de lo que te está pasando a vos: tu tema, tu pregunta, tu momento. Tus 5 cartas
-          se interpretan en ese contexto, no como un texto general que podría leer cualquiera.
+          se interpretan en ese contexto, no como un texto general que podría leer cualquiera. Acá te contamos qué
+          recibís y en qué se diferencia de una tirada gratis.
         </p>
       </HeroSeo>
 
@@ -65,6 +67,13 @@ export default async function LecturaPersonalizada() {
           ]}
         />
         <p>Te llega por WhatsApp en menos de 15 minutos y, si lo pedís, también por email.</p>
+        <p>
+          Podés ver la experiencia completa en{" "}
+          <Link href="/tarot" className="underline underline-offset-2" style={{ color: "rgba(240,197,90,0.95)" }}>
+            nuestro Tarot online personalizado
+          </Link>
+          .
+        </p>
       </Seccion>
 
       <Seccion titulo="¿Y el tarot gratis?">

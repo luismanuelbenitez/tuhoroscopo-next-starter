@@ -17,7 +17,7 @@ const PUBLICAS: { ruta: string; prioridad: number }[] = [
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const publicas = PUBLICAS.map(({ ruta, prioridad }) => ({
-    url: `${SITIO}${ruta === "/" ? "" : ruta}`,
+    url: `${SITIO}${ruta}`, // home con barra final: igual que su canonical
     changeFrequency: "monthly" as const,
     priority: prioridad,
   }));

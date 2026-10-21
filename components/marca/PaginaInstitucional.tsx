@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
 import { FondoCheckout } from "@/components/tarot/checkout/FondoCheckout";
+import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 
 // Páginas institucionales con la estética de marca (2026-10-19): FAQ,
@@ -31,6 +32,7 @@ export function PaginaInstitucional({ children }: { children: ReactNode }) {
       <main className="relative px-5 pt-12 md:pt-16 pb-14 mx-auto w-full max-w-[760px]" style={{ fontVariantNumeric: "lining-nums" }}>
         {children}
       </main>
+      <EnlacesTarotPie className="pb-5" />
       <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
         © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
       </p>

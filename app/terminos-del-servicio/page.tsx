@@ -4,6 +4,14 @@ import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL
 import { GOLD } from '@/components/home/theme';
 import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
+export const metadata = metadataPagina(
+  '/terminos-del-servicio',
+  'Términos del servicio | Tu Oráculo',
+  'Condiciones de uso de Tu Oráculo: descripción del servicio de Tarot online, pago único, entregas, reembolsos y alcance de las lecturas.',
+);
 
 export default async function TerminosServicio() {
   const [precio, precioTarot] = await Promise.all([

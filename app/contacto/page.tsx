@@ -2,6 +2,14 @@ import { Mail, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional } from '@/components/marca/PaginaInstitucional';
 import { GOLD, CTA_GRADIENT } from '@/components/home/theme';
+import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
+export const metadata = metadataPagina(
+  '/contacto',
+  'Contacto | Tu Oráculo',
+  'Escribinos por email o WhatsApp si tenés dudas sobre tu lectura de Tarot, un pago o una entrega. Respondemos desde Uruguay.',
+);
 
 // Estética de marca (2026-10-19): envoltorio común PaginaInstitucional.
 // Textos sin cambios.

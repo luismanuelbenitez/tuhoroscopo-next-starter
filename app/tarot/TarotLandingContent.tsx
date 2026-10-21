@@ -14,6 +14,8 @@ import { TestimoniosTarot } from "@/components/tarot/TestimoniosTarot";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
 import { CtaFinalTarot } from "@/components/tarot/CtaFinalTarot";
 import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
+import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
+import { LecturasPorTema } from "@/components/tarot/LecturasPorTema";
 
 // Mismo criterio arquitectónico que la Home (app/page.tsx): se oculta el
 // header global del layout y se renderiza el propio (HeaderTarot) DENTRO
@@ -51,9 +53,11 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
             <QueIncluyeTarot />
             <AsiSeViveTarot />
             <ComoFuncionaTarot />
+            <LecturasPorTema />
             <TestimoniosTarot testimonios={testimonios} />
             <CtaFinalTarot precioUYU={precioUYU} />
             {/* Cierre sutil en lugar del footer global (oculto en esta página). */}
+            <EnlacesTarotPie className="pb-5" />
             <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/40">
               © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
             </p>

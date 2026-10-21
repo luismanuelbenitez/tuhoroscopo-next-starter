@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
 
 export function Footer() {
   return (
@@ -11,6 +12,8 @@ export function Footer() {
        */}
       <div style={{ background: '#0e0b22', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="mx-auto max-w-5xl px-4 py-8 text-center text-sm space-y-4">
+
+          <EnlacesTarotPie className="pb-1" />
 
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-white/55">
             <Link href="/quienes-somos" className="hover:text-white/90 transition-colors">
