@@ -255,12 +255,18 @@ interface CartaParaImagen {
   storagePath: string | null;
 }
 
+// MEMORIA (2026-10-21): el original de cada carta (≈767×1151) se decodificaba
+// entero para pintarlo a 176×264 — 5 cartas ≈ 17 MB decodificados + sus
+// copias base64, y una entrega real murió por WORKER_RESOURCE_LIMIT. Ahora
+// se usa la miniatura tarot-assets/wa/<path> (alto 528 = 2× lo pintado,
+// misma proporción, ≈60 KB). Si no existe, cae al original.
 async function descargarCartaComoDataUri(
   supabase: SupabaseClient,
   storagePath: string | null,
 ): Promise<string | null> {
   if (!storagePath) return null;
-  const { data, error } = await supabase.storage.from(BUCKET_ASSETS).download(storagePath);
+  let { data, error } = await supabase.storage.from(BUCKET_ASSETS).download(`wa/${storagePath}`);
+  if (error || !data) ({ data, error } = await supabase.storage.from(BUCKET_ASSETS).download(storagePath));
   if (error || !data) return null;
   const bytes = new Uint8Array(await data.arrayBuffer());
   const ext = storagePath.split(".").pop()?.toLowerCase();

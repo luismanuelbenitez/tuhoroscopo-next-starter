@@ -176,6 +176,9 @@ serve(async (req) => {
   if (!ordenId) return json({ ok: false, error: "ORDEN_ID_REQUERIDO" }, 400);
 
   const forzar = body.forzar === true;
+  // 2026-10-21: lo manda ef_tarot_generar_pdf cuando el intento anterior murió
+  // por un límite de la plataforma (546 WORKER_RESOURCE_LIMIT, 50x).
+  const recuperarCaida = body.recuperar_caida === true;
   const autorizacionId = typeof body.autorizacion_id === "string" && body.autorizacion_id.trim()
     ? body.autorizacion_id.trim()
     : null;
@@ -246,6 +249,19 @@ serve(async (req) => {
 
     if (!orden) return json({ ok: false, error: "ORDEN_NO_ENCONTRADA" }, 404);
     emailSolicitadoOrden = orden.email_solicitado ?? null;
+    // Recuperación de caída (2026-10-21): solo si la orden quedó colgada en
+    // 'enviando_whatsapp' Y el último envío nunca llegó a Meta (sin wamid).
+    if (recuperarCaida && orden.estado === "enviando_whatsapp") {
+      const { data: colgados } = await supabase.from("tarot_envios_whatsapp").update({
+        estado: "error",
+        wa_error_mensaje: "La función se cortó antes de llamar a Meta (límite de la plataforma) — recuperado automáticamente",
+      }).eq("orden_id", ordenId).eq("estado", "enviando").is("wa_message_id", null).select("id");
+      if (colgados && colgados.length > 0) {
+        await supabase.from("tarot_ordenes").update({ estado: "error_whatsapp" }).eq("id", ordenId).eq("estado", "enviando_whatsapp");
+        orden.estado = "error_whatsapp";
+        await log(ordenId, "wa_recuperacion_automatica", "warning", "Envío WA cortado por la plataforma — reintento inmediato", { envios_marcados: colgados.length });
+      }
+    }
 
     // "entregado"/"entregado_simulado" se incluyen para permitir reenvíos
     // (autorizados, o reintentos sobre una simulación que nunca fue entrega
@@ -443,8 +459,18 @@ serve(async (req) => {
 
     let imagenHeaderUrl: string | null = null;
     try {
+      // Memoria del isolate antes/después del cabezal (2026-10-21).
+      const memAntes = Deno.memoryUsage?.() ?? null;
+      const tImg = Date.now();
       const imagen = await generarImagenWhatsapp(supabase, ordenId);
       imagenHeaderUrl = imagen?.signedUrl ?? null;
+      const memDespues = Deno.memoryUsage?.() ?? null;
+      const mb = (n?: number) => typeof n === "number" ? Math.round(n / 1048576) : null;
+      await log(ordenId, "wa_imagen_whatsapp_memoria", "info", "Cabezal listo", {
+        ms: Date.now() - tImg, generada: Boolean(imagen?.bytes),
+        rss_mb_antes: mb(memAntes?.rss), rss_mb_despues: mb(memDespues?.rss),
+        heap_mb_despues: mb(memDespues?.heapUsed), externo_mb_despues: mb(memDespues?.external),
+      });
     } catch (e) {
       await log(ordenId, "wa_imagen_whatsapp_error", "warning",
         "No se pudo generar la imagen personalizada — se degrada al mensaje sin template",

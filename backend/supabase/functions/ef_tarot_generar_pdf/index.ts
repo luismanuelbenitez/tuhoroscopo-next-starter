@@ -1535,16 +1535,39 @@ async function generarPDF(ordenId, lecturaIdParam, force = false, debug = false,
         // lanzado adentro y nunca esperado por generarPDF() queda huérfano
         // igual en cuanto generarPDF() termina. Es el mismo bug, un nivel más
         // adentro. Ver docs/product/DECISIONS.md.
-        EdgeRuntime.waitUntil(fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
-          method: "POST",
-          headers: internalHeaders,
-          body: JSON.stringify({
-            orden_id: ordenId,
-            token: accesoToken
-          })
-        }).catch((err)=>{
-          console.error(`${FN} fatal despachando WhatsApp para orden ${ordenId}:`, err);
-        }));
+        // REINTENTO INMEDIATO (2026-10-21): antes el fetch no miraba la
+        // respuesta — si ef_tarot_enviar_whatsapp moría por un límite de la
+        // plataforma (546 WORKER_RESOURCE_LIMIT generando el cabezal; 50x),
+        // la orden quedaba colgada en 'enviando_whatsapp' hasta la alerta de
+        // orden trabada (30 min). Ahora se espera la respuesta y, SOLO ante
+        // una caída de plataforma (no ante errores controlados de la
+        // entrega), se reintenta en el acto con recuperar_caida, hasta 2 veces.
+        EdgeRuntime.waitUntil((async ()=>{
+          const MAX_REINTENTOS_CAIDA = 2;
+          for(let intentoCaida = 0; intentoCaida <= MAX_REINTENTOS_CAIDA; intentoCaida++){
+            let res = null;
+            try {
+              res = await fetch(`${SUPABASE_URL}/functions/v1/ef_tarot_enviar_whatsapp`, {
+                method: "POST",
+                headers: internalHeaders,
+                body: JSON.stringify({
+                  orden_id: ordenId,
+                  token: accesoToken,
+                  ...intentoCaida > 0 ? { recuperar_caida: true } : {}
+                })
+              });
+            } catch (err) {
+              console.error(`${FN} fatal despachando WhatsApp para orden ${ordenId}:`, err);
+            }
+            const codigoPlataforma = res?.headers.get("sb-error-code") ?? null;
+            const esCaida = !res || codigoPlataforma !== null || [502, 503, 504, 546].includes(res.status);
+            if (!esCaida) return;
+            await log(ordenId, "entrega_whatsapp_caida", "warning", `La entrega por WhatsApp se cortó (${res ? res.status : "sin respuesta"}${codigoPlataforma ? ` ${codigoPlataforma}` : ""}) — ${intentoCaida < MAX_REINTENTOS_CAIDA ? "reintento inmediato" : "sin más reintentos automáticos"}`, {
+              http_status: res?.status ?? null, codigo: codigoPlataforma, intento: intentoCaida + 1
+            });
+            if (intentoCaida < MAX_REINTENTOS_CAIDA) await new Promise((r)=>setTimeout(r, 1500));
+          }
+        })());
       } else {
         await log(ordenId, "entrega_whatsapp_omitida_por_config", "info", `WhatsApp omitido — canal: ${canal}, wa_activo: ${waActivo}`, {
           canal,
