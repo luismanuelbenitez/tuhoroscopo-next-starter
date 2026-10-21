@@ -48,7 +48,7 @@ export function buildHtmlEntregaEmail(datos: DatosEmailEntrega): string {
                 🔮 Leer mi tirada
               </a>
               <p style="margin:14px 0 0;font-size:12px;color:rgba(255,255,255,0.35);">
-                Tu lectura online estará disponible durante 30 días${expiraLecturaStr ? ` (hasta el ${expiraLecturaStr})` : ""}.
+                Tu lectura online y la descarga del PDF estarán disponibles durante 30 días${expiraLecturaStr ? ` (hasta el ${expiraLecturaStr})` : ""}.
               </p>
               <div style="height:22px;line-height:22px;font-size:1px;">&nbsp;</div>` : "";
 
@@ -94,7 +94,7 @@ ${ctaPrincipalBlock}
                 📜 Descargar PDF
               </a>
               <p style="margin:14px 0 0;font-size:11px;color:rgba(255,255,255,0.25);">
-                El PDF queda como tu versión para conservar.
+                Descargá el PDF para conservar tu lectura para siempre.
               </p>
             </td>
           </tr>

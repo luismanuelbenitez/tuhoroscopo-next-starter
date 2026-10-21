@@ -612,7 +612,9 @@ export default function TarotCheckoutContent({
                       id="pregunta"
                       name="pregunta"
                       rows={4}
-                      className={`${inputCheckout} !h-auto pl-11 resize-none leading-relaxed`}
+                      // Mobile (2026-10-21): el texto de ejemplo ocupa ~8 líneas en
+                      // pantallas angostas y con 4 filas quedaba cortado. Escritorio igual.
+                      className={`${inputCheckout} !h-auto min-h-[14rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
                       style={inputBg}
                       placeholder={`Si hay algo puntual que quieras explorar, contámelo. Si no, podés recibir una lectura abierta sobre tu momento actual.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
                       value={form.pregunta}

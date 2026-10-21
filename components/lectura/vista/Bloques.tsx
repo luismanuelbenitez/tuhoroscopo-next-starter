@@ -87,9 +87,14 @@ export function ResumenBloque({ resumen, audioResumenUrl }: { resumen: string; a
         </div>
       </div>
 
-      {/* Mobile/tablet: pergamino 780×720 (sol y luna arriba en las esquinas). */}
-      <div className="lg:hidden relative w-full max-w-[480px] mx-auto" style={{ aspectRatio: "780 / 720", backgroundImage: `url(${PAN}/pergamino-resumen-mobile.webp)`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
-        <div className="absolute inset-0 flex flex-col items-center text-center px-[11%] pt-[9%]">
+      {/* Mobile/tablet: pergamino 780×720 (sol y luna arriba en las esquinas).
+          2026-10-21: grilla de una celda con dos capas — un espaciador con la
+          proporción del pergamino y el contenido. La celda toma la altura
+          MAYOR: conserva 780×720 cuando todo entra y crece cuando no (en
+          pantallas angostas el último botón quedaba sobre el borde). */}
+      <div className="lg:hidden relative w-full max-w-[480px] mx-auto grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${PAN}/pergamino-resumen-mobile.webp)`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
+        <div aria-hidden="true" className="[grid-area:1/1]" style={{ aspectRatio: "780 / 720" }} />
+        <div className="[grid-area:1/1] flex flex-col items-center text-center px-[11%] pt-[9%] pb-[11%]">
           <div className="px-[16%]">{titulo}</div>
           <div className="mt-2">{intro}</div>
           <div className="mt-4 w-full flex flex-col items-stretch gap-2 [&>*]:w-full [&_button]:w-full">{botones}</div>
@@ -250,10 +255,12 @@ function TarjetaPergamino({
           <div className="flex-1 min-w-0">
             <h2 className="text-[22px] md:text-[27px]" style={{ fontFamily: SERIF, fontWeight: 700, lineHeight: 1.12, color: TINTA }}>{titulo}</h2>
             <div className="mt-1 text-[13px] md:text-[14px] leading-snug" style={{ color: TINTA_SUAVE }}>{descripcion}</div>
-            <div className="mt-3 md:hidden">{accion}</div>
           </div>
           <div className="hidden md:block shrink-0">{accion}</div>
         </div>
+        {/* Mobile (2026-10-21): la acción en su propia fila, centrada — dentro
+            de la columna de texto (~155 px) el botón se montaba sobre el borde. */}
+        <div className="mt-4 flex justify-center md:hidden">{accion}</div>
         {children}
       </div>
     </section>
