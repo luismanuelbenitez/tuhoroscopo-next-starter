@@ -36,5 +36,11 @@ export async function POST(req: Request) {
   session.admin = { autenticado: true, usuario };
   await session.save();
 
+  // Inteligencia de visitantes (2026-10-22): el navegador del admin queda
+  // marcado como tráfico propio (1 año) — sus visitas se excluyen por defecto
+  // de las métricas propias y de Vercel Web Analytics. No es de sesión ni da
+  // acceso a nada: solo una etiqueta. Se quita con ?interno=0.
+  cookies().set("tuo_interno", "1", { maxAge: 365 * 86400, path: "/", sameSite: "lax" });
+
   return NextResponse.json({ ok: true });
 }

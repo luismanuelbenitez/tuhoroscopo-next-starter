@@ -26,6 +26,7 @@ import {
   Star,
   type LucideIcon,
   Megaphone,
+  Radar, Scale,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -66,6 +67,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/tarot/logs",     icon: ScrollText,   label: "Logs" },
       { href: "/admin/tarot/ingresos", icon: TrendingUp,   label: "Ingresos" },
+      { href: "/admin/tarot/visitantes", icon: Radar,      label: "Visitantes" },
     ],
   },
   {
@@ -79,6 +81,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/tarot/alertas", icon: Bell,     label: "Alertas" },
       { href: "/admin/tarot/config",  icon: Settings, label: "Configuración" },
+      { href: "/admin/tarot/normativa", icon: Scale,  label: "Normativa" },
     ],
   },
 ];
