@@ -26,6 +26,7 @@ import {
   Star,
   type LucideIcon,
   Megaphone,
+  Target,
   Radar, Scale,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
@@ -60,6 +61,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/codigos",  icon: Tag,          label: "Cupones" },
       { href: "/admin/tarot/testimonios", icon: Star,      label: "Testimonios" },
       { href: "/admin/tarot/campanas", icon: Megaphone,   label: "Campañas" },
+      { href: "/admin/tarot/campanas-ads", icon: Target,   label: "Campañas Ads" },
     ],
   },
   {
@@ -162,7 +164,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                 {grupo.items.map(({ href, icon: Icon, label, exact }) => {
                   const isActive = exact
                     ? pathname === href
-                    : pathname.startsWith(href);
+                    : pathname === href || pathname.startsWith(`${href}/`);
                   const badgeCount = href === "/admin/tarot/alertas" ? noLeidas
                     : href === "/admin/tarot/whatsapp" ? noLeidasWhatsapp
                     : 0;

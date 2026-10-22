@@ -65,7 +65,7 @@ export function clasificarFuente(p: {
   const src = (p.utm_source ?? "").toLowerCase();
   const med = (p.utm_medium ?? "").toLowerCase();
   const pago = /cpc|ppc|paid|ads?$|cpm|paidsocial|paid_social/.test(med);
-  const esMeta = /^(facebook|fb|instagram|ig|meta|an|messenger)$/.test(src);
+  const esMeta = /^(facebook|fb|instagram|ig|meta|an|msg|messenger)$/.test(src);
   if ((esMeta && (pago || p.fbclid)) || (src === "meta")) return "Meta Ads";
   if (p.gclid || (src === "google" && pago)) return "Google Ads";
   if (src === "whatsapp" || src === "wa") return "WhatsApp";
