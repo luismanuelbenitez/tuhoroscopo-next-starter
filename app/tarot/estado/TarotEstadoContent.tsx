@@ -137,11 +137,22 @@ export default function TarotEstadoContent() {
 
   function lanzarConfeti() {
     const colors = ['#F0C55A', '#FFCE4D', '#D4AF37', '#C9A7FF', '#F5EFE0'];
-    const duration = 8000;
+    // Mobile (2026-10-21): con 16 partículas por cuadro durante 8 s (~7.600)
+    // el confeti tapaba el título y los pasos en pantallas chicas. En mobile:
+    // 3,5 s, un disparo cada 4 cuadros, 3 por lado, más chicas (~300 en total).
+    // Escritorio sin cambios.
+    const mobile = window.matchMedia?.('(max-width: 767px)').matches ?? false;
+    const duration = mobile ? 3500 : 8000;
+    const porLado = mobile ? 3 : 8;
+    const cadaCuadros = mobile ? 4 : 1;
+    const scalar = mobile ? 0.8 : 1;
     const end = Date.now() + duration;
+    let cuadro = 0;
     (function frame() {
-      confetti({ particleCount: 8, angle: 60, spread: 80, origin: { x: 0 }, colors });
-      confetti({ particleCount: 8, angle: 120, spread: 80, origin: { x: 1 }, colors });
+      if (cuadro++ % cadaCuadros === 0) {
+        confetti({ particleCount: porLado, angle: 60, spread: 80, origin: { x: 0 }, colors, scalar });
+        confetti({ particleCount: porLado, angle: 120, spread: 80, origin: { x: 1 }, colors, scalar });
+      }
       if (Date.now() < end) requestAnimationFrame(frame);
     })();
   }
