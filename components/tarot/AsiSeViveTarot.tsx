@@ -14,7 +14,8 @@ const DIR = "/img/tarot/contenedores/asi-se-vive";
 type CargaImg = ReturnType<typeof fijo>;
 const IMG = {
   separador: `${DIR}/separador_inicial.webp`,
-  // Captura REAL de /lectura (mobile 390px @3x) de la lectura demo "Paula"
+  // Captura REAL de /lectura (mobile 390×700 @3x, encuadre que deja ver el
+  // pergamino "Resumen de tu lectura" al pie) de la lectura demo "Paula"
   // (2026-10-22), recortada a la proporción de la pantalla de telefono.webp.
   // Las cartas se cambiaron solo en la captura por cartas positivas del mazo
   // propio (decisión de Manuel para piezas públicas).
