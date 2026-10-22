@@ -14,12 +14,13 @@ const DIR = "/img/tarot/contenedores/asi-se-vive";
 type CargaImg = ReturnType<typeof fijo>;
 const IMG = {
   separador: `${DIR}/separador_inicial.webp`,
-  // Captura REAL de /lectura (mobile 390px @2x, cartas reveladas,
-  // 2026-10-18), recortada a la proporción de la pantalla de telefono.webp.
+  // Captura REAL de /lectura (mobile 390px @3x) de la lectura demo "Paula"
+  // (2026-10-22), recortada a la proporción de la pantalla de telefono.webp.
+  // Las cartas se cambiaron solo en la captura por cartas positivas del mazo
+  // propio (decisión de Manuel para piezas públicas).
   pantallaLecturaReal: `${DIR}/pantalla-lectura-real.webp`,
   ilustracionAudio: `${DIR}/ilustracion-audio.webp`,
-  // ilustracion-mensaje-pdf.webp nunca se subió (daba 404 y caía al mock):
-  // ya no se pide, se muestra directamente el mock (mismo resultado visual).
+  ilustracionPdf: `${DIR}/ilustracion-pdf.webp`,
   iconoLectura: `${DIR}/icono-lectura-online.webp`,
   iconoAudio: `${DIR}/icono-audio.webp`,
   iconoPdf: `${DIR}/icono-pdf.webp`,
@@ -96,8 +97,8 @@ function Ilustracion({ src, fallback }: { src: string; fallback: ReactNode }) {
     <div className="w-full mt-auto flex items-center justify-center md:h-[230px]">
       <ImagenConFallback
         src={src}
-        // ilustracion-audio.webp es 640×360 y se pinta a ≤340 px de ancho
-        carga={fluido(src, 640, 360, "(max-width: 767px) 340px, 260px")}
+        // ilustracion-audio.webp es 960×614 (pergamino + panel real sonando, 2026-10-22) y se pinta a ≤340 px de ancho
+        carga={fluido(src, 960, 614, "(max-width: 767px) 340px, 260px")}
         style={{ display: "block", width: "auto", height: "auto", maxWidth: "100%", maxHeight: 230 }}
         fallback={
           <div className="relative w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}>
@@ -210,12 +211,22 @@ const BLOQUES: Bloque[] = [
     Icon: FileText,
     t: "Mensaje personal, claves y tu PDF",
     d: "Además de la interpretación de tus cartas, recibís un mensaje personal y 3 claves para avanzar. También podés descargar tu PDF completo para conservar tu lectura.",
-    // Igual que el respaldo que mostraba Ilustracion (la imagen no existe).
+    // Las 3 páginas REALES del PDF (lectura demo "Paula", cartas positivas)
+    // en abanico abierto hacia arriba (2026-10-22). Si el archivo faltara,
+    // vuelve al mock de una hoja.
     ilustracion: (
       <div className="w-full mt-auto flex items-center justify-center md:h-[230px]">
-        <div className="relative w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}>
-          <DocumentoMock alt="Tu lectura en PDF: la página con tus cinco cartas" style={{ width: "42%" }} />
-        </div>
+        <ImagenConFallback
+          src={IMG.ilustracionPdf}
+          alt="Tu lectura en PDF: portada con tus cinco cartas, la lectura carta por carta y el mensaje final"
+          carga={fluido(IMG.ilustracionPdf, 760, 701, "(max-width: 767px) 300px, 250px")}
+          style={{ display: "block", width: "auto", height: "auto", maxWidth: "100%", maxHeight: 230 }}
+          fallback={
+            <div className="relative w-full h-full flex items-center justify-center" style={{ minHeight: 200 }}>
+              <DocumentoMock alt="Tu lectura en PDF: la página con tus cinco cartas" style={{ width: "42%" }} />
+            </div>
+          }
+        />
       </div>
     ),
     boton: <BotonVisual Icon={Download}>Ver / descargar PDF</BotonVisual>,
