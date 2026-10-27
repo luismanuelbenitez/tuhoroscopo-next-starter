@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CTA_GRADIENT } from "@/components/home/theme";
 
 // Solo mobile (md:hidden), aparece recién después de scrollear un poco
 // (pasado el Hero, que ya tiene su propio CTA) y es compacto a propósito:
@@ -28,22 +27,25 @@ export function StickyCtaTarot({ precioUYU }: { precioUYU: number | null }) {
       style={{
         zIndex: 200,
         padding: "10px 16px calc(10px + env(safe-area-inset-bottom))",
-        background: "rgba(8,5,20,0.97)",
+        background: "rgba(8,5,20,0.88)",
+        WebkitBackdropFilter: "blur(14px)",
         backdropFilter: "blur(14px)",
-        borderTop: "1px solid rgba(240,197,90,0.18)",
+        borderTop: "1px solid rgba(240,197,90,0.12)",
       }}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-white/90 m-0 truncate">
-          Tarot{precioTexto ? ` · ${precioTexto}` : ""}
+        <p className="text-[13px] font-semibold m-0 truncate" style={{ color: "rgba(246,234,210,0.75)" }}>
+          Tu Tirada{precioTexto ? ` · ${precioTexto}` : ""}
         </p>
       </div>
+      {/* Discreto a propósito (2026-10-27): contorno dorado en vez de botón
+          lleno, para acompañar la lectura de la página sin interrumpirla. */}
       <Link
         href="/tarot/checkout"
-        className="shrink-0 rounded-xl text-center font-bold whitespace-nowrap"
-        style={{ padding: "9px 18px", fontSize: 13, background: CTA_GRADIENT, color: "#180e00" }}
+        className="shrink-0 rounded-full text-center font-semibold whitespace-nowrap"
+        style={{ padding: "8px 16px", fontSize: 13, color: "#F0C55A", border: "1px solid rgba(240,197,90,0.6)", background: "rgba(240,197,90,0.08)" }}
       >
-        Quiero mi Tarot →
+        Quiero mi tirada →
       </Link>
     </div>
   );

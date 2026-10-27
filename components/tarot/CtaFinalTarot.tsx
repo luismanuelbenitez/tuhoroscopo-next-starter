@@ -48,7 +48,7 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
       </p>
 
       <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">
-        {precioTexto ? `Quiero mi Tarot por ${precioTexto} →` : "Quiero mi Tarot →"}
+        {precioTexto ? `Quiero mi tirada por ${precioTexto} →` : "Quiero mi tirada →"}
       </CtaButton>
 
       <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-6 max-w-[700px] mx-auto">

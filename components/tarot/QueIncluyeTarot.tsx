@@ -12,6 +12,11 @@ const BASE = "/img/tarot/contenedores/que-incluye";
 const COLOR_TITULO = "#241426";    // violeta/negro muy oscuro
 const COLOR_SECUNDARIO = "#5A4632"; // marrón oscuro
 const COLOR_ACENTO = "#A9791F";     // dorado ocre
+// Mobile (sin pergamino: el fondo es el cielo oscuro). Los colores de arriba
+// son para tinta sobre pergamino y en mobile no se leían (2026-10-27).
+const MOVIL_TITULO = "#F6EAD2";                    // crema
+const MOVIL_TEXTO = "rgba(246,234,210,0.80)";      // crema atenuado
+const MOVIL_ACENTO = "#F0C55A";                    // dorado de marca
 
 // Mobile todavía sin pergamino propio (se decidió resolver mobile después,
 // adaptando desktop) — FondoConFallback no renderiza nada si 404, así que
@@ -106,7 +111,7 @@ function PosicionCardMobile({ img, t, e }: (typeof POSICIONES)[number]) {
   return (
     <div className="text-center flex flex-col items-center" style={{ width: "min(78vw, 210px)" }}>
       <CartaConMarco img={img} alt={t} grosor="4px" radio="10px" />
-      <p className="mt-3" style={{ ...ETIQUETA, fontSize: 18 }}>{e}</p>
+      <p className="mt-3" style={{ ...ETIQUETA, fontSize: 18, color: MOVIL_ACENTO }}>{e}</p>
     </div>
   );
 }
@@ -227,11 +232,11 @@ export function QueIncluyeTarot() {
       <div className="md:hidden grid grid-cols-1 text-center">
 
         <div className="px-6 py-12" style={{ gridArea: "1 / 1", alignSelf: "start" }}>
-          <p className="text-[11px] font-bold uppercase mb-4" style={{ color: COLOR_ACENTO, letterSpacing: "0.18em" }}>
+          <p className="text-[11px] font-bold uppercase mb-4" style={{ color: MOVIL_ACENTO, letterSpacing: "0.18em" }}>
             Tu tarot, posición por posición
           </p>
-          <h2 className="text-3xl mb-5" style={{ color: COLOR_TITULO, fontWeight: 800 }}>¿Qué incluye tu Tarot?</h2>
-          <p className="text-[13px] leading-relaxed mb-14 max-w-md mx-auto" style={{ color: COLOR_SECUNDARIO }}>
+          <h2 className="text-3xl mb-5" style={{ color: MOVIL_TITULO, fontWeight: 800, textShadow: "0 2px 14px rgba(0,0,0,0.6)" }}>¿Qué incluye tu Tarot?</h2>
+          <p className="text-[13px] leading-relaxed mb-14 max-w-md mx-auto" style={{ color: MOVIL_TEXTO, textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>
             Una lectura personalizada de 5 cartas. Interpretamos cada carta según su posición y
             después conectamos toda la lectura en un resumen, un mensaje personal y 3 claves para
             avanzar.
@@ -241,7 +246,7 @@ export function QueIncluyeTarot() {
             {POSICIONES.map((p) => <PosicionCardMobile key={p.t} {...p} />)}
           </Carousel>
 
-          <p className="text-[13px] font-bold uppercase tracking-wide mt-20 mb-10" style={{ color: COLOR_ACENTO }}>
+          <p className="text-[13px] font-bold uppercase tracking-wide mt-20 mb-10" style={{ color: MOVIL_ACENTO }}>
             ✦ Y las cinco cartas se conectan en... ✦
           </p>
 
@@ -249,11 +254,11 @@ export function QueIncluyeTarot() {
               real se resuelve en la etapa móvil. */}
           <div className="flex flex-col gap-3 max-w-[420px] mx-auto">
             {CONECTA.map(({ img, t, d }) => (
-              <div key={img} className="flex items-center gap-3 text-left rounded-xl px-4 py-3" style={{ border: "1px solid rgba(169,121,31,0.50)", background: "rgba(255,248,230,0.35)" }}>
+              <div key={img} className="flex items-center gap-3 text-left rounded-xl px-4 py-3" style={{ border: "1px solid rgba(240,197,90,0.45)", background: "rgba(16,8,30,0.82)", boxShadow: "0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,235,170,0.08)" }}>
                 <Medallon img={img} size="52px" />
                 <div className="min-w-0">
-                  <p style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, lineHeight: 1.15, color: COLOR_TITULO, fontVariantNumeric: "lining-nums" }}>{t}</p>
-                  <p className="text-[13px] leading-snug mt-0.5" style={{ color: COLOR_SECUNDARIO }}>{d}</p>
+                  <p style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, lineHeight: 1.15, color: MOVIL_TITULO, fontVariantNumeric: "lining-nums" }}>{t}</p>
+                  <p className="text-[13px] leading-snug mt-0.5" style={{ color: MOVIL_TEXTO }}>{d}</p>
                 </div>
               </div>
             ))}
