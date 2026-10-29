@@ -46,8 +46,11 @@ const CARD_BG = "#0c0718";
 type ImagenDestacado = { src: string; ancho: number; alto: number; alt: string; posicion?: string; altoMovil?: number };
 const IMAGEN_DEFAULT: ImagenDestacado = { src: "/img/home/destacado/producto-destacado.png", ancho: 568, alto: 627, alt: "Tarot" };
 
-export function ProductoDestacado({ imagen = IMAGEN_DEFAULT }: { imagen?: ImagenDestacado }) {
-  const precioTarot = usePrecioTarot();
+// precioUYU: el que ya leyó el servidor (home v2), así el precio sale en el
+// primer render; sin él, se pide desde el cliente como antes.
+export function ProductoDestacado({ imagen = IMAGEN_DEFAULT, precioUYU }: { imagen?: ImagenDestacado; precioUYU?: number | null }) {
+  const precioCliente = usePrecioTarot();
+  const precioTarot = precioUYU ?? precioCliente;
 
   return (
     <div id="producto-destacado" className="scroll-mt-16">

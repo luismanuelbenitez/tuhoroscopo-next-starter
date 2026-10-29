@@ -29,7 +29,9 @@ export function HomePageV2({ precioUYU }: { precioUYU: number | null }) {
 
       <div
         className="min-h-screen text-white pb-16 md:pb-0"
-        style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)" }}
+        // overflowX clip: las escenas de 1280 de EscenarioV2 salen del
+        // contenedor de 960 y no deben generar scroll horizontal.
+        style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)", overflowX: "clip" }}
       >
         <div className="max-w-[960px] mx-auto">
           <EscenarioV2>
@@ -42,13 +44,14 @@ export function HomePageV2({ precioUYU }: { precioUYU: number | null }) {
                   alt: "Una lectura de Tu Oráculo abierta en el celular, de noche, entre velas y cartas",
                   posicion: "52% 58%", altoMovil: 380,
                 }}
+                precioUYU={precioUYU}
               />
             </div>
             <AsiSeViveTarot />
             <ComoFuncionaV2 />
             <MotorNarrativo />
             <BloqueConfianza />
-            <BloqueExperiencias />
+            <BloqueExperiencias conTarot={false} />
             <CtaFinalTarot precioUYU={precioUYU} />
           </EscenarioV2>
         </div>

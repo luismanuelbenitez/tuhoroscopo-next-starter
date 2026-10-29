@@ -122,7 +122,49 @@ function CardProximamente({
   );
 }
 
-export function BloqueExperiencias() {
+const PROXIMAMENTE = [
+  <CardProximamente
+    key="compatibilidad"
+    archivo="compatibilidad-astral.webp"
+    Fallback={Heart}
+    titulo="Compatibilidad Astral"
+    descripcion="Descubrí la energía que los une, sus fortalezas y desafíos, y cómo aprovechar su conexión."
+  />,
+  <CardProximamente
+    key="horoscopo"
+    archivo="horoscopo-diario.webp"
+    Fallback={Moon}
+    titulo="Horóscopo Diario"
+    descripcion="Tu guía astrológica para cada día, con energías, consejos y claves para aprovechar el momento."
+  />,
+];
+
+// conTarot=false (home v2): el Tarot ya está arriba como producto
+// destacado, así que acá van solo las dos que vienen, lado a lado y sin
+// carrusel (con tres, la tercera quedaba cortada).
+export function BloqueExperiencias({ conTarot = true }: { conTarot?: boolean }) {
+  if (!conTarot) {
+    return (
+      <section className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
+          Un universo en expansión
+        </p>
+        <h2
+          className="mb-3"
+          style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.6rem, 3.2vw, 2.3rem)" }}
+        >
+          Muy pronto en Tu Oráculo
+        </h2>
+        <p className="text-white/55 text-[13px] md:text-[14px] mb-8 md:mb-9 max-w-lg mx-auto">
+          Nuevas experiencias para seguir explorando tu camino.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 justify-items-center md:max-w-[700px] mx-auto text-left">
+          {PROXIMAMENTE}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
       <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
@@ -140,20 +182,7 @@ export function BloqueExperiencias() {
       <Carousel>
         {[
           <CardTarot key="tarot" />,
-          <CardProximamente
-            key="compatibilidad"
-            archivo="compatibilidad-astral.webp"
-            Fallback={Heart}
-            titulo="Compatibilidad Astral"
-            descripcion="Descubrí la energía que los une, sus fortalezas y desafíos, y cómo aprovechar su conexión."
-          />,
-          <CardProximamente
-            key="horoscopo"
-            archivo="horoscopo-diario.webp"
-            Fallback={Moon}
-            titulo="Horóscopo Diario"
-            descripcion="Tu guía astrológica para cada día, con energías, consejos y claves para aprovechar el momento."
-          />,
+          ...PROXIMAMENTE,
         ]}
       </Carousel>
     </section>
