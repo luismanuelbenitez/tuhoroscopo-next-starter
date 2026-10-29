@@ -41,8 +41,10 @@ function CardTarot() {
           <span className="text-sm font-bold" style={{ color: GOLD }}>
             {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
           </span>
-          <CtaButton href="/tarot/checkout" className="px-4 py-2 text-[12px]">
-            Quiero mi tirada →
+          {/* Card de catálogo: lleva a conocer el producto (/tarot), no
+              directo a pagar — misma idea que el "Más información" de Meta */}
+          <CtaButton href="/tarot" className="px-4 py-2 text-[12px] whitespace-nowrap">
+            Más información →
           </CtaButton>
         </div>
       </div>

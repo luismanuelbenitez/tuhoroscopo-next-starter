@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePrecioTarot } from "@/lib/usePrecioTarot";
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
@@ -115,9 +116,15 @@ export function ProductoDestacado() {
             {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
           </p>
           <p className="text-[11px] text-white/40 mb-8">pago único</p>
-          <CtaButton href="/tarot/checkout" className="px-6 py-3 text-sm mb-9 w-full text-center md:w-auto">
+          <CtaButton href="/tarot/checkout" className="px-6 py-3 text-sm mb-3 w-full text-center md:w-auto whitespace-nowrap">
             Quiero mi tirada →
           </CtaButton>
+          <Link
+            href="/tarot"
+            className="text-[12px] text-white/55 hover:text-white underline underline-offset-4 decoration-white/25 mb-9 self-center md:self-start"
+          >
+            Más información
+          </Link>
           <div className="space-y-4">
             {MINI_BULLETS.map(({ label, icon }) => (
               <div key={label} className="flex items-center gap-2.5 text-[12px] text-white/55">
