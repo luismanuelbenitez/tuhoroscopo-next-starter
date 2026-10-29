@@ -5,7 +5,9 @@ const nextConfig = {
   // Paquete SEO 2 (2026-10-21): AVIF primero (más liviano), WebP de respaldo.
   // Las imágenes pasan por el optimizador vía lib/imagen (getImageProps).
   images: {
-    formats: ["image/avif", "image/webp"],
+    // En dev solo WebP: el codificador AVIF local (Windows) se cuelga con
+    // algunas imágenes y deja huecos. En Vercel no pasa.
+    formats: process.env.NODE_ENV === "development" ? ["image/webp"] : ["image/avif", "image/webp"],
   },
   experimental: {
     typedRoutes: true

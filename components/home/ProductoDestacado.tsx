@@ -41,7 +41,12 @@ const CARD_BG = "#0c0718";
 // borde dorado, a diferencia del Hero (que es "capa integrada, sin
 // borde"). Sin ancho/posición propios: eso lo resuelve el wrapper en
 // page.tsx, para que quede sobre el mismo escenario que el Hero.
-export function ProductoDestacado() {
+// Imagen de la columna izquierda. Por defecto el abanico de cartas; la home
+// v2 pasa la foto "momento real" (lectura en el celular).
+type ImagenDestacado = { src: string; ancho: number; alto: number; alt: string; posicion?: string; altoMovil?: number };
+const IMAGEN_DEFAULT: ImagenDestacado = { src: "/img/home/destacado/producto-destacado.png", ancho: 568, alto: 627, alt: "Tarot" };
+
+export function ProductoDestacado({ imagen = IMAGEN_DEFAULT }: { imagen?: ImagenDestacado }) {
   const precioTarot = usePrecioTarot();
 
   return (
@@ -54,12 +59,12 @@ export function ProductoDestacado() {
             derecha (desktop) / abajo (mobile) para integrarla a la card.
             El redondeo izquierdo ya lo da el overflow-hidden + rounded-3xl
             del contenedor padre. */}
-        <div className="relative" style={{ minHeight: 260 }}>
+        <div className="relative" style={{ minHeight: imagen.altoMovil ?? 260 }}>
           <img
             // Paquete SEO 2: PNG 568×627 de 519 KB → AVIF/WebP al ancho real
-            {...fluido("/img/home/destacado/producto-destacado.png", 568, 627, "(max-width: 767px) 92vw, 320px")}
-            alt="Tarot"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }}
+            {...fluido(imagen.src, imagen.ancho, imagen.alto, "(max-width: 767px) 92vw, 320px")}
+            alt={imagen.alt}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: imagen.posicion ?? "center" }}
           />
           <div
             className="md:hidden"
