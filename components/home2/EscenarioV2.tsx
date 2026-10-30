@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { fluido, urlOptimizada } from "@/lib/imagen";
 
-const DESKTOP = fluido("/img/home/general/fondo-home-desktop.webp", 793, 1983, "(max-width: 960px) 100vw, 960px");
+// Portada desktop ensanchada (cielo extendido a los costados, centro igual
+// al original de 793×1983) para tener el mismo ancho que las demás capas.
+const DESKTOP = fluido("/img/home/general/fondo-home-desktop-ancho.webp", 1057, 1983, "1280px");
 const MOBILE = fluido("/img/home/general/fondo-home-mobile.webp", 463, 3392, "100vw", { prioridad: true });
 const CHECKOUT = "/img/tarot/contenedores/checkout";
 const LECTURA = "/img/lectura/contenedores/paneles";
@@ -14,14 +16,20 @@ const LECTURA = "/img/lectura/contenedores/paneles";
 // quede lisa a mitad de camino (solo desktop): la del checkout (sol, luna,
 // velas, mazo), el terciopelo de /lectura y, al final, el pie de /faq
 // (velas y cristales, también en mobile). Todas se funden por los cuatro
-// lados para que no se vean cortes rectos contra el fondo liso.
+// lados para que no se vean cortes rectos contra el fondo liso, y todas
+// miden lo mismo: 4/3 del contenedor de 960 (1280), centradas.
+const ANCHO = "133.333%";
 const FADE_LADOS = "linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%)";
 const CSS = `
 @media (min-width: 768px) {
   .esc-v2-portada {
-    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 82%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%) !important;
+    width: ${ANCHO} !important;
+    max-width: none;
+    left: 50% !important;
+    transform: translateX(-50%);
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 82%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%) !important;
     -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(180deg, #000 0%, #000 82%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%) !important;
+    mask-image: linear-gradient(180deg, #000 0%, #000 82%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%) !important;
     mask-composite: intersect;
   }
 }`;
@@ -54,7 +62,7 @@ export function EscenarioV2({ children }: { children: ReactNode }) {
         aria-hidden="true"
         className="hidden md:block"
         style={{
-          ...capa, top: 2150, width: "min(1280px, 100vw)", aspectRatio: "2560 / 2400",
+          ...capa, top: 2150, width: ANCHO, aspectRatio: "2560 / 2400",
           backgroundImage: `url(${urlOptimizada(`${CHECKOUT}/fondo-checkout-desktop.webp`, 1920)})`,
           ...mascara(fundidoAmbos),
         }}
@@ -65,7 +73,7 @@ export function EscenarioV2({ children }: { children: ReactNode }) {
         aria-hidden="true"
         className="hidden md:block"
         style={{
-          ...capa, top: 3100, height: 1500, width: "min(1280px, 100vw)",
+          ...capa, top: 3100, height: 1500, width: ANCHO,
           backgroundImage: `url(${urlOptimizada(`${LECTURA}/fondo-pagina-desktop.webp`, 1920)})`,
           backgroundSize: "100% auto", backgroundPosition: "center 45%", opacity: 0.6,
           ...mascara(fundidoAmbos),
@@ -84,7 +92,7 @@ export function EscenarioV2({ children }: { children: ReactNode }) {
         aria-hidden="true"
         className="hidden md:block"
         style={{
-          ...capa, bottom: 0, width: "min(1280px, 100vw)", aspectRatio: "1920 / 960",
+          ...capa, bottom: 0, width: ANCHO, aspectRatio: "1920 / 960",
           backgroundImage: `url(${urlOptimizada(`${CHECKOUT}/fondo-pie-desktop.webp`, 1920)})`,
           ...mascara(fundidoPie),
         }}
