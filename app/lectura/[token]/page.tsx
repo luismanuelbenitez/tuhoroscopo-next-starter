@@ -27,7 +27,13 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function LecturaPage({ params }: { params: { token: string } }) {
-  const resultado = await resolverLecturaPublica(params.token);
+  // Las dos consultas en paralelo (2026-10-30, rendimiento; aprobado por
+  // Manuel): "audio" solo lee, así que el resultado es el mismo que antes,
+  // cuando se pedía después de la lectura. Ahorra una ida y vuelta a la EF.
+  const [resultado, audioResumen] = await Promise.all([
+    resolverLecturaPublica(params.token),
+    resolverUrlAudioResumenPublica(params.token),
+  ]);
 
   if (!resultado.ok) {
     if (resultado.motivo === "expirado") return <EstadoLectura variante="expirado" fontClass={serif.variable} />;
@@ -36,7 +42,6 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
   // Best-effort: si tts está apagado o el audio no está listo, esto
   // devuelve ok:false y el botón simplemente no se muestra.
-  const audioResumen = await resolverUrlAudioResumenPublica(params.token);
   const audioResumenUrl = audioResumen.ok ? audioResumen.url : null;
 
   return (

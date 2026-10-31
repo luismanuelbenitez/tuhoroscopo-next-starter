@@ -1,6 +1,5 @@
 import type { LecturaPublica } from "@/lib/tarotLecturaPublica";
 import Link from "next/link";
-import { preload } from "react-dom";
 import { urlOptimizada } from "@/lib/imagen";
 import { DIR, SERIF, GOLD, FondoLectura, FONDO_PAGINA, EstilosCartaViva } from "./Base";
 import { HeroLectura } from "./HeroLectura";
@@ -39,7 +38,7 @@ function signoSolar(fecha: string | null | undefined): string | null {
 // (desktop 1280/1920 = 66.667cqw; mobile 1600/780 = 205.128cqw), así no hay
 // costura aunque el cabezal mida más que la imagen. Las imágenes ya terminan
 // fundidas en #0b0818; debajo sigue el degradé liso de la página.
-const CAB = `${DIR}/contenedores/cabezal`;
+export const CAB = `${DIR}/contenedores/cabezal`;
 const PAN = `${DIR}/contenedores/paneles`;
 
 // GPT no reproduce exactamente el borde inferior del cabezal, así que el
@@ -143,10 +142,6 @@ function PieLectura() {
 export function LecturaVista({
   lectura, audioResumenUrl, pdfHref, fontClass,
 }: { lectura: LecturaPublica; audioResumenUrl: string | null; pdfHref: string; fontClass: string }) {
-  // La escena del cabezal es el LCP y, al ser un fondo CSS, el navegador la
-  // descubre tarde: se precarga (misma URL optimizada que usa la capa).
-  preload(urlOptimizada(`${CAB}/escenario-hero-mobile.webp`, 828), { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
-  preload(urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920), { as: "image", media: "(min-width: 768px)", fetchPriority: "high" });
   // Fecha de nacimiento opcional ("YYYY-MM-DD"): en la portada se muestra
   // solo el signo, no la fecha completa — el link se reenvía o se muestra en
   // pantalla y la fecha es un dato personal (auditoría UX 2026-10-30, L3).
