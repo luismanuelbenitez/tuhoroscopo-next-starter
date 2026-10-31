@@ -9,7 +9,8 @@ const FREE_PATHS = [
 ];
 
 // These paths bypass maintenance mode (admin always accessible)
-const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/api/admin"];
+// /api/cron: tareas programadas de Vercel (se autentican con CRON_SECRET).
+const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/api/admin", "/api/cron"];
 
 async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   const cookieName = adminSessionOptions.cookieName as string;

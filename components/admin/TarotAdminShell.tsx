@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator,
+  Radar, Scale, Workflow, Calculator, BrainCircuit,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -40,6 +40,12 @@ interface NavItem {
 }
 
 const GRUPOS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Dirección",
+    items: [
+      { href: "/admin/tarot/asistente", icon: BrainCircuit, label: "Asistente CEO" },
+    ],
+  },
   {
     label: "Visión General",
     items: [

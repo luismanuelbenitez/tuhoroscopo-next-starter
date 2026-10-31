@@ -236,3 +236,39 @@ export function duracionHumana(v: number | null): string {
   if (s < 3600) return `${Math.floor(s / 60)} min ${s % 60} s`;
   return `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`;
 }
+
+function mediana(v: number[]): number | null {
+  if (!v.length) return null;
+  const s = [...v].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
+}
+
+/** Números de un conjunto de ejecuciones (los usa Ejecuciones y el Asistente). */
+export function resumirEjecuciones(ej: Ejecucion[]) {
+  const iniciadas = ej.filter((e) => e.resultado !== "sin_iniciar");
+  const completas = iniciadas.filter((e) => e.fin && e.resultado !== "error");
+  const totales = completas.map((e) => e.total_ms).filter((v): v is number => v != null);
+  const claves: Paso["clave"][] = ["lectura", "pdf", "whatsapp", "email", "audio"];
+  const pasos = claves.map((clave) => {
+    const ps = iniciadas.map((e) => e.pasos.find((p) => p.clave === clave)!).filter(Boolean);
+    const tiempos = ps.filter((p) => p.ms != null && (p.estado === "ok" || p.estado === "lento" || p.estado === "reintento")).map((p) => p.ms as number);
+    return {
+      clave,
+      nombre: ps[0]?.nombre ?? clave,
+      mediana_ms: mediana(tiempos),
+      max_ms: tiempos.length ? Math.max(...tiempos) : null,
+      problemas: ps.filter((p) => p.estado === "error" || p.estado === "reintento").length,
+    };
+  });
+  return {
+    compras: iniciadas.length,
+    completas: completas.length,
+    sin_problemas: iniciadas.filter((e) => e.resultado === "ok" || e.resultado === "con_avisos").length,
+    con_error: iniciadas.filter((e) => e.resultado === "error").length,
+    en_curso: iniciadas.filter((e) => e.resultado === "en_curso").length,
+    entrega_mediana_ms: mediana(totales),
+    entrega_max_ms: totales.length ? Math.max(...totales) : null,
+    pasos,
+  };
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
-import { armarEjecucion, type LogEjecucion, type Ejecucion, type Paso } from "@/lib/ejecuciones";
+import { armarEjecucion, resumirEjecuciones, type LogEjecucion } from "@/lib/ejecuciones";
 
 // Ejecuciones del pipeline (2026-10-31): una fila por compra que entró al
 // pipeline (pagada o cortesía confirmada), con sus pasos reconstruidos desde
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     const logs7 = ids7.length
       ? ((await get(`tarot_logs?orden_id=in.(${ids7.map(encodeURIComponent).join(",")})&select=${CAMPOS_LOG}&order=created_at.asc&limit=10000`)) as LogEjecucion[])
       : [];
-    const resumen = resumir(Array.from(agrupar(logs7).values()).map((l) => armarEjecucion(l)));
+    const resumen = resumirEjecuciones(Array.from(agrupar(logs7).values()).map((l) => armarEjecucion(l)));
 
     return NextResponse.json({
       ok: true,
@@ -118,39 +118,4 @@ function agrupar(logs: LogEjecucion[]): Map<string, LogEjecucion[]> {
     if (arr) arr.push(l); else m.set(l.orden_id, [l]);
   }
   return m;
-}
-
-function mediana(v: number[]): number | null {
-  if (!v.length) return null;
-  const s = [...v].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
-}
-
-function resumir(ej: Ejecucion[]) {
-  const iniciadas = ej.filter((e) => e.resultado !== "sin_iniciar");
-  const completas = iniciadas.filter((e) => e.fin && e.resultado !== "error");
-  const totales = completas.map((e) => e.total_ms).filter((v): v is number => v != null);
-  const claves: Paso["clave"][] = ["lectura", "pdf", "whatsapp", "email", "audio"];
-  const pasos = claves.map((clave) => {
-    const ps = iniciadas.map((e) => e.pasos.find((p) => p.clave === clave)!).filter(Boolean);
-    const tiempos = ps.filter((p) => p.ms != null && (p.estado === "ok" || p.estado === "lento" || p.estado === "reintento")).map((p) => p.ms as number);
-    return {
-      clave,
-      nombre: ps[0]?.nombre ?? clave,
-      mediana_ms: mediana(tiempos),
-      max_ms: tiempos.length ? Math.max(...tiempos) : null,
-      problemas: ps.filter((p) => p.estado === "error" || p.estado === "reintento").length,
-    };
-  });
-  return {
-    compras: iniciadas.length,
-    completas: completas.length,
-    sin_problemas: iniciadas.filter((e) => e.resultado === "ok" || e.resultado === "con_avisos").length,
-    con_error: iniciadas.filter((e) => e.resultado === "error").length,
-    en_curso: iniciadas.filter((e) => e.resultado === "en_curso").length,
-    entrega_mediana_ms: mediana(totales),
-    entrega_max_ms: totales.length ? Math.max(...totales) : null,
-    pasos,
-  };
 }

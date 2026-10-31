@@ -256,6 +256,9 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       ok: true as const, periodo, incluir,
       tipo_cambio: { valor: tc, estimado: !(Number.isFinite(tcCfg) && tcCfg > 0) },
       costos_unitarios: { whatsapp_usd: waPorMensaje, tts_por_1000_usd: ttsPor1000 },
+      // Mes calendario (hora de Montevideo), para el avance hacia el punto de equilibrio.
+      ventas_mes: ordenes.filter((o) => ventaReal(o) && dia(new Date(o.created_at).getTime()).slice(0, 7) === dia(ahora).slice(0, 7)).length,
+      ultima_venta_at: [...ordenes].reverse().find((o) => ventaReal(o) && !esInterna(o))?.created_at ?? null,
       fijos_mensuales: fijosMensuales,
       // Ventas por mes necesarias para cubrir los costos fijos con lo que deja cada venta.
       punto_equilibrio: margenVenta && margenVenta > 0 ? Math.ceil(fijosMensuales / margenVenta) : null,
