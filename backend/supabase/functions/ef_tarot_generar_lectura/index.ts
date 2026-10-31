@@ -637,6 +637,20 @@ async function generarLectura(ordenId: string): Promise<void> {
             }
           } catch { /* no es JSON válido: que lo rechace validateLectura */ }
         }
+        // 2026-10-31 (T-013 B): mismo caso con `cartas` (orden d4d9c1bf, 30/10):
+        // un string que es un array JSON de objetos se convierte; cualquier
+        // otra forma la sigue rechazando validateLectura, que valida el
+        // contenido de cada carta igual que siempre.
+        if (typeof ri.cartas === "string" && ri.cartas.trim().startsWith("[")) {
+          try {
+            const arr = JSON.parse(ri.cartas);
+            if (Array.isArray(arr) && arr.every((x) => x !== null && typeof x === "object" && !Array.isArray(x))) {
+              ri.cartas = arr;
+              await registrarLog(ordenId, "lectura_cartas_normalizado", "info",
+                "cartas llegó como string JSON y se convirtió a array", { lectura_intento: intentoActual, items: arr.length });
+            }
+          } catch { /* no es JSON válido: que lo rechace validateLectura */ }
+        }
       }
       const validacion = validateLectura(rawInput);
       if (!validacion.valida) {
@@ -898,10 +912,19 @@ async function generarLectura(ordenId: string): Promise<void> {
     ...intentosFallidos.map((i) =>
       `Intento ${i.intento}/${maxReintentos} — inicio ${fmtUY(i.horaInicio)}, duración ${(i.duracionMs / 1000).toFixed(1)}s\n  Error: ${i.error}`
     ),
+    "",
+    "QUÉ HACER (el cliente pagó y todavía no recibió nada):",
+    "1. Escribile por la Bandeja de WhatsApp: su lectura está demorada y la recibe en breve.",
+    "2. Mirá el error: formato (LecturaInvalidaError) casi siempre sale al reintentar; Anthropic 5xx/529 es una caída de Anthropic (esperá unos minutos); 401/403 o falta de créditos: revisá la cuenta de Anthropic.",
+    "3. La orden quedó en error crítico: hoy el reintento requiere intervención en la base (pedirlo).",
+    "4. Si no se puede entregar: devolvé el pago desde Mercado Pago y avisale al cliente.",
   ].join("\n");
 
-  // Alerta: se agotaron todos los reintentos automáticos (fire-and-forget)
-  dispararAlerta(supabase, "error_generacion", {
+  // Alerta: se agotaron todos los reintentos automáticos. CON await
+  // (2026-10-31, T-013 C): la función termina enseguida y una promesa no
+  // esperada puede cortarse antes de mandar el email (dispararAlerta nunca
+  // lanza, así que esperarla no arriesga el resto).
+  await dispararAlerta(supabase, "error_generacion", {
     ordenId,
     ordenRef:      orden.external_reference ?? undefined,
     clienteNombre: nombreFinal ?? undefined,

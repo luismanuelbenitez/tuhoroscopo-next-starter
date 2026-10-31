@@ -102,3 +102,62 @@ export async function crearAccesoWeb(
 
   return { token, path: `/lectura/${token}`, expiraAt };
 }
+
+async function descifrarToken(cifrado: string, ordenId: string): Promise<string | null> {
+  try {
+    const [version, ivB64, datosB64] = cifrado.split(":");
+    if (version !== "v1" || !ivB64 || !datosB64 || !CLAVE_CIFRADO_B64) return null;
+    const desdeB64 = (t: string) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+    const raw = desdeB64(CLAVE_CIFRADO_B64);
+    if (raw.length !== 32) return null;
+    const clave = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    const plano = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: desdeB64(ivB64), additionalData: new TextEncoder().encode(ordenId) },
+      clave,
+      desdeB64(datosB64),
+    );
+    return new TextDecoder().decode(plano);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Como crearAccesoWeb(), pero si la orden YA tiene un acceso activo cuyo
+ * token se puede recuperar (copia cifrada que coincide con el hash), lo
+ * REUSA en vez de emitir uno nuevo, y le extiende el vencimiento 30 días.
+ * Motivo (2026-10-31, T-013 D): regenerar el PDF de una orden ya entregada
+ * rotaba el token y el reenvío quedaba bloqueado por la gobernanza de
+ * entregas → el link que el cliente tenía dejaba de abrir y el nuevo nunca
+ * le llegaba. Sin acceso previo (primera entrega) o si no se puede
+ * recuperar, se comporta exactamente como crearAccesoWeb().
+ */
+export async function obtenerOCrearAccesoWeb(
+  supabase: SupabaseClient,
+  ordenId: string,
+): Promise<AccesoWeb & { reusado: boolean }> {
+  try {
+    const { data: actual } = await supabase
+      .from("tarot_accesos_web")
+      .select("token_hash, token_cifrado, estado")
+      .eq("orden_id", ordenId)
+      .maybeSingle() as { data: { token_hash: string; token_cifrado: string | null; estado: string } | null };
+
+    if (actual?.estado === "activo" && actual.token_cifrado) {
+      const token = await descifrarToken(actual.token_cifrado, ordenId);
+      if (token && (await sha256Hex(token)) === actual.token_hash) {
+        const ahora = new Date();
+        const expiraAt = new Date(ahora.getTime() + DIAS_VALIDEZ * 24 * 3600 * 1000).toISOString();
+        const { error } = await supabase
+          .from("tarot_accesos_web")
+          .update({ expira_at: expiraAt, updated_at: ahora.toISOString() })
+          .eq("orden_id", ordenId)
+          .eq("token_hash", actual.token_hash);
+        if (!error) return { token, path: `/lectura/${token}`, expiraAt, reusado: true };
+      }
+    }
+  } catch {
+    // cualquier problema al reusar → se emite uno nuevo como siempre
+  }
+  return { ...(await crearAccesoWeb(supabase, ordenId)), reusado: false };
+}

@@ -27,7 +27,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 import { dispararAlerta } from "../_shared/tarot-alertas.ts";
-import { crearAccesoWeb } from "../_shared/tarot-accesos.ts";
+import { obtenerOCrearAccesoWeb } from "../_shared/tarot-accesos.ts";
 import { PLANTILLA_PREMIUM, cargarPremium, premiumPagina1, premiumPagina2, premiumPagina3 } from "./premium.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -1515,8 +1515,14 @@ async function generarPDF(ordenId, lecturaIdParam, force = false, debug = false,
       let accesoToken = null;
       if (debeWa || debeEmail) {
         try {
-          const acceso = await crearAccesoWeb(supabase, ordenId);
+          // Reusa el acceso que la orden ya tenga (T-013 D, 2026-10-31): si se
+          // regenera el PDF de una orden ya entregada, el link del cliente
+          // sigue funcionando aunque el reenvío quede bloqueado.
+          const acceso = await obtenerOCrearAccesoWeb(supabase, ordenId);
           accesoToken = acceso.token;
+          if (acceso.reusado) {
+            await log(ordenId, "entrega_acceso_web_reusado", "info", "Se reusó el acceso web existente de la orden (el link del cliente no cambia)");
+          }
         } catch (e) {
           await log(ordenId, "entrega_acceso_web_error", "warning", "No se pudo crear el acceso web compartido — cada canal intentará crear el suyo por separado", {
             error: String(e)
