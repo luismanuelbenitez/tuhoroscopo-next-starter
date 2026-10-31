@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { GOLD } from "@/components/home/theme";
+import { urlOptimizada } from "@/lib/imagen";
+import { ImgCarta } from "./ImgCarta";
 
 // Piezas visuales base de /lectura (rediseño 2026-10-18, solo capa visual).
 // Mismo lenguaje que /tarot: dorado de marca, Cormorant, pergamino para el
@@ -62,7 +64,7 @@ export function MarcaTuOraculo({ centrado = false }: { centrado?: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 ${centrado ? "justify-center" : ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/img/logo/logo-isotipo.png" alt="" aria-hidden="true" width={38} height={38} style={{ width: 38, height: 38 }} />
+      <img src="/img/logo/logo-isotipo-96.webp" alt="" aria-hidden="true" width={38} height={38} style={{ width: 38, height: 38 }} />
       <span className="whitespace-nowrap text-[17px] md:text-[18px] font-bold uppercase leading-none" style={{ fontFamily: SERIF, letterSpacing: "0.08em", color: GOLD }}>
         Tu Oráculo
       </span>
@@ -107,7 +109,7 @@ export function PanelOscuro({ children, className = "", style }: { children: Rea
 export const PERGAMINO_TARJETA: CSSProperties = {
   borderStyle: "solid",
   borderColor: "transparent",
-  borderImageSource: `url(${DIR}/contenedores/paneles/pergamino-tarjeta.webp)`,
+  borderImageSource: `url(${urlOptimizada(`${DIR}/contenedores/paneles/pergamino-tarjeta.webp`, 1200)})`,
   borderImageSlice: "130 fill",
   borderImageRepeat: "stretch",
   filter: "drop-shadow(0 12px 26px rgba(0,0,0,0.45))",
@@ -127,11 +129,11 @@ export function CartaConMarco({
       style={{ width: ancho, padding: grosor, borderRadius: radio, background: MARCO_DORADO, boxShadow: "0 8px 22px rgba(0,0,0,0.45), 0 0 0 1px rgba(90,60,10,0.35)", flexShrink: 0 }}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <ImgCarta
           src={src}
+          ancho={typeof ancho === "number" && ancho <= 48 ? 96 : 384}
           alt={alt}
-          loading="lazy"
+          lazy
           className={invertida ? "rotate-180" : ""}
           style={{ display: "block", width: "100%", aspectRatio: "2 / 3", objectFit: "cover", borderRadius: Math.max(1, radio - grosor) }}
         />

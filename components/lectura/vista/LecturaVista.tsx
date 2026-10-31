@@ -1,5 +1,6 @@
 import type { LecturaPublica } from "@/lib/tarotLecturaPublica";
 import Link from "next/link";
+import { urlOptimizada } from "@/lib/imagen";
 import { DIR, SERIF, GOLD, FondoLectura, FONDO_PAGINA, EstilosCartaViva } from "./Base";
 import { HeroLectura } from "./HeroLectura";
 import { ResumenBloque, CartaPorCarta, MensajeBloque, ClavesBloque, PdfBloque, OtraLecturaBloque } from "./Bloques";
@@ -77,15 +78,15 @@ function EscenarioLectura() {
   const mascaraMobile = "linear-gradient(180deg, #000 0, #000 calc(180.128cqw), transparent calc(205.128cqw))";
   return (
     <>
-      <Capa className="md:hidden" src={`${PAN}/fondo-pagina-mobile.webp`} top="180.128cqw" mascara="linear-gradient(180deg, #000 0, #000 484cqw, transparent 564cqw)" />
-      <Capa className="md:hidden" src={`${CAB}/escenario-hero-mobile.webp`} top="0" mascara={mascaraMobile} />
-      <Capa className="hidden md:block" src={`${PAN}/fondo-pagina-desktop.webp`} top="56.667cqw" mascara="linear-gradient(180deg, #000 0, #000 168cqw, transparent 208.333cqw)" />
-      <Capa className="hidden md:block" src={`${CAB}/escenario-hero-desktop.webp`} top="0" mascara={mascaraDesktop} />
+      <Capa className="md:hidden" src={urlOptimizada(`${PAN}/fondo-pagina-mobile.webp`, 828)} top="180.128cqw" mascara="linear-gradient(180deg, #000 0, #000 484cqw, transparent 564cqw)" />
+      <Capa className="md:hidden" src={urlOptimizada(`${CAB}/escenario-hero-mobile.webp`, 828)} top="0" mascara={mascaraMobile} />
+      <Capa className="hidden md:block" src={urlOptimizada(`${PAN}/fondo-pagina-desktop.webp`, 1920)} top="56.667cqw" mascara="linear-gradient(180deg, #000 0, #000 168cqw, transparent 208.333cqw)" />
+      <Capa className="hidden md:block" src={urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920)} top="0" mascara={mascaraDesktop} />
       {/* Cierre: escena baja apoyada en el pie de la página que sube hasta
           donde llegue y se funde hacia arriba (paneles/fondo-cierre-*.webp).
           Si el archivo no existe, no se ve nada. */}
-      <Cierre className="md:hidden" src={`${PAN}/fondo-cierre-mobile.webp`} />
-      <Cierre className="hidden md:block" src={`${PAN}/fondo-cierre-desktop.webp`} />
+      <Cierre className="md:hidden" src={urlOptimizada(`${PAN}/fondo-cierre-mobile.webp`, 828)} />
+      <Cierre className="hidden md:block" src={urlOptimizada(`${PAN}/fondo-cierre-desktop.webp`, 1920)} />
     </>
   );
 }
@@ -107,7 +108,7 @@ function PieLectura() {
       <div aria-hidden="true" className="absolute left-1/2 -translate-x-1/2 top-4 w-[min(560px,100%)] h-[170px] pointer-events-none" style={{ background: "radial-gradient(ellipse 50% 50% at 50% 50%, rgba(8,4,16,0.78), rgba(8,4,16,0.45) 55%, transparent 80%)" }} />
       <div className="relative flex items-center justify-center gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/img/logo/logo-isotipo.png" alt="" aria-hidden="true" width={26} height={26} style={{ width: 26, height: 26, opacity: 0.9 }} />
+        <img src="/img/logo/logo-isotipo-96.webp" alt="" aria-hidden="true" width={26} height={26} style={{ width: 26, height: 26, opacity: 0.9 }} />
         <span className="text-[14px] font-bold uppercase leading-none" style={{ fontFamily: SERIF, letterSpacing: "0.08em", color: GOLD }}>Tu Oráculo</span>
       </div>
       <nav aria-label="Información legal" className="relative mt-4 mx-auto max-w-[250px] md:max-w-none flex flex-wrap items-center justify-center gap-x-4 md:gap-x-2.5 gap-y-1 text-[12.5px]" style={{ color: "rgba(245,239,224,0.55)" }}>

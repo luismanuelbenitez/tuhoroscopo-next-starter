@@ -13,11 +13,11 @@ export const metadata = metadataPagina(
 const SECTIONS = [
   {
     title: '1. Datos que recopilamos',
-    content: 'El responsable de Tu Oráculo es Luis Manuel Benítez Rodríguez, RUT 214998320016, Uruguay. Para el Tarot, al completar el checkout recopilamos: tu nombre, tu número de WhatsApp, el tema de tu consulta y, si los completás, tu fecha de nacimiento, tu email y tu pregunta puntual — estos tres últimos son opcionales. Si en algún momento contratás la Guía Diaria (horóscopo por suscripción, hoy no disponible), recopilamos tu nombre, tu signo zodiacal, tu número de WhatsApp y tu preferencia de contenido. En ambos casos, la información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
+    content: 'El responsable de Tu Oráculo es Luis Manuel Benítez Rodríguez, RUT 214998320016, Uruguay. Para el Tarot, al completar el checkout recopilamos: tu nombre, tu número de WhatsApp, el tema de tu consulta y, si los completás, tu fecha de nacimiento, tu email y tu pregunta puntual — estos tres últimos son opcionales. La información de pago es gestionada de forma segura por Mercado Pago — no almacenamos datos de tarjeta en nuestros servidores.',
   },
   {
     title: '2. Para qué usamos tu información',
-    content: 'Tus datos se usan exclusivamente para generar y entregarte tu tirada (o tu mensaje diario, si contrataste la Guía Diaria) vía WhatsApp y, si lo pediste, por email; gestionar tu compra o suscripción; y responder consultas de soporte. No los compartimos con terceros con fines publicitarios ni los vendemos a nadie.',
+    content: 'Tus datos se usan exclusivamente para generar y entregarte tu lectura vía WhatsApp y, si lo pediste, por email; gestionar tu compra; y responder consultas de soporte. No los compartimos con terceros con fines publicitarios ni los vendemos a nadie.',
   },
   {
     title: '3. Inteligencia artificial',
@@ -25,7 +25,7 @@ const SECTIONS = [
   },
   {
     title: '4. WhatsApp y mensajes',
-    content: 'Usamos tu número de WhatsApp únicamente para entregarte el contenido que contrataste: tu tirada, o tu mensaje diario si sos suscriptor de la Guía Diaria. Si sos suscriptor, podés dar de baja en cualquier momento respondiendo "BAJA" a cualquiera de nuestros mensajes.',
+    content: 'Usamos tu número de WhatsApp únicamente para entregarte la lectura que contrataste y comunicarnos con vos sobre ella.',
   },
   {
     title: '5. Opiniones y testimonios',

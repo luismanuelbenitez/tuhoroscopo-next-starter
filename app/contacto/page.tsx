@@ -61,27 +61,35 @@ export default function Contacto() {
           </PanelInstitucional>
         )}
 
-        <PanelInstitucional titulo="No recibí mi tirada">
+        <PanelInstitucional titulo="No recibí mi lectura">
           <p>
             Primero revisá que el número de WhatsApp esté bien escrito y mirá tu email (incluida la
             carpeta de spam, si pediste copia ahí). Si pasaron 15 minutos desde el pago y no
-            recibiste nada, escribinos por cualquiera de los canales de arriba con el nombre y el
-            teléfono que usaste al comprar — te la reenviamos de inmediato.
+            recibiste nada, escribinos {WA_NUMBER ? 'por cualquiera de los canales de arriba' : 'a hola@tuoraculo.uy'} con
+            el nombre y el teléfono que usaste al comprar — te la reenviamos de inmediato.
           </p>
         </PanelInstitucional>
 
+        {/* Cada motivo abre un email con el asunto ya puesto (auditoría UX
+            2026-10-30, K3): un paso menos y el mensaje llega clasificado. */}
         <PanelInstitucional titulo="Motivos de contacto más frecuentes">
-          <ul className="space-y-2.5">
+          <p className="!mt-0 mb-1 text-white/60 text-[14px]">Tocá el tuyo y se abre un email con el asunto listo.</p>
+          <ul className="space-y-1">
             {[
-              'No recibí mi tirada después de pagar',
+              'No recibí mi lectura después de pagar',
               'Tengo una duda sobre el cobro en Mercado Pago',
               'Quiero corregir un dato de mi consulta (nombre, teléfono, fecha)',
               'El enlace a mi lectura online dejó de funcionar',
               'Tengo una sugerencia o comentario',
             ].map(motivo => (
-              <li key={motivo} className="flex gap-3 items-start">
-                <span className="mt-[9px] shrink-0 text-[9px] leading-none" style={{ color: GOLD }} aria-hidden="true">✦</span>
-                <span>{motivo}</span>
+              <li key={motivo}>
+                <a
+                  href={`mailto:hola@tuoraculo.uy?subject=${encodeURIComponent(motivo)}`}
+                  className="flex gap-3 items-start py-2 hover:text-white transition-colors"
+                >
+                  <span className="mt-[9px] shrink-0 text-[9px] leading-none" style={{ color: GOLD }} aria-hidden="true">✦</span>
+                  <span className="underline decoration-white/25 underline-offset-4">{motivo}</span>
+                </a>
               </li>
             ))}
           </ul>

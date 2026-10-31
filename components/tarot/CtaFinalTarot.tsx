@@ -51,11 +51,13 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
         {precioTexto ? `Quiero mi tirada por ${precioTexto} →` : "Quiero mi tirada →"}
       </CtaButton>
 
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-6 max-w-[700px] mx-auto">
+      {/* Mobile: velo oscuro detrás de los íconos, que caen sobre las velas
+          del pie y no se leían (auditoría UX 2026-10-30, H5). */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-x-3 gap-y-6 max-w-[700px] mx-auto rounded-2xl px-2 py-5 md:p-0 bg-[rgba(10,6,22,0.62)] md:bg-transparent backdrop-blur-[3px] md:backdrop-blur-none">
         {BENEFICIOS.map((b) => (
           <div key={b.label} className="flex flex-col items-center gap-2.5">
             <IconoBeneficio img={b.img} aro={b.aro} />
-            <span className="text-[12.5px] text-white/75 leading-snug">{b.label}</span>
+            <span className="text-[12.5px] text-white/85 leading-snug" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{b.label}</span>
           </div>
         ))}
       </div>

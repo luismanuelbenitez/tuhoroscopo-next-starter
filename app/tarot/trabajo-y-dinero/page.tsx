@@ -19,8 +19,9 @@ export default async function TarotTrabajoYDinero() {
   const precioUYU = await getPrecioTarot();
 
   return (
-    <PaginaSeo clave="trabajo" ctaHref={CTA_TRABAJO}>
+    <PaginaSeo clave="trabajo" ctaHref={CTA_TRABAJO} precioUYU={precioUYU}>
       <HeroSeo
+        precioUYU={precioUYU}
         eyebrow="Tarot de trabajo y dinero"
         titulo="Tarot para tu trabajo y tu relación con el dinero"
         cta={

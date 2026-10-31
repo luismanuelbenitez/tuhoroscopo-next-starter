@@ -8,6 +8,12 @@ const nextConfig = {
     // En dev solo WebP: el codificador AVIF local (Windows) se cuelga con
     // algunas imágenes y deja huecos. En Vercel no pasa.
     formats: process.env.NODE_ENV === "development" ? ["image/webp"] : ["image/avif", "image/webp"],
+    // Cartas de /lectura (URLs firmadas del bucket tarot-assets): se piden al
+    // optimizador al tamaño en pantalla en vez del JPG original (~170 KB c/u).
+    // Auditoría UX 2026-10-30 (L1). Solo ese bucket y solo URLs firmadas.
+    remotePatterns: [
+      { protocol: "https", hostname: "bckbpixlaxfxafhvlpbt.supabase.co", pathname: "/storage/v1/object/sign/tarot-assets/**" },
+    ],
   },
   experimental: {
     typedRoutes: true

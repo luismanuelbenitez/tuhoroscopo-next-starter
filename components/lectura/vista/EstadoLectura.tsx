@@ -84,6 +84,13 @@ function NoEncontrado({ fontClass }: { fontClass: string }) {
         >
           Ir a tuoraculo.uy
         </Link>
+        {/* Quien llega con un link roto casi siempre pagó: se le da un
+            contacto directo (auditoría UX 2026-10-30, L4). */}
+        <p className="mt-5 text-[14px]" style={{ color: "#c9c4d6" }}>
+          ¿Necesitás ayuda? Escribinos a{" "}
+          <a href="mailto:hola@tuoraculo.uy?subject=No%20puedo%20abrir%20mi%20lectura" className="underline underline-offset-4" style={{ color: GOLD }}>hola@tuoraculo.uy</a>
+          {" "}y te la reenviamos.
+        </p>
       </PanelOscuro>
     </Contenedor>
   );

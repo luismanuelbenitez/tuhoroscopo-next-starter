@@ -18,8 +18,9 @@ export default async function TarotAmor() {
   const precioUYU = await getPrecioTarot();
 
   return (
-    <PaginaSeo clave="amor" ctaHref={CTA}>
+    <PaginaSeo clave="amor" ctaHref={CTA} precioUYU={precioUYU}>
       <HeroSeo
+        precioUYU={precioUYU}
         eyebrow="Tarot del amor"
         titulo="Tarot del amor: claridad para tu vínculo"
         cta={<CtaSeo href={CTA} ubicacion="hero" tema="amor">Consultar sobre amor</CtaSeo>}

@@ -67,7 +67,7 @@ export default function QuienesSomos() {
       <Seccion titulo="Nuestro enfoque">
         <p className="leading-relaxed">
           Creemos en una experiencia honesta: sin misticismo exagerado ni promesas de futuro. Tu
-          Tirada te ofrece otra perspectiva sobre tu momento — clara, privada, y a la altura de un
+          Oráculo te ofrece otra perspectiva sobre tu momento — clara, privada, y a la altura de un
           producto que cuidamos como si fuera nuestro. Cada ajuste que hacemos (los textos, las
           imágenes, la lectura online) tiene ese mismo objetivo: que la experiencia se sienta tan
           cuidada como el consejo de alguien de confianza.

@@ -11,8 +11,9 @@ import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
 import { CTA_GRADIENT, CREMA, SERIF } from "@/components/home/theme";
 import { FondoGracias } from "@/components/tarot/gracias/FondoGracias";
+import { PieMarca } from "@/components/marca/PieMarca";
 import {
-  CartasRevelando, ESTILOS_GRACIAS, IconoEstado, LecturaPronta, MientrasTanto, PANEL, Pildora, PieGracias,
+  CartasRevelando, ESTILOS_GRACIAS, IconoEstado, LecturaPronta, MientrasTanto, PANEL, Pildora,
   ProgresoLectura, QueVasARecibir, type Paso,
 } from "@/components/tarot/gracias/Bloques";
 
@@ -283,7 +284,7 @@ export default function TarotEstadoContent() {
               No pudimos confirmar tu pago
             </h1>
             <p className="mt-3 text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
-              No se realizó ningún cargo. El pago pudo ser rechazado o faltaron datos: podés volver a intentarlo sin problema.
+              El pago pudo ser rechazado o quedar incompleto: podés volver a intentarlo sin problema. Si ves un cargo en Mercado Pago, escribinos y lo resolvemos.
             </p>
             <div className="mt-7 rounded-2xl px-6 py-6" style={PANEL}>
               <Link
@@ -306,7 +307,7 @@ export default function TarotEstadoContent() {
         )}
       </main>
 
-      <PieGracias />
+      <PieMarca className="mt-12" />
     </PaginaMarca>
   );
 }

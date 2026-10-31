@@ -19,8 +19,9 @@ export default async function LecturaPersonalizada() {
   const [precioUYU, testimonios] = await Promise.all([getPrecioTarot(), getTestimoniosAutorizados()]);
 
   return (
-    <PaginaSeo clave="personalizada" ctaHref={CHECKOUT}>
+    <PaginaSeo clave="personalizada" ctaHref={CHECKOUT} precioUYU={precioUYU}>
       <HeroSeo
+        precioUYU={precioUYU}
         eyebrow="Lectura de tarot personalizada"
         titulo="Qué incluye una lectura de tarot personalizada"
         cta={<CtaSeo href={CHECKOUT} ubicacion="hero">Quiero mi lectura personalizada</CtaSeo>}

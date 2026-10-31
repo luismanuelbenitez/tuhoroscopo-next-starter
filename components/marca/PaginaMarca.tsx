@@ -25,7 +25,7 @@ export function PaginaMarca({ children, fuera, fondo }: { children: ReactNode; f
       `}</style>
 
       <div
-        className="relative min-h-screen text-white overflow-x-clip"
+        className="relative min-h-screen text-white overflow-clip"
         style={{ background: "linear-gradient(180deg, #120a28 0%, #0d0820 45%, #0b0818 100%)" }}
       >
         {fondo}

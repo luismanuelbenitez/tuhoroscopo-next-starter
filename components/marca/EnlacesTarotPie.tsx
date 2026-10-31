@@ -21,10 +21,10 @@ export function EnlacesTarotPie({ className = "" }: { className?: string }) {
     <nav aria-label="Tarot" className={`relative px-5 mx-auto max-w-[760px] text-center ${className}`}>
       <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: GOLD, opacity: 0.85, textShadow: "0 1px 6px rgba(0,0,0,0.95)" }}>Tarot</p>
       {/* Sombra: en las institucionales/SEO el pie cae sobre la escena (velas) */}
-      <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[12.5px] text-white/65" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}>
+      <ul className="flex flex-wrap justify-center gap-x-4 text-[12.5px] text-white/65" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}>
         {ENLACES.map((e) => (
           <li key={e.href}>
-            <Link href={e.href as Route<string>} className="hover:text-white/85 transition-colors">{e.label}</Link>
+            <Link href={e.href as Route<string>} className="inline-block py-1.5 hover:text-white/85 transition-colors">{e.label}</Link>
           </li>
         ))}
       </ul>

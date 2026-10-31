@@ -3,7 +3,6 @@
 import { Edit3, CreditCard, Sparkles, Smartphone } from "lucide-react";
 import { fijo, fluido } from "@/lib/imagen";
 import { GOLD, SERIF } from "@/components/home/theme";
-import { Carousel } from "@/components/home/Carousel";
 
 const DIR = "/img/tarot/contenedores/como-funciona";
 
@@ -89,7 +88,7 @@ function ComoFuncionaDesktop() {
   );
 }
 
-// ── Mobile (sin cambios, pendiente de la etapa móvil) ──────────────────
+// ── Mobile ─────────────────────────────────────────────────────────────
 
 const PASOS = [
   { n: "1", Icon: Edit3, t: "Hacé tu consulta", d: "Contanos tu nombre, tu WhatsApp, el tema y, si querés, una pregunta puntual." },
@@ -101,21 +100,10 @@ const PASOS = [
 function PasoIcono({ Icon, size }: { Icon: typeof Edit3; size: number }) {
   return (
     <div
-      className="flex items-center justify-center rounded-full mx-auto mb-3"
+      className="flex items-center justify-center rounded-full shrink-0"
       style={{ width: size, height: size, background: "rgba(240,197,90,0.10)", border: "1px solid rgba(240,197,90,0.35)" }}
     >
       <Icon size={size * 0.42} style={{ color: GOLD }} />
-    </div>
-  );
-}
-
-function PasoCard({ n, Icon, t, d }: (typeof PASOS)[number]) {
-  return (
-    <div className="text-center" style={{ width: "min(80vw, 240px)" }}>
-      <PasoIcono Icon={Icon} size={56} />
-      <p className="text-[11px] font-bold mb-1" style={{ color: GOLD }}>{n}</p>
-      <p className="text-sm font-semibold mb-1.5 px-2">{t}</p>
-      <p className="text-[12px] text-white/45 leading-snug px-2">{d}</p>
     </div>
   );
 }
@@ -127,12 +115,28 @@ function ComoFuncionaMobile() {
         Simple, rápido y desde tu celular
       </p>
       <h2 className="text-2xl font-extrabold mb-3">¿Cómo funciona?</h2>
-      <p className="text-white/50 text-[13px] mb-10 max-w-md mx-auto">
+      <p className="text-white/60 text-[13px] mb-7 max-w-md mx-auto">
         Cuatro pasos para vivir tu lectura personalizada.
       </p>
-      <Carousel showArrows={false}>
-        {PASOS.map(paso => <PasoCard key={paso.n} {...paso} />)}
-      </Carousel>
+      {/* Lista y no carrusel (auditoría UX 2026-10-30): son 4 pasos cortos
+          que entran en una pantalla; en carrusel quedaban 3 escondidos. */}
+      <ol className="flex flex-col gap-3 max-w-[440px] mx-auto text-left">
+        {PASOS.map(({ n, Icon, t, d }) => (
+          <li
+            key={n}
+            className="flex items-center gap-4 rounded-2xl px-4 py-3.5"
+            style={{ background: "rgba(10,6,22,0.72)", border: "1px solid rgba(240,197,90,0.22)" }}
+          >
+            <PasoIcono Icon={Icon} size={44} />
+            <div className="min-w-0">
+              <p className="text-[15px] font-semibold leading-snug">
+                <span style={{ color: GOLD }}>{n}.</span> {t}
+              </p>
+              <p className="text-[13px] text-white/70 leading-snug mt-0.5">{d}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

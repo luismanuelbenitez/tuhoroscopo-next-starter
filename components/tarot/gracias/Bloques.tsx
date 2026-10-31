@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import type { Route } from "next";
 import { Check, Hourglass, MonitorSmartphone, AudioLines, Heart, FileText, MessageCircle, UserPlus, Mail, Sparkles } from "lucide-react";
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 
@@ -204,28 +202,6 @@ export function MientrasTanto() {
         ))}
       </ol>
     </section>
-  );
-}
-
-// ── Pie ─────────────────────────────────────────────────────────────────────
-const LINKS: { href: string; label: string }[] = [
-  { href: "/quienes-somos", label: "¿Quiénes somos?" },
-  { href: "/faq", label: "Preguntas frecuentes" },
-  { href: "/politica-de-privacidad", label: "Política de privacidad" },
-  { href: "/terminos-del-servicio", label: "Términos del servicio" },
-  { href: "/contacto", label: "Contacto" },
-];
-
-export function PieGracias() {
-  return (
-    <footer className="gracias-raiz relative mt-12 px-5 pb-10 pt-6 mx-auto max-w-[960px] text-center" style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }}>
-      <nav className="flex flex-wrap justify-center gap-x-7 gap-y-2 text-[13.5px] text-white/65" aria-label="Enlaces del sitio">
-        {LINKS.map((l) => <Link key={l.href} href={l.href as Route} className="hover:text-white transition-colors">{l.label}</Link>)}
-      </nav>
-      <p className="mt-4 text-[11.5px] leading-relaxed text-white/45">
-        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
-      </p>
-    </footer>
   );
 }
 

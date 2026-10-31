@@ -7,6 +7,7 @@ import type { CartaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { ResumenAudioControls } from "@/components/lectura/ResumenAudioControls";
 import { DIR, SERIF, CREMA, GOLD, TINTA, TINTA_SUAVE, TINTA_TEXTO, PERGAMINO_TARJETA, PERGAMINO_CLASES, CartaConMarco } from "./Base";
+import { urlOptimizada } from "@/lib/imagen";
 
 // Bloques interactivos de /lectura bajo el hero (rediseño 2026-10-18).
 // Solo presentación: los "Leer / Ver" despliegan contenido que ya llegó con
@@ -25,7 +26,7 @@ function ImagenConFallback({ src, fallback, size }: { src: string; fallback: Rea
   }, [src]);
   if (falló) return <>{fallback}</>;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={ref} src={src} alt="" aria-hidden="true" width={size} height={size} style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} onError={() => setFalló(true)} />;
+  return <img ref={ref} src={urlOptimizada(src, 256)} alt="" aria-hidden="true" width={size} height={size} style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} onError={() => setFalló(true)} />;
 }
 
 function Ilustracion({ src, medallon, Icon, size }: { src: string; medallon: string | null; Icon: LucideIcon; size: number }) {
@@ -79,7 +80,7 @@ export function ResumenBloque({ resumen, audioResumenUrl }: { resumen: string; a
     <section id="resumen" className="scroll-mt-4">
       {/* Desktop (≥1024): pergamino horizontal 1760×400, sol y luna en la
           imagen; contenido en la franja central libre (x 19%–81%). */}
-      <div className="hidden lg:block relative w-full" style={{ aspectRatio: "1760 / 400", backgroundImage: `url(${PAN}/pergamino-resumen-desktop.webp)`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
+      <div className="hidden lg:block relative w-full" style={{ aspectRatio: "1760 / 400", backgroundImage: `url(${urlOptimizada(`${PAN}/pergamino-resumen-desktop.webp`, 1920)})`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-[17%] pt-[2.5%] gap-1.5 [&_button]:!px-3.5 [&_button]:!text-[13px] [&_button]:!min-h-[38px]">
           {titulo}
           <div className="max-w-[480px]">{intro}</div>
@@ -92,7 +93,7 @@ export function ResumenBloque({ resumen, audioResumenUrl }: { resumen: string; a
           proporción del pergamino y el contenido. La celda toma la altura
           MAYOR: conserva 780×720 cuando todo entra y crece cuando no (en
           pantallas angostas el último botón quedaba sobre el borde). */}
-      <div className="lg:hidden relative w-full max-w-[480px] mx-auto grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${PAN}/pergamino-resumen-mobile.webp)`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
+      <div className="lg:hidden relative w-full max-w-[480px] mx-auto grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${urlOptimizada(`${PAN}/pergamino-resumen-mobile.webp`, 828)})`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
         <div aria-hidden="true" className="[grid-area:1/1]" style={{ aspectRatio: "780 / 720" }} />
         <div className="[grid-area:1/1] flex flex-col items-center text-center px-[11%] pt-[9%] pb-[11%]">
           <div className="px-[16%]">{titulo}</div>

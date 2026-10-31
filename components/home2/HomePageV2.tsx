@@ -7,6 +7,7 @@ import { BloqueExperiencias } from "@/components/home/BloqueExperiencias";
 import { BloqueConfianza } from "@/components/home/BloqueConfianza";
 import { AsiSeViveTarot } from "@/components/tarot/AsiSeViveTarot";
 import { CtaFinalTarot } from "@/components/tarot/CtaFinalTarot";
+import { DudasTarot } from "@/components/tarot/DudasTarot";
 import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
 import { EscenarioV2 } from "./EscenarioV2";
 import { HeroV2 } from "./HeroV2";
@@ -16,7 +17,7 @@ import { MotorNarrativo } from "./MotorNarrativo";
 // Home v2: "la marca presenta, el Tarot protagoniza". Orden pensado para
 // la compra: qué es (Hero) → qué incluye y cuánto sale (Producto) → cómo
 // se ve (Así vivís) → cómo funciona → qué hay detrás (Motor) → garantías
-// → la marca que crece (Experiencias) → cierre con CTA.
+// → la marca que crece (Experiencias) → dudas → cierre con CTA.
 export function HomePageV2({ precioUYU }: { precioUYU: number | null }) {
   return (
     <>
@@ -52,6 +53,9 @@ export function HomePageV2({ precioUYU }: { precioUYU: number | null }) {
             <MotorNarrativo />
             <BloqueConfianza />
             <BloqueExperiencias conTarot={false} />
+            {/* Mini FAQ (auditoría UX 2026-10-30, H8): las 4 dudas que frenan
+                la compra, respondidas sin salir de la Home. */}
+            <DudasTarot />
             <CtaFinalTarot precioUYU={precioUYU} />
           </EscenarioV2>
         </div>

@@ -18,8 +18,9 @@ export default async function TarotOnlineUruguay() {
   const precio = precioTexto(precioUYU);
 
   return (
-    <PaginaSeo clave="uruguay" ctaHref={CHECKOUT}>
+    <PaginaSeo clave="uruguay" ctaHref={CHECKOUT} precioUYU={precioUYU}>
       <HeroSeo
+        precioUYU={precioUYU}
         eyebrow="Tarot online · Uruguay"
         titulo="Tarot online en Uruguay, desde tu celular"
         cta={<CtaSeo href={CHECKOUT} ubicacion="hero">Hacer mi consulta</CtaSeo>}

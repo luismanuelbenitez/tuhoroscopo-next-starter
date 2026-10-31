@@ -15,6 +15,7 @@ import { ResumenCompra, ResumenCompacto } from '@/components/tarot/checkout/Resu
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
 import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
+import { PieMarca } from '@/components/marca/PieMarca';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
@@ -150,6 +151,12 @@ export default function TarotCheckoutContent({
   // de que isLoading deshabilite el botón (detectado en QA 2026-10-18).
   const enviandoRef = useRef(false);
   const [error, setError]                   = useState<string | null>(null);
+  // En el celular el aviso puede quedar fuera de la vista: se lleva la
+  // pantalla hasta él (auditoría UX 2026-10-30, C6).
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [error]);
 
   // Auto-activación del checkbox "recibir por email" (sprint de auditoría de
   // entrega, 2026-09-04): cuando el email pasa de inválido/vacío a válido, se
@@ -178,6 +185,10 @@ export default function TarotCheckoutContent({
   const autoAplicadoRef = useRef(false);
   const [codigoValidando, setCodigoValidando] = useState(false);
   const [codigoError, setCodigoError]         = useState<string | null>(null);
+  // Campo del código plegado detrás de un link (auditoría UX 2026-10-30, C1):
+  // un cupón visible hace que quien no tiene uno salga a buscarlo. Abierto de
+  // entrada si el código vino en la URL.
+  const [cuponAbierto, setCuponAbierto]       = useState(!!codigoInicialValido);
   const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
 
   const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
@@ -385,7 +396,8 @@ export default function TarotCheckoutContent({
             <div className="min-w-0">
               <Link
                 href={'/tarot' as never}
-                className="inline-flex items-center gap-1.5 text-[13px] text-white/60 hover:text-white transition-colors mb-6"
+                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-6"
+                style={{ textShadow: TEXT_SHADOW }}
               >
                 <ArrowLeft size={15} />
                 Volver a Tarot
@@ -629,6 +641,16 @@ export default function TarotCheckoutContent({
                 <Paso n={3} titulo="Tu compra" bajada={esCortesia ? 'Revisá y confirmá tu lectura.' : 'Revisá y confirmá tu pago.'} separado />
 
                 {/* ── Código de descuento ──────────────────────────── */}
+                {!descuento && !cuponAbierto ? (
+                  <button
+                    type="button"
+                    onClick={() => setCuponAbierto(true)}
+                    className="self-start inline-flex items-center gap-1.5 py-2 text-[13.5px] text-white/65 hover:text-white transition-colors"
+                  >
+                    <Tag size={14} style={{ color: GOLD }} />
+                    <span className="underline underline-offset-4 decoration-white/30">¿Tenés un código de descuento?</span>
+                  </button>
+                ) : (
                 <div
                   className="rounded-xl p-4"
                   style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(240,197,90,0.20)' }}
@@ -716,16 +738,17 @@ export default function TarotCheckoutContent({
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* Checkbox */}
-                <label className="flex items-start gap-3 text-[13.5px] text-white/75 cursor-pointer leading-relaxed">
+                <label className="flex items-start gap-3 py-1 text-[13.5px] text-white/75 cursor-pointer leading-relaxed">
                   <input
                     type="checkbox"
                     checked={aceptaTerminos}
                     onChange={e => setAceptaTerminos(e.target.checked)}
                     disabled={isLoading}
                     required
-                    className="mt-1 h-[18px] w-[18px] shrink-0 cursor-pointer accent-[#F0C55A]"
+                    className="mt-0.5 h-[22px] w-[22px] shrink-0 cursor-pointer accent-[#F0C55A]"
                   />
                   <span>
                     Leí y acepto la{' '}
@@ -758,7 +781,7 @@ export default function TarotCheckoutContent({
 
                 {/* Error */}
                 {error && (
-                  <div className="rounded-xl px-4 py-3 text-sm text-red-300 bg-red-900/20 border border-red-500/25">
+                  <div ref={errorRef} role="alert" className="rounded-xl px-4 py-3 text-sm text-red-300 bg-red-900/20 border border-red-500/25">
                     {error}
                   </div>
                 )}
@@ -829,11 +852,8 @@ export default function TarotCheckoutContent({
           </div>
         </div>
 
-        {/* Cierre simple, igual que /tarot (sin footer global). */}
-        <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; }" }} />
-        <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
-          © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
-        </p>
+        {/* Pie mínimo: legales y Contacto, sin los enlaces de Tarot. */}
+        <PieMarca minimo />
       </div>
     </PaginaMarca>
   );

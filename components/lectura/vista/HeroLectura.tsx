@@ -5,6 +5,8 @@ import { ArrowRight } from "lucide-react";
 import type { CartaPublica } from "@/lib/tarotLecturaPublica";
 import { CTA_GRADIENT } from "@/components/home/theme";
 import { DIR, SERIF, CREMA, GOLD } from "./Base";
+import { urlOptimizada } from "@/lib/imagen";
+import { ImgCarta } from "./ImgCarta";
 
 // Hero de /lectura (rediseño visual 2026-10-17). Dos tiempos:
 //   1. cinco dorsos + "Revelar mi lectura"
@@ -18,7 +20,7 @@ import { DIR, SERIF, CREMA, GOLD } from "./Base";
 // abajo (la escena/pergamino actual o el dorso hecho con código).
 const CAB = `${DIR}/contenedores/cabezal`;
 
-const PERGAMINO = `url(${CAB}/pergamino-nombre.webp)`;
+const PERGAMINO = `url(${urlOptimizada(`${CAB}/pergamino-nombre.webp`, 828)})`;
 const DORSO_PROVISORIO =
   "radial-gradient(circle at 50% 50%, rgba(240,197,90,0.55) 0 14%, transparent 15%), " +
   "radial-gradient(circle at 50% 50%, transparent 0 22%, rgba(240,197,90,0.35) 23% 24%, transparent 25%), " +
@@ -98,7 +100,7 @@ function Carta({ carta, i, revelada, viva, sola, onVoltear }: {
           aria-hidden="true"
           style={{
             ...cara,
-            backgroundImage: `url(${CAB}/dorso-carta.webp), ${DORSO_PROVISORIO}`,
+            backgroundImage: `url(${urlOptimizada(`${CAB}/dorso-carta.webp`, 256)}), ${DORSO_PROVISORIO}`,
             backgroundSize: "100% 100%, auto, auto, auto",
             border: "2px solid rgba(240,197,90,0.75)",
             boxShadow: "0 10px 26px rgba(0,0,0,0.55), 0 0 18px rgba(240,197,90,0.15)",
@@ -115,9 +117,9 @@ function Carta({ carta, i, revelada, viva, sola, onVoltear }: {
           }}
         >
           {carta.imagen_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ImgCarta
               src={carta.imagen_url}
+              ancho={256}
               alt={carta.nombre_carta}
               className={carta.orientacion === "invertida" ? "rotate-180" : ""}
               style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", borderRadius: 5 }}
@@ -209,7 +211,7 @@ export function HeroLectura({
       {/* Marca: solo logo + nombre, sin navegación */}
       <div className="relative flex items-center justify-center md:justify-start gap-2.5 px-5 md:px-8 pt-4 md:pt-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/img/logo/logo-isotipo.png" alt="" aria-hidden="true" width={38} height={38} style={{ width: 38, height: 38 }} />
+        <img src="/img/logo/logo-isotipo-96.webp" alt="" aria-hidden="true" width={38} height={38} style={{ width: 38, height: 38 }} />
         <span className="text-[17px] md:text-[18px] font-bold uppercase leading-none" style={{ fontFamily: SERIF, letterSpacing: "0.08em", color: GOLD }}>
           Tu Oráculo
         </span>

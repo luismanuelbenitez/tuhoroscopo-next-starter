@@ -31,6 +31,11 @@ export function EstadoOpinion({ estado, nombrePila }: { estado: string; nombrePi
       <a href="https://tuoraculo.uy" className="inline-block mt-7 text-[14px] underline underline-offset-4 text-white/70 hover:text-white">
         Ir a tuoraculo.uy
       </a>
+      {estado !== "respondido" && (
+        <p className="mt-4 text-[13.5px] text-white/60">
+          ¿Necesitás ayuda? <a href="mailto:hola@tuoraculo.uy" className="underline underline-offset-4 text-white/80">hola@tuoraculo.uy</a>
+        </p>
+      )}
     </section>
   );
 }

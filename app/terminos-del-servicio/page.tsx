@@ -2,7 +2,6 @@ import Link from 'next/link';
 
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL } from '@/components/marca/PaginaInstitucional';
 import { GOLD } from '@/components/home/theme';
-import { getPrecioSuscripcion } from '@/lib/getPrecioSuscripcion';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
 
@@ -14,29 +13,25 @@ export const metadata = metadataPagina(
 );
 
 export default async function TerminosServicio() {
-  const [precio, precioTarot] = await Promise.all([
-    getPrecioSuscripcion(),
-    getPrecioTarot(),
-  ]);
+  const precioTarot = await getPrecioTarot();
   const precioTarotTexto = precioTarot !== null ? `$U ${precioTarot}` : 'el precio que ves en el checkout';
-  const precioSuscripcionTexto = precio !== null ? `$U ${precio}` : 'el precio que ves en el checkout';
 
   const SECTIONS = [
     {
       title: '1. Descripción del servicio',
-      content: 'Tu Oráculo es una empresa uruguaya de experiencias digitales de autoconocimiento. Hoy ofrece un producto en producción: Tarot, lecturas individuales generadas por inteligencia artificial y entregadas vía WhatsApp. También existe la Guía Diaria, una suscripción mensual de mensajes personalizados por WhatsApp, no comercializada actualmente. Ambos son de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
+      content: 'Tu Oráculo es una empresa uruguaya de experiencias digitales de autoconocimiento. Hoy ofrece un producto: Tarot, lecturas individuales generadas por inteligencia artificial y entregadas vía WhatsApp, de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
     },
     {
       title: '2. Condiciones de uso',
-      content: 'Al usar nuestros servicios aceptás estos Términos en su totalidad. Debés ser mayor de 18 años para contratar una lectura o suscribirte. No podés usar el servicio con fines comerciales, revender el contenido ni reproducirlo sin autorización.',
+      content: 'Al usar nuestros servicios aceptás estos Términos en su totalidad. Debés ser mayor de 18 años para contratar una lectura. No podés usar el servicio con fines comerciales, revender el contenido ni reproducirlo sin autorización.',
     },
     {
       title: '3. Tarot — Pago único',
       content: `Las lecturas de tarot son un producto de pago único: cuestan ${precioTarotTexto}, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
     },
     {
-      title: '4. Guía Diaria — Suscripción mensual',
-      content: `La Guía Diaria, cuando está disponible, cuesta ${precioSuscripcionTexto} por mes, con renovación automática mensual. Podés cancelar en cualquier momento desde tu perfil en Mercado Pago o escribiéndonos a hola@tuoraculo.uy. La cancelación detiene la renovación siguiente; no hay reembolso proporcional por el mes en curso salvo que la cancelación ocurra dentro de las primeras 24 horas del cargo.`,
+      title: '4. Suscripciones',
+      content: 'Hoy Tu Oráculo no vende suscripciones: el Tarot es de pago único. Si en el futuro ofrecemos un producto por suscripción, su precio, su renovación y cómo darse de baja se informarán antes de contratar. Quien tenga una suscripción anterior activa puede cancelarla en cualquier momento desde su perfil en Mercado Pago o escribiéndonos a hola@tuoraculo.uy. La cancelación detiene la renovación siguiente; no hay reembolso proporcional por el mes en curso salvo que la cancelación ocurra dentro de las primeras 24 horas del cargo.',
     },
     {
       title: '5. Contenido generado por inteligencia artificial',
@@ -44,7 +39,7 @@ export default async function TerminosServicio() {
     },
     {
       title: '6. Entregas y tiempos',
-      content: 'Las lecturas de Tarot se entregan en menos de 15 minutos tras la confirmación del pago, salvo problemas técnicos imprevistos — en ese caso, nos ponemos en contacto con el usuario. La Guía Diaria, cuando está disponible, se entrega cada mañana, generalmente entre las 7 y las 9 AM (hora de Uruguay).',
+      content: 'Las lecturas de Tarot se entregan en menos de 15 minutos tras la confirmación del pago, salvo problemas técnicos imprevistos — en ese caso, nos ponemos en contacto con el usuario.',
     },
     {
       title: '7. Pagos y seguridad',
@@ -56,7 +51,7 @@ export default async function TerminosServicio() {
     },
     {
       title: '9. Propiedad intelectual',
-      content: 'El contenido generado por Tu Oráculo(mensajes, lecturas, diseños) es propiedad de Tu Oráculo. Podés usarlo para uso personal, pero no reproducirlo, distribuirlo ni comercializarlo sin autorización escrita.',
+      content: 'El contenido generado por Tu Oráculo (mensajes, lecturas, diseños) es propiedad de Tu Oráculo. Podés usarlo para uso personal, pero no reproducirlo, distribuirlo ni comercializarlo sin autorización escrita.',
     },
     {
       title: '10. Modificaciones',
@@ -71,8 +66,8 @@ export default async function TerminosServicio() {
   return (
     <PaginaInstitucional>
       <EncabezadoInstitucional eyebrow="Legal" titulo="Términos del servicio">
-        <p>Estas condiciones regulan el uso del Tarot y, cuando esté disponible, de la Guía Diaria.</p>
-        <p className="text-white/45 text-[13px] mt-2">Última actualización: septiembre 2026</p>
+        <p>Estas condiciones regulan el uso de Tu Oráculo y de su lectura de Tarot.</p>
+        <p className="text-white/45 text-[13px] mt-2">Última actualización: octubre 2026</p>
       </EncabezadoInstitucional>
 
       <div className="space-y-3 mb-10">

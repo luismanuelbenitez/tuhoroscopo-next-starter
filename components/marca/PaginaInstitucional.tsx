@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
 import { FondoCheckout } from "@/components/tarot/checkout/FondoCheckout";
-import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
+import { PieMarca } from "@/components/marca/PieMarca";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 
 // Páginas institucionales con la estética de marca (2026-10-19): FAQ,
@@ -27,25 +27,26 @@ export const PANEL_INSTITUCIONAL = {
 export function PaginaInstitucional({ children }: { children: ReactNode }) {
   return (
     <PaginaMarca fondo={<FondoCheckout />}>
-      <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; } details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
+      <style dangerouslySetInnerHTML={{ __html: "details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
       <HeaderMarca variante="completo" links={NAV} cta={{ href: "/tarot", label: "Conocer el Tarot →" }} />
       <main className="relative px-5 pt-12 md:pt-16 pb-14 mx-auto w-full max-w-[760px]" style={{ fontVariantNumeric: "lining-nums" }}>
         {children}
       </main>
-      <EnlacesTarotPie className="pb-5" />
-      <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
-        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
-      </p>
+      <PieMarca />
     </PaginaMarca>
   );
 }
 
+const SOMBRA_ENCABEZADO = "0 2px 14px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)";
+
 export function EncabezadoInstitucional({ eyebrow, titulo, children }: { eyebrow: string; titulo: string; children?: ReactNode }) {
   return (
-    <div className="text-center mb-10">
+    // Velo y sombra: el encabezado cae sobre el sol y la luna de la escena
+    // (auditoría UX 2026-10-30, T3).
+    <div className="text-center mb-10 rounded-3xl py-2" style={{ textShadow: SOMBRA_ENCABEZADO, background: "radial-gradient(ellipse at center, rgba(8,4,18,0.55) 0%, rgba(8,4,18,0.25) 60%, transparent 80%)" }}>
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: GOLD }}>{eyebrow}</p>
       <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(34px, 6vw, 46px)", lineHeight: 1.1, color: CREMA }}>{titulo}</h1>
-      {children && <div className="mt-3 text-[15px] md:text-base text-white/70 leading-relaxed">{children}</div>}
+      {children && <div className="mt-3 text-[15px] md:text-base text-white/85 leading-relaxed">{children}</div>}
     </div>
   );
 }

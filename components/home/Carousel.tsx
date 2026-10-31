@@ -91,19 +91,26 @@ export function Carousel({ children, showArrows = true }: { children: ReactNode[
       </div>
 
       {total > 1 && (
-        <div className="flex justify-center gap-2 mt-5">
+        // El punto se ve chico pero el botón mide 32 px de alto (área de
+        // toque, auditoría UX 2026-10-30, T4).
+        <div className="flex justify-center mt-2">
           {children.map((_, i) => (
             <button
               key={i}
               type="button"
               aria-label={`Ir a ${i + 1}`}
+              aria-current={i === activo ? "true" : undefined}
               onClick={() => irA(i)}
-              style={{
-                width: i === activo ? 18 : 7, height: 7, borderRadius: 4,
-                background: i === activo ? GOLD : "rgba(255,255,255,0.25)",
-                transition: "all 0.2s ease", border: "none", padding: 0, cursor: "pointer",
-              }}
-            />
+              style={{ padding: "12px 5px", background: "none", border: "none", cursor: "pointer" }}
+            >
+              <span
+                style={{
+                  display: "block", width: i === activo ? 18 : 7, height: 7, borderRadius: 4,
+                  background: i === activo ? GOLD : "rgba(255,255,255,0.25)",
+                  transition: "all 0.2s ease",
+                }}
+              />
+            </button>
           ))}
         </div>
       )}

@@ -6,7 +6,9 @@ import Link from "next/link";
 // Solo mobile (md:hidden), aparece recién después de scrollear un poco
 // (pasado el Hero, que ya tiene su propio CTA) y es compacto a propósito:
 // una línea de precio + un botón, nunca tapa contenido de forma agresiva.
-export function StickyCtaTarot({ precioUYU }: { precioUYU: number | null }) {
+// `href`/`etiqueta`: las páginas SEO la usan con el tema ya elegido y el
+// mismo texto de su header (auditoría UX 2026-10-30, S5).
+export function StickyCtaTarot({ precioUYU, href = "/tarot/checkout", etiqueta = "Quiero mi tirada →" }: { precioUYU: number | null; href?: string; etiqueta?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -35,17 +37,17 @@ export function StickyCtaTarot({ precioUYU }: { precioUYU: number | null }) {
     >
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-semibold m-0 truncate" style={{ color: "rgba(246,234,210,0.75)" }}>
-          Tu Tirada{precioTexto ? ` · ${precioTexto}` : ""}
+          Tarot de 5 cartas{precioTexto ? ` · ${precioTexto}` : ""}
         </p>
       </div>
       {/* Discreto a propósito (2026-10-27): contorno dorado en vez de botón
           lleno, para acompañar la lectura de la página sin interrumpirla. */}
       <Link
-        href="/tarot/checkout"
+        href={href as never}
         className="shrink-0 rounded-full text-center font-semibold whitespace-nowrap"
         style={{ padding: "8px 16px", fontSize: 13, color: "#F0C55A", border: "1px solid rgba(240,197,90,0.6)", background: "rgba(240,197,90,0.08)" }}
       >
-        Quiero mi tirada →
+        {etiqueta}
       </Link>
     </div>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { resolverFeedback } from "@/lib/feedbackPublico";
 import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
+import { PieMarca } from "@/components/marca/PieMarca";
 import { FormularioOpinion } from "@/components/opinion/FormularioOpinion";
 import { EstadoOpinion } from "@/components/opinion/EstadoOpinion";
 
@@ -21,7 +22,6 @@ export default async function OpinionPage({ params }: { params: { token: string 
 
   return (
     <PaginaMarca>
-      <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; }" }} />
       <HeaderMarca variante="minimo" />
       <main className="relative px-4 pb-16 pt-2 mx-auto w-full max-w-[560px]">
         {ctx.estado === "ok" && ctx.consentimientos && ctx.identidadPublica ? (
@@ -35,6 +35,7 @@ export default async function OpinionPage({ params }: { params: { token: string 
           <EstadoOpinion estado={ctx.estado === "ok" ? "error" : ctx.estado} nombrePila={ctx.nombrePila} />
         )}
       </main>
+      <PieMarca minimo />
     </PaginaMarca>
   );
 }

@@ -25,7 +25,10 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
 
   return (
     <div className="relative px-6 md:px-12" style={{ paddingTop: "7%", paddingBottom: "5%" }}>
-      <div className="fi1 max-w-[520px]">
+      {/* Mobile: velo oscuro detrás del texto, que cae sobre el libro y las
+          velas de la escena (auditoría UX 2026-10-30, T3). */}
+      <div aria-hidden="true" className="md:hidden absolute inset-x-0 top-[4%] bottom-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 85% 60% at 35% 50%, rgba(8,4,18,0.62) 0%, rgba(8,4,18,0.35) 55%, transparent 85%)" }} />
+      <div className="fi1 relative max-w-[520px]">
         {/* SEO (2026-10-21): el H1 es la intención principal de la página
             ("tarot personalizado online") con el estilo del antetítulo; el
             "Tarot" grande queda como título visual, sin cambiar el diseño. */}
@@ -38,7 +41,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
         <p className="mb-4" style={{ color: GOLD, fontSize: "clamp(1.05rem, 2.2vw, 1.3rem)", fontWeight: 600, textShadow: TEXT_SHADOW }}>
           5 cartas, interpretadas para vos.
         </p>
-        <p className="text-white/80 text-[14px] md:text-[15px] leading-relaxed mb-6" style={{ textShadow: TEXT_SHADOW }}>
+        <p className="text-white/90 md:text-white/80 text-[14px] md:text-[15px] leading-relaxed mb-6" style={{ textShadow: TEXT_SHADOW }}>
           Hacé tu consulta y recibí en minutos una lectura personalizada de 5 cartas. Explorá cada
           carta desde tu celular, escuchá el resumen con voz generada por IA, ambientá tu lectura
           con música y guardá tu PDF para volver cuando quieras.

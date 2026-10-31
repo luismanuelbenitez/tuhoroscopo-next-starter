@@ -40,7 +40,8 @@ export function CtaSeo({ href, ubicacion, tema, children, className = "" }: {
 // (velas, cristales) y en mobile pierde contraste sin ella.
 const SOMBRA_HERO = "0 2px 14px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)";
 
-export function HeroSeo({ eyebrow, titulo, children, cta }: { eyebrow: string; titulo: string; children: ReactNode; cta: ReactNode }) {
+export function HeroSeo({ eyebrow, titulo, children, cta, precioUYU = null }: { eyebrow: string; titulo: string; children: ReactNode; cta: ReactNode; precioUYU?: number | null }) {
+  const precio = precioTexto(precioUYU);
   return (
     // <div> y no <header>: PaginaMarca oculta todo <header> (el global del
     // layout) con CSS — un <header> acá desaparecería (pasó en /opinion).
@@ -54,6 +55,13 @@ export function HeroSeo({ eyebrow, titulo, children, cta }: { eyebrow: string; t
         {children}
       </div>
       <div className="mt-7">{cta}</div>
+      {/* Quien llega desde Google quiere saber cuánto cuesta sin bajar hasta
+          el cierre (auditoría UX 2026-10-30, S2). */}
+      {precio && (
+        <p className="mt-3 text-[13.5px] text-white/75" style={{ textShadow: SOMBRA_HERO }}>
+          <span className="font-semibold" style={{ color: GOLD }}>{precio}</span> · pago único · te llega en minutos
+        </p>
+      )}
     </div>
   );
 }
@@ -119,12 +127,14 @@ export function FaqSeo({ titulo = "Preguntas frecuentes", items }: { titulo?: st
       <h2 className="text-center mb-4" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(24px, 4vw, 30px)", color: CREMA }}>{titulo}</h2>
       <div className="space-y-2.5">
         {items.map((f) => (
-          <details key={f.q} className="group rounded-xl px-5 py-4" style={PANEL}>
-            <summary className="flex items-center justify-between gap-4 cursor-pointer text-[15.5px] font-semibold" style={{ color: CREMA }}>
+          // Padding en el <summary> (no en <details>): toda la tarjeta abre y
+          // cierra, no solo la línea del texto (auditoría UX 2026-10-30, S1).
+          <details key={f.q} className="group rounded-xl" style={PANEL}>
+            <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 py-4 text-[15.5px] font-semibold" style={{ color: CREMA }}>
               {f.q}
               <ChevronDown aria-hidden="true" size={18} className="shrink-0 transition-transform group-open:rotate-180" style={{ color: GOLD }} />
             </summary>
-            <div className="mt-2.5 text-white/72 text-[15px] leading-relaxed">{f.a}</div>
+            <div className="px-5 pb-4 -mt-1.5 text-white/72 text-[15px] leading-relaxed">{f.a}</div>
           </details>
         ))}
       </div>

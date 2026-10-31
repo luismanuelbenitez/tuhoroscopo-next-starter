@@ -7,7 +7,8 @@ import { PaginaMarca } from "@/components/marca/PaginaMarca";
 import { HeaderMarca } from "@/components/marca/HeaderMarca";
 import { FondoCheckout, FONDO_CHECKOUT_MOBILE } from "@/components/tarot/checkout/FondoCheckout";
 import { SeoTracking } from "@/components/seo/SeoTracking";
-import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
+import { PieMarca } from "@/components/marca/PieMarca";
+import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
 import { jsonLdSeo, PAGINAS_SEO, type ClavePaginaSeo } from "@/lib/seo/paginasSeo";
 
 // Envoltorio de las páginas SEO de intención (2026-10-20). Mismo esqueleto
@@ -29,13 +30,13 @@ const HERMANAS: { clave: ClavePaginaSeo; label: string }[] = [
 
 function Migas({ clave }: { clave: ClavePaginaSeo }) {
   return (
-    <nav aria-label="Ruta" className="mb-6 text-[12.5px] text-white/55">
+    <nav aria-label="Ruta" className="mb-6 text-[12.5px] text-white/75" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)" }}>
       <ol className="flex flex-wrap justify-center items-center gap-1.5">
         <li><Link href="/" className="hover:text-white/85">Inicio</Link></li>
         <li aria-hidden="true" style={{ color: GOLD }}>›</li>
         <li><Link href="/tarot" className="hover:text-white/85">Tarot</Link></li>
         <li aria-hidden="true" style={{ color: GOLD }}>›</li>
-        <li aria-current="page" className="text-white/75">{PAGINAS_SEO[clave].migaja}</li>
+        <li aria-current="page" className="text-white/90">{PAGINAS_SEO[clave].migaja}</li>
       </ol>
     </nav>
   );
@@ -80,15 +81,15 @@ const NAV = [
 ];
 
 export function PaginaSeo({
-  clave, ctaHref, children,
-}: { clave: ClavePaginaSeo; ctaHref: string; children: ReactNode }) {
+  clave, ctaHref, children, precioUYU = null,
+}: { clave: ClavePaginaSeo; ctaHref: string; children: ReactNode; precioUYU?: number | null }) {
   const jsonLd = jsonLdSeo(clave);
   // Paquete SEO 2: el fondo mobile es el LCP en celular y, al ser un
   // background CSS, el navegador lo descubre tarde. Precarga solo en mobile.
   preload(FONDO_CHECKOUT_MOBILE, { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
   return (
-    <PaginaMarca fondo={<FondoCheckout />}>
-      <style dangerouslySetInnerHTML={{ __html: "body > footer { display: none !important; } details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
+    <PaginaMarca fondo={<FondoCheckout />} fuera={<StickyCtaTarot precioUYU={precioUYU} href={ctaHref} etiqueta="Quiero mi lectura →" />}>
+      <style dangerouslySetInnerHTML={{ __html: "details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <SeoTracking pagina={clave} />
       <HeaderMarca variante="completo" links={NAV} cta={{ href: ctaHref, label: "Quiero mi lectura →" }} />
@@ -97,10 +98,7 @@ export function PaginaSeo({
         {children}
       </article>
       <OtrasConsultas clave={clave} />
-      <EnlacesTarotPie className="pb-5" />
-      <p className="relative px-5 pb-10 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/45">
-        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
-      </p>
+      <PieMarca className="pb-24 md:pb-10" />
     </PaginaMarca>
   );
 }
