@@ -138,10 +138,35 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
+  // Datos de presentación de las órdenes de esta página (2026-10-31): nombre
+  // del cliente, tipo, tema y estado de la orden, y si el cliente abrió su
+  // lectura. Solo lectura; si falla, la tabla se muestra igual sin estos datos.
+  const ordenes: Record<string, {
+    cliente: string | null; tipo: string | null; tema: string | null; estado: string | null; abrio: boolean;
+  }> = {};
+  const ids = Array.from(new Set(lecturas.map((l) => l.orden_id).filter(Boolean)));
+  if (ids.length > 0) {
+    const rest = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+    const lista = ids.map((id) => `"${id}"`).join(",");
+    try {
+      const [resO, resE] = await Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/tarot_ordenes?id=in.(${lista})&select=id,nombre_snapshot,tipo_orden,tema,estado`, { headers: rest, cache: "no-store" }),
+        fetch(`${supabaseUrl}/rest/v1/funnel_events?order_id=in.(${lista})&event_name=eq.mobile_reading_opened&select=order_id`, { headers: rest, cache: "no-store" }),
+      ]);
+      const abiertas = new Set<string>(resE.ok ? ((await resE.json()) as { order_id: string }[]).map((e) => e.order_id) : []);
+      if (resO.ok) {
+        for (const o of (await resO.json()) as { id: string; nombre_snapshot: string | null; tipo_orden: string | null; tema: string | null; estado: string | null }[]) {
+          ordenes[o.id] = { cliente: o.nombre_snapshot, tipo: o.tipo_orden, tema: o.tema, estado: o.estado, abrio: abiertas.has(o.id) };
+        }
+      }
+    } catch { /* sin datos de órdenes: la tabla igual se muestra */ }
+  }
+
   return NextResponse.json({
     ok: data.ok ?? false,
     paginacion: data.paginacion ?? null,
     metricas_pagina: data.metricas_pagina ?? null,
     lecturas,
+    ordenes,
   });
 }

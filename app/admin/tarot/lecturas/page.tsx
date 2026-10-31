@@ -5,6 +5,8 @@ import {
   ChevronRight,
   ChevronDown,
   AlertCircle,
+  CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotLecturaDetalle } from "@/components/admin/TarotLecturaDetalle";
@@ -28,6 +30,15 @@ interface Lectura {
   warnings: string[];
 }
 
+// Datos de la orden para mostrar (los arma /api/admin/tarot/lecturas).
+interface OrdenInfo {
+  cliente: string | null;
+  tipo: string | null;
+  tema: string | null;
+  estado: string | null;
+  abrio: boolean;
+}
+
 interface Paginacion {
   total: number;
   limit: number;
@@ -35,10 +46,14 @@ interface Paginacion {
   next_offset: number | null;
 }
 
-// Etiquetas según lo que pasó con cada intento (2026-10-31). Solo cambia cómo
-// se MUESTRA: los datos no se tocan. Se deduce con las lecturas de la misma
-// orden que trae la página. El ⚠ queda solo para lo que necesita atención:
-// una orden SIN lectura oficial con un error, o "generando" hace más de 30 min.
+// Vista pensada para personas (2026-10-31): una fila por orden con el nombre
+// del cliente, la salud de la entrega y los tiempos; el id de la orden queda
+// como dato de referencia (al pasar el mouse y en el detalle). Solo cambia
+// cómo se MUESTRA: los datos no se tocan.
+
+// Etiqueta de cada intento según lo que pasó, deducida con las lecturas de la
+// misma orden. El ⚠ queda solo para una orden SIN lectura oficial con error
+// o "generando" hace más de 30 min (un cliente pagó y no recibió nada).
 const GRIS = "bg-gray-800 text-gray-400";
 type Etiqueta = { label: string; cls: string; alerta: boolean };
 
@@ -55,8 +70,7 @@ function etiquetar(l: Lectura, tieneOficial: boolean): Etiqueta {
   }
   if (l.estado === "generando") {
     if (tieneOficial) return { label: "Descartada", cls: GRIS, alerta: false };
-    const minutos = (Date.now() - new Date(l.created_at).getTime()) / 60000;
-    return minutos > 30
+    return minutosDesde(l.created_at) > 30
       ? { label: "Trabada", cls: "bg-red-900/50 text-red-300", alerta: true }
       : { label: "Generando", cls: "bg-amber-900/50 text-amber-300", alerta: false };
   }
@@ -64,10 +78,14 @@ function etiquetar(l: Lectura, tieneOficial: boolean): Etiqueta {
   return { label: l.estado, cls: GRIS, alerta: false };
 }
 
+function minutosDesde(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / 60000;
+}
+
 // Una fila por orden: la lectura oficial (o, si no hay, la más reciente)
-// arriba, y el resto de los intentos plegados debajo. Respeta el orden en que
+// arriba y el resto de los intentos plegados debajo. Respeta el orden en que
 // llegan del servidor (más nuevas primero).
-type Grupo = { ordenId: string; principal: Lectura; otras: Lectura[]; tieneOficial: boolean };
+type Grupo = { ordenId: string; principal: Lectura; otras: Lectura[]; tieneOficial: boolean; primera: Lectura };
 function agrupar(lecturas: Lectura[]): Grupo[] {
   const porOrden = new Map<string, Lectura[]>();
   for (const l of lecturas) {
@@ -77,8 +95,45 @@ function agrupar(lecturas: Lectura[]): Grupo[] {
   return Array.from(porOrden.entries()).map(([ordenId, lista]) => {
     const oficial = lista.find((l) => l.estado === "completada" && l.es_vigente);
     const principal = oficial ?? lista[0];
-    return { ordenId, principal, otras: lista.filter((l) => l !== principal), tieneOficial: !!oficial };
+    const primera = lista.reduce((a, b) => (a.created_at <= b.created_at ? a : b));
+    return { ordenId, principal, otras: lista.filter((l) => l !== principal), tieneOficial: !!oficial, primera };
   });
+}
+
+// Salud de la orden en palabras: lo primero que hay que mirar.
+type Salud = { texto: string; cls: string; punto: string };
+function salud(g: Grupo, orden: OrdenInfo | undefined): Salud {
+  const fallos = g.otras.some((l) => l.estado === "error");
+  if (!g.tieneOficial) {
+    const algunaTrabada = [g.principal, ...g.otras].some((l) => etiquetar(l, false).alerta);
+    return algunaTrabada
+      ? { texto: "Necesita atención", cls: "text-red-300", punto: "bg-red-400" }
+      : { texto: "En curso", cls: "text-amber-300", punto: "bg-amber-400" };
+  }
+  if (orden?.estado && orden.estado !== "entregado" && orden.estado !== "entregado_simulado") {
+    return orden.estado.startsWith("error")
+      ? { texto: "Necesita atención", cls: "text-red-300", punto: "bg-red-400" }
+      : { texto: "Entregando", cls: "text-amber-300", punto: "bg-amber-400" };
+  }
+  return fallos
+    ? { texto: "Bien, con reintentos", cls: "text-emerald-300/80", punto: "bg-emerald-500/70" }
+    : { texto: "Todo bien", cls: "text-emerald-300", punto: "bg-emerald-400" };
+}
+
+const TEMAS: Record<string, string> = {
+  amor: "Amor", trabajo: "Trabajo", dinero: "Dinero", salud: "Salud", decision: "Decisión",
+  decisiones: "Decisión", general: "General", familia: "Familia", espiritual: "Espiritual",
+};
+const nombreTema = (t: string | null) => (t ? TEMAS[t] ?? t.charAt(0).toUpperCase() + t.slice(1) : null);
+
+const fechaHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("es-UY", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+const hora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" }) : "—";
+function duracion(desde: string, hasta: string | null): string | null {
+  if (!hasta) return null;
+  const s = Math.max(0, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
 }
 
 function Badge({ text, cls }: { text: string; cls: string }) {
@@ -94,6 +149,7 @@ const LIMIT = 50;
 export default function TarotLecturasPage() {
   const [filtros, setFiltros] = useState({ estado: "", solo_errores: false, offset: 0 });
   const [lecturas, setLecturas] = useState<Lectura[]>([]);
+  const [ordenes, setOrdenes] = useState<Record<string, OrdenInfo>>({});
   const [paginacion, setPaginacion] = useState<Paginacion | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -121,6 +177,7 @@ export default function TarotLecturasPage() {
           setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
         } else {
           setLecturas(json.lecturas ?? []);
+          setOrdenes(json.ordenes ?? {});
           setPaginacion(json.paginacion ?? null);
         }
       } catch (e: unknown) {
@@ -132,16 +189,18 @@ export default function TarotLecturasPage() {
     doFetch();
   }, [filtros]);
 
-
   const total = paginacion?.total ?? 0;
   const desde = total === 0 ? 0 : filtros.offset + 1;
   const hasta = Math.min(filtros.offset + LIMIT, total);
+  const grupos = agrupar(lecturas);
+  const COLS = 7;
 
   return (
     <TarotAdminShell>
       <main className="px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">Lecturas</h2>
+          <p className="text-xs text-gray-500 mt-1">Una fila por orden. Tocá una fila para ver el detalle completo de la lectura.</p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
@@ -151,7 +210,7 @@ export default function TarotLecturasPage() {
             className="border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-amber-500"
           >
             <option value="">Todos los estados</option>
-            {/* Estados reales de tarot_lecturas (antes había valores que no existen). */}
+            {/* Estados reales de tarot_lecturas. */}
             <option value="pendiente">Pendiente</option>
             <option value="generando">Generando</option>
             <option value="completada">Completada</option>
@@ -191,37 +250,43 @@ export default function TarotLecturasPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-900 border-b border-gray-800 text-left">
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Orden ID</th>
-                  <th className="px-4 py-3 font-medium text-gray-400">Estado</th>
-                  <th className="px-4 py-3 font-medium text-gray-400">Modelo IA</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Costo USD</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Cliente</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Salud</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Lectura</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Iniciada → Finalizada</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Entrega</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Costo IA</th>
                   <th className="px-4 py-3 font-medium text-gray-400">Resumen</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Generado</th>
                 </tr>
               </thead>
               <tbody>
                 {cargando && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
+                    <td colSpan={COLS} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
                       Cargando lecturas…
                     </td>
                   </tr>
                 )}
                 {!cargando && !errorMsg && lecturas.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm">
+                    <td colSpan={COLS} className="px-4 py-10 text-center text-gray-500 text-sm">
                       Sin resultados.
                     </td>
                   </tr>
                 )}
-                {!cargando && agrupar(lecturas).map((g) => {
+                {!cargando && grupos.map((g) => {
+                  const o = ordenes[g.ordenId];
+                  const sal = salud(g, o);
                   const abierta = abiertas.has(g.ordenId);
                   const filas = [g.principal, ...(abierta ? g.otras : [])];
+                  const tema = nombreTema(o?.tema ?? null);
                   return (
                     <Fragment key={g.ordenId}>
                       {filas.map((l, i) => {
                         const et = etiquetar(l, g.tieneOficial);
                         const esPrincipal = i === 0;
+                        const inicio = esPrincipal ? g.primera.created_at : l.created_at;
+                        const dur = duracion(inicio, l.generado_at);
                         return (
                           <tr
                             key={l.id}
@@ -230,8 +295,27 @@ export default function TarotLecturasPage() {
                               et.alerta ? "bg-red-950/10" : ""
                             } ${esPrincipal ? "" : "bg-gray-950/40"}`}
                           >
-                            <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                              {esPrincipal ? `${l.orden_id.slice(0, 8)}…` : <span className="pl-3 text-gray-600">intento {l.numero_intento}</span>}
+                            {/* Cliente: el id de la orden queda como referencia al pasar el mouse */}
+                            <td className="px-4 py-3" title={`Orden ${l.orden_id}`}>
+                              {esPrincipal ? (
+                                <div>
+                                  <p className="text-sm text-gray-100 whitespace-nowrap">{o?.cliente ?? "Sin nombre"}</p>
+                                  <p className="text-[11px] text-gray-500 whitespace-nowrap mt-0.5">
+                                    {o?.tipo === "cortesia" ? "Cortesía" : o?.tipo === "venta" ? "Venta" : "—"}
+                                    {tema ? ` · ${tema}` : ""}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="pl-3 text-xs text-gray-600">intento {l.numero_intento}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {esPrincipal && (
+                                <span className={`inline-flex items-center gap-1.5 text-xs ${sal.cls}`}>
+                                  <span className={`h-2 w-2 rounded-full ${sal.punto}`} />
+                                  {sal.texto}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <Badge text={et.label} cls={et.cls} />
@@ -249,15 +333,31 @@ export default function TarotLecturasPage() {
                                 </button>
                               )}
                             </td>
-                            <td className="px-4 py-3 font-mono text-xs text-gray-400">{l.ia_modelo || "—"}</td>
-                            <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                              ${Number(l.ia_costo_usd).toFixed(4)}
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                              <span>{fechaHora(inicio)}</span>
+                              <span className="text-gray-600"> → </span>
+                              <span>{l.generado_at ? hora(l.generado_at) : "—"}</span>
+                              {dur && <span className="block text-[11px] text-gray-600 mt-0.5">tardó {dur}</span>}
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-400 max-w-[240px] truncate">
-                              {l.resumen_lectura?.slice(0, 60) ?? l.error_mensaje?.slice(0, 60) ?? "—"}
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                              {esPrincipal && o?.estado ? (
+                                o.estado === "entregado" || o.estado === "entregado_simulado" ? (
+                                  <div>
+                                    <span className="inline-flex items-center gap-1 text-emerald-300/90"><CheckCircle2 size={12} /> Entregada</span>
+                                    {o.abrio && <span className="flex items-center gap-1 text-gray-400 mt-0.5"><Eye size={12} /> Abrió la lectura</span>}
+                                  </div>
+                                ) : (
+                                  <span className={o.estado.startsWith("error") ? "text-red-300" : "text-amber-300"}>
+                                    {o.estado.replace(/_/g, " ")}
+                                  </span>
+                                )
+                              ) : null}
                             </td>
                             <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                              {l.generado_at ? new Date(l.generado_at).toLocaleDateString("es-UY") : "—"}
+                              {Number(l.ia_costo_usd) > 0 ? `US$ ${Number(l.ia_costo_usd).toFixed(3)}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400 max-w-[280px] truncate">
+                              {l.resumen_lectura?.slice(0, 80) ?? l.error_mensaje?.slice(0, 80) ?? "—"}
                             </td>
                           </tr>
                         );
