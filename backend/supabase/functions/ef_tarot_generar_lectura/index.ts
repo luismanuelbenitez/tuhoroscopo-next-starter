@@ -254,6 +254,41 @@ async function generarLectura(ordenId: string): Promise<void> {
     return;
   }
 
+  // 2.1 Reclamo atómico de la orden (2026-10-30). Antes: se leía el estado
+  // y recién más abajo (paso 10) se pasaba a generando_lectura, así que dos
+  // invocaciones casi simultáneas (webhook MP duplicado) leían las dos
+  // "pago_confirmado" y generaban dos lecturas en paralelo (doble costo IA,
+  // y el paso 10 de la segunda podía desmarcar la vigente de la primera).
+  // Ahora el cambio de estado es condicional al estado leído: Postgres
+  // garantiza que solo UNA invocación lo logra; la otra no encuentra la fila
+  // y termina sin hacer nada. Si más abajo se corta por un error de datos
+  // antes de llamar a la IA, se devuelve la orden a estadoOriginal para no
+  // dejarla trabada en generando_lectura.
+  const estadoOriginal = orden.estado;
+  const { data: reclamo, error: errReclamo } = await supabase.from("tarot_ordenes")
+    .update({ estado: "generando_lectura", updated_at: new Date().toISOString() })
+    .eq("id", ordenId)
+    .eq("estado", estadoOriginal)
+    .select("id");
+
+  if (errReclamo) {
+    await registrarLog(ordenId, "lectura_reclamo_error", "error",
+      "No se pudo reclamar la orden para generar la lectura", { estado: estadoOriginal, error: errReclamo.message });
+    return;
+  }
+  if (!reclamo || reclamo.length === 0) {
+    await registrarLog(ordenId, "lectura_duplicada_ignorada", "info",
+      "Otra invocación ya tomó esta orden — se ignora esta generación duplicada", { estado_leido: estadoOriginal });
+    return;
+  }
+
+  const devolverEstado = async () => {
+    await supabase.from("tarot_ordenes")
+      .update({ estado: estadoOriginal, updated_at: new Date().toISOString() })
+      .eq("id", ordenId)
+      .eq("estado", "generando_lectura");
+  };
+
   // 3. Contar intentos previos
   const { count: intentosPrevios } = await supabase
     .from("tarot_lecturas")
@@ -293,6 +328,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   if (!cliente) {
     await registrarLog(ordenId, "cliente_no_encontrado", "error",
       "Cliente no encontrado para la orden");
+    await devolverEstado();
     return;
   }
 
@@ -319,6 +355,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   if (!posiciones || posiciones.length < 5) {
     await registrarLog(ordenId, "posiciones_insuficientes", "critical",
       "La tirada no tiene 5 posiciones configuradas");
+    await devolverEstado();
     return;
   }
 
@@ -340,6 +377,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   if (!todasLasCartas || todasLasCartas.length < 5) {
     await registrarLog(ordenId, "cartas_insuficientes", "critical",
       "El mazo no tiene suficientes cartas activas", { total: todasLasCartas?.length ?? 0 });
+    await devolverEstado();
     return;
   }
 
@@ -410,9 +448,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     .update({ es_vigente: false, updated_at: ahora })
     .eq("orden_id", ordenId);
 
-  await supabase.from("tarot_ordenes")
-    .update({ estado: "generando_lectura", updated_at: ahora })
-    .eq("id", ordenId);
+  // (El paso a generando_lectura ya se hizo en el reclamo atómico, 2.1.)
 
   // 11. Construir prompts desde template
   const cartasParaPrompt: CartaParaPrompt[] = cartasSeleccionadas.map((c) => ({

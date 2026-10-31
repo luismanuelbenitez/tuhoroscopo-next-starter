@@ -326,6 +326,42 @@ async function procesarPago(paymentId: string, ip?: string): Promise<void> {
       return; // NO dispara ejecutarPipelinePostCobro — evidencia ya persistida en tarot_pagos (paso 5)
     }
 
+    // ── Reclamo atómico (2026-10-30) ────────────────────────
+    // MP manda a veces el mismo aviso dos veces casi a la vez (~0,2 s): las
+    // dos invocaciones pasaban la idempotencia del paso 4 (leen el estado
+    // antes de que la otra lo cambie) y disparaban dos pipelines. El cambio
+    // a pago_confirmado es condicional al estado leído en el paso 3: Postgres
+    // garantiza que solo UNA invocación lo logra; la otra se registra como
+    // duplicada y termina sin disparar nada.
+    const { data: reclamo, error: errReclamo } = await supabase
+      .from("tarot_ordenes")
+      .update({ estado: "pago_confirmado", updated_at: ahora })
+      .eq("id", ordenId)
+      .eq("estado", orden.estado)
+      .select("id");
+
+    if (errReclamo) {
+      await registrarLog(ordenId, "pago_reclamo_error", "error",
+        "No se pudo reclamar la orden tras el pago aprobado — pipeline no disparado",
+        { payment_id: paymentId, estado_leido: orden.estado, error: errReclamo.message }, ip);
+      // MP ya recibió "OK" y no va a reintentar: un pago aprobado sin
+      // pipeline tiene que llegar a Manuel sí o sí.
+      await dispararAlerta(supabase, "orden_trabada", {
+        ordenId,
+        ordenRef: externalRef,
+        etapa: "pago aprobado, sin iniciar la lectura (falló el reclamo de la orden)",
+        error: `payment_id ${paymentId}: ${errReclamo.message}`,
+        fecha: ahora,
+      }).catch(() => {});
+      return;
+    }
+    if (!reclamo || reclamo.length === 0) {
+      await registrarLog(ordenId, "pago_duplicado_ignorado", "info",
+        "Webhook duplicado ignorado — otra invocación ya tomó la orden",
+        { estado_leido: orden.estado, payment_id: paymentId }, ip);
+      return;
+    }
+
     // ── Pago aprobado y coherente ────────────────────────────
     await registrarLog(ordenId, "pago_confirmado", "info",
       "Pago aprobado. Disparando generación de lectura.",
