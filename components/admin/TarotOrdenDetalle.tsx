@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, RefreshCw, Check, Ban, Mail } from "lucide-react";
+import { X, ExternalLink, AlertCircle, RotateCcw, CheckCircle2, Loader2, KeyRound, Copy, RefreshCw, Check, Mail, XCircle, Clock, ChevronDown } from "lucide-react";
 
 // ============================================================================
 // Types
@@ -26,6 +26,22 @@ interface Orden {
   warnings: string[];
   tipo_orden?: "venta" | "cortesia";
   codigo_cortesia?: string | null;
+  // Vienen del listado de órdenes (2026-10-31); opcionales.
+  utm_source?: string | null;
+  utm_campaign?: string | null;
+  recorrido?: {
+    pagado_at: string | null;
+    lectura_at: string | null;
+    pdf_at: string | null;
+    whatsapp_at: string | null;
+    abierta_at: string | null;
+    aperturas: number;
+    pdf_clicks: number;
+    fallos_ia: number;
+    costo_ia_usd: number;
+    codigo: string | null;
+    interna: boolean;
+  } | null;
 }
 
 interface Lectura {
@@ -174,37 +190,72 @@ const ESTADO_AUDIO: Record<string, { label: string; cls: string }> = {
 const ESTADO_PDF: Record<string, { label: string; cls: string }> = {
   pendiente:        { label: "Pendiente",      cls: "bg-gray-800 text-gray-400" },
   generando:        { label: "Generando",      cls: "bg-amber-900/50 text-amber-300" },
+  listo:            { label: "Generado",       cls: "bg-emerald-900/50 text-emerald-300" },
   generado:         { label: "Generado",       cls: "bg-emerald-900/50 text-emerald-300" },
   error_generacion: { label: "Error",          cls: "bg-red-900/50 text-red-300" },
   invalidado:       { label: "Invalidado",     cls: "bg-gray-800 text-gray-400" },
 };
 
-// Checklist "Estado resumido de experiencia" (item 4) — deriva todo de
-// datos ya cargados por el componente, no agrega ninguna tabla ni fetch
-// nuevo aparte de lo que ya trae ef_tarot_admin_orden_experiencia.
-type ChecklistTono = "ok" | "pendiente" | "error";
+// Checklist visual (rediseño 2026-10-31): un paso por fila con ✓ / ✗ / en curso,
+// hora y, si corresponde, un link. Todo sale de datos ya cargados.
+type Tono = "ok" | "pendiente" | "error" | "na";
 
-function ChecklistBadge({ label, tono }: { label: string; tono: ChecklistTono }) {
-  const cls = tono === "ok"
-    ? "bg-emerald-900/40 text-emerald-300 border-emerald-800/60"
-    : tono === "error"
-      ? "bg-red-900/40 text-red-300 border-red-800/60"
-      : "bg-gray-800/60 text-gray-400 border-gray-700/60";
-  const Icono = tono === "ok" ? CheckCircle2 : tono === "error" ? Ban : Loader2;
+function Paso({ tono, titulo, detalle, link }: {
+  tono: Tono; titulo: string; detalle?: React.ReactNode; link?: { href: string; label: string } | null;
+}) {
+  const icono = tono === "ok" ? <CheckCircle2 size={17} className="text-emerald-400" />
+    : tono === "error" ? <XCircle size={17} className="text-red-400" />
+    : tono === "pendiente" ? <Clock size={17} className="text-amber-400/80" />
+    : <span className="block h-[17px] w-[17px] rounded-full border border-gray-700" />;
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border whitespace-nowrap ${cls}`}>
-      <Icono size={12} className={tono === "pendiente" ? "opacity-60" : ""} />
-      {label}
-    </span>
+    <div className="flex items-center gap-3 py-2 border-b border-gray-800/50 last:border-0">
+      <span className="shrink-0">{icono}</span>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm ${tono === "na" ? "text-gray-500" : "text-gray-100"}`}>{titulo}</p>
+        {detalle && <p className="text-[11px] text-gray-500 mt-0.5">{detalle}</p>}
+      </div>
+      {link && (
+        <a href={link.href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+          className="shrink-0 inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">
+          {link.label} <ExternalLink size={11} />
+        </a>
+      )}
+    </div>
   );
 }
 
-function whatsappChecklist(estadoOrden: string): { label: string; tono: ChecklistTono } {
-  if (estadoOrden === "entregado") return { label: "WhatsApp: enviado", tono: "ok" };
-  if (estadoOrden === "entregado_simulado") return { label: "WhatsApp: simulado", tono: "ok" };
-  if (estadoOrden === "enviando_whatsapp") return { label: "WhatsApp: enviando…", tono: "pendiente" };
-  if (estadoOrden === "error_whatsapp" || estadoOrden === "error_critico") return { label: "WhatsApp: error", tono: "error" };
-  return { label: "WhatsApp: pendiente", tono: "pendiente" };
+function hora(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("es-UY", { timeZone: "America/Montevideo", hour: "2-digit", minute: "2-digit" });
+}
+
+function lapso(desde: string | null | undefined, hasta: string | null | undefined): string | null {
+  if (!desde || !hasta) return null;
+  const s = Math.max(0, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / 1000));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) return `${Math.floor(s / 60)} min ${s % 60} s`;
+  return `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`;
+}
+
+function Cifra({ valor, etiqueta }: { valor: string; etiqueta: string }) {
+  return (
+    <div className="rounded-xl bg-gray-800/40 px-3 py-2.5">
+      <p className="text-base font-semibold text-white leading-tight">{valor}</p>
+      <p className="text-[11px] text-gray-500 mt-0.5">{etiqueta}</p>
+    </div>
+  );
+}
+
+function Plegable({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-xl border border-gray-800 bg-gray-900/60">
+      <summary className="flex items-center justify-between cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-200 [&::-webkit-details-marker]:hidden" style={{ listStyle: "none" }}>
+        {titulo}
+        <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="px-4 pb-4">{children}</div>
+    </details>
+  );
 }
 
 function accesoBadge(info: AccesoWeb | null): { label: string; cls: string } {
@@ -453,410 +504,134 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
   const lectura = lecturas.find((l) => l.es_vigente) ?? lecturas[0];
   const pdf = pdfs[0];
   const pago = pagos.find((p) => p.mp_status === "approved") ?? pagos[0];
+  const r = orden.recorrido ?? null;
+  const esCortesia = orden.tipo_orden === "cortesia";
+  const entregado = orden.estado === "entregado" || orden.estado === "entregado_simulado";
+  const fallosIa = lecturas.filter((l) => l.estado === "error").length;
+  const costoIa = lecturas.reduce((a, l) => a + (Number(l.ia_costo_usd) || 0), 0);
+  const aperturas = accesoInfo?.opened_count ?? r?.aperturas ?? 0;
+  const pdfOk = pdf?.estado === "listo" || pdf?.estado === "generado";
+  const src = (orden.utm_source ?? "").toLowerCase();
+  const origen = esCortesia ? `Cortesía${orden.codigo_cortesia ? ` · ${orden.codigo_cortesia}` : ""}`
+    : (src.includes("facebook") || src.includes("meta") || src.includes("instagram") || src === "fb" || src === "ig")
+      ? `Meta Ads${orden.utm_campaign ? ` · ${orden.utm_campaign}` : ""}`
+      : src ? `${orden.utm_source}${orden.utm_campaign ? ` · ${orden.utm_campaign}` : ""}` : "Directo";
+  const salud = entregado
+    ? (aperturas > 0 ? { texto: "Entregada y leída", cls: "bg-emerald-900/50 text-emerald-300" } : { texto: "Entregada, sin abrir", cls: "bg-emerald-900/30 text-emerald-300/80" })
+    : orden.estado.startsWith("error") ? { texto: "Necesita atención", cls: "bg-red-900/50 text-red-300" }
+    : { texto: estadoOrden.label, cls: estadoOrden.cls };
+  const entregaEn = lapso(r?.pagado_at ?? pago?.webhook_received_at ?? null, r?.whatsapp_at ?? null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-4">
 
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-gray-900 flex items-center justify-between px-5 py-3 border-b border-gray-700/60">
-          <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-white">Orden Tarot</span>
-            <Badge text={estadoOrden.label} cls={estadoOrden.cls} />
+        {/* Encabezado: quién y cómo está */}
+        <div className="sticky top-0 z-10 bg-gray-900 flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-700/60">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-lg font-semibold text-white truncate">{nombreSnapshot ?? orden.cliente_nombre ?? "Orden"}</span>
+              <Badge text={salud.texto} cls={salud.cls} />
+              {r?.interna && <Badge text="Interna" cls="bg-gray-800 text-gray-400" />}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {esCortesia ? "Cortesía" : "Venta"} · {origen} · {orden.tema ? orden.tema.charAt(0).toUpperCase() + orden.tema.slice(1) : "—"} · {fmt(orden.created_at)}
+            </p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors shrink-0">
             <X size={18} />
           </button>
         </div>
 
         <div className="px-5 py-4 space-y-5">
 
-          {/* Warnings */}
-          {orden.warnings.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-2.5 text-sm text-amber-300">
-              <AlertCircle size={15} className="shrink-0 mt-0.5" />
-              <span>{orden.warnings.join(" · ")}</span>
-            </div>
-          )}
+          {/* Resumen en cifras */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Cifra valor={esCortesia ? "Sin cargo" : `${orden.moneda} ${orden.precio_cobrado}`} etiqueta={esCortesia ? "Cortesía" : "Cobrado"} />
+            <Cifra valor={entregaEn ?? "—"} etiqueta="Del pago a la entrega" />
+            <Cifra valor={aperturas > 0 ? `${aperturas} ${aperturas === 1 ? "vez" : "veces"}` : "Todavía no"} etiqueta="Abrió la lectura" />
+            <Cifra valor={costoIa > 0 ? `US$ ${costoIa.toFixed(3)}` : "—"} etiqueta={fallosIa ? `Costo IA · ${fallosIa} reintento${fallosIa > 1 ? "s" : ""}` : "Costo IA"} />
+          </div>
 
-          {/* Orden */}
-          <Sect title="Orden">
-            <DataRow label="ID" value={<span className="font-mono text-xs">{orden.id}</span>} />
-            <DataRow label="Referencia MP" value={<span className="font-mono text-xs">{orden.external_reference}</span>} />
-            <DataRow label="Estado" value={<Badge text={estadoOrden.label} cls={estadoOrden.cls} />} />
-            <DataRow label="Tema" value={orden.tema} />
-            <DataRow label="Precio" value={`${orden.moneda} ${orden.precio_cobrado}`} />
-            {orden.tipo_orden === "cortesia" && (
-              <DataRow label="Tipo" value={
-                <Badge text={`Cortesía / $0${orden.codigo_cortesia ? ` · ${orden.codigo_cortesia}` : ""}`} cls="bg-fuchsia-900/50 text-fuchsia-300" />
-              } />
-            )}
-            <DataRow label="Canal" value={orden.origen_canal} />
-            <DataRow label="Creada" value={fmt(orden.created_at)} />
-            <DataRow label="Actualizada" value={fmt(orden.updated_at)} />
-            {orden.notas_internas && (
-              <DataRow label="Notas internas" value={<span className="text-amber-300">{orden.notas_internas}</span>} />
-            )}
-          </Sect>
-
-          {/* Pregunta */}
-          {orden.pregunta_usuario && (
-            <Sect title="Pregunta del cliente">
-              <p className="text-sm text-gray-300 leading-relaxed bg-gray-800/40 rounded-lg px-3 py-2">
-                {orden.pregunta_usuario}
-              </p>
-            </Sect>
-          )}
-
-          {/* Cliente */}
-          <Sect title="Cliente">
-            <DataRow label="ID cliente" value={<span className="font-mono text-xs">{orden.cliente_id}</span>} />
-            <DataRow label="Nombre" value={orden.cliente_nombre || "—"} />
-            <DataRow label="Teléfono" value={<span className="font-mono">{orden.cliente_telefono || "—"}</span>} />
-            <DataRow label="Email" value={orden.cliente_email || "—"} />
-          </Sect>
-
-          {/* Pago */}
-          <Sect title="Pago Mercado Pago">
-            {orden.tipo_orden === "cortesia" ? (
-              <p className="text-sm text-fuchsia-300">
-                Orden de cortesía: no hubo pago ni pasó por Mercado Pago
-                {orden.codigo_cortesia ? ` (código ${orden.codigo_cortesia})` : ""}. No cuenta como venta.
-              </p>
-            ) : loadingRelated ? (
-              <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
-            ) : pago ? (
-              <>
-                <DataRow label="Estado MP" value={
-                  <Badge
-                    text={(ESTADO_PAGO[pago.mp_status ?? ""] ?? { label: pago.mp_status ?? "—", cls: "bg-gray-800 text-gray-400" }).label}
-                    cls={(ESTADO_PAGO[pago.mp_status ?? ""] ?? { label: "", cls: "bg-gray-800 text-gray-400" }).cls}
-                  />
-                } />
-                <DataRow label="Detalle" value={pago.mp_status_detail ?? "—"} />
-                <DataRow label="Monto" value={pago.monto != null ? `${pago.moneda} ${pago.monto}` : "—"} />
-                <DataRow label="Tipo" value={pago.mp_payment_type ?? "—"} />
-                <DataRow label="MP Payment ID" value={<span className="font-mono text-xs">{pago.mp_payment_id ?? "—"}</span>} />
-                <DataRow label="Webhook recibido" value={fmt(pago.webhook_received_at)} />
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Sin pago registrado.</p>
-            )}
-          </Sect>
-
-          {/* Lectura IA */}
-          <Sect title="Lectura IA">
+          {/* Checklist de la entrega */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-1">
             {loadingRelated ? (
-              <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
-            ) : lectura ? (
-              <>
-                <DataRow label="Estado" value={
-                  <Badge
-                    text={(ESTADO_LECTURA[lectura.estado] ?? { label: lectura.estado, cls: "bg-gray-800 text-gray-400" }).label}
-                    cls={(ESTADO_LECTURA[lectura.estado] ?? { label: "", cls: "bg-gray-800 text-gray-400" }).cls}
-                  />
-                } />
-                <DataRow label="Modelo IA" value={<span className="font-mono text-xs">{lectura.ia_modelo}</span>} />
-                <DataRow label="Tokens entrada" value={lectura.ia_tokens_entrada.toLocaleString()} />
-                <DataRow label="Tokens salida" value={lectura.ia_tokens_salida.toLocaleString()} />
-                <DataRow label="Costo USD" value={<span className="font-mono text-xs">${Number(lectura.ia_costo_usd).toFixed(6)}</span>} />
-                <DataRow label="Intento #" value={lectura.numero_intento} />
-                <DataRow label="Generada" value={fmt(lectura.generado_at)} />
-                {lectura.error_mensaje && (
-                  <DataRow label="Error" value={<span className="text-red-300">{lectura.error_mensaje}</span>} />
-                )}
-                {lectura.resumen_lectura && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Resumen</p>
-                    <p className="text-sm text-gray-300 leading-relaxed bg-gray-800/40 rounded-lg px-3 py-2">
-                      {lectura.resumen_lectura}
-                    </p>
-                  </div>
-                )}
-              </>
+              <p className="text-sm text-gray-500 animate-pulse py-3">Cargando…</p>
             ) : (
-              <p className="text-sm text-gray-500">Sin lectura generada aún.</p>
-            )}
-          </Sect>
-
-          {/* Audio IA — narración TTS (OpenAI) del Resumen, feature opcional */}
-          <Sect title="Audio IA">
-            {loadingRelated ? (
-              <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
-            ) : audioEstado ? (
               <>
-                <DataRow label="Estado" value={
-                  <Badge
-                    text={(ESTADO_AUDIO[audioEstado.estado] ?? { label: audioEstado.estado, cls: "bg-gray-800 text-gray-400" }).label}
-                    cls={(ESTADO_AUDIO[audioEstado.estado] ?? { label: "", cls: "bg-gray-800 text-gray-400" }).cls}
-                  />
-                } />
-                <DataRow label="Modelo" value={<span className="font-mono text-xs">{audioEstado.modelo ?? "—"}</span>} />
-                <DataRow label="Voz" value={<span className="font-mono text-xs">{audioEstado.voz ?? "—"}</span>} />
-                <DataRow label="Caracteres del texto" value={audioEstado.caracteres != null ? audioEstado.caracteres.toLocaleString() : "—"} />
-                <DataRow label="Costo USD (estimado)" value={
-                  audioEstado.costo_usd_estimado != null
-                    ? <span className="font-mono text-xs">${audioEstado.costo_usd_estimado.toFixed(6)}</span>
-                    : <span className="text-gray-500 text-xs">No disponible (cargar tasa en Configuración)</span>
-                } />
-                <DataRow label="Intento #" value={audioEstado.intentos || "—"} />
-                <DataRow label="Generado" value={audioEstado.generado_at ? fmt(audioEstado.generado_at) : "—"} />
-                {audioEstado.error && (
-                  <DataRow label="Error" value={<span className="text-red-300">{audioEstado.error}</span>} />
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Sin audio generado aún.</p>
-            )}
-          </Sect>
-
-          {/* PDF */}
-          <Sect title="PDF">
-            {loadingRelated ? (
-              <p className="text-sm text-gray-500 animate-pulse">Cargando…</p>
-            ) : pdf ? (
-              <>
-                <DataRow label="Estado" value={
-                  <Badge
-                    text={(ESTADO_PDF[pdf.estado] ?? { label: pdf.estado, cls: "bg-gray-800 text-gray-400" }).label}
-                    cls={(ESTADO_PDF[pdf.estado] ?? { label: "", cls: "bg-gray-800 text-gray-400" }).cls}
-                  />
-                } />
-                <DataRow label="Plantilla" value={<span className="font-mono text-xs">{pdf.plantilla_usada}</span>} />
-                <DataRow label="Páginas" value={pdf.paginas ?? "—"} />
-                <DataRow label="Tamaño" value={pdf.tamano_bytes ? `${(pdf.tamano_bytes / 1024).toFixed(1)} KB` : "—"} />
-                <DataRow label="Intento #" value={pdf.numero_intento} />
-                <DataRow label="Generado" value={fmt(pdf.generado_at)} />
-                <DataRow label="URL expira" value={fmt(pdf.url_expira_at)} />
-                {pdf.error_mensaje && (
-                  <DataRow label="Error" value={<span className="text-red-300">{pdf.error_mensaje}</span>} />
-                )}
-                {pdf.storage_url && (
-                  <div className="mt-3">
-                    <a
-                      href={pdf.storage_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors"
-                    >
-                      <ExternalLink size={13} />
-                      Abrir PDF
-                    </a>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Sin PDF generado aún.</p>
-            )}
-          </Sect>
-
-          {/* Experiencia del cliente — preview real, mismo link/token que recibe el comprador */}
-          <Sect title="Experiencia del cliente">
-            <p className="text-xs text-gray-500 mb-3">
-              Mismo link, token y cabezal que recibirá el comprador por WhatsApp — no una URL de preview alternativa.
-            </p>
-
-            {/* Checklist resumido (item 4) */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              <ChecklistBadge
-                label={lectura?.estado === "completada" ? "Lectura generada" : "Lectura pendiente"}
-                tono={lectura?.estado === "completada" ? "ok" : lectura?.estado === "error" ? "error" : "pendiente"}
-              />
-              <ChecklistBadge
-                label={pdf?.estado === "generado" ? "PDF generado" : "PDF pendiente"}
-                tono={pdf?.estado === "generado" ? "ok" : pdf?.estado === "error_generacion" ? "error" : "pendiente"}
-              />
-              <ChecklistBadge
-                label={
-                  audioEstado?.estado === "listo" ? "Audio generado"
-                  : audioEstado?.estado === "generando" ? "Audio: generando…"
-                  : audioEstado?.estado === "error" ? "Audio: error"
-                  : "Audio no generado"
-                }
-                tono={audioEstado?.estado === "listo" ? "ok" : audioEstado?.estado === "error" ? "error" : "pendiente"}
-              />
-              <ChecklistBadge
-                label={accesoBadge(accesoInfo).label === "Activo" ? "Acceso web activo" : "Acceso web " + accesoBadge(accesoInfo).label.toLowerCase()}
-                tono={accesoBadge(accesoInfo).label === "Activo" ? "ok" : accesoInfo ? "error" : "pendiente"}
-              />
-              <ChecklistBadge
-                label={imagenEstado?.existe ? "Cabezal generado" : "Cabezal pendiente"}
-                tono={imagenEstado?.existe ? "ok" : "pendiente"}
-              />
-              {(() => { const wa = whatsappChecklist(orden.estado); return <ChecklistBadge label={wa.label} tono={wa.tono} />; })()}
-              {emailEstado?.aplica && (
-                <ChecklistBadge
-                  label={
-                    emailEstado.estado === "enviado" ? "Email enviado"
-                    : emailEstado.estado === "error" ? "Email: error del proveedor"
-                    : "Email pendiente"
-                  }
-                  tono={emailEstado.estado === "enviado" ? "ok" : emailEstado.estado === "error" ? "error" : "pendiente"}
+                <Paso
+                  tono={esCortesia ? "ok" : pago?.mp_status === "approved" ? "ok" : pago?.mp_status === "rejected" ? "error" : pago ? "pendiente" : "na"}
+                  titulo={esCortesia ? "Cortesía confirmada (sin pago)" : pago?.mp_status === "approved" ? "Pago aprobado en Mercado Pago" : pago?.mp_status === "rejected" ? "Pago rechazado" : pago ? "Pago en proceso" : "Sin pago"}
+                  detalle={esCortesia ? (orden.codigo_cortesia ? `Código ${orden.codigo_cortesia}` : null) : pago ? [hora(pago.webhook_received_at), pago.mp_payment_type].filter(Boolean).join(" · ") : null}
                 />
-              )}
-            </div>
-
-            {/* "Así recibirá su tirada" — cabezal + nombre + acceso + accesos directos */}
-            <div className="rounded-xl border border-gray-700/60 bg-gray-950/50 p-3 mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2.5">Así recibirá su tirada</p>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                {/* Preview del cabezal — 2:1, responsive, click abre el original */}
-                <div className="w-full sm:w-56 shrink-0">
-                  {imagenUrl ? (
-                    <a href={imagenUrl} target="_blank" rel="noopener noreferrer" className="block">
-                      <img
-                        src={imagenUrl}
-                        alt="Cabezal WhatsApp"
-                        className="w-full h-auto aspect-[2/1] object-cover rounded-lg border border-gray-700/60 bg-gray-900 hover:opacity-90 transition-opacity"
-                      />
-                    </a>
-                  ) : (
-                    <div className="w-full aspect-[2/1] rounded-lg border border-dashed border-gray-700/60 bg-gray-900/60 flex items-center justify-center px-2">
-                      <p className="text-xs text-gray-500 text-center">
-                        {imagenEstado?.existe === false ? "Cabezal aún no generado" : "Cargando preview…"}
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    <button
-                      onClick={() => ejecutarExperiencia("ver_imagen")}
-                      disabled={expAccion !== ""}
-                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {expAccion === "ver_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                      {imagenEstado?.existe ? "Actualizar preview" : "Generar cabezal"}
-                    </button>
-                    {imagenEstado?.existe && (
-                      <button
-                        onClick={() => ejecutarExperiencia("regenerar_imagen")}
-                        disabled={expAccion !== ""}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {expAccion === "regenerar_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                        Regenerar
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Nombre + acceso + accesos directos */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{nombreSnapshot ?? orden.cliente_nombre ?? "—"}</p>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <Badge text={accesoBadge(accesoInfo).label} cls={accesoBadge(accesoInfo).cls} />
-                    <span className="text-xs text-gray-500">vence {fmt(accesoInfo?.expira_at)}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2.5">
-                    <button
-                      onClick={abrirLecturaMovil}
-                      disabled={!tokenActual}
-                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <ExternalLink size={13} /> Abrir lectura
-                    </button>
-                    <button
-                      onClick={abrirPdfCliente}
-                      disabled={!tokenActual}
-                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <ExternalLink size={13} /> Abrir PDF
-                    </button>
-                  </div>
-                  {!tokenActual && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Generá el acceso web (abajo) para habilitar estos botones en esta sesión.
-                    </p>
-                  )}
-                  {audioEstado?.signedUrl && (
-                    <div className="mt-2.5">
-                      <p className="text-xs text-gray-500 mb-1">
-                        Audio del resumen{audioEstado.voz ? ` (voz: ${audioEstado.voz})` : ""}
-                      </p>
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                      <audio controls src={audioEstado.signedUrl} className="w-full" style={{ height: 32 }} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Acceso web: detalle + generar/regenerar */}
-            <DataRow label="Creado" value={accesoInfo ? fmt(accesoInfo.created_at) : "—"} />
-            <DataRow label="Vence" value={accesoInfo ? fmt(accesoInfo.expira_at) : "—"} />
-            <DataRow label="Aperturas" value={accesoInfo ? accesoInfo.opened_count : "—"} />
-            <DataRow label="Última apertura" value={accesoInfo?.last_opened_at ? fmt(accesoInfo.last_opened_at) : "—"} />
-
-            {orden.estado === "entregado" && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-sm text-red-300 mt-3">
-                <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                <span>Esta orden ya tuvo una entrega REAL por WhatsApp. Regenerar el acceso invalida el link que ese cliente ya tiene.</span>
-              </div>
+                <Paso
+                  tono={lectura?.estado === "completada" ? "ok" : lectura?.estado === "error" && !lecturas.some((l) => l.estado === "completada") ? "error" : lectura ? "pendiente" : "na"}
+                  titulo={lectura?.estado === "completada" ? "Lectura generada" : lectura?.estado === "error" ? "La lectura falló" : lectura ? "Generando la lectura…" : "Lectura sin generar"}
+                  detalle={[lectura?.generado_at ? hora(lectura.generado_at) : null, fallosIa ? `${fallosIa} intento${fallosIa > 1 ? "s" : ""} fallido${fallosIa > 1 ? "s" : ""} antes` : null].filter(Boolean).join(" · ") || null}
+                />
+                <Paso
+                  tono={audioEstado?.estado === "listo" ? "ok" : audioEstado?.estado === "error" ? "error" : audioEstado?.estado === "generando" ? "pendiente" : "na"}
+                  titulo={audioEstado?.estado === "listo" ? "Audio del resumen" : audioEstado?.estado === "error" ? "El audio falló" : audioEstado?.estado === "generando" ? "Generando el audio…" : "Audio sin generar"}
+                  detalle={audioEstado?.generado_at ? hora(audioEstado.generado_at) : null}
+                  link={audioEstado?.signedUrl ? { href: audioEstado.signedUrl, label: "Escuchar" } : null}
+                />
+                <Paso
+                  tono={pdfOk ? "ok" : pdf?.estado === "error_generacion" ? "error" : pdf ? "pendiente" : "na"}
+                  titulo={pdfOk ? "PDF generado" : pdf?.estado === "error_generacion" ? "El PDF falló" : pdf ? "Generando el PDF…" : "PDF sin generar"}
+                  detalle={pdf?.generado_at ? `${hora(pdf.generado_at)}${pdf.paginas ? ` · ${pdf.paginas} páginas` : ""}` : null}
+                  link={pdf?.storage_url ? { href: pdf.storage_url, label: "Abrir PDF" } : null}
+                />
+                <Paso
+                  tono={imagenEstado?.existe ? "ok" : "na"}
+                  titulo={imagenEstado?.existe ? "Imagen del WhatsApp" : "Imagen del WhatsApp sin generar"}
+                  link={imagenUrl ? { href: imagenUrl, label: "Ver imagen" } : null}
+                />
+                <Paso
+                  tono={entregado ? "ok" : orden.estado === "enviando_whatsapp" ? "pendiente" : orden.estado === "error_whatsapp" ? "error" : "na"}
+                  titulo={orden.estado === "entregado_simulado" ? "WhatsApp simulado" : entregado ? "WhatsApp enviado" : orden.estado === "enviando_whatsapp" ? "Enviando WhatsApp…" : orden.estado === "error_whatsapp" ? "El WhatsApp falló" : "WhatsApp sin enviar"}
+                  detalle={r?.whatsapp_at ? hora(r.whatsapp_at) : null}
+                />
+                {emailEstado?.aplica && (
+                  <Paso
+                    tono={emailEstado.estado === "enviado" ? "ok" : emailEstado.estado === "error" ? "error" : "pendiente"}
+                    titulo={emailEstado.estado === "enviado" ? "Email enviado" : emailEstado.estado === "error" ? "El email falló" : "Email pendiente"}
+                    detalle={orden.cliente_email || null}
+                  />
+                )}
+                <Paso
+                  tono={accesoBadge(accesoInfo).label === "Activo" ? "ok" : accesoInfo ? "error" : "na"}
+                  titulo={accesoInfo ? `Acceso a la lectura: ${accesoBadge(accesoInfo).label.toLowerCase()}` : "Acceso a la lectura sin generar"}
+                  detalle={accesoInfo ? `vence ${fmt(accesoInfo.expira_at)}` : null}
+                />
+                <Paso
+                  tono={aperturas > 0 ? "ok" : entregado ? "pendiente" : "na"}
+                  titulo={aperturas > 0 ? "El cliente abrió su lectura" : "El cliente todavía no abrió su lectura"}
+                  detalle={aperturas > 0 ? [`${aperturas} ${aperturas === 1 ? "vez" : "veces"}`, accesoInfo?.last_opened_at ? `última ${fmt(accesoInfo.last_opened_at)}` : null, r?.pdf_clicks ? `bajó el PDF ${r.pdf_clicks > 1 ? `${r.pdf_clicks} veces` : "1 vez"}` : null].filter(Boolean).join(" · ") : null}
+                />
+              </>
             )}
+          </div>
 
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button
-                onClick={() => ejecutarExperiencia("generar_acceso")}
-                disabled={expAccion !== ""}
-                className={
-                  accesoInfo
-                    ? "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-red-700/70 bg-red-900/30 hover:bg-red-800/40 text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    : "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                }
-              >
-                {expAccion === "generar_acceso" ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
-                {accesoInfo ? "Regenerar acceso web (invalida el anterior)" : "Generar acceso web"}
-              </button>
+          {/* Pregunta y cliente */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-gray-800/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Su pregunta</p>
+              <p className="text-sm text-gray-200 leading-snug">{orden.pregunta_usuario?.trim() ? `“${orden.pregunta_usuario.trim()}”` : <span className="text-gray-500">Sin pregunta (lectura general)</span>}</p>
             </div>
-
-            {/* Copiado — QA manual */}
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button
-                onClick={() => copiarLinkCliente("lectura")}
-                disabled={!tokenActual}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {copiado === "lectura" ? <Check size={13} /> : <Copy size={13} />} {copiado === "lectura" ? "¡Copiado!" : "Copiar link lectura"}
-              </button>
-              <button
-                onClick={() => copiarLinkCliente("pdf")}
-                disabled={!tokenActual}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {copiado === "pdf" ? <Check size={13} /> : <Copy size={13} />} {copiado === "pdf" ? "¡Copiado!" : "Copiar link PDF"}
-              </button>
-              <button
-                onClick={copiarDatosEntrega}
-                disabled={!tokenActual}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {copiado === "datos" ? <Check size={13} /> : <Copy size={13} />} {copiado === "datos" ? "¡Copiado!" : "Copiar datos de entrega"}
-              </button>
-              <button
-                onClick={previsualizarEmail}
-                disabled={expAccion !== ""}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Abre el HTML real del email en una pestaña nueva — nunca envía nada"
-              >
-                {expAccion === "preview_email" ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
-                Previsualizar email
-              </button>
+            <div className="rounded-xl bg-gray-800/30 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Contacto</p>
+              <p className="text-sm text-gray-200 font-mono">{orden.cliente_telefono || "—"}</p>
+              <p className="text-xs text-gray-400 mt-0.5 break-all">{orden.cliente_email || "Sin email"}</p>
             </div>
-            {!tokenActual && (
-              <p className="text-xs text-gray-500 mt-2">
-                El preview de email funciona sin acceso generado (misma degradación que un envío real sin token), pero los CTA de lectura/PDF no serán clickeables hasta que generes el acceso.
-              </p>
-            )}
+          </div>
 
-            {expError && (
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-                <AlertCircle size={14} className="shrink-0" /> {expError}
-              </div>
-            )}
-          </Sect>
+          {orden.notas_internas && (
+            <div className="rounded-xl border border-amber-800/40 bg-amber-950/20 px-4 py-2.5 text-sm text-amber-200">
+              <span className="text-[11px] uppercase tracking-wider text-amber-400/80 mr-2">Nota</span>{orden.notas_internas}
+            </div>
+          )}
 
-          {/* Error si falla la carga de relacionados */}
           {errorRelated && (
             <div className="flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
               <AlertCircle size={15} className="shrink-0" />
@@ -937,6 +712,187 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
               </div>
             );
           })()}
+
+          {/* Herramientas de entrega (plegado): mismo link, token y cabezal que recibe el comprador */}
+          <Plegable titulo="Herramientas de entrega">
+            <p className="text-xs text-gray-500 mb-3">
+              Mismo link, token y cabezal que recibe el comprador — no una URL de preview alternativa.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              {/* Cabezal de WhatsApp */}
+              <div className="w-full sm:w-56 shrink-0">
+                {imagenUrl ? (
+                  <a href={imagenUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    <img
+                      src={imagenUrl}
+                      alt="Cabezal WhatsApp"
+                      className="w-full h-auto aspect-[2/1] object-cover rounded-lg border border-gray-700/60 bg-gray-900 hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ) : (
+                  <div className="w-full aspect-[2/1] rounded-lg border border-dashed border-gray-700/60 bg-gray-900/60 flex items-center justify-center px-2">
+                    <p className="text-xs text-gray-500 text-center">
+                      {imagenEstado?.existe === false ? "Cabezal aún no generado" : "Sin preview"}
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <button
+                    onClick={() => ejecutarExperiencia("ver_imagen")}
+                    disabled={expAccion !== ""}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {expAccion === "ver_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    {imagenEstado?.existe ? "Actualizar preview" : "Generar cabezal"}
+                  </button>
+                  {imagenEstado?.existe && (
+                    <button
+                      onClick={() => ejecutarExperiencia("regenerar_imagen")}
+                      disabled={expAccion !== ""}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {expAccion === "regenerar_imagen" ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                      Regenerar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Acceso web y accesos directos */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge text={accesoBadge(accesoInfo).label} cls={accesoBadge(accesoInfo).cls} />
+                  <span className="text-xs text-gray-500">vence {fmt(accesoInfo?.expira_at)}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2.5">
+                  <button
+                    onClick={abrirLecturaMovil}
+                    disabled={!tokenActual}
+                    className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ExternalLink size={13} /> Abrir lectura
+                  </button>
+                  <button
+                    onClick={abrirPdfCliente}
+                    disabled={!tokenActual}
+                    className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-violet-700 bg-violet-800/40 hover:bg-violet-700/60 text-violet-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ExternalLink size={13} /> Abrir PDF
+                  </button>
+                </div>
+                {!tokenActual && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Para abrir o copiar el link hay que generar el acceso en esta sesión (abajo).
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {entregado && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-sm text-red-300 mb-2">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                <span>Esta orden ya tuvo una entrega REAL. Regenerar el acceso invalida el link que ese cliente ya tiene.</span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => ejecutarExperiencia("generar_acceso")}
+                disabled={expAccion !== ""}
+                className={
+                  accesoInfo
+                    ? "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-red-700/70 bg-red-900/30 hover:bg-red-800/40 text-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    : "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                }
+              >
+                {expAccion === "generar_acceso" ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                {accesoInfo ? "Regenerar acceso web (invalida el anterior)" : "Generar acceso web"}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                onClick={() => copiarLinkCliente("lectura")}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {copiado === "lectura" ? <Check size={13} /> : <Copy size={13} />} {copiado === "lectura" ? "¡Copiado!" : "Copiar link lectura"}
+              </button>
+              <button
+                onClick={() => copiarLinkCliente("pdf")}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {copiado === "pdf" ? <Check size={13} /> : <Copy size={13} />} {copiado === "pdf" ? "¡Copiado!" : "Copiar link PDF"}
+              </button>
+              <button
+                onClick={copiarDatosEntrega}
+                disabled={!tokenActual}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 text-gray-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {copiado === "datos" ? <Check size={13} /> : <Copy size={13} />} {copiado === "datos" ? "¡Copiado!" : "Copiar datos de entrega"}
+              </button>
+              <button
+                onClick={previsualizarEmail}
+                disabled={expAccion !== ""}
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-sky-700/60 bg-sky-900/30 hover:bg-sky-800/40 text-sky-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Abre el HTML real del email en una pestaña nueva — nunca envía nada"
+              >
+                {expAccion === "preview_email" ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                Previsualizar email
+              </button>
+            </div>
+
+            {expError && (
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                <AlertCircle size={14} className="shrink-0" /> {expError}
+              </div>
+            )}
+          </Plegable>
+
+          {/* Datos técnicos (plegado) */}
+          <Plegable titulo="Datos técnicos">
+            {orden.warnings.length > 0 && (
+              <p className="text-xs text-amber-300/90 mb-2">Avisos: {orden.warnings.join(" · ")}</p>
+            )}
+            <DataRow label="ID de la orden" value={<span className="font-mono text-xs">{orden.id}</span>} />
+            <DataRow label="Referencia MP" value={<span className="font-mono text-xs">{orden.external_reference}</span>} />
+            <DataRow label="ID cliente" value={<span className="font-mono text-xs">{orden.cliente_id}</span>} />
+            <DataRow label="Estado técnico" value={<Badge text={estadoOrden.label} cls={estadoOrden.cls} />} />
+            <DataRow label="Canal" value={orden.origen_canal || "—"} />
+            <DataRow label="Actualizada" value={fmt(orden.updated_at)} />
+            {!esCortesia && pago && (
+              <>
+                <DataRow label="Pago MP" value={`${(ESTADO_PAGO[pago.mp_status ?? ""]?.label) ?? pago.mp_status ?? "—"}${pago.mp_status_detail ? ` · ${pago.mp_status_detail}` : ""}`} />
+                <DataRow label="MP Payment ID" value={<span className="font-mono text-xs">{pago.mp_payment_id ?? "—"}</span>} />
+                <DataRow label="Monto MP" value={pago.monto != null ? `${pago.moneda} ${pago.monto}` : "—"} />
+              </>
+            )}
+            {lectura && (
+              <>
+                <DataRow label="Lectura" value={`${(ESTADO_LECTURA[lectura.estado]?.label) ?? lectura.estado} · intento ${lectura.numero_intento} · ${lectura.ia_modelo}`} />
+                <DataRow label="Tokens IA" value={`${lectura.ia_tokens_entrada.toLocaleString()} entrada · ${lectura.ia_tokens_salida.toLocaleString()} salida`} />
+                {lectura.error_mensaje && <DataRow label="Error lectura" value={<span className="text-red-300">{lectura.error_mensaje}</span>} />}
+              </>
+            )}
+            {audioEstado && (
+              <>
+                <DataRow label="Audio" value={`${(ESTADO_AUDIO[audioEstado.estado]?.label) ?? audioEstado.estado}${audioEstado.voz ? ` · voz ${audioEstado.voz}` : ""}${audioEstado.modelo ? ` · ${audioEstado.modelo}` : ""}`} />
+                <DataRow label="Costo audio (estim.)" value={audioEstado.costo_usd_estimado != null ? `US$ ${audioEstado.costo_usd_estimado.toFixed(4)}` : "—"} />
+                {audioEstado.error && <DataRow label="Error audio" value={<span className="text-red-300">{audioEstado.error}</span>} />}
+              </>
+            )}
+            {pdf && (
+              <>
+                <DataRow label="PDF" value={`${(ESTADO_PDF[pdf.estado]?.label) ?? pdf.estado} · ${pdf.plantilla_usada}${pdf.tamano_bytes ? ` · ${(pdf.tamano_bytes / 1024).toFixed(0)} KB` : ""}`} />
+                {pdf.error_mensaje && <DataRow label="Error PDF" value={<span className="text-red-300">{pdf.error_mensaje}</span>} />}
+              </>
+            )}
+            {accesoInfo && (
+              <DataRow label="Acceso web" value={`creado ${fmt(accesoInfo.created_at)} · vence ${fmt(accesoInfo.expira_at)}`} />
+            )}
+          </Plegable>
 
         </div>
       </div>
