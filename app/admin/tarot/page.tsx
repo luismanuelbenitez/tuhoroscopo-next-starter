@@ -79,13 +79,13 @@ export default function TarotDashboardPage() {
           <div>
             <h2 className="text-base font-semibold text-gray-100">Panel</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {incluir ? "Todo: ventas, cortesías y pruebas propias." : "Solo ventas reales (sin cortesías ni pruebas propias)."} Comparado con {nombrePeriodo}.
+              {incluir ? "Ventas cobradas y cortesías." : "Ventas cobradas por Mercado Pago (sin cortesías)."} El embudo no cuenta tus visitas. Comparado con {nombrePeriodo}.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none">
               <input type="checkbox" checked={incluir} onChange={(e) => setIncluir(e.target.checked)} className="accent-amber-500" />
-              Incluir cortesías y pruebas
+              Incluir cortesías
             </label>
             <div className="flex gap-1">
               {PERIODOS.map((p) => (

@@ -74,7 +74,7 @@ export default function TarotPresupuestoPage() {
       <main className="px-6 py-6 max-w-[1280px]">
         <div className="mb-5">
           <h2 className="text-base font-semibold text-gray-100">Presupuesto</h2>
-          <p className="text-xs text-gray-500 mt-0.5">¿El negocio gana o pierde plata? Últimos 30 días, solo ventas reales. Los costos por venta se calculan solos; lo demás se carga acá.</p>
+          <p className="text-xs text-gray-500 mt-0.5">¿El negocio gana o pierde plata? Últimos 30 días, todas las ventas cobradas. Los costos por venta se calculan solos; lo demás se carga acá.</p>
         </div>
         {errorMsg && (
           <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">

@@ -2,7 +2,9 @@
 // Dashboard estratégico (2026-10-31): responde ¿estoy vendiendo?, ¿dónde se
 // cae la gente?, ¿cuánto me queda?, ¿al cliente le gustó? y ¿qué tengo que
 // atender hoy?, comparando con el período anterior. Por defecto solo ventas
-// reales: sin cortesías ni tráfico propio (`incluir=1` los suma).
+// cobradas: toda compra pagada por Mercado Pago es venta, aunque la haga
+// alguien de casa (es plata real). Las cortesías no son ventas (`incluir=1`
+// las suma). El embudo y el tráfico excluyen siempre los dispositivos propios.
 // Solo lectura y en lote (~9 consultas por carga, sin EFs).
 
 const FUERA = new Set(["formulario_completo", "pago_iniciado", "pago_rechazado", "pago_expirado", "cancelado"]);
@@ -59,8 +61,9 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     const esInterna = (o: Orden) => !!o.funnel_session_id && internas.has(o.funnel_session_id);
     const esCortesia = (o: Orden) => o.tipo_orden === "cortesia";
     const pagada = (o: Orden) => !FUERA.has(o.estado);
-    const cuenta = (o: Orden) => pagada(o) && (incluir || (!esCortesia(o) && !esInterna(o)));
-    const ventaReal = (o: Orden) => pagada(o) && !esCortesia(o) && (incluir || !esInterna(o));
+    const cuenta = (o: Orden) => pagada(o) && (incluir || !esCortesia(o));
+    // Venta = cobrada por Mercado Pago (Manuel 2026-10-31: "ella pagó con su tarjeta").
+    const ventaReal = (o: Orden) => pagada(o) && !esCortesia(o);
 
     // Datos por orden de lo que entró al pipeline en la ventana completa.
     const enVentana = ordenes.filter((o) => o.created_at >= desde && pagada(o));
@@ -117,7 +120,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     // salvo `incluir`, quienes entraron por una cortesía.
     const personaDe = new Map(sesiones.map((s) => [s.anonymous_id, s.visitor_id ?? s.anonymous_id]));
     const excluidas = new Set<string>();
-    if (!incluir) for (const s of sesiones) if (s.es_interno) excluidas.add(personaDe.get(s.anonymous_id)!);
+    for (const s of sesiones) if (s.es_interno) excluidas.add(personaDe.get(s.anonymous_id)!);
     if (!incluir) for (const o of ordenes) if (esCortesia(o) && o.funnel_session_id) excluidas.add(personaDe.get(o.funnel_session_id) ?? o.funnel_session_id);
     const conScroll = new Set(scrolls.map((e) => e.session_id));
     const conCheckout = new Set(checkouts.map((e) => e.session_id));
@@ -138,7 +141,9 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
         if (hizoCheckout || conScroll.has(s.anonymous_id)) interes.add(per);
       }
       const ventas = ordenes.filter((o) => enRango(o.created_at) && ventaReal(o));
-      const pedidos = ordenes.filter((o) => enRango(o.created_at) && !esCortesia(o) && (incluir || !esInterna(o))); // completaron el formulario
+      // Embudo: sin tráfico propio, para medir solo a visitantes de afuera.
+      const pedidos = ordenes.filter((o) => enRango(o.created_at) && !esCortesia(o) && !esInterna(o)); // completaron el formulario
+      const pagaronEmbudo = ventas.filter((o) => !esInterna(o)).length;
       const pagadasAll = ordenes.filter((o) => enRango(o.created_at) && cuenta(o));
 
       let bruto = 0, comision = 0, neto = 0, ia = 0, audio = 0, wa = 0;
@@ -198,7 +203,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       return {
         embudo: {
           personas: personas.size, interes: interes.size, checkout: checkout.size,
-          formulario: pedidos.length, pagaron: ventas.length,
+          formulario: pedidos.length, pagaron: pagaronEmbudo,
         },
         plata: {
           ventas: ventas.length, bruto, comision, neto, ia, audio, wa, queda,
@@ -242,7 +247,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
 
     // Recompra: clientes con 2 o más ventas reales (histórico).
     const ventasPorCliente = new Map<string, number>();
-    for (const o of ordenes) if (o.cliente_id && pagada(o) && !esCortesia(o) && !esInterna(o)) ventasPorCliente.set(o.cliente_id, (ventasPorCliente.get(o.cliente_id) ?? 0) + 1);
+    for (const o of ordenes) if (o.cliente_id && ventaReal(o)) ventasPorCliente.set(o.cliente_id, (ventasPorCliente.get(o.cliente_id) ?? 0) + 1);
     const clientes = ventasPorCliente.size;
     const recompraron = Array.from(ventasPorCliente.values()).filter((n) => n > 1).length;
 
@@ -258,7 +263,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       costos_unitarios: { whatsapp_usd: waPorMensaje, tts_por_1000_usd: ttsPor1000 },
       // Mes calendario (hora de Montevideo), para el avance hacia el punto de equilibrio.
       ventas_mes: ordenes.filter((o) => ventaReal(o) && dia(new Date(o.created_at).getTime()).slice(0, 7) === dia(ahora).slice(0, 7)).length,
-      ultima_venta_at: [...ordenes].reverse().find((o) => ventaReal(o) && !esInterna(o))?.created_at ?? null,
+      ultima_venta_at: [...ordenes].reverse().find((o) => ventaReal(o))?.created_at ?? null,
       fijos_mensuales: fijosMensuales,
       // Ventas por mes necesarias para cubrir los costos fijos con lo que deja cada venta.
       punto_equilibrio: margenVenta && margenVenta > 0 ? Math.ceil(fijosMensuales / margenVenta) : null,
