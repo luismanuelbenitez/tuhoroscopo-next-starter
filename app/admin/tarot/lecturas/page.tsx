@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   AlertCircle,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
@@ -34,13 +35,51 @@ interface Paginacion {
   next_offset: number | null;
 }
 
-const ESTADO_LECTURA: Record<string, { label: string; cls: string }> = {
-  pendiente:           { label: "Pendiente",   cls: "bg-gray-800 text-gray-400" },
-  generando:           { label: "Generando",   cls: "bg-amber-900/50 text-amber-300" },
-  generada:            { label: "Generada",    cls: "bg-emerald-900/50 text-emerald-300" },
-  error_generacion:    { label: "Error",       cls: "bg-red-900/50 text-red-300" },
-  invalidada:          { label: "Invalidada",  cls: "bg-gray-800 text-gray-500" },
-};
+// Etiquetas según lo que pasó con cada intento (2026-10-31). Solo cambia cómo
+// se MUESTRA: los datos no se tocan. Se deduce con las lecturas de la misma
+// orden que trae la página. El ⚠ queda solo para lo que necesita atención:
+// una orden SIN lectura oficial con un error, o "generando" hace más de 30 min.
+const GRIS = "bg-gray-800 text-gray-400";
+type Etiqueta = { label: string; cls: string; alerta: boolean };
+
+function etiquetar(l: Lectura, tieneOficial: boolean): Etiqueta {
+  if (l.estado === "completada") {
+    return l.es_vigente
+      ? { label: "Oficial", cls: "bg-emerald-900/50 text-emerald-300", alerta: false }
+      : { label: "Reemplazada", cls: GRIS, alerta: false };
+  }
+  if (l.estado === "error") {
+    return tieneOficial
+      ? { label: "Falló, se reintentó", cls: GRIS, alerta: false }
+      : { label: "Error", cls: "bg-red-900/50 text-red-300", alerta: true };
+  }
+  if (l.estado === "generando") {
+    if (tieneOficial) return { label: "Descartada", cls: GRIS, alerta: false };
+    const minutos = (Date.now() - new Date(l.created_at).getTime()) / 60000;
+    return minutos > 30
+      ? { label: "Trabada", cls: "bg-red-900/50 text-red-300", alerta: true }
+      : { label: "Generando", cls: "bg-amber-900/50 text-amber-300", alerta: false };
+  }
+  if (l.estado === "pendiente") return { label: "Pendiente", cls: GRIS, alerta: false };
+  return { label: l.estado, cls: GRIS, alerta: false };
+}
+
+// Una fila por orden: la lectura oficial (o, si no hay, la más reciente)
+// arriba, y el resto de los intentos plegados debajo. Respeta el orden en que
+// llegan del servidor (más nuevas primero).
+type Grupo = { ordenId: string; principal: Lectura; otras: Lectura[]; tieneOficial: boolean };
+function agrupar(lecturas: Lectura[]): Grupo[] {
+  const porOrden = new Map<string, Lectura[]>();
+  for (const l of lecturas) {
+    const lista = porOrden.get(l.orden_id);
+    if (lista) lista.push(l); else porOrden.set(l.orden_id, [l]);
+  }
+  return Array.from(porOrden.entries()).map(([ordenId, lista]) => {
+    const oficial = lista.find((l) => l.estado === "completada" && l.es_vigente);
+    const principal = oficial ?? lista[0];
+    return { ordenId, principal, otras: lista.filter((l) => l !== principal), tieneOficial: !!oficial };
+  });
+}
 
 function Badge({ text, cls }: { text: string; cls: string }) {
   return (
@@ -59,6 +98,12 @@ export default function TarotLecturasPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
+  const alternar = (ordenId: string) => setAbiertas((prev) => {
+    const n = new Set(prev);
+    if (n.has(ordenId)) n.delete(ordenId); else n.add(ordenId);
+    return n;
+  });
 
   useEffect(() => {
     async function doFetch() {
@@ -106,11 +151,11 @@ export default function TarotLecturasPage() {
             className="border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-amber-500"
           >
             <option value="">Todos los estados</option>
+            {/* Estados reales de tarot_lecturas (antes había valores que no existen). */}
             <option value="pendiente">Pendiente</option>
             <option value="generando">Generando</option>
-            <option value="generada">Generada</option>
-            <option value="error_generacion">Error</option>
-            <option value="invalidada">Invalidada</option>
+            <option value="completada">Completada</option>
+            <option value="error">Error</option>
           </select>
           <button
             onClick={() => setFiltros({ ...filtros, solo_errores: !filtros.solo_errores, estado: "", offset: 0 })}
@@ -169,37 +214,55 @@ export default function TarotLecturasPage() {
                     </td>
                   </tr>
                 )}
-                {!cargando && lecturas.map((l) => {
-                  const badge = ESTADO_LECTURA[l.estado] ?? { label: l.estado, cls: "bg-gray-800 text-gray-400" };
-                  const isError = l.estado === "error_generacion";
+                {!cargando && agrupar(lecturas).map((g) => {
+                  const abierta = abiertas.has(g.ordenId);
+                  const filas = [g.principal, ...(abierta ? g.otras : [])];
                   return (
-                    <tr
-                      key={l.id}
-                      onClick={() => setSelectedId(l.id)}
-                      className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
-                        isError ? "bg-red-950/10" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {l.orden_id.slice(0, 8)}…
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge text={badge.label} cls={badge.cls} />
-                        {l.warnings.length > 0 && (
-                          <span className="ml-1.5 text-xs text-amber-400">⚠</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400">{l.ia_modelo || "—"}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        ${Number(l.ia_costo_usd).toFixed(4)}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400 max-w-[240px] truncate">
-                        {l.resumen_lectura?.slice(0, 60) ?? l.error_mensaje?.slice(0, 60) ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {l.generado_at ? new Date(l.generado_at).toLocaleDateString("es-UY") : "—"}
-                      </td>
-                    </tr>
+                    <Fragment key={g.ordenId}>
+                      {filas.map((l, i) => {
+                        const et = etiquetar(l, g.tieneOficial);
+                        const esPrincipal = i === 0;
+                        return (
+                          <tr
+                            key={l.id}
+                            onClick={() => setSelectedId(l.id)}
+                            className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
+                              et.alerta ? "bg-red-950/10" : ""
+                            } ${esPrincipal ? "" : "bg-gray-950/40"}`}
+                          >
+                            <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
+                              {esPrincipal ? `${l.orden_id.slice(0, 8)}…` : <span className="pl-3 text-gray-600">intento {l.numero_intento}</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <Badge text={et.label} cls={et.cls} />
+                              {et.alerta && (
+                                <span className="ml-1.5 text-xs text-red-400" title="Necesita atención: la orden no tiene una lectura oficial">⚠</span>
+                              )}
+                              {esPrincipal && g.otras.length > 0 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); alternar(g.ordenId); }}
+                                  className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-gray-500 hover:text-gray-300"
+                                  title={abierta ? "Ocultar los otros intentos" : "Ver los otros intentos de esta orden"}
+                                >
+                                  +{g.otras.length} {g.otras.length === 1 ? "intento" : "intentos"}
+                                  <ChevronDown size={12} className={`transition-transform ${abierta ? "rotate-180" : ""}`} />
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-400">{l.ia_modelo || "—"}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
+                              ${Number(l.ia_costo_usd).toFixed(4)}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400 max-w-[240px] truncate">
+                              {l.resumen_lectura?.slice(0, 60) ?? l.error_mensaje?.slice(0, 60) ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
+                              {l.generado_at ? new Date(l.generado_at).toLocaleDateString("es-UY") : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </tbody>
