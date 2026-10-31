@@ -1,341 +1,256 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, RefreshCw, TrendingUp } from "lucide-react";
+import { useState, useCallback } from "react";
+import Link from "next/link";
+import type { Route } from "next";
+import { AlertCircle, RefreshCw, ArrowRight } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
+import { usePollingRefresh } from "@/lib/usePollingRefresh";
 
-// ============================================================================
-// Types
-// ============================================================================
+// Ingresos (rediseño 2026-10-31): cuánto entró, cuánto queda después de
+// Mercado Pago, cómo viene contra el período anterior y quién pagó.
+// Por defecto sin compras de prueba (dispositivos internos).
 
-interface PorSemana { semana: string; uyu: number; ars: number; count: number }
-
-interface PagoReciente {
-  id: string;
-  orden_id: string;
-  monto: number | null;
-  moneda: string;
-  mp_payment_type: string | null;
-  created_at: string;
+interface Moneda { ventas: number; cobrado: number; comision: number; neto: number }
+interface Resumen { ventas: number; uyu: Moneda; ars: Moneda }
+interface Pago {
+  id: string; orden_id: string; created_at: string; moneda: string; monto: number; comision: number | null; neto: number | null;
+  medio: string | null; marca: string | null; cuotas: number; cliente: string | null; tema: string | null;
+  estado_orden: string | null; origen: string | null; interna: boolean;
 }
-
-interface TtcData {
-  total_uyu: number;
-  total_ars: number;
-  count_uyu: number;
-  count_ars: number;
-  ticket_prom_uyu: number;
-  ticket_prom_ars: number;
-  por_semana: PorSemana[];
-  recientes: PagoReciente[];
+interface Datos {
+  ok: boolean; periodo: string; incluir: boolean;
+  ttc: {
+    actual: Resumen; anterior: Resumen | null; internas_excluidas: number;
+    serie: { por: "dia" | "semana"; puntos: { clave: string; cobrado: number; ventas: number }[] };
+    medios: { medio: string; ventas: number }[];
+    recientes: Pago[];
+  };
+  thc: { activas_total: number; activas_uyu: number; activas_ars: number; mrr_uyu: number; mrr_ars: number; nuevas_periodo: number; canceladas_periodo: number; total_suscripciones: number };
 }
-
-interface ThcEstado { estado: string; count: number }
-
-interface ThcData {
-  activas_total: number;
-  activas_uyu: number;
-  activas_ars: number;
-  mrr_uyu: number;
-  mrr_ars: number;
-  nuevas_periodo: number;
-  canceladas_periodo: number;
-  total_suscripciones: number;
-  por_estado: ThcEstado[];
-}
-
-interface ApiResponse {
-  ok: boolean;
-  periodo: string;
-  ttc: TtcData;
-  thc: ThcData;
-  motivo?: string;
-  detalle?: string;
-}
-
-// ============================================================================
-// Helpers
-// ============================================================================
 
 const PERIODOS = [
-  { key: "hoy",  label: "Hoy" },
-  { key: "7d",   label: "7 días" },
-  { key: "30d",  label: "30 días" },
-  { key: "90d",  label: "90 días" },
-  { key: "todo", label: "Todo" },
-] as const;
-type Periodo = typeof PERIODOS[number]["key"];
+  { key: "hoy", label: "Hoy", antes: "ayer" },
+  { key: "7d", label: "7 días", antes: "los 7 días anteriores" },
+  { key: "30d", label: "30 días", antes: "los 30 días anteriores" },
+  { key: "90d", label: "90 días", antes: "los 90 días anteriores" },
+  { key: "todo", label: "Todo", antes: "" },
+];
+const TEMAS: Record<string, string> = { general: "General", amor: "Amor", trabajo: "Trabajo", salud: "Salud", dinero: "Dinero", decision: "Decisión" };
+const MEDIOS: Record<string, string> = { credit_card: "Tarjeta de crédito", debit_card: "Tarjeta de débito", account_money: "Dinero en Mercado Pago", ticket: "Efectivo (Abitab/Redpagos)", bank_transfer: "Transferencia", prepaid_card: "Tarjeta prepaga", otro: "Otro" };
+const MARCAS: Record<string, string> = { visa: "Visa", master: "Mastercard", oca: "OCA", debvisa: "Visa Débito", debmaster: "Master Débito", amex: "Amex", diners: "Diners", lider: "Líder", creditel: "Creditel" };
 
-const ESTADO_LABEL: Record<string, string> = {
-  activo:      "Activo",
-  provisional: "Provisional",
-  cancelado:   "Cancelado",
-  vencido:     "Vencido",
-  pausado:     "Pausado",
-};
-const ESTADO_CLS: Record<string, string> = {
-  activo:      "text-emerald-400",
-  provisional: "text-amber-400",
-  cancelado:   "text-gray-500",
-  vencido:     "text-red-400",
-  pausado:     "text-sky-400",
-};
+const pesos = (v: number) => `$ ${Math.round(v).toLocaleString("es-UY")}`;
+const fechaHora = (iso: string) =>
+  new Date(iso).toLocaleString("es-UY", { timeZone: "America/Montevideo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-function fmt(iso: string | null | undefined) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("es-UY", { timeZone: "America/Montevideo", dateStyle: "short", timeStyle: "short" });
-}
-
-function fmtSemana(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("es-UY", { day: "2-digit", month: "short" });
-}
-
-function num(n: number, dec = 0) {
-  return n.toLocaleString("es-UY", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-}
-
-// ============================================================================
-// Metric card
-// ============================================================================
-
-function Metric({ label, value, sub, amber }: { label: string; value: string | number; sub?: string; amber?: boolean }) {
-  return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${amber ? "text-amber-300" : "text-gray-100"}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-600 mt-0.5">{sub}</p>}
-    </div>
-  );
-}
-
-// ============================================================================
-// Mini bar chart (relative widths, no external lib)
-// ============================================================================
-
-function BarChart({ semanas }: { semanas: PorSemana[] }) {
-  const maxUyu = Math.max(...semanas.map((s) => s.uyu), 1);
-  const maxArs = Math.max(...semanas.map((s) => s.ars), 1);
-  const hasData = semanas.some((s) => s.uyu > 0 || s.ars > 0);
-
-  if (!hasData) {
-    return <p className="text-xs text-gray-600 text-center py-4">Sin datos en el período.</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-4 mb-3">
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-amber-500/70" /><span className="text-xs text-gray-500">UYU</span></div>
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-sky-500/70" /><span className="text-xs text-gray-500">ARS</span></div>
-      </div>
-      {semanas.map((s) => (
-        <div key={s.semana} className="flex items-center gap-2">
-          <span className="text-xs text-gray-600 w-16 shrink-0 text-right">{fmtSemana(s.semana)}</span>
-          <div className="flex-1 space-y-1">
-            {s.uyu > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="h-4 rounded-sm bg-amber-500/60" style={{ width: `${(s.uyu / maxUyu) * 100}%`, minWidth: "4px" }} />
-                <span className="text-xs text-amber-400/80 whitespace-nowrap">{num(s.uyu)}</span>
-              </div>
-            )}
-            {s.ars > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="h-4 rounded-sm bg-sky-500/60" style={{ width: `${(s.ars / maxArs) * 100}%`, minWidth: "4px" }} />
-                <span className="text-xs text-sky-400/80 whitespace-nowrap">{num(s.ars)}</span>
-              </div>
-            )}
-            {s.uyu === 0 && s.ars === 0 && (
-              <div className="h-4" />
-            )}
-          </div>
-          {s.count > 0 && <span className="text-xs text-gray-700 shrink-0">{s.count} pago{s.count !== 1 ? "s" : ""}</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
-// Page
-// ============================================================================
-
-export default function IngresosPage() {
-  const [periodo, setPeriodo] = useState<Periodo>("30d");
-  const [data, setData] = useState<ApiResponse | null>(null);
+export default function TarotIngresosPage() {
+  const [periodo, setPeriodo] = useState("30d");
+  const [incluir, setIncluir] = useState(false);
+  const [datos, setDatos] = useState<Datos | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const cargar = useCallback(async (p: Periodo) => {
+
+  const cargar = useCallback(async () => {
     setCargando(true);
-    setErrorMsg(null);
     try {
-      const res = await fetch(`/api/admin/tarot/ingresos?periodo=${p}`);
-      const json: ApiResponse = await res.json();
-      if (json.ok) {
-        setData(json);
-      } else {
-        setErrorMsg(json.detalle ?? json.motivo ?? "Error al cargar datos");
-      }
-    } catch {
-      setErrorMsg("Error de red");
+      const r = await fetch(`/api/admin/tarot/ingresos?periodo=${periodo}&incluir=${incluir ? 1 : 0}`, { cache: "no-store" });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.ok) setErrorMsg(j?.detalle ?? j?.motivo ?? `Error ${r.status}`);
+      else { setDatos(j); setErrorMsg(null); }
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : "Error de red");
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [periodo, incluir]);
+  usePollingRefresh(cargar, 120_000);
 
-  useEffect(() => { cargar(periodo); }, [cargar, periodo]);
-
-
-  const ttc = data?.ttc;
-  const thc = data?.thc;
+  const t = datos?.ttc;
+  const a = t?.actual.uyu, b = t?.anterior?.uyu ?? null;
+  const antes = PERIODOS.find((p) => p.key === periodo)?.antes ?? "";
 
   return (
     <TarotAdminShell>
-      <main className="px-6 py-6">
-        {/* Header + period selector */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={18} className="text-amber-400" />
-            <h2 className="text-base font-semibold text-white">Ingresos · Tarot (TTC)</h2>
+      <main className="px-6 py-6 max-w-[1280px]">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-100">Ingresos</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Lo que entró por ventas de lecturas y lo que te queda después de Mercado Pago.
+              {antes && <> Comparado con {antes}.</>}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-lg border border-gray-700 overflow-hidden">
-              {PERIODOS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setPeriodo(key)}
-                  className={`text-xs px-3 py-1.5 transition-colors ${periodo === key ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300 hover:bg-gray-800"}`}
-                >
-                  {label}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none">
+              <input type="checkbox" checked={incluir} onChange={(e) => setIncluir(e.target.checked)} className="accent-amber-500" />
+              Incluir compras de prueba
+            </label>
+            <div className="flex rounded-md border border-gray-700 overflow-hidden">
+              {PERIODOS.map((p) => (
+                <button key={p.key} onClick={() => setPeriodo(p.key)}
+                  className={`px-3 py-1 text-xs transition-colors ${periodo === p.key ? "bg-amber-900/40 text-amber-300" : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"}`}>
+                  {p.label}
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => cargar(periodo)}
-              disabled={cargando}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded-lg px-2.5 py-1.5 transition-colors"
-            >
-              <RefreshCw size={11} className={cargando ? "animate-spin" : ""} />
+            <button onClick={cargar} title="Actualizar" className="p-1.5 rounded-md border border-gray-700 text-gray-400 hover:text-gray-200">
+              <RefreshCw size={13} className={cargando ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
+          <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">
             <AlertCircle size={15} className="shrink-0" /> {errorMsg}
           </div>
         )}
+        {!datos && cargando && <p className="text-sm text-gray-500 animate-pulse">Cargando ingresos…</p>}
 
-        {cargando && !data && (
-          <div className="text-sm text-gray-500 animate-pulse py-12 text-center">Cargando…</div>
-        )}
+        {t && a && (
+          <div className={`space-y-6 transition-opacity ${cargando ? "opacity-70" : ""}`}>
+            {/* Cifras */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Cifra titulo="Ventas" valor={String(a.ventas)} actual={a.ventas} anterior={b?.ventas} />
+              <Cifra titulo="Cobrado" valor={pesos(a.cobrado)} actual={a.cobrado} anterior={b?.cobrado} fmt={pesos} />
+              <Cifra titulo="Te queda (neto Mercado Pago)" valor={pesos(a.neto)} actual={a.neto} anterior={b?.neto} fmt={pesos} destacar
+                nota={a.cobrado > 0 ? `Mercado Pago se quedó ${pesos(a.comision)} (${Math.round((a.comision / a.cobrado) * 100)} %)` : undefined} />
+              <Cifra titulo="Ticket promedio" valor={a.ventas ? pesos(a.cobrado / a.ventas) : "—"}
+                nota={t.internas_excluidas > 0 ? `${t.internas_excluidas} compra${t.internas_excluidas > 1 ? "s" : ""} de prueba fuera del cálculo` : undefined} />
+            </div>
+            {t.actual.ars.ventas > 0 && (
+              <p className="text-xs text-gray-400">También hubo {t.actual.ars.ventas} venta{t.actual.ars.ventas > 1 ? "s" : ""} en pesos argentinos: ARS {Math.round(t.actual.ars.cobrado).toLocaleString("es-UY")} (neto ARS {Math.round(t.actual.ars.neto).toLocaleString("es-UY")}).</p>
+            )}
 
-        {/* ── TTC ────────────────────────────────────────────── */}
-        {ttc && (
-          <section className="mb-10">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-amber-500">Tarot (TTC)</span>
-              <div className="flex-1 h-px bg-amber-900/40" />
+            {/* Serie + medios */}
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-3">
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-4">
+                <p className="text-[11px] text-gray-500 mb-3">Cobrado por {t.serie.por === "dia" ? "día" : "semana"} (UYU)</p>
+                <Barras puntos={t.serie.puntos} porDia={t.serie.por === "dia"} />
+              </div>
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-4 text-xs">
+                <p className="text-[11px] text-gray-500 mb-2">Cómo pagaron</p>
+                {t.medios.length === 0 && <p className="text-gray-600">Sin pagos en el período.</p>}
+                {t.medios.sort((x, y) => y.ventas - x.ventas).map((m) => (
+                  <div key={m.medio} className="flex justify-between py-1 border-b border-gray-800/60 last:border-0">
+                    <span className="text-gray-300">{MEDIOS[m.medio] ?? m.medio}</span>
+                    <span className="tabular-nums text-gray-400">{m.ventas}</span>
+                  </div>
+                ))}
+                <Link href={"/admin/tarot/presupuesto" as Route} className="mt-3 inline-flex items-center gap-1 text-violet-300 hover:text-violet-200">
+                  ¿Gano o pierdo? Ver Presupuesto <ArrowRight size={11} />
+                </Link>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 mb-6">
-              <Metric label="Pagos UYU"       value={ttc.count_uyu}            amber />
-              <Metric label="Total UYU"       value={`$ ${num(ttc.total_uyu)}`} amber />
-              <Metric label="Ticket prom UYU" value={`$ ${num(ttc.ticket_prom_uyu)}`} />
-              <Metric label="Pagos ARS"       value={ttc.count_ars} />
-              <Metric label="Total ARS"       value={`$ ${num(ttc.total_ars)}`} />
-              <Metric label="Ticket prom ARS" value={`$ ${num(ttc.ticket_prom_ars)}`} />
-            </div>
-
-            {/* Bar chart — last 8 weeks (only meaningful for 30d / 90d / todo) */}
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-4 mb-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Ingresos por semana (últimas 8)</p>
-              <BarChart semanas={ttc.por_semana} />
-            </div>
-
-            {/* Recent payments */}
-            {ttc.recientes.length > 0 && (
+            {/* Pagos */}
+            <section>
+              <h3 className="text-sm font-semibold text-gray-100 mb-3">Quién pagó</h3>
               <div className="rounded-xl border border-gray-800 overflow-hidden">
-                <div className="bg-gray-900 px-4 py-2.5 border-b border-gray-800">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Últimos pagos aprobados</span>
-                </div>
-                <table className="w-full text-sm">
+                <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-900/50 text-left">
-                      <th className="px-4 py-2 text-xs font-medium text-gray-500">Fecha</th>
-                      <th className="px-4 py-2 text-xs font-medium text-gray-500">Monto</th>
-                      <th className="px-4 py-2 text-xs font-medium text-gray-500">Tipo</th>
-                      <th className="px-4 py-2 text-xs font-medium text-gray-500 font-mono">Orden</th>
+                    <tr className="bg-gray-900 text-left text-gray-500">
+                      <th className="px-4 py-2 font-medium">Cliente</th>
+                      <th className="px-4 py-2 font-medium">Cuándo</th>
+                      <th className="px-4 py-2 font-medium text-right">Cobrado</th>
+                      <th className="px-4 py-2 font-medium text-right">Te queda</th>
+                      <th className="px-4 py-2 font-medium">Medio</th>
+                      <th className="px-4 py-2 font-medium">Entrega</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ttc.recientes.map((p) => (
-                      <tr key={p.id} className="border-t border-gray-800/60 hover:bg-gray-800/20 transition-colors">
-                        <td className="px-4 py-2 text-xs text-gray-400">{fmt(p.created_at)}</td>
-                        <td className="px-4 py-2 font-mono text-sm font-semibold text-amber-300">
-                          {p.moneda} {num(Number(p.monto ?? 0))}
+                    {t.recientes.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Sin pagos en el período.</td></tr>}
+                    {t.recientes.map((p) => (
+                      <tr key={p.id} className="border-t border-gray-800/60 hover:bg-gray-800/30">
+                        <td className="px-4 py-2.5" title={`Orden ${p.orden_id}`}>
+                          <Link href={`/admin/tarot/ordenes?orden_id=${p.orden_id}` as Route} className="text-gray-100 hover:text-amber-200">{p.cliente ?? "Sin nombre"}</Link>
+                          {p.interna && <span className="ml-1.5 align-middle rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-gray-800 text-gray-400">Prueba</span>}
+                          <span className="block text-[11px] text-gray-500">{p.tema ? (TEMAS[p.tema] ?? p.tema) : "—"}{p.origen ? ` · ${p.origen}` : ""}</span>
                         </td>
-                        <td className="px-4 py-2 text-xs text-gray-500">{p.mp_payment_type ?? "—"}</td>
-                        <td className="px-4 py-2 font-mono text-xs text-gray-600 truncate max-w-[160px]">{p.orden_id}</td>
+                        <td className="px-4 py-2.5 text-gray-400 whitespace-nowrap">{fechaHora(p.created_at)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-200 whitespace-nowrap">{p.moneda === "UYU" ? "$" : p.moneda} {Math.round(p.monto).toLocaleString("es-UY")}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-emerald-300/90 whitespace-nowrap">{p.neto != null ? `${p.moneda === "UYU" ? "$" : p.moneda} ${Math.round(p.neto).toLocaleString("es-UY")}` : "—"}</td>
+                        <td className="px-4 py-2.5 text-gray-400">
+                          {MEDIOS[p.medio ?? "otro"] ?? p.medio}
+                          {p.marca && <span className="text-gray-600"> · {MARCAS[p.marca] ?? p.marca}</span>}
+                          {p.cuotas > 1 && <span className="text-gray-600"> · {p.cuotas} cuotas</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`text-[11px] ${p.estado_orden === "entregado" ? "text-emerald-300" : p.estado_orden?.startsWith("error") ? "text-red-300" : "text-amber-300"}`}>
+                            {p.estado_orden === "entregado" ? "Entregada" : p.estado_orden?.startsWith("error") ? "Con error" : "En curso"}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
+            </section>
 
-            {ttc.count_uyu === 0 && ttc.count_ars === 0 && (
-              <p className="text-sm text-gray-600 text-center py-4">Sin pagos aprobados en el período seleccionado.</p>
-            )}
-          </section>
-        )}
-
-        {/* ── THC ────────────────────────────────────────────── */}
-        {thc && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">Tu Oráculo · Horóscopo</span>
-              <div className="flex-1 h-px bg-violet-900/40" />
-              <span className="text-xs text-gray-600">MRR = suscripciones activas autorizadas. Período aplica a nuevas/canceladas.</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 mb-6">
-              <Metric label="Activas (total)"  value={thc.activas_total}      sub={`UYU: ${thc.activas_uyu} · ARS: ${thc.activas_ars}`} />
-              <Metric label="MRR UYU"          value={`$ ${num(thc.mrr_uyu)}`} sub="mensual recurrente" />
-              <Metric label="MRR ARS"          value={`$ ${num(thc.mrr_ars)}`} sub="mensual recurrente" />
-              <Metric label="Nuevas (período)" value={thc.nuevas_periodo}     sub={`de ${thc.total_suscripciones} totales`} />
-              <Metric label="Canceladas"        value={thc.canceladas_periodo} />
-            </div>
-
-            {/* Estado distribution */}
-            {thc.por_estado.length > 0 && (
-              <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Distribución por estado</p>
-                <div className="space-y-2">
-                  {thc.por_estado.map((e) => {
-                    const pct = thc.total_suscripciones > 0
-                      ? Math.round((e.count / thc.total_suscripciones) * 100)
-                      : 0;
-                    return (
-                      <div key={e.estado} className="flex items-center gap-3">
-                        <span className={`text-xs w-24 shrink-0 ${ESTADO_CLS[e.estado] ?? "text-gray-400"}`}>
-                          {ESTADO_LABEL[e.estado] ?? e.estado}
-                        </span>
-                        <div className="flex-1 bg-gray-800 rounded-full h-2.5">
-                          <div
-                            className={`h-2.5 rounded-full ${e.estado === "activo" ? "bg-emerald-500" : e.estado === "provisional" ? "bg-amber-500" : "bg-gray-600"}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-400 w-8 text-right">{e.count}</span>
-                        <span className="text-xs text-gray-600 w-8">{pct}%</span>
-                      </div>
-                    );
-                  })}
+            {/* Horóscopo */}
+            <section className="rounded-xl border border-gray-800 bg-gray-900/40 px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wide text-violet-400/80 mb-2">Tu Oráculo · Horóscopo (suscripciones)</p>
+              {datos.thc.total_suscripciones === 0 ? (
+                <p className="text-xs text-gray-500">Todavía no hay suscripciones de Horóscopo.</p>
+              ) : (
+                <div className="flex flex-wrap gap-x-8 gap-y-2 text-xs">
+                  <Mini label="Activas" valor={String(datos.thc.activas_total)} />
+                  <Mini label="Ingreso mensual (UYU)" valor={pesos(datos.thc.mrr_uyu)} />
+                  <Mini label="Ingreso mensual (ARS)" valor={`ARS ${datos.thc.mrr_ars.toLocaleString("es-UY")}`} />
+                  <Mini label="Nuevas en el período" valor={String(datos.thc.nuevas_periodo)} />
+                  <Mini label="Canceladas" valor={String(datos.thc.canceladas_periodo)} />
                 </div>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          </div>
         )}
       </main>
     </TarotAdminShell>
+  );
+}
+
+function Cifra({ titulo, valor, actual, anterior, fmt = (v: number) => String(v), nota, destacar }: {
+  titulo: string; valor: string; actual?: number; anterior?: number; fmt?: (v: number) => string; nota?: string; destacar?: boolean;
+}) {
+  const dif = actual != null && anterior != null ? actual - anterior : null;
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${destacar ? "border-emerald-800/60 bg-emerald-950/20" : "border-gray-800 bg-gray-900/60"}`}>
+      <p className="text-[11px] text-gray-500">{titulo}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${destacar ? "text-emerald-300" : "text-white"}`}>{valor}</p>
+      {dif != null && (
+        Math.abs(dif) < 0.5
+          ? <p className="text-[11px] text-gray-500 mt-0.5">igual que antes</p>
+          : <p className={`text-[11px] mt-0.5 ${dif > 0 ? "text-emerald-400" : "text-red-400"}`}>{dif > 0 ? "↑" : "↓"} {fmt(Math.abs(dif))} <span className="text-gray-500">(antes {fmt(anterior ?? 0)})</span></p>
+      )}
+      {nota && <p className="text-[11px] text-gray-500 mt-0.5">{nota}</p>}
+    </div>
+  );
+}
+
+function Mini({ label, valor }: { label: string; valor: string }) {
+  return <div><p className="text-[10px] text-gray-500">{label}</p><p className="text-sm text-gray-200 tabular-nums">{valor}</p></div>;
+}
+
+function Barras({ puntos, porDia }: { puntos: { clave: string; cobrado: number; ventas: number }[]; porDia: boolean }) {
+  const max = Math.max(1, ...puntos.map((p) => p.cobrado));
+  const etiqueta = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
+  const cada = Math.max(1, Math.ceil(puntos.length / 10));
+  return (
+    <div>
+      <div className="flex items-end gap-1 h-36">
+        {puntos.map((p) => (
+          <div key={p.clave} className="flex-1 h-full flex flex-col justify-end items-center group"
+            title={`${porDia ? "" : "Semana del "}${etiqueta(p.clave)}: ${pesos(p.cobrado)} · ${p.ventas} venta${p.ventas === 1 ? "" : "s"}`}>
+            {p.cobrado > 0 && <span className="text-[9px] text-amber-300/80 mb-0.5 tabular-nums">{Math.round(p.cobrado)}</span>}
+            <div className={`w-full max-w-[28px] rounded-t ${p.cobrado > 0 ? "bg-amber-500/80 group-hover:bg-amber-400" : "bg-gray-800"}`}
+              style={{ height: p.cobrado > 0 ? `${Math.max((p.cobrado / max) * 85, 4)}%` : "2px" }} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-1">
+        {puntos.map((p, i) => (
+          <span key={p.clave} className="flex-1 text-center text-[9px] text-gray-600">{i % cada === 0 || i === puntos.length - 1 ? etiqueta(p.clave) : ""}</span>
+        ))}
+      </div>
+    </div>
   );
 }
