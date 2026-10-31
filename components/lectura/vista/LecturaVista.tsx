@@ -1,5 +1,6 @@
 import type { LecturaPublica } from "@/lib/tarotLecturaPublica";
 import Link from "next/link";
+import { preload } from "react-dom";
 import { urlOptimizada } from "@/lib/imagen";
 import { DIR, SERIF, GOLD, FondoLectura, FONDO_PAGINA, EstilosCartaViva } from "./Base";
 import { HeroLectura } from "./HeroLectura";
@@ -129,6 +130,10 @@ function PieLectura() {
 export function LecturaVista({
   lectura, audioResumenUrl, pdfHref, fontClass,
 }: { lectura: LecturaPublica; audioResumenUrl: string | null; pdfHref: string; fontClass: string }) {
+  // La escena del cabezal es el LCP y, al ser un fondo CSS, el navegador la
+  // descubre tarde: se precarga (misma URL optimizada que usa la capa).
+  preload(urlOptimizada(`${CAB}/escenario-hero-mobile.webp`, 828), { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
+  preload(urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920), { as: "image", media: "(min-width: 768px)", fetchPriority: "high" });
   // Fecha de nacimiento opcional ("YYYY-MM-DD"); UTC para que no se corra un día.
   const fechaNacimiento = lectura.fecha_nacimiento
     ? new Date(`${lectura.fecha_nacimiento}T00:00:00Z`).toLocaleDateString("es-UY", {
