@@ -13,7 +13,7 @@ const ESTILO = {
   critico: { cls: "border-red-800/60 bg-red-950/40 text-red-200", Icon: OctagonAlert, icono: "text-red-400" },
 } as const;
 
-export function AvisosTarot() {
+export function AvisosTarot({ compacto = false }: { compacto?: boolean } = {}) {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const cargar = useCallback(async () => {
     try {
@@ -25,6 +25,23 @@ export function AvisosTarot() {
   usePollingRefresh(cargar);
 
   if (avisos.length === 0) return null;
+  // Versión compacta (Panel): una fila de etiquetas; el detalle va al pasar el mouse.
+  if (compacto) {
+    return (
+      <div aria-label="Avisos importantes" className="flex flex-wrap items-center gap-2">
+        {avisos.map((a) => {
+          const e = ESTILO[a.nivel];
+          return (
+            <span key={a.titulo} title={a.detalle} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${e.cls}`}>
+              <e.Icon size={12} className={`shrink-0 ${e.icono}`} />
+              {a.titulo}
+              <span className="opacity-60 hidden xl:inline">· {a.detalle}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <section aria-label="Avisos importantes" className="mb-6">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Avisos importantes</p>
