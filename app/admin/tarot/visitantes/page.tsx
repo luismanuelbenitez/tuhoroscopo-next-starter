@@ -167,19 +167,33 @@ export default function VisitantesPage() {
     return p.toString();
   }, [dias, interno, filtro]);
 
-  const cargar = useCallback(async () => {
-    setCargando(true); setError(null);
+  // silencioso: la actualización automática no pisa con un error lo que ya
+  // se está viendo (si falla, se reintenta en la próxima vuelta).
+  const [actualizado, setActualizado] = useState<Date | null>(null);
+  const cargar = useCallback(async (silencioso = false) => {
+    setCargando(true); if (!silencioso) setError(null);
     try {
       const [rp, rs] = await Promise.all([
         fetch(`/api/admin/tarot/visitantes?${qs({ accion: "panel" })}`).then((r) => r.json()),
         fetch(`/api/admin/tarot/visitantes?${qs({ accion: "sesiones", solo, limite: "50" })}`).then((r) => r.json()),
       ]);
-      if (!rp.ok) setError(rp.detalle ?? rp.motivo ?? "Error"); else setPanel(rp);
+      if (!rp.ok) { if (!silencioso) setError(rp.detalle ?? rp.motivo ?? "Error"); } else { setPanel(rp); setError(null); }
       if (rs.ok) setSesiones(rs);
-    } catch (e) { setError(e instanceof Error ? e.message : "Error de red"); }
+      if (rp.ok) setActualizado(new Date());
+    } catch (e) { if (!silencioso) setError(e instanceof Error ? e.message : "Error de red"); }
     finally { setCargando(false); }
   }, [qs, solo]);
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Actualización automática (2026-10-31): cada 60 s mientras la pestaña está
+  // a la vista, y al volver a ella. Mantiene filtros y el detalle abierto.
+  useEffect(() => {
+    const AUTO_MS = 60_000;
+    const id = setInterval(() => { if (document.visibilityState === "visible") cargar(true); }, AUTO_MS);
+    const alVolver = () => { if (document.visibilityState === "visible") cargar(true); };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", alVolver); };
+  }, [cargar]);
 
   const r = panel?.resumen;
   const sel = "rounded-lg bg-gray-900 border border-gray-700 text-xs text-gray-200 px-2 py-1.5";
@@ -194,7 +208,10 @@ export default function VisitantesPage() {
           </div>
           <div className="flex items-center gap-2">
             <a href="https://vercel.com/dashboard" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:border-gray-500">Tráfico general en Vercel <ExternalLink size={12} /></a>
-            <button onClick={cargar} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:border-gray-500"><RefreshCw size={12} className={cargando ? "animate-spin" : ""} /> Actualizar</button>
+            <span className="text-[11px] text-gray-500" title="Se actualiza sola cada 1 minuto mientras la pestaña está abierta">
+              Auto · 1 min{actualizado ? ` · ${actualizado.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" })}` : ""}
+            </span>
+            <button onClick={() => cargar()} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:border-gray-500"><RefreshCw size={12} className={cargando ? "animate-spin" : ""} /> Actualizar</button>
           </div>
         </div>
 

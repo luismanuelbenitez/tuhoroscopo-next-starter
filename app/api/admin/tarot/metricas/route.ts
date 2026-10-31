@@ -34,6 +34,43 @@ async function countTable(
 // product_id = 'tarot_one_shot' cubre eventos de EFs (siempre lo setean) y
 // frontend (trackViewItem/trackBeginCheckout/trackLandingViewed pasados con key='tarot').
 // El OR con path cubre landing_viewed si product_id llegó null por alguna razón.
+// Pasos del embudo que pertenecen a una ORDEN (2026-10-31): se cuentan
+// órdenes distintas, no eventos. MP avisa cada pago dos veces (IPN + webhook)
+// y una lectura puede reintentarse: contar eventos inflaba pagos y fallos.
+// Las órdenes internas (ver ordenesInternas) quedan afuera.
+async function countOrdenesDistintas(
+  base: string,
+  eventName: string,
+  cutoffISO: string,
+  headers: Record<string, string>,
+  internas: Set<string>,
+): Promise<number> {
+  const url = `${base}/funnel_events?select=order_id&order_id=not.is.null&${funnelFilter(eventName, cutoffISO)}&limit=10000`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) return 0;
+  const filas = (await res.json()) as { order_id: string }[];
+  return new Set(filas.map((f) => f.order_id).filter((id) => !internas.has(id))).size;
+}
+
+// Órdenes internas (2026-10-31): las que se hicieron desde una sesión marcada
+// como tráfico propio (login del admin o ?interno=1 — misma marca que excluye
+// el panel de visitantes). Salen de las métricas comerciales; la facturación
+// no cambia (el cobro existió igual).
+async function ordenesInternas(base: string, headers: Record<string, string>): Promise<Set<string>> {
+  const ids = new Set<string>();
+  try {
+    const resS = await fetch(`${base}/funnel_sessions?select=anonymous_id&es_interno=eq.true&limit=10000`, { headers });
+    if (!resS.ok) return ids;
+    const sesiones = ((await resS.json()) as { anonymous_id: string }[]).map((x) => x.anonymous_id);
+    for (let i = 0; i < sesiones.length; i += 150) {
+      const lote = sesiones.slice(i, i + 150).map((x) => `"${x}"`).join(",");
+      const resO = await fetch(`${base}/tarot_ordenes?select=id&funnel_session_id=in.(${lote})`, { headers });
+      if (resO.ok) for (const o of (await resO.json()) as { id: string }[]) ids.add(o.id);
+    }
+  } catch { /* sin datos de internas: se cuenta todo, como antes */ }
+  return ids;
+}
+
 function funnelFilter(eventName: string, cutoffISO: string): string {
   return (
     `event_name=eq.${eventName}` +
@@ -79,6 +116,8 @@ export async function GET(req: NextRequest) {
   const ESTADOS_ERR = "error_lectura,error_pdf,error_whatsapp,error_critico";
 
   try {
+    const internas = await ordenesInternas(base, restHeaders);
+
     // ── Todas las counts en una sola ronda paralela ────────────────────────
     const [
       totalOrdenes, ordenesHoy, ordenesPagadas, ordenesCompletadas, ordenesError,
@@ -122,13 +161,14 @@ export async function GET(req: NextRequest) {
       countTable(base, "funnel_events", funnelFilter("landing_viewed",        cutoffISO), restHeaders),
       countTable(base, "funnel_events", funnelFilter("product_viewed",         cutoffISO), restHeaders),
       countTable(base, "funnel_events", funnelFilter("checkout_started",       cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("payment_approved",       cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("generation_succeeded",   cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("pdf_generated",          cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("whatsapp_sent",          cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("generation_failed",      cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("pdf_generation_failed",  cutoffISO), restHeaders),
-      countTable(base, "funnel_events", funnelFilter("whatsapp_failed",        cutoffISO), restHeaders),
+      // Desde el pago: órdenes distintas, sin internas (ver countOrdenesDistintas).
+      countOrdenesDistintas(base, "payment_approved",       cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "generation_succeeded",   cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "pdf_generated",          cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "whatsapp_sent",          cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "generation_failed",      cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "pdf_generation_failed",  cutoffISO, restHeaders, internas),
+      countOrdenesDistintas(base, "whatsapp_failed",        cutoffISO, restHeaders, internas),
       // Reclamos desde tarot_ordenes — filtrados por período (igual que UTM y funnel)
       countTable(base, "tarot_ordenes", `has_complaint=eq.true&created_at=gte.${cutoffISO}`, restHeaders),
       countTable(base, "tarot_ordenes", `has_complaint=eq.true&follow_up_status=is.null&created_at=gte.${cutoffISO}`, restHeaders),
@@ -158,14 +198,27 @@ export async function GET(req: NextRequest) {
 
     const { data: ordenesUtm } = await supabase
       .from("tarot_ordenes")
-      .select("utm_source, utm_campaign, precio_cobrado, moneda")
+      .select("id, utm_source, utm_campaign, precio_cobrado, moneda")
       .in("estado", ESTADOS_PAGADO)
       .neq("tipo_orden", "cortesia")
       .gte("created_at", cutoffISO);
 
+    // Órdenes pagadas internas (tráfico propio): se restan de "pagadas".
+    let pagadasInternas = 0;
+    if (internas.size > 0) {
+      const { data: filasInternas } = await supabase
+        .from("tarot_ordenes")
+        .select("id")
+        .in("id", Array.from(internas))
+        .in("estado", ESTADOS_PAGADO)
+        .neq("tipo_orden", "cortesia");
+      pagadasInternas = filasInternas?.length ?? 0;
+    }
+
     type UtmEntry = { utm_source: string; utm_campaign: string | null; ventas: number; total_uyu: number };
     const utmMap = new Map<string, UtmEntry>();
     for (const o of (ordenesUtm ?? [])) {
+      if (internas.has(o.id as string)) continue; // tráfico propio
       const src = (o.utm_source  as string | null) ?? "(directo)";
       const cmp = (o.utm_campaign as string | null) ?? null;
       const key = `${src}::${cmp ?? ""}`;
@@ -189,7 +242,7 @@ export async function GET(req: NextRequest) {
       ordenes: {
         total:      totalOrdenes,
         hoy:        ordenesHoy,
-        pagadas:    ordenesPagadas,
+        pagadas:    Math.max(0, ordenesPagadas - pagadasInternas),
         completadas: ordenesCompletadas,
         con_error:  ordenesError,
         cobro_manual_periodo: cobroManualPeriodo,
