@@ -268,6 +268,79 @@ function internalEvent(eventName: string, extra: Omit<EventoCola, 'event_name'> 
   } catch { /* non-blocking */ }
 }
 
+// ── Interacción con la página (2026-10-31) ─────────────────────────────────
+// Antes, una sesión de una sola página figuraba con 0 s aunque la persona
+// hubiera leído varios minutos (la duración es primera → última actividad).
+// Dos señales livianas por página vista, cada una se manda UNA vez:
+//  - scroll_depth (value 25/50/75/100): % de la página que llegó a ver. Solo
+//    cuenta scroll real del usuario (no el alto inicial de la pantalla).
+//  - time_on_page (value 10/30/60/120): segundos con la pestaña VISIBLE.
+// Sin estado de React ni librerías: listener pasivo con requestAnimationFrame
+// y un intervalo de 5 s. Todo en try/catch: si algo falla, no mide y listo.
+// Las señales usan la misma cola que el resto (se envían agrupadas y al salir).
+const UMBRALES_SCROLL = [25, 50, 75, 100];
+const UMBRALES_TIEMPO = [10, 30, 60, 120];
+
+/** Empieza a medir la página actual; devuelve la función que deja de medir. */
+export function medirInteraccion(path: string): () => void {
+  if (typeof window === 'undefined' || path.startsWith('/admin')) return () => {};
+  const p = sanitizarPath(path);
+  let scrollEnviado = 0;
+  let tiempoEnviado = 0;
+  let visibleSeg = 0;
+  let pendiente = false;
+  let intervalo: ReturnType<typeof setInterval> | null = null;
+
+  const leerScroll = () => {
+    pendiente = false;
+    try {
+      const doc = document.documentElement;
+      const alto = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
+      if (alto <= 0) return;
+      const visto = ((window.scrollY + window.innerHeight) / alto) * 100;
+      for (const u of UMBRALES_SCROLL) {
+        if (u > scrollEnviado && visto >= (u === 100 ? 98 : u)) {
+          scrollEnviado = u;
+          internalEvent('scroll_depth', { path: p, value: u });
+        }
+      }
+      if (scrollEnviado === 100) window.removeEventListener('scroll', alScrollear);
+    } catch { /* non-blocking */ }
+  };
+  const alScrollear = () => {
+    if (pendiente) return;
+    pendiente = true;
+    window.requestAnimationFrame(leerScroll);
+  };
+
+  try {
+    window.addEventListener('scroll', alScrollear, { passive: true });
+    intervalo = setInterval(() => {
+      try {
+        if (document.visibilityState !== 'visible') return;
+        visibleSeg += 5;
+        for (const u of UMBRALES_TIEMPO) {
+          if (u > tiempoEnviado && visibleSeg >= u) {
+            tiempoEnviado = u;
+            internalEvent('time_on_page', { path: p, value: u });
+          }
+        }
+        if (tiempoEnviado === UMBRALES_TIEMPO[UMBRALES_TIEMPO.length - 1] && intervalo) {
+          clearInterval(intervalo);
+          intervalo = null;
+        }
+      } catch { /* non-blocking */ }
+    }, 5000);
+  } catch { /* non-blocking */ }
+
+  return () => {
+    try {
+      window.removeEventListener('scroll', alScrollear);
+      if (intervalo) clearInterval(intervalo);
+    } catch { /* non-blocking */ }
+  };
+}
+
 // ── GA4 ───────────────────────────────────────────────────────────────────
 
 function ga(event: string, params?: Record<string, unknown>): void {

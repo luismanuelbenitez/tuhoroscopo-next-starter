@@ -21,7 +21,9 @@ export const dynamic = 'force-dynamic';
 
 const MAX_BYTES = 8 * 1024;
 const MAX_LOTE = 20;
-const EVENTOS_PERMITIDOS = new Set(['page_view', 'landing_viewed', 'product_viewed', 'checkout_started']);
+// scroll_depth / time_on_page (2026-10-31): interacción con la página; el
+// valor (% o segundos) va en `value`. No cuentan como páginas vistas.
+const EVENTOS_PERMITIDOS = new Set(['page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page']);
 const PRODUCTOS_PERMITIDOS = new Set(['tarot_one_shot', 'horoscopo_diario']);
 const ID_VALIDO = /^[a-z0-9-]{8,64}$/i;
 const RANGOS_PANTALLA = new Set(['<360', '360-413', '414-767', '768-1023', '1024-1439', '1440+']);

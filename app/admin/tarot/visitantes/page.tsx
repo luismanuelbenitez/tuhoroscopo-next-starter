@@ -33,6 +33,12 @@ const nombreRegion = (r: string | null | undefined, pais?: string | null) => (r 
 const DISPOSITIVO: Record<string, string> = { movil: "Móvil", tablet: "Tablet", escritorio: "Escritorio" };
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : "—");
 const fmtFechaHora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-UY", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
+// Recorrido: páginas por su ruta; interacción (2026-10-31) en palabras.
+const etiquetaEvento = (e: { evento: string; path: string | null; valor?: number | null }) =>
+  e.evento === "page_view" ? e.path
+  : e.evento === "scroll_depth" ? `bajó hasta el ${e.valor ?? "?"}%`
+  : e.evento === "time_on_page" ? `${e.valor ?? "?"} s en la página`
+  : e.evento.replace(/_/g, " ");
 const dur = (a: string, b: string) => { const s = Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 1000)); return s < 60 ? `${s}s` : `${Math.round(s / 60)} min`; };
 
 function Etiqueta({ tipo }: { tipo: "exacto" | "aprox" }) {
@@ -96,7 +102,7 @@ function Embudo({ r }: { r: Panel["resumen"] }) {
 }
 
 function DetalleSesion({ id, onClose }: { id: string; onClose: () => void }) {
-  const [d, setD] = useState<{ sesion?: Record<string, unknown>; eventos?: { evento: string; path: string | null; at: string }[]; ordenes?: { id: string; estado: string; tipo: string; monto: number; pagada: boolean; creada: string }[]; otras_sesiones_del_visitante?: number } | null>(null);
+  const [d, setD] = useState<{ sesion?: Record<string, unknown>; eventos?: { evento: string; path: string | null; at: string; valor?: number | null }[]; ordenes?: { id: string; estado: string; tipo: string; monto: number; pagada: boolean; creada: string }[]; otras_sesiones_del_visitante?: number } | null>(null);
   useEffect(() => { fetch(`/api/admin/tarot/visitantes?accion=sesion&id=${encodeURIComponent(id)}`).then((r) => r.json()).then(setD).catch(() => setD({})); }, [id]);
   const s = d?.sesion ?? {};
   const v = (k: string) => (s[k] as string | null) ?? "—";
@@ -125,7 +131,7 @@ function DetalleSesion({ id, onClose }: { id: string; onClose: () => void }) {
                 {(d.eventos ?? []).map((e, i) => (
                   <li key={i} className="text-gray-400">
                     <span className="tabular-nums text-gray-500 mr-2">{new Date(e.at).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
-                    <span className={e.evento === "page_view" ? "text-gray-300" : "text-violet-300"}>{e.evento === "page_view" ? e.path : e.evento.replace(/_/g, " ")}</span>
+                    <span className={e.evento === "page_view" ? "text-gray-300" : "text-violet-300"}>{etiquetaEvento(e)}</span>
                   </li>
                 ))}
               </ol>

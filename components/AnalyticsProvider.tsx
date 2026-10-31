@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { storeAttributionFromUrl, trackPageView, aplicarMarcaInternaDesdeUrl } from '@/lib/analytics';
+import { storeAttributionFromUrl, trackPageView, aplicarMarcaInternaDesdeUrl, medirInteraccion } from '@/lib/analytics';
 
 // Una vista por cambio de ruta (incluida la navegación sin recarga del App
 // Router). Nada visible ni bloqueante: el evento va a una cola que se envía
@@ -19,6 +19,8 @@ export function AnalyticsProvider() {
   useEffect(() => {
     if (!pathname || pathname.startsWith('/admin')) return;
     trackPageView(pathname);
+    // Cuánto bajó y cuánto tiempo estuvo en esta página (lib/analytics.ts).
+    return medirInteraccion(pathname);
   }, [pathname]);
 
   return null;
