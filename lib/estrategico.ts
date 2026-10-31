@@ -8,6 +8,7 @@
 const FUERA = new Set(["formulario_completo", "pago_iniciado", "pago_rechazado", "pago_expirado", "cancelado"]);
 const EN_CURSO = new Set(["pago_confirmado", "generando_lectura", "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp"]);
 const DIA = 86_400_000;
+const DIAS_MES = 30.4375;
 const TC_POR_DEFECTO = 40;
 export const PERIODOS = new Set([1, 7, 30]);
 
@@ -16,6 +17,11 @@ type Orden = {
   moneda: string | null; funnel_session_id: string | null; created_at: string; updated_at: string;
   has_complaint: boolean | null; follow_up_status: string | null; nombre_snapshot: string | null;
 };
+type Costo = {
+  id: string; nombre: string; categoria: string; tipo: "fijo" | "puntual"; monto: number | string; moneda: "USD" | "UYU";
+  frecuencia: "mensual" | "anual" | null; fecha_desde: string; fecha_hasta: string | null; activo: boolean;
+};
+type Publicidad = { date: string; amount: number | string; currency: string | null; utm_campaign: string | null };
 type Sesion = { anonymous_id: string; visitor_id: string | null; es_interno: boolean | null; fuente: string | null; checkout: boolean | null; created_at: string };
 
 export type Getter = (q: string) => Promise<unknown>;
@@ -25,20 +31,24 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
   const get = getRaw as (q: string) => Promise<any>;
   const iniActual = ahora - periodo * DIA;
   const iniAnterior = ahora - 2 * periodo * DIA;
-  const desde = new Date(Math.min(iniAnterior, ahora - 28 * DIA)).toISOString();
+  const desde = new Date(Math.min(iniAnterior, ahora - 30 * DIA)).toISOString();
 
-    const [ordenes, sesiones, scrolls, checkouts, config] = (await Promise.all([
+    const [ordenes, sesiones, scrolls, checkouts, config, costos, publicidad] = (await Promise.all([
       get(`tarot_ordenes?select=id,cliente_id,tipo_orden,estado,precio_cobrado,moneda,funnel_session_id,created_at,updated_at,has_complaint,follow_up_status,nombre_snapshot&order=created_at.asc&limit=10000`),
       get(`funnel_sessions?created_at=gte.${desde}&select=anonymous_id,visitor_id,es_interno,fuente,checkout,created_at&limit=50000`),
       get(`funnel_events?created_at=gte.${desde}&event_name=eq.scroll_depth&path=eq.${encodeURIComponent("/tarot")}&value=in.(50,75,100)&select=session_id&limit=50000`),
       get(`funnel_events?created_at=gte.${desde}&event_name=eq.checkout_started&select=session_id&limit=50000`),
-      get(`tarot_configuracion?clave=in.(tipo_cambio_usd_uyu,tts_costo_por_1000_caracteres_usd)&select=clave,valor`),
-    ])) as [Orden[], Sesion[], { session_id: string }[], { session_id: string }[], { clave: string; valor: string }[]];
+      get(`tarot_configuracion?clave=in.(tipo_cambio_usd_uyu,tts_costo_por_1000_caracteres_usd,whatsapp_costo_por_mensaje_usd)&select=clave,valor`),
+      get(`tarot_costos?activo=eq.true&select=id,nombre,categoria,tipo,monto,moneda,frecuencia,fecha_desde,fecha_hasta,activo`),
+      get(`campaign_costs?date=gte.${desde.slice(0, 10)}&select=date,amount,currency,utm_campaign&limit=5000`),
+    ])) as [Orden[], Sesion[], { session_id: string }[], { session_id: string }[], { clave: string; valor: string }[], Costo[], Publicidad[]];
 
     const cfg = new Map(config.map((c) => [c.clave, c.valor]));
     const tcCfg = Number(cfg.get("tipo_cambio_usd_uyu"));
     const tc = Number.isFinite(tcCfg) && tcCfg > 0 ? tcCfg : TC_POR_DEFECTO;
     const ttsPor1000 = Number(cfg.get("tts_costo_por_1000_caracteres_usd")) || 0.015;
+    const waPorMensaje = Number(cfg.get("whatsapp_costo_por_mensaje_usd")) || 0;
+    const aPesos = (monto: number | string, moneda: string | null) => (Number(monto) || 0) * (moneda === "USD" ? tc : 1);
 
     // Tráfico propio: sesiones internas (las de las órdenes pueden ser viejas).
     const sesionesOrden = Array.from(new Set(ordenes.map((o) => o.funnel_session_id).filter(Boolean))) as string[];
@@ -56,14 +66,16 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     const enVentana = ordenes.filter((o) => o.created_at >= desde && pagada(o));
     const ids = enVentana.map((o) => o.id);
     const lista = ids.map(encodeURIComponent).join(",");
-    const [pagos, lecturas, evOrden] = (await Promise.all([
+    const [pagos, lecturas, evOrden, waEnviados] = (await Promise.all([
       ids.length ? get(`tarot_pagos?orden_id=in.(${lista})&select=orden_id,mp_status,neto:webhook_payload->transaction_details->>net_received_amount,fees:webhook_payload->fee_details`) : [],
       ids.length ? get(`tarot_lecturas?orden_id=in.(${lista})&select=orden_id,ia_costo_usd,audio_resumen_caracteres`) : [],
       ids.length ? get(`funnel_events?order_id=in.(${lista})&event_name=in.(mobile_reading_opened,mobile_pdf_clicked)&select=order_id,session_id,event_name,created_at&order=created_at.asc&limit=10000`) : [],
+      ids.length ? get(`tarot_logs?orden_id=in.(${lista})&evento=eq.wa_enviado&select=orden_id&limit=10000`) : [],
     ])) as [
       { orden_id: string; mp_status: string | null; neto: string | null; fees: { amount?: number }[] | null }[],
       { orden_id: string; ia_costo_usd: number | string | null; audio_resumen_caracteres: number | null }[],
       { order_id: string; session_id: string | null; event_name: string; created_at: string }[],
+      { orden_id: string }[],
     ];
     const sesLectura = Array.from(new Set(evOrden.filter((e) => e.event_name === "mobile_reading_opened" && e.session_id).map((e) => e.session_id as string)));
     const tiempos = sesLectura.length
@@ -77,9 +89,16 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       const fees = Array.isArray(pg.fees) ? pg.fees.reduce((a, f) => a + (Number(f.amount) || 0), 0) : 0;
       pagoDe.set(pg.orden_id, { neto: pg.neto != null && pg.neto !== "" ? Number(pg.neto) : null, comision: fees });
     }
-    const costoDe = new Map<string, { ia: number; audio: number }>();
+    // Costos por orden: IA y audio (de cada lectura, incluidos intentos) y
+    // cada plantilla de WhatsApp entregada (Meta la cobra como Marketing).
+    const costoDe = new Map<string, { ia: number; audio: number; wa: number }>();
+    for (const w of waEnviados) {
+      const c = costoDe.get(w.orden_id) ?? { ia: 0, audio: 0, wa: 0 };
+      c.wa += waPorMensaje * tc;
+      costoDe.set(w.orden_id, c);
+    }
     for (const l of lecturas) {
-      const c = costoDe.get(l.orden_id) ?? { ia: 0, audio: 0 };
+      const c = costoDe.get(l.orden_id) ?? { ia: 0, audio: 0, wa: 0 };
       c.ia += (Number(l.ia_costo_usd ?? 0) || 0) * tc;
       c.audio += ((Number(l.audio_resumen_caracteres ?? 0) || 0) / 1000) * ttsPor1000 * tc;
       costoDe.set(l.orden_id, c);
@@ -103,6 +122,9 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     const conScroll = new Set(scrolls.map((e) => e.session_id));
     const conCheckout = new Set(checkouts.map((e) => e.session_id));
 
+    const primeraVenta = new Map<string, string>();
+    for (const o of ordenes) if (o.cliente_id && ventaReal(o) && !primeraVenta.has(o.cliente_id)) primeraVenta.set(o.cliente_id, o.id);
+
     function ventana(ini: number, fin: number) {
       const enRango = (iso: string) => { const t = new Date(iso).getTime(); return t >= ini && t < fin; };
       const ses = sesiones.filter((s) => enRango(s.created_at) && !excluidas.has(personaDe.get(s.anonymous_id)!));
@@ -119,7 +141,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       const pedidos = ordenes.filter((o) => enRango(o.created_at) && !esCortesia(o) && (incluir || !esInterna(o))); // completaron el formulario
       const pagadasAll = ordenes.filter((o) => enRango(o.created_at) && cuenta(o));
 
-      let bruto = 0, comision = 0, neto = 0, ia = 0, audio = 0;
+      let bruto = 0, comision = 0, neto = 0, ia = 0, audio = 0, wa = 0;
       for (const o of ventas) {
         const precio = Number(o.precio_cobrado ?? 0) || 0;
         const pg = pagoDe.get(o.id);
@@ -128,9 +150,33 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
         neto += pg?.neto ?? precio - (pg?.comision ?? 0);
         ia += costoDe.get(o.id)?.ia ?? 0;
         audio += costoDe.get(o.id)?.audio ?? 0;
+        wa += costoDe.get(o.id)?.wa ?? 0;
       }
+      // Costos fijos prorrateados a los días del período; puntuales y publicidad por fecha.
+      let fijos = 0, puntuales = 0;
+      for (const c of costos) {
+        const desdeC = new Date(`${c.fecha_desde}T00:00:00-03:00`).getTime();
+        if (c.tipo === "puntual") { if (desdeC >= ini && desdeC < fin) puntuales += aPesos(c.monto, c.moneda); continue; }
+        const hastaC = c.fecha_hasta ? new Date(`${c.fecha_hasta}T00:00:00-03:00`).getTime() + DIA : Infinity;
+        const dias = Math.max(0, Math.min(fin, hastaC) - Math.max(ini, desdeC)) / DIA;
+        const mensual = aPesos(c.monto, c.moneda) / (c.frecuencia === "anual" ? 12 : 1);
+        fijos += (mensual * dias) / DIAS_MES;
+      }
+      let ads = 0;
+      const adsPorCampana = new Map<string, number>();
+      for (const g of publicidad) {
+        const t = new Date(`${g.date}T12:00:00-03:00`).getTime();
+        if (t < ini || t >= fin) continue;
+        const v = aPesos(g.amount, g.currency);
+        ads += v;
+        const k = g.utm_campaign ?? "(sin campaña)";
+        adsPorCampana.set(k, (adsPorCampana.get(k) ?? 0) + v);
+      }
+      // Clientes nuevos: su primera venta real cae en el período.
+      const nuevos = new Set(ventas.filter((o) => o.cliente_id && primeraVenta.get(o.cliente_id) === o.id).map((o) => o.cliente_id as string)).size;
+      const queda = neto - ia - audio - wa;
       const cortesiasPer = ordenes.filter((o) => enRango(o.created_at) && pagada(o) && esCortesia(o));
-      const costoCortesias = cortesiasPer.reduce((a, o) => a + (costoDe.get(o.id)?.ia ?? 0) + (costoDe.get(o.id)?.audio ?? 0), 0);
+      const costoCortesias = cortesiasPer.reduce((a, o) => a + (costoDe.get(o.id)?.ia ?? 0) + (costoDe.get(o.id)?.audio ?? 0) + (costoDe.get(o.id)?.wa ?? 0), 0);
 
       // Por origen (de la primera visita de cada persona; la venta, por la sesión de su orden).
       const origen = new Map<string, { personas: number; checkout: number; ventas: number; ingreso: number }>();
@@ -154,7 +200,19 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
           personas: personas.size, interes: interes.size, checkout: checkout.size,
           formulario: pedidos.length, pagaron: ventas.length,
         },
-        plata: { ventas: ventas.length, bruto, comision, neto, ia, audio, queda: neto - ia - audio, cortesias: cortesiasPer.length, costo_cortesias: costoCortesias },
+        plata: {
+          ventas: ventas.length, bruto, comision, neto, ia, audio, wa, queda,
+          cortesias: cortesiasPer.length, costo_cortesias: costoCortesias,
+          fijos, puntuales, publicidad: ads,
+          // Resultado: lo que queda de las ventas menos todo lo demás (las cortesías también cuestan).
+          resultado: queda - costoCortesias - fijos - puntuales - ads,
+        },
+        adquisicion: {
+          clientes_nuevos: nuevos,
+          cac: nuevos > 0 && ads > 0 ? ads / nuevos : null,
+          retorno_por_peso: ads > 0 ? bruto / ads : null,
+          por_campana: Array.from(adsPorCampana.entries()).map(([campana, gasto]) => ({ campana, gasto })),
+        },
         origen: Array.from(origen.entries()).map(([fuente, r]) => ({ fuente, ...r })).sort((a, b) => b.ventas - a.ventas || b.personas - a.personas),
         experiencia: {
           entregadas: entregadas.length, abrieron: abrieron.length, leyeron_1min: leyeron.length, bajaron_pdf: bajaron.length,
@@ -165,6 +223,11 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     }
 
     const actual = ventana(iniActual, ahora + 1);
+    // Lo que deja una venta típica: promedio de los últimos 30 días (o del período si es más largo).
+    const ref = periodo >= 30 ? actual : ventana(ahora - 30 * DIA, ahora + 1);
+    const margenVenta = ref.plata.ventas > 0 ? ref.plata.queda / ref.plata.ventas : null;
+    const fijosMensuales = costos.filter((c) => c.tipo === "fijo" && (!c.fecha_hasta || new Date(c.fecha_hasta).getTime() >= ahora) && new Date(c.fecha_desde).getTime() <= ahora)
+      .reduce((a, c) => a + aPesos(c.monto, c.moneda) / (c.frecuencia === "anual" ? 12 : 1), 0);
     const anterior = ventana(iniAnterior, iniActual);
 
     // Ventas por día, últimos 28 días (hora de Montevideo).
@@ -192,6 +255,11 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     return {
       ok: true as const, periodo, incluir,
       tipo_cambio: { valor: tc, estimado: !(Number.isFinite(tcCfg) && tcCfg > 0) },
+      costos_unitarios: { whatsapp_usd: waPorMensaje, tts_por_1000_usd: ttsPor1000 },
+      fijos_mensuales: fijosMensuales,
+      // Ventas por mes necesarias para cubrir los costos fijos con lo que deja cada venta.
+      punto_equilibrio: margenVenta && margenVenta > 0 ? Math.ceil(fijosMensuales / margenVenta) : null,
+      margen_por_venta: margenVenta,
       actual, anterior,
       ventas_por_dia: Array.from(porDia.entries()).map(([fecha, ventas]) => ({ fecha, ventas })),
       recompra: { clientes, recompraron },

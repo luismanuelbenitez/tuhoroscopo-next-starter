@@ -14,13 +14,18 @@ import { duracionHumana } from "@/lib/ejecuciones";
 // El panel anterior quedó en /admin/tarot/panel-anterior.
 
 interface Embudo { personas: number; interes: number; checkout: number; formulario: number; pagaron: number }
-interface Plata { ventas: number; bruto: number; comision: number; neto: number; ia: number; audio: number; queda: number; cortesias: number; costo_cortesias: number }
+interface Plata {
+  ventas: number; bruto: number; comision: number; neto: number; ia: number; audio: number; wa: number; queda: number;
+  cortesias: number; costo_cortesias: number; fijos: number; puntuales: number; publicidad: number; resultado: number;
+}
+interface Adquisicion { clientes_nuevos: number; cac: number | null; retorno_por_peso: number | null }
 interface Origen { fuente: string; personas: number; checkout: number; ventas: number; ingreso: number }
 interface Experiencia { entregadas: number; abrieron: number; leyeron_1min: number; bajaron_pdf: number; demora_apertura_mediana_ms: number | null; reclamos: number }
-interface Ventana { embudo: Embudo; plata: Plata; origen: Origen[]; experiencia: Experiencia }
+interface Ventana { embudo: Embudo; plata: Plata; adquisicion: Adquisicion; origen: Origen[]; experiencia: Experiencia }
 interface Datos {
   ok: boolean; periodo: number; incluir: boolean;
   tipo_cambio: { valor: number; estimado: boolean };
+  punto_equilibrio: number | null; margen_por_venta: number | null; fijos_mensuales: number;
   actual: Ventana; anterior: Ventana;
   ventas_por_dia: { fecha: string; ventas: number }[];
   recompra: { clientes: number; recompraron: number };
@@ -31,7 +36,7 @@ interface Salud { compras: number; sin_problemas: number; con_error: number; en_
 const PERIODOS = [{ dias: 1, label: "24 h" },{ dias: 7, label: "7 días" }, { dias: 30, label: "30 días" }];
 const POLL_MS = 120_000;
 
-const pesos = (v: number) => `$ ${Math.round(v).toLocaleString("es-UY")}`;
+const pesos = (v: number) => `${v < 0 ? "−" : ""}$ ${Math.round(Math.abs(v)).toLocaleString("es-UY")}`;
 const pesosFino = (v: number) => `$ ${v.toLocaleString("es-UY", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)} %` : "—");
 
@@ -107,7 +112,7 @@ export default function TarotDashboardPage() {
             <Atender d={datos} alertas={alertas} reenvios={reenvios} />
             <Vendiendo d={datos} nombrePeriodo={nombrePeriodo} />
             <Embudo d={datos} />
-            <Publicidad />
+            <Publicidad d={datos} />
             <LeGusto d={datos} />
             <Maquina s={salud} />
             <p className="text-[11px] text-gray-600">
@@ -207,7 +212,7 @@ function Vendiendo({ d, nombrePeriodo }: { d: Datos; nombrePeriodo: string }) {
           <Delta actual={a.bruto} anterior={b.bruto} formato={pesos} />
         </Tarjeta>
         <Tarjeta titulo="Lo que te queda" valor={pesos(a.queda)} destacar={a.queda > 0}>
-          <p className="text-[11px] text-gray-500">cobrado − Mercado Pago − IA − audio</p>
+          <p className="text-[11px] text-gray-500">cobrado − Mercado Pago − IA − audio − WhatsApp</p>
           <Delta actual={a.queda} anterior={b.queda} formato={pesos} />
         </Tarjeta>
         <Tarjeta titulo="Por cada venta" valor={porVenta != null ? pesos(porVenta) : "—"}>
@@ -228,13 +233,14 @@ function Vendiendo({ d, nombrePeriodo }: { d: Datos; nombrePeriodo: string }) {
           <Linea label="− Comisión Mercado Pago" valor={pesos(a.comision)} tenue />
           <Linea label="− Lectura con IA" valor={pesosFino(a.ia)} tenue />
           <Linea label="− Audio" valor={pesosFino(a.audio)} tenue />
+          <Linea label="− WhatsApp" valor={pesosFino(a.wa)} tenue />
           <div className="my-1.5 border-t border-gray-800" />
           <Linea label="Te queda" valor={pesos(a.queda)} fuerte />
           {a.cortesias > 0 && !d.incluir && (
-            <p className="mt-2 text-[11px] text-fuchsia-300/80">Aparte: {a.cortesias} cortesía{a.cortesias > 1 ? "s" : ""} regalada{a.cortesias > 1 ? "s" : ""}, costaron {pesosFino(a.costo_cortesias)} en IA y audio.</p>
+            <p className="mt-2 text-[11px] text-fuchsia-300/80">Aparte: {a.cortesias} cortesía{a.cortesias > 1 ? "s" : ""} regalada{a.cortesias > 1 ? "s" : ""}, costaron {pesosFino(a.costo_cortesias)} en IA, audio y WhatsApp.</p>
           )}
           <p className="mt-2 text-[11px] text-gray-600">
-            Todavía no descuenta costos fijos (Vercel, Supabase, dominio) ni publicidad. Dólar a {d.tipo_cambio.valor}
+            Costos fijos y publicidad: en la sección 3 y en <Link href={"/admin/tarot/presupuesto" as Route} className="underline">Presupuesto</Link>. Dólar a {d.tipo_cambio.valor}
             {d.tipo_cambio.estimado && <> (estimado: <Link href={"/admin/tarot/config" as Route} className="underline">configurá el tipo de cambio</Link>)</>}.
           </p>
         </div>
@@ -356,13 +362,33 @@ function verboPaso(i: number): string {
 
 // ── 3. Publicidad (fase 2) ──────────────────────────────────────────────────
 
-function Publicidad() {
+function Publicidad({ d }: { d: Datos }) {
+  const p = d.actual.plata, a = d.actual.adquisicion;
+  const porCliente = a.cac != null && d.margen_por_venta != null ? d.margen_por_venta - a.cac : null;
+  const gana = p.resultado >= 0;
   return (
-    <Seccion titulo="3 · Publicidad" pregunta="¿Me rinde la publicidad?">
-      <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/30 px-4 py-4 text-xs text-gray-400">
-        Para ver cuánto te cuesta cada venta y cuánto vuelve por cada $ invertido, falta cargar el gasto.{" "}
-        <Link href={"/admin/tarot/adquisicion" as Route} className="text-amber-300 hover:text-amber-200 underline">Cargar gasto de publicidad</Link>.
-        <span className="block mt-1 text-gray-600">Próximo paso: una página de Presupuesto con publicidad y costos fijos (Vercel, Supabase, dominio, etc.).</span>
+    <Seccion titulo="3 · Rentabilidad" pregunta="¿Me rinde la publicidad y el negocio gana plata?"
+      extra={<Link href={"/admin/tarot/presupuesto" as Route} className="inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">Presupuesto <ArrowRight size={12} /></Link>}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Tarjeta titulo="Costo de adquisición (CAC)" valor={a.cac != null ? pesos(a.cac) : "—"}>
+          <p className="text-[11px] text-gray-500">
+            {a.cac != null ? `publicidad ${pesos(p.publicidad)} ÷ ${a.clientes_nuevos} cliente${a.clientes_nuevos === 1 ? "" : "s"} nuevo${a.clientes_nuevos === 1 ? "" : "s"}`
+              : p.publicidad > 0 ? `${pesos(p.publicidad)} de publicidad sin clientes nuevos` : "cargá el gasto de publicidad en Presupuesto"}
+          </p>
+        </Tarjeta>
+        <Tarjeta titulo="Cada cliente nuevo te deja" valor={porCliente != null ? pesos(porCliente) : "—"}>
+          <p className={`text-[11px] ${porCliente != null && porCliente < 0 ? "text-red-400" : "text-gray-500"}`}>
+            {porCliente != null ? (porCliente < 0 ? "pierde plata en la primera compra" : "después de pagar lo que costó conseguirlo") : "necesita publicidad cargada y ventas"}
+          </p>
+        </Tarjeta>
+        <Tarjeta titulo="Punto de equilibrio" valor={d.punto_equilibrio != null ? `${d.punto_equilibrio} ventas/mes` : "—"}>
+          <p className="text-[11px] text-gray-500">para cubrir {pesos(d.fijos_mensuales)} de costos fijos por mes</p>
+        </Tarjeta>
+        <div className={`rounded-xl border px-4 py-3 ${gana ? "border-emerald-800/60 bg-emerald-950/20" : "border-red-800/60 bg-red-950/20"}`}>
+          <p className="text-[11px] text-gray-500">{gana ? "Ganancia" : "Pérdida"} del período</p>
+          <p className={`mt-1 text-xl font-semibold tabular-nums ${gana ? "text-emerald-300" : "text-red-300"}`}>{pesos(p.resultado)}</p>
+          <p className="mt-1 text-[11px] text-gray-500">lo que queda de las ventas − cortesías − publicidad − costos fijos − gastos puntuales</p>
+        </div>
       </div>
     </Seccion>
   );
