@@ -34,6 +34,78 @@ interface Orden {
   warnings: string[];
   tipo_orden?: "venta" | "cortesia";
   codigo_cortesia?: string | null;
+  utm_source?: string | null;
+  utm_campaign?: string | null;
+  recorrido?: Recorrido | null;
+}
+
+// Hitos de la orden (los arma /api/admin/tarot/ordenes, 2026-10-31).
+interface Recorrido {
+  pagado_at: string | null;
+  lectura_at: string | null;
+  pdf_at: string | null;
+  whatsapp_at: string | null;
+  abierta_at: string | null;
+  aperturas: number;
+  pdf_clicks: number;
+  fallos_ia: number;
+  costo_ia_usd: number;
+  codigo: string | null;
+  interna: boolean;
+}
+
+// Vista para personas (2026-10-31): quién, de dónde vino, qué pidió, cómo
+// está y qué hizo. La referencia TAROT-… queda como dato de referencia (al
+// pasar el mouse y en el detalle). Solo presentación.
+type Salud = { texto: string; cls: string; punto: string };
+const EN_CURSO = ["pago_confirmado", "generando_lectura", "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp"];
+function saludOrden(o: Orden): Salud {
+  const r = o.recorrido;
+  if (o.estado === "entregado" || o.estado === "entregado_simulado") {
+    return r?.abierta_at
+      ? { texto: "Entregada y leída", cls: "text-emerald-300", punto: "bg-emerald-400" }
+      : { texto: "Entregada, sin abrir", cls: "text-emerald-300/70", punto: "bg-emerald-600" };
+  }
+  if (o.estado.startsWith("error")) return { texto: "Necesita atención", cls: "text-red-300", punto: "bg-red-400" };
+  if (EN_CURSO.includes(o.estado)) {
+    const min = (Date.now() - new Date(o.updated_at || o.created_at).getTime()) / 60000;
+    return min > 30
+      ? { texto: "Trabada", cls: "text-red-300", punto: "bg-red-400" }
+      : { texto: "En curso", cls: "text-amber-300", punto: "bg-amber-400" };
+  }
+  if (o.estado === "pago_rechazado") return { texto: "Pago rechazado", cls: "text-gray-400", punto: "bg-gray-500" };
+  if (o.estado === "pago_expirado" || o.estado === "cancelado") return { texto: "No se concretó", cls: "text-gray-500", punto: "bg-gray-600" };
+  return { texto: "No pagó (aún)", cls: "text-gray-500", punto: "bg-gray-600" };
+}
+
+function origenOrden(o: Orden): { titulo: string; detalle: string | null } {
+  const src = (o.utm_source ?? "").toLowerCase();
+  if (o.tipo_orden === "cortesia") return { titulo: "Cortesía", detalle: o.codigo_cortesia ?? o.recorrido?.codigo ?? null };
+  if (src.includes("facebook") || src.includes("meta") || src.includes("instagram") || src === "fb" || src === "ig") {
+    return { titulo: "Meta Ads", detalle: o.utm_campaign ?? null };
+  }
+  if (src) return { titulo: o.utm_source as string, detalle: o.utm_campaign ?? null };
+  return { titulo: "Directo", detalle: null };
+}
+
+function horaCorta(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" }) : "";
+}
+function lapso(desde: string | null, hasta: string | null): string | null {
+  if (!desde || !hasta) return null;
+  const s = Math.max(0, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / 1000));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) return `${Math.floor(s / 60)} min ${s % 60} s`;
+  return `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min`;
+}
+
+function Hito({ ok, label, title }: { ok: boolean; label: string; title: string }) {
+  return (
+    <span title={title} className={`inline-flex items-center gap-0.5 text-[11px] ${ok ? "text-emerald-300/90" : "text-gray-600"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-gray-700"}`} />
+      {label}
+    </span>
+  );
 }
 
 interface Paginacion {
@@ -278,24 +350,25 @@ export default function TarotOrdenesPage() {
               <thead>
                 <tr className="bg-gray-900 border-b border-gray-800 text-left">
                   <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Cliente</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Tema</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Referencia</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Precio</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Estado</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Origen</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Pedido</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Salud</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Recorrido</th>
+                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Tiempos</th>
                   <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Fecha</th>
                 </tr>
               </thead>
               <tbody>
                 {cargando && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
+                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
                       Cargando órdenes…
                     </td>
                   </tr>
                 )}
                 {!cargando && !errorMsg && ordenes.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm">
+                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500 text-sm">
                       Sin resultados para estos filtros.
                     </td>
                   </tr>
@@ -308,6 +381,11 @@ export default function TarotOrdenesPage() {
                   const tieneError = o.estado.startsWith("error_");
                   const rowHighlight = tieneError ? "bg-red-950/10" : "";
                   const isSelected = selectedOrden?.id === o.id;
+                  const r = o.recorrido ?? null;
+                  const sal = saludOrden(o);
+                  const ori = origenOrden(o);
+                  const entrega = lapso(r?.pagado_at ?? null, r?.whatsapp_at ?? null);
+                  const lectura = lapso(r?.abierta_at ? (r?.whatsapp_at ?? null) : null, r?.abierta_at ?? null);
                   return (
                     <tr
                       key={o.id}
@@ -316,29 +394,60 @@ export default function TarotOrdenesPage() {
                         isSelected ? "bg-amber-950/20" : rowHighlight
                       }`}
                     >
-                      <td className="px-4 py-3 min-w-[150px]">
-                        <p className="font-medium text-white leading-tight">{o.cliente_nombre || "—"}</p>
+                      {/* Cliente — la referencia TAROT-… queda al pasar el mouse */}
+                      <td className="px-4 py-3 min-w-[150px]" title={o.external_reference}>
+                        <p className="font-medium text-white leading-tight">
+                          {o.cliente_nombre || "—"}
+                          {r?.interna && (
+                            <span className="ml-1.5 align-middle rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-gray-800 text-gray-400" title="Hecha desde un dispositivo marcado como propio">Interna</span>
+                          )}
+                        </p>
                         <p className="text-xs text-gray-500 leading-tight mt-0.5 font-mono">{o.cliente_telefono || o.cliente_email || "—"}</p>
                       </td>
-                      <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
-                        {TEMA_LABEL[o.tema] ?? o.tema}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {o.external_reference}
-                      </td>
-                      <td className="px-4 py-3 text-gray-300 whitespace-nowrap font-mono text-xs">
-                        {o.moneda} {o.precio_cobrado}
-                        {o.tipo_orden === "cortesia" && (
-                          <span className="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-sans font-semibold bg-fuchsia-900/50 text-fuchsia-300" title={o.codigo_cortesia ? `Código ${o.codigo_cortesia}` : undefined}>
-                            Cortesía
-                          </span>
-                        )}
-                      </td>
+                      {/* Origen */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge text={estadoBadge.label} cls={estadoBadge.cls} />
+                        <p className={`text-xs ${o.tipo_orden === "cortesia" ? "text-fuchsia-300" : "text-gray-200"}`}>{ori.titulo}</p>
+                        {ori.detalle && <p className="text-[11px] text-gray-500 mt-0.5 max-w-[170px] truncate" title={ori.detalle}>{ori.detalle}</p>}
+                        {o.tipo_orden !== "cortesia" && r?.codigo && <p className="text-[11px] text-gray-500 mt-0.5">Código {r.codigo}</p>}
+                      </td>
+                      {/* Pedido */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p className="text-xs text-gray-200">{TEMA_LABEL[o.tema] ?? o.tema}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          {o.tipo_orden === "cortesia" ? "Sin cargo" : `${o.moneda} ${o.precio_cobrado}`}
+                          {" · "}{o.pregunta_usuario?.trim() ? "con pregunta" : "sin pregunta"}
+                        </p>
+                      </td>
+                      {/* Salud */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 text-xs ${sal.cls}`}>
+                          <span className={`h-2 w-2 rounded-full ${sal.punto}`} />
+                          {sal.texto}
+                        </span>
+                        <p className="mt-1"><Badge text={estadoBadge.label} cls={`${estadoBadge.cls} opacity-70 !text-[10px]`} /></p>
+                      </td>
+                      {/* Recorrido */}
+                      <td className="px-4 py-3">
+                        {r ? (
+                          <div className="flex flex-wrap gap-x-2 gap-y-1 max-w-[220px]">
+                            <Hito ok={!!r.pagado_at} label={o.tipo_orden === "cortesia" ? "Confirmada" : "Pagó"} title={r.pagado_at ? `Pago/confirmación ${horaCorta(r.pagado_at)}` : "Sin pago confirmado"} />
+                            <Hito ok={!!r.lectura_at} label="Lectura" title={r.lectura_at ? `Lectura generada ${horaCorta(r.lectura_at)}${r.fallos_ia ? ` · ${r.fallos_ia} intento(s) fallido(s)` : ""}` : "Sin lectura"} />
+                            <Hito ok={!!r.pdf_at} label="PDF" title={r.pdf_at ? `PDF ${horaCorta(r.pdf_at)}` : "Sin PDF"} />
+                            <Hito ok={!!r.whatsapp_at} label="WhatsApp" title={r.whatsapp_at ? `WhatsApp enviado ${horaCorta(r.whatsapp_at)}` : "WhatsApp no enviado"} />
+                            <Hito ok={!!r.abierta_at} label={r.aperturas > 1 ? `Abrió ×${r.aperturas}` : "Abrió"} title={r.abierta_at ? `Abrió la lectura por primera vez ${horaCorta(r.abierta_at)} · ${r.aperturas} apertura(s)` : "Todavía no abrió la lectura"} />
+                            {r.pdf_clicks > 0 && <Hito ok label={`Bajó PDF${r.pdf_clicks > 1 ? ` ×${r.pdf_clicks}` : ""}`} title="Tocó descargar el PDF desde la lectura" />}
+                          </div>
+                        ) : <span className="text-xs text-gray-600">—</span>}
+                      </td>
+                      {/* Tiempos */}
+                      <td className="px-4 py-3 text-[11px] text-gray-400 whitespace-nowrap">
+                        {entrega ? <p>Entregada en <span className="text-gray-200">{entrega}</span></p> : <p className="text-gray-600">—</p>}
+                        {lectura && <p className="mt-0.5 text-gray-500">La abrió a los {lectura}</p>}
+                        {r && r.costo_ia_usd > 0 && <p className="mt-0.5 text-gray-600">IA US$ {r.costo_ia_usd.toFixed(3)}{r.fallos_ia ? ` · ${r.fallos_ia} reintento${r.fallos_ia > 1 ? "s" : ""}` : ""}</p>}
                       </td>
                       <td className="px-4 py-3 text-gray-400 whitespace-nowrap font-mono text-xs">
                         {new Date(o.created_at).toLocaleDateString("es-UY")}
+                        <span className="block text-[11px] text-gray-600 mt-0.5">{horaCorta(o.created_at)}</span>
                       </td>
                     </tr>
                   );

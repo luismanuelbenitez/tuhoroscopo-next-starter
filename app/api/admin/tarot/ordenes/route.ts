@@ -18,6 +18,8 @@ type RawOrden = {
   moneda?: string;
   origen_canal?: string;
   notas_internas?: string;
+  utm_source?: string | null;
+  utm_campaign?: string | null;
   created_at?: string;
   updated_at?: string;
   tarot_clientes?: ClienteResumen | null;
@@ -68,6 +70,86 @@ async function cortesiasDePagina(
     );
     const usos = await resUsos.json().catch(() => []);
     if (Array.isArray(usos)) for (const u of usos) out.set(String(u.orden_id), u.codigo ?? null);
+  } catch { /* best-effort */ }
+  return out;
+}
+
+// Recorrido de cada orden de la página (2026-10-31), para la vista del admin:
+// hitos del pipeline (de funnel_events), si el cliente abrió la lectura,
+// intentos fallidos, costo de IA, código usado y si es tráfico propio.
+// Solo lectura y en lote (5 consultas por página); si algo falla, la tabla
+// se muestra igual sin estos datos.
+type Recorrido = {
+  pagado_at: string | null;
+  lectura_at: string | null;
+  pdf_at: string | null;
+  whatsapp_at: string | null;
+  abierta_at: string | null;
+  aperturas: number;
+  pdf_clicks: number;
+  fallos_ia: number;
+  costo_ia_usd: number;
+  codigo: string | null;
+  interna: boolean;
+};
+
+async function recorridoDePagina(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  ids: string[],
+): Promise<Map<string, Recorrido>> {
+  const out = new Map<string, Recorrido>();
+  if (ids.length === 0) return out;
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+  const lista = ids.map(encodeURIComponent).join(",");
+  const get = async (q: string) => {
+    const r = await fetch(`${supabaseUrl}/rest/v1/${q}`, { headers, cache: "no-store" });
+    return r.ok ? await r.json() : [];
+  };
+  try {
+    const eventos = "payment_approved,courtesy_order_confirmed,generation_succeeded,generation_failed,pdf_generated,whatsapp_sent,mobile_reading_opened,mobile_pdf_clicked";
+    const [ords, evs, usos, lecs] = await Promise.all([
+      get(`tarot_ordenes?id=in.(${lista})&select=id,funnel_session_id`),
+      get(`funnel_events?order_id=in.(${lista})&event_name=in.(${eventos})&select=order_id,event_name,created_at&order=created_at.asc&limit=5000`),
+      get(`tarot_codigos_descuento_usos?orden_id=in.(${lista})&select=orden_id,codigo`),
+      get(`tarot_lecturas?orden_id=in.(${lista})&select=orden_id,ia_costo_usd`),
+    ]);
+    for (const id of ids) {
+      out.set(id, { pagado_at: null, lectura_at: null, pdf_at: null, whatsapp_at: null, abierta_at: null,
+        aperturas: 0, pdf_clicks: 0, fallos_ia: 0, costo_ia_usd: 0, codigo: null, interna: false });
+    }
+    for (const e of evs as { order_id: string; event_name: string; created_at: string }[]) {
+      const r = out.get(e.order_id);
+      if (!r) continue;
+      switch (e.event_name) {
+        case "payment_approved":
+        case "courtesy_order_confirmed": r.pagado_at ??= e.created_at; break;
+        case "generation_succeeded": r.lectura_at ??= e.created_at; break;
+        case "generation_failed": r.fallos_ia += 1; break;
+        case "pdf_generated": r.pdf_at ??= e.created_at; break;
+        case "whatsapp_sent": r.whatsapp_at ??= e.created_at; break;
+        case "mobile_reading_opened": r.abierta_at ??= e.created_at; r.aperturas += 1; break;
+        case "mobile_pdf_clicked": r.pdf_clicks += 1; break;
+      }
+    }
+    for (const u of usos as { orden_id: string; codigo: string | null }[]) {
+      const r = out.get(u.orden_id);
+      if (r && u.codigo) r.codigo = u.codigo;
+    }
+    for (const l of lecs as { orden_id: string; ia_costo_usd: number | string | null }[]) {
+      const r = out.get(l.orden_id);
+      if (r) r.costo_ia_usd += Number(l.ia_costo_usd ?? 0) || 0;
+    }
+    // Tráfico propio: orden hecha desde una sesión marcada como interna.
+    const sesiones = (ords as { id: string; funnel_session_id: string | null }[]).filter((o) => o.funnel_session_id);
+    if (sesiones.length > 0) {
+      const listaS = sesiones.map((o) => `"${o.funnel_session_id}"`).join(",");
+      const internas = new Set(((await get(`funnel_sessions?anonymous_id=in.(${listaS})&es_interno=eq.true&select=anonymous_id`)) as { anonymous_id: string }[]).map((s) => s.anonymous_id));
+      for (const o of sesiones) {
+        const r = out.get(o.id);
+        if (r && internas.has(o.funnel_session_id as string)) r.interna = true;
+      }
+    }
   } catch { /* best-effort */ }
   return out;
 }
@@ -173,11 +255,19 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
-  const cortesias = await cortesiasDePagina(supabaseUrl, serviceRoleKey, ordenes.map((o) => o.id).filter(Boolean));
+  const ids = ordenes.map((o) => o.id).filter(Boolean);
+  const [cortesias, recorridos] = await Promise.all([
+    cortesiasDePagina(supabaseUrl, serviceRoleKey, ids),
+    recorridoDePagina(supabaseUrl, serviceRoleKey, ids),
+  ]);
+  const crudas = new Map((data.ordenes as RawOrden[] ?? []).map((o) => [o.id ?? "", o]));
   const ordenesConTipo = ordenes.map((o) => ({
     ...o,
     tipo_orden:      cortesias.has(o.id) ? "cortesia" : "venta",
     codigo_cortesia: cortesias.get(o.id) ?? null,
+    utm_source:      crudas.get(o.id)?.utm_source ?? null,
+    utm_campaign:    crudas.get(o.id)?.utm_campaign ?? null,
+    recorrido:       recorridos.get(o.id) ?? null,
   }));
 
   return NextResponse.json({
