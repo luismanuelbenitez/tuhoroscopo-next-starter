@@ -1,9 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  ChevronDown,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { TarotPdfDetalle } from "@/components/admin/TarotPdfDetalle";
@@ -33,13 +36,49 @@ interface Paginacion {
   next_offset: number | null;
 }
 
-const ESTADO_PDF: Record<string, { label: string; cls: string }> = {
-  pendiente:        { label: "Pendiente",  cls: "bg-gray-800 text-gray-400" },
-  generando:        { label: "Generando",  cls: "bg-amber-900/50 text-amber-300" },
-  generado:         { label: "Generado",   cls: "bg-emerald-900/50 text-emerald-300" },
-  error_generacion: { label: "Error",      cls: "bg-red-900/50 text-red-300" },
-  invalidado:       { label: "Invalidado", cls: "bg-gray-800 text-gray-500" },
-};
+// Vista para personas (2026-10-31): una fila por orden con el cliente, la
+// versión actual del PDF, cuánto tardó, si el cliente lo descargó y el
+// archivo. El id de la orden queda al pasar el mouse. Solo presentación.
+interface OrdenInfo { cliente: string | null; tema: string | null; estado: string | null; interna: boolean; descargas: number }
+const GRIS = "bg-gray-800 text-gray-400";
+type Etiqueta = { label: string; cls: string; alerta: boolean };
+const esListo = (p: Pdf) => p.estado === "listo" || p.estado === "generado";
+const esError = (p: Pdf) => p.estado === "error" || p.estado === "error_generacion";
+
+function etiquetar(p: Pdf, principal: boolean, hayListo: boolean): Etiqueta {
+  if (esListo(p)) return principal
+    ? { label: "Actual", cls: "bg-emerald-900/50 text-emerald-300", alerta: false }
+    : { label: "Reemplazado", cls: GRIS, alerta: false };
+  if (esError(p)) return hayListo
+    ? { label: "Falló, se rehízo", cls: GRIS, alerta: false }
+    : { label: "Error", cls: "bg-red-900/50 text-red-300", alerta: true };
+  if (p.estado === "generando") {
+    const min = (Date.now() - new Date(p.created_at).getTime()) / 60000;
+    return min > 30 ? { label: "Trabado", cls: "bg-red-900/50 text-red-300", alerta: true } : { label: "Generando", cls: "bg-amber-900/50 text-amber-300", alerta: false };
+  }
+  if (p.estado === "invalidado") return { label: "Invalidado", cls: GRIS, alerta: false };
+  return { label: p.estado === "pendiente" ? "Pendiente" : p.estado, cls: GRIS, alerta: false };
+}
+
+type Grupo = { ordenId: string; principal: Pdf; otras: Pdf[]; hayListo: boolean };
+function agrupar(pdfs: Pdf[]): Grupo[] {
+  const m = new Map<string, Pdf[]>();
+  for (const p of pdfs) { const l = m.get(p.orden_id); if (l) l.push(p); else m.set(p.orden_id, [p]); }
+  return Array.from(m.entries()).map(([ordenId, lista]) => {
+    const principal = lista.find(esListo) ?? lista[0];
+    return { ordenId, principal, otras: lista.filter((x) => x !== principal), hayListo: lista.some(esListo) };
+  });
+}
+
+const TEMAS: Record<string, string> = { general: "General", amor: "Amor", trabajo: "Trabajo", salud: "Salud", dinero: "Dinero", decision: "Decisión" };
+const fechaHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("es-UY", { timeZone: "America/Montevideo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+function tardo(desde: string, hasta: string | null): string | null {
+  if (!hasta) return null;
+  const s = Math.max(0, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+}
+const tamano = (b: number | null) => (b ? (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`) : null);
 
 function Badge({ text, cls }: { text: string; cls: string }) {
   return (
@@ -58,6 +97,9 @@ export default function TarotPdfsPage() {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [ordenes, setOrdenes] = useState<Record<string, OrdenInfo>>({});
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
+  const alternar = (id: string) => setAbiertas((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   useEffect(() => {
     async function doFetch() {
@@ -75,6 +117,7 @@ export default function TarotPdfsPage() {
           setErrorMsg(json?.detalle ?? json?.motivo ?? `Error HTTP ${r.status}`);
         } else {
           setPdfs(json.pdfs ?? []);
+          setOrdenes(json.ordenes ?? {});
           setPaginacion(json.paginacion ?? null);
         }
       } catch (e: unknown) {
@@ -96,6 +139,7 @@ export default function TarotPdfsPage() {
       <main className="px-6 py-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold text-white">PDFs</h2>
+          <p className="text-xs text-gray-500 mt-1">Una fila por orden: la versión actual del PDF y si el cliente lo descargó. Tocá una fila para ver el detalle.</p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
@@ -105,10 +149,11 @@ export default function TarotPdfsPage() {
             className="border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-amber-500"
           >
             <option value="">Todos los estados</option>
+            {/* Estados reales de tarot_pdfs (el de éxito es "listo"). */}
             <option value="pendiente">Pendiente</option>
             <option value="generando">Generando</option>
-            <option value="generado">Generado</option>
-            <option value="error_generacion">Error</option>
+            <option value="listo">Listo</option>
+            <option value="error">Error</option>
             <option value="invalidado">Invalidado</option>
           </select>
           <button
@@ -145,73 +190,97 @@ export default function TarotPdfsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-900 border-b border-gray-800 text-left">
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Orden ID</th>
-                  <th className="px-4 py-3 font-medium text-gray-400">Estado</th>
-                  <th className="px-4 py-3 font-medium text-gray-400">Plantilla</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Tamaño</th>
-                  <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Págs.</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Cliente</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">PDF</th>
                   <th className="px-4 py-3 font-medium text-gray-400 whitespace-nowrap">Generado</th>
-                  <th className="px-4 py-3 font-medium text-gray-400">URL</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">El cliente</th>
+                  <th className="px-4 py-3 font-medium text-gray-400">Archivo</th>
+                  <th className="px-4 py-3 font-medium text-gray-400"></th>
                 </tr>
               </thead>
               <tbody>
                 {cargando && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
+                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm animate-pulse">
                       Cargando PDFs…
                     </td>
                   </tr>
                 )}
                 {!cargando && !errorMsg && pdfs.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500 text-sm">
+                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500 text-sm">
                       Sin resultados.
                     </td>
                   </tr>
                 )}
-                {!cargando && pdfs.map((p) => {
-                  const badge = ESTADO_PDF[p.estado] ?? { label: p.estado, cls: "bg-gray-800 text-gray-400" };
-                  const isError = p.estado === "error_generacion";
-                  const warnings = p.diagnostico_admin?.warnings ?? [];
+                {!cargando && agrupar(pdfs).map((g) => {
+                  const o = ordenes[g.ordenId];
+                  const abierta = abiertas.has(g.ordenId);
+                  const filas = [g.principal, ...(abierta ? g.otras : [])];
                   return (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelectedId(p.id)}
-                      className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${
-                        isError ? "bg-red-950/10" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {p.orden_id.slice(0, 8)}…
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge text={badge.label} cls={badge.cls} />
-                        {warnings.length > 0 && <span className="ml-1.5 text-xs text-amber-400">⚠</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400">{p.plantilla_usada ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {p.tamano_bytes ? `${(p.tamano_bytes / 1024).toFixed(0)} KB` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-400 text-center">{p.paginas ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400 whitespace-nowrap">
-                        {p.generado_at ? new Date(p.generado_at).toLocaleDateString("es-UY") : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {p.storage_url ? (
-                          <a
-                            href={p.storage_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-amber-400 hover:text-amber-300 underline"
+                    <Fragment key={g.ordenId}>
+                      {filas.map((p, i) => {
+                        const principal = i === 0;
+                        const et = etiquetar(p, principal, g.hayListo);
+                        const dur = tardo(p.created_at, p.generado_at);
+                        return (
+                          <tr
+                            key={p.id}
+                            onClick={() => setSelectedId(p.id)}
+                            className={`border-b border-gray-800/60 cursor-pointer hover:bg-gray-800/30 transition-colors ${et.alerta ? "bg-red-950/10" : ""} ${principal ? "" : "bg-gray-950/40"}`}
                           >
-                            Ver →
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-600">—</span>
-                        )}
-                      </td>
-                    </tr>
+                            <td className="px-4 py-3" title={`Orden ${p.orden_id}`}>
+                              {principal ? (
+                                <div>
+                                  <p className="text-sm text-gray-100 whitespace-nowrap">
+                                    {o?.cliente ?? "Sin nombre"}
+                                    {o?.interna && <span className="ml-1.5 align-middle rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-gray-800 text-gray-400">Interna</span>}
+                                  </p>
+                                  <p className="text-[11px] text-gray-500 mt-0.5">{o?.tema ? (TEMAS[o.tema] ?? o.tema) : "—"}</p>
+                                </div>
+                              ) : <span className="pl-3 text-xs text-gray-600">versión {p.numero_intento}</span>}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <Badge text={et.label} cls={et.cls} />
+                              {et.alerta && <span className="ml-1.5 text-xs text-red-400" title="Necesita atención: la orden no tiene un PDF listo">⚠</span>}
+                              {principal && g.otras.length > 0 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); alternar(g.ordenId); }}
+                                  className="ml-2 inline-flex items-center gap-0.5 text-[11px] text-gray-500 hover:text-gray-300"
+                                  title={abierta ? "Ocultar versiones anteriores" : "Ver versiones anteriores"}
+                                >
+                                  +{g.otras.length} {g.otras.length === 1 ? "versión" : "versiones"}
+                                  <ChevronDown size={12} className={`transition-transform ${abierta ? "rotate-180" : ""}`} />
+                                </button>
+                              )}
+                              {esError(p) && p.error_mensaje && <p className="text-[11px] text-red-300/80 mt-0.5 max-w-[220px] truncate" title={p.error_mensaje}>{p.error_mensaje}</p>}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                              {fechaHora(p.generado_at ?? p.created_at)}
+                              {dur && <span className="block text-[11px] text-gray-600 mt-0.5">tardó {dur}</span>}
+                            </td>
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                              {principal && o ? (
+                                o.descargas > 0
+                                  ? <span className="inline-flex items-center gap-1 text-emerald-300/90"><Download size={12} /> Lo bajó{o.descargas > 1 ? ` ${o.descargas} veces` : ""}</span>
+                                  : <span className="text-gray-500">No lo bajó (aún)</span>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                              {[p.paginas ? `${p.paginas} págs.` : null, tamano(p.tamano_bytes), p.plantilla_usada].filter(Boolean).join(" · ") || "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {p.storage_url ? (
+                                <a href={p.storage_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200">
+                                  Abrir <ExternalLink size={11} />
+                                </a>
+                              ) : <span className="text-xs text-gray-600">—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </tbody>

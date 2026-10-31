@@ -136,10 +136,45 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
+  // Datos de presentación de las órdenes de esta página (2026-10-31): cliente,
+  // tema, estado de la orden, si es tráfico propio y cuántas veces el cliente
+  // tocó "descargar PDF" desde su lectura. Solo lectura, en lote; si falla, la
+  // tabla se muestra igual.
+  const ordenes: Record<string, { cliente: string | null; tema: string | null; estado: string | null; interna: boolean; descargas: number }> = {};
+  const ids = Array.from(new Set(pdfs.map((p) => p.orden_id).filter(Boolean)));
+  if (ids.length > 0) {
+    const rest = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+    const lista = ids.map(encodeURIComponent).join(",");
+    const get = async (q: string) => {
+      const r = await fetch(`${supabaseUrl}/rest/v1/${q}`, { headers: rest, cache: "no-store" });
+      return r.ok ? await r.json() : [];
+    };
+    try {
+      const [ords, clicks] = await Promise.all([
+        get(`tarot_ordenes?id=in.(${lista})&select=id,nombre_snapshot,tema,estado,funnel_session_id`),
+        get(`funnel_events?order_id=in.(${lista})&event_name=eq.mobile_pdf_clicked&select=order_id&limit=5000`),
+      ]);
+      const conSesion = (ords as { id: string; funnel_session_id: string | null }[]).filter((o) => o.funnel_session_id);
+      const internas = conSesion.length
+        ? new Set(((await get(`funnel_sessions?anonymous_id=in.(${conSesion.map((o) => `"${o.funnel_session_id}"`).join(",")})&es_interno=eq.true&select=anonymous_id`)) as { anonymous_id: string }[]).map((s) => s.anonymous_id))
+        : new Set<string>();
+      const porOrden = new Map<string, number>();
+      for (const c of clicks as { order_id: string }[]) porOrden.set(c.order_id, (porOrden.get(c.order_id) ?? 0) + 1);
+      for (const o of ords as { id: string; nombre_snapshot: string | null; tema: string | null; estado: string | null; funnel_session_id: string | null }[]) {
+        ordenes[o.id] = {
+          cliente: o.nombre_snapshot, tema: o.tema, estado: o.estado,
+          interna: !!o.funnel_session_id && internas.has(o.funnel_session_id),
+          descargas: porOrden.get(o.id) ?? 0,
+        };
+      }
+    } catch { /* best-effort */ }
+  }
+
   return NextResponse.json({
     ok: data.ok ?? false,
     paginacion: data.paginacion ?? null,
     metricas_pagina: data.metricas_pagina ?? null,
     pdfs,
+    ordenes,
   });
 }
