@@ -146,10 +146,77 @@ export async function GET(req: NextRequest) {
       }))
     : [];
 
+  // Datos de presentación (2026-10-31), solo lectura y en lote por página:
+  // - de Mercado Pago (del payload guardado): comisión, neto, fecha de
+  //   aprobación y de liberación del dinero, cuotas y monto devuelto;
+  // - de la orden: cliente, tema, origen (UTM), estado de la entrega y si es
+  //   tráfico propio. Si algo falla, la tabla se muestra igual.
+  const extra = await extrasDePagina(supabaseUrl, serviceRoleKey, pagos.map((p) => p.id), pagos.map((p) => p.orden_id));
+  const pagosConExtra = pagos.map((p) => ({ ...p, mp: extra.mp.get(p.id) ?? null, orden: extra.ordenes.get(p.orden_id) ?? null }));
+
   return NextResponse.json({
     ok: data.ok ?? false,
     paginacion: data.paginacion ?? null,
     metricas_pagina: data.metricas_pagina ?? null,
-    pagos,
+    pagos: pagosConExtra,
   });
+}
+
+type ExtraMp = {
+  neto: number | null; comision: number | null; aprobado_at: string | null;
+  liberacion_at: string | null; liberacion_estado: string | null; devuelto: number | null;
+};
+type ExtraOrden = {
+  cliente: string | null; tema: string | null; utm_source: string | null; utm_campaign: string | null;
+  estado: string | null; interna: boolean;
+};
+
+async function extrasDePagina(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  pagoIds: string[],
+  ordenIds: string[],
+): Promise<{ mp: Map<string, ExtraMp>; ordenes: Map<string, ExtraOrden> }> {
+  const mp = new Map<string, ExtraMp>();
+  const ordenes = new Map<string, ExtraOrden>();
+  const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
+  const get = async (q: string) => {
+    const r = await fetch(`${supabaseUrl}/rest/v1/${q}`, { headers, cache: "no-store" });
+    return r.ok ? await r.json() : [];
+  };
+  const num = (v: unknown) => (v == null || v === "" || Number.isNaN(Number(v)) ? null : Number(v));
+  try {
+    const ids = pagoIds.filter(Boolean).map(encodeURIComponent).join(",");
+    const oids = Array.from(new Set(ordenIds.filter(Boolean))).map(encodeURIComponent).join(",");
+    const [filasMp, filasO] = await Promise.all([
+      ids ? get(`tarot_pagos?id=in.(${ids})&select=id,neto:webhook_payload->transaction_details->>net_received_amount,fees:webhook_payload->fee_details,aprobado:webhook_payload->>date_approved,liberacion:webhook_payload->>money_release_date,liberacion_estado:webhook_payload->>money_release_status,devuelto:webhook_payload->>transaction_amount_refunded`) : [],
+      oids ? get(`tarot_ordenes?id=in.(${oids})&select=id,nombre_snapshot,tema,utm_source,utm_campaign,estado,funnel_session_id`) : [],
+    ]);
+    for (const f of filasMp as Record<string, unknown>[]) {
+      const fees = Array.isArray(f.fees) ? (f.fees as { amount?: number }[]) : [];
+      mp.set(String(f.id), {
+        neto: num(f.neto),
+        comision: fees.length ? fees.reduce((a, x) => a + (Number(x.amount) || 0), 0) : null,
+        aprobado_at: (f.aprobado as string) ?? null,
+        liberacion_at: (f.liberacion as string) ?? null,
+        liberacion_estado: (f.liberacion_estado as string) ?? null,
+        devuelto: num(f.devuelto),
+      });
+    }
+    const conSesion = (filasO as { id: string; funnel_session_id: string | null }[]).filter((o) => o.funnel_session_id);
+    const internas = conSesion.length
+      ? new Set(((await get(`funnel_sessions?anonymous_id=in.(${conSesion.map((o) => `"${o.funnel_session_id}"`).join(",")})&es_interno=eq.true&select=anonymous_id`)) as { anonymous_id: string }[]).map((s) => s.anonymous_id))
+      : new Set<string>();
+    for (const o of filasO as Record<string, unknown>[]) {
+      ordenes.set(String(o.id), {
+        cliente: (o.nombre_snapshot as string) ?? null,
+        tema: (o.tema as string) ?? null,
+        utm_source: (o.utm_source as string) ?? null,
+        utm_campaign: (o.utm_campaign as string) ?? null,
+        estado: (o.estado as string) ?? null,
+        interna: !!o.funnel_session_id && internas.has(o.funnel_session_id as string),
+      });
+    }
+  } catch { /* best-effort */ }
+  return { mp, ordenes };
 }
