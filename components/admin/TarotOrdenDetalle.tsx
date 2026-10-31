@@ -893,10 +893,27 @@ export function TarotOrdenDetalle({ orden, onClose }: { orden: Orden; onClose: (
                   </div>
                 )}
 
-                {esCritico && accionEstado === "idle" && (
-                  <p className="text-xs text-gray-500">
-                    Estado de error crítico. Requiere intervención manual en la base de datos para poder reintentar.
-                  </p>
+                {/* Error crítico (2026-10-31): ronda nueva de intentos de la IA.
+                    El servidor solo la acepta si la orden no tiene lectura y ya
+                    hubo intentos (un error crítico del pago o del envío se rechaza). */}
+                {esCritico && accionEstado !== "ok" && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Se inicia una ronda nueva de intentos de la IA para esta orden.\n\nSolo funciona si la orden nunca tuvo una lectura (por ejemplo, fallaron los 3 intentos). Si el error crítico vino del pago o del envío, el sistema lo rechaza.\n\n¿Continuar?")) {
+                          ejecutarAccion("reintentar_lectura");
+                        }
+                      }}
+                      disabled={accionEstado === "enviando"}
+                      className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/30 hover:bg-amber-800/40 text-amber-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {accionEstado === "enviando" ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      {accionEstado === "enviando" ? "Enviando…" : "Reintentar lectura (nueva ronda)"}
+                    </button>
+                    <p className="text-xs text-gray-500">
+                      Solo para órdenes sin lectura (fallaron los intentos de la IA). Si la orden ya tiene lectura o el error vino del pago, se rechaza.
+                    </p>
+                  </div>
                 )}
 
                 {accionEstado === "ok" && accionMsg && (

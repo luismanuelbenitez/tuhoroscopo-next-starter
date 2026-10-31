@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { X, AlertCircle, RotateCcw, Check, AlertTriangle } from "lucide-react";
+import { X, AlertCircle } from "lucide-react";
 
 interface Lectura {
   id: string;
@@ -96,8 +96,6 @@ export function TarotLecturaDetalle({
   const [orden, setOrden] = useState<Orden | null>(null);
   const [cargando, setCargando] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [accionEstado, setAccionEstado] = useState<"idle" | "enviando" | "ok" | "error">("idle");
-  const [accionMsg, setAccionMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setCargando(true);
@@ -111,34 +109,6 @@ export function TarotLecturaDetalle({
       .catch(() => setErrorMsg("Error de red"))
       .finally(() => setCargando(false));
   }, [id]);
-
-  async function reintentar() {
-    if (!lectura || accionEstado === "enviando") return;
-    setAccionEstado("enviando");
-    setAccionMsg(null);
-    try {
-      const res = await fetch(`/api/admin/tarot/ordenes/${lectura.orden_id}/accion`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion: "reintentar_lectura" }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json.ok) {
-        setAccionEstado("ok");
-        setAccionMsg("Lectura encolada. El proceso puede tardar 30-60 segundos.");
-      } else {
-        setAccionEstado("error");
-        setAccionMsg(json.detalle ?? json.motivo ?? `Error ${res.status}`);
-      }
-    } catch (e: unknown) {
-      setAccionEstado("error");
-      setAccionMsg(e instanceof Error ? e.message : "Error de red");
-    }
-  }
-
-  const puedeReintentar =
-    lectura?.estado === "error_generacion" &&
-    (orden?.estado === "error_lectura" || orden?.estado === "pago_confirmado");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -181,7 +151,9 @@ export function TarotLecturaDetalle({
               </div>
 
               {/* Error info */}
-              {lectura.estado === "error_generacion" && (
+              {/* El estado de una lectura fallida es "error" (antes se preguntaba por
+                  "error_generacion", que no existe, y el recuadro nunca aparecía). */}
+              {lectura.estado === "error" && (
                 <div className="mb-5 rounded-lg border border-red-800/50 bg-red-950/20 p-3">
                   <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Error</p>
                   {lectura.error_codigo && <p className="text-xs text-red-300 mb-1"><span className="text-gray-500">Código:</span> {lectura.error_codigo}</p>}
@@ -218,34 +190,11 @@ export function TarotLecturaDetalle({
                 </div>
               )}
 
-              {/* Acción reintentar */}
-              <div className="mb-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Acciones</h3>
-                {puedeReintentar ? (
-                  <div>
-                    <button
-                      onClick={reintentar}
-                      disabled={accionEstado === "enviando" || accionEstado === "ok"}
-                      className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-50"
-                    >
-                      <RotateCcw size={12} />
-                      {accionEstado === "enviando" ? "Enviando…" : "Reintentar lectura"}
-                    </button>
-                    {accionMsg && (
-                      <p className={`mt-1.5 text-xs flex items-center gap-1 ${accionEstado === "ok" ? "text-emerald-400" : "text-red-400"}`}>
-                        {accionEstado === "ok" ? <Check size={11} /> : <AlertTriangle size={11} />}
-                        {accionMsg}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-600">
-                    {lectura.estado === "generada"
-                      ? "Lectura generada correctamente. No se necesita acción."
-                      : "No disponible en el estado actual de la orden."}
-                  </p>
-                )}
-              </div>
+              {/* Reintentar la lectura: solo desde el detalle de la orden y solo si la
+                  orden no tiene una lectura completada (regla 2026-10-31). */}
+              <p className="text-xs text-gray-600">
+                Los reintentos se hacen desde el detalle de la orden, y solo si la orden todavía no tiene una lectura.
+              </p>
             </>
           )}
         </div>

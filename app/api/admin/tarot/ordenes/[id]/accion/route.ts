@@ -4,7 +4,9 @@ import { requireAdminSession } from "@/lib/adminSession";
 type Accion = "reintentar_lectura" | "reintentar_pdf" | "reintentar_whatsapp";
 
 const ESTADOS_VALIDOS: Record<Accion, string[]> = {
-  reintentar_lectura:  ["pago_confirmado", "error_lectura"],
+  // error_critico: solo si se agotaron los intentos de la IA y no hay
+  // lectura (lo valida ef_tarot_generar_lectura con nueva_ronda; ver abajo).
+  reintentar_lectura:  ["pago_confirmado", "error_lectura", "error_critico"],
   reintentar_pdf:      ["lectura_lista", "error_pdf"],
   reintentar_whatsapp: ["pdf_listo", "error_whatsapp"],
 };
@@ -98,21 +100,55 @@ export async function POST(
     );
   }
 
-  // Disparar EF fire-and-forget
+  // Regla (2026-10-31, Manuel): "Reintentar lectura" solo si la orden NO
+  // tiene una lectura completada. La misma regla la aplica la EF; acá se
+  // rechaza antes para dar un motivo claro en el admin.
+  if (accion === "reintentar_lectura") {
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/tarot_lecturas?orden_id=eq.${encodeURIComponent(ordenId)}&estado=eq.completada&select=id&limit=1`,
+        { headers: restHeaders, cache: "no-store" },
+      );
+      if (!res.ok) throw new Error(`REST ${res.status}`);
+      const filas = await res.json();
+      if (Array.isArray(filas) && filas.length > 0) {
+        return NextResponse.json(
+          { ok: false, motivo: "ya_tiene_lectura", detalle: "La orden ya tiene una lectura completada: no se genera otra." },
+          { status: 422 },
+        );
+      }
+    } catch (e: unknown) {
+      return NextResponse.json({ ok: false, motivo: "db_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
+    }
+  }
+
+  // Disparar la EF. Se espera su respuesta (202 inmediato; el trabajo sigue
+  // en la EF): un fetch sin await puede cortarse cuando esta ruta responde.
   const efUrl = `${supabaseUrl}/functions/v1/${EF_MAP[accion]}`;
   const efBody: Record<string, unknown> = { orden_id: ordenId };
   if (accion === "reintentar_pdf" && deckSlug) efBody.deck = deckSlug;
+  // Ronda nueva de intentos tras agotar los de la IA (la EF verifica que
+  // haya habido intentos, así un error_critico de otro origen no pasa).
+  if (accion === "reintentar_lectura" && estadoActual === "error_critico") efBody.nueva_ronda = true;
 
-  fetch(efUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "x-internal-key": internalKey,
-    },
-    body: JSON.stringify(efBody),
-    cache: "no-store",
-  }).catch(() => { /* fire-and-forget */ });
+  try {
+    const resEf = await fetch(efUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "x-internal-key": internalKey,
+      },
+      body: JSON.stringify(efBody),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!resEf.ok) {
+      return NextResponse.json({ ok: false, motivo: "ef_error", detalle: `${EF_MAP[accion]} respondió ${resEf.status}` }, { status: 502 });
+    }
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, motivo: "ef_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
+  }
 
   return NextResponse.json({
     ok: true,

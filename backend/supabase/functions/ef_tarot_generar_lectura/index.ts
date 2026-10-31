@@ -216,7 +216,7 @@ async function logFunnelEvent(event: {
 
 // ── Procesamiento principal ──────────────────────────────────
 
-async function generarLectura(ordenId: string): Promise<void> {
+async function generarLectura(ordenId: string, nuevaRonda = false): Promise<void> {
   const t0 = Date.now();
 
   if (!ANTHROPIC_API_KEY) {
@@ -248,7 +248,39 @@ async function generarLectura(ordenId: string): Promise<void> {
     return;
   }
 
-  if (!ESTADOS_REINTENTABLES.has(orden.estado)) {
+  // 2.0 Regla (2026-10-31, Manuel): solo se genera una lectura si la orden
+  // NO tiene ya una completada. Regenerar sobre una lectura existente cambia
+  // las cartas que el cliente ya leyó.
+  const { count: completadas } = await supabase
+    .from("tarot_lecturas")
+    .select("id", { count: "exact", head: true })
+    .eq("orden_id", ordenId)
+    .eq("estado", "completada");
+  if ((completadas ?? 0) > 0) {
+    await registrarLog(ordenId, "lectura_ya_existe", "warning",
+      "La orden ya tiene una lectura completada — no se genera otra", { estado: orden.estado });
+    return;
+  }
+
+  // Nueva ronda (2026-10-31, botón del admin): una orden en error_critico
+  // porque se agotaron los intentos de la IA puede intentarse otra vez. Solo
+  // si YA hubo intentos de generación: así un error_critico de otro origen
+  // (monto de pago incoherente, falla al crear la orden) nunca llega acá.
+  let intentosRondasPrevias = 0;
+  if (nuevaRonda && orden.estado === "error_critico") {
+    const { count: intentosHechos } = await supabase
+      .from("tarot_lecturas")
+      .select("id", { count: "exact", head: true })
+      .eq("orden_id", ordenId);
+    if (!intentosHechos) {
+      await registrarLog(ordenId, "lectura_nueva_ronda_rechazada", "warning",
+        "Nueva ronda rechazada: la orden nunca tuvo intentos de generación (el error crítico no viene de la IA)");
+      return;
+    }
+    intentosRondasPrevias = intentosHechos;
+    await registrarLog(ordenId, "lectura_nueva_ronda", "info",
+      "Nueva ronda de generación pedida desde el admin", { intentos_previos: intentosHechos });
+  } else if (!ESTADOS_REINTENTABLES.has(orden.estado)) {
     await registrarLog(ordenId, "estado_invalido_para_lectura", "warning",
       `Estado '${orden.estado}' no permite generar lectura`, { estado: orden.estado });
     return;
@@ -307,8 +339,10 @@ async function generarLectura(ordenId: string): Promise<void> {
 
   const maxReintentos = Number(cfg.max_reintentos_lectura) || 3;
   const numeroIntento = (intentosPrevios ?? 0) + 1;
+  // En una nueva ronda el tope corre desde los intentos ya hechos.
+  const tope = maxReintentos + intentosRondasPrevias;
 
-  if (numeroIntento > maxReintentos) {
+  if (numeroIntento > tope) {
     await registrarLog(ordenId, "lectura_max_reintentos_alcanzado", "critical",
       "Se agotaron los reintentos de generación IA. Intervención manual requerida.",
       { intentos_previos: intentosPrevios, max: maxReintentos });
@@ -512,7 +546,7 @@ async function generarLectura(ordenId: string): Promise<void> {
   };
   const intentosFallidos: IntentoFallido[] = [];
 
-  for (let intentoActual = numeroIntento; intentoActual <= maxReintentos; intentoActual++) {
+  for (let intentoActual = numeroIntento; intentoActual <= tope; intentoActual++) {
     const horaInicioIntento = new Date().toISOString();
     const tIntento = Date.now();
 
@@ -547,7 +581,7 @@ async function generarLectura(ordenId: string): Promise<void> {
     const lecturaId = lecturaRow.id;
 
     await registrarLog(ordenId, "lectura_iniciada", "info",
-      `Iniciando generación de lectura (intento ${intentoActual}/${maxReintentos})`,
+      `Iniciando generación de lectura (intento ${intentoActual}/${tope})`,
       {
         lectura_id:         lecturaId,
         modelo:             iaModelo,
@@ -859,7 +893,7 @@ async function generarLectura(ordenId: string): Promise<void> {
       });
 
       await registrarLog(ordenId, "lectura_error", "error",
-        `Error en generación IA (intento ${intentoActual}/${maxReintentos})`,
+        `Error en generación IA (intento ${intentoActual}/${tope})`,
         {
           error:          errMsg,
           lectura_id:     lecturaId,
@@ -910,13 +944,13 @@ async function generarLectura(ordenId: string): Promise<void> {
     `Intentos fallidos: ${intentosFallidos.length}/${maxReintentos}`,
     "",
     ...intentosFallidos.map((i) =>
-      `Intento ${i.intento}/${maxReintentos} — inicio ${fmtUY(i.horaInicio)}, duración ${(i.duracionMs / 1000).toFixed(1)}s\n  Error: ${i.error}`
+      `Intento ${i.intento}/${tope} — inicio ${fmtUY(i.horaInicio)}, duración ${(i.duracionMs / 1000).toFixed(1)}s\n  Error: ${i.error}`
     ),
     "",
     "QUÉ HACER (el cliente pagó y todavía no recibió nada):",
     "1. Escribile por la Bandeja de WhatsApp: su lectura está demorada y la recibe en breve.",
     "2. Mirá el error: formato (LecturaInvalidaError) casi siempre sale al reintentar; Anthropic 5xx/529 es una caída de Anthropic (esperá unos minutos); 401/403 o falta de créditos: revisá la cuenta de Anthropic.",
-    "3. La orden quedó en error crítico: hoy el reintento requiere intervención en la base (pedirlo).",
+    "3. En el admin, abrí la orden y tocá \"Reintentar lectura\" (hace una ronda nueva de intentos).",
     "4. Si no se puede entregar: devolvé el pago desde Mercado Pago y avisale al cliente.",
   ].join("\n");
 
@@ -967,6 +1001,7 @@ serve(async (req) => {
   }
 
   const ordenId = String(body?.orden_id ?? "").trim();
+  const nuevaRonda = body?.nueva_ronda === true;
   if (!ordenId) {
     return new Response(JSON.stringify({ ok: false, error: "ORDEN_ID_REQUERIDO" }), {
       status: 400,
@@ -990,7 +1025,7 @@ serve(async (req) => {
   // rápido, sin bloquear al caller) pero garantizando que el trabajo real
   // se complete. Ver docs/product/DECISIONS.md.
   EdgeRuntime.waitUntil(
-    generarLectura(ordenId).catch((err) => {
+    generarLectura(ordenId, nuevaRonda).catch((err) => {
       console.error(`${FN} fatal para orden ${ordenId}:`, err);
     }),
   );
