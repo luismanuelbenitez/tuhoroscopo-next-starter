@@ -48,7 +48,7 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
       </p>
 
       <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">
-        {precioTexto ? `Quiero mi tirada por ${precioTexto} →` : "Quiero mi tirada →"}
+        {precioTexto ? `Quiero mi lectura por ${precioTexto} →` : "Quiero mi lectura →"}
       </CtaButton>
 
       {/* Mobile: velo oscuro detrás de los íconos, que caen sobre las velas

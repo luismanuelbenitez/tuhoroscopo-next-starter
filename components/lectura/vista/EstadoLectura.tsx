@@ -69,7 +69,7 @@ function Expirado({ fontClass }: { fontClass: string }) {
   );
 }
 
-function NoEncontrado({ fontClass }: { fontClass: string }) {
+function NoEncontrado({ fontClass, waNumero }: { fontClass: string; waNumero: string }) {
   return (
     <Contenedor fontClass={fontClass}>
       <PanelOscuro className="px-6 py-8">
@@ -87,7 +87,13 @@ function NoEncontrado({ fontClass }: { fontClass: string }) {
         {/* Quien llega con un link roto casi siempre pagó: se le da un
             contacto directo (auditoría UX 2026-10-30, L4). */}
         <p className="mt-5 text-[14px]" style={{ color: "#c9c4d6" }}>
-          ¿Necesitás ayuda? Escribinos a{" "}
+          ¿Necesitás ayuda?{" "}
+          {waNumero ? (
+            <>
+              <a href={`https://wa.me/${waNumero}?text=${encodeURIComponent("Hola! No puedo abrir mi lectura de Tarot.")}`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4" style={{ color: GOLD }}>Escribinos por WhatsApp</a>
+              {" "}o a{" "}
+            </>
+          ) : "Escribinos a "}
           <a href="mailto:hola@tuoraculo.uy?subject=No%20puedo%20abrir%20mi%20lectura" className="underline underline-offset-4" style={{ color: GOLD }}>hola@tuoraculo.uy</a>
           {" "}y te la reenviamos.
         </p>
@@ -96,6 +102,6 @@ function NoEncontrado({ fontClass }: { fontClass: string }) {
   );
 }
 
-export function EstadoLectura({ variante, fontClass }: { variante: "expirado" | "no_encontrado"; fontClass: string }) {
-  return variante === "expirado" ? <Expirado fontClass={fontClass} /> : <NoEncontrado fontClass={fontClass} />;
+export function EstadoLectura({ variante, fontClass, waNumero = "" }: { variante: "expirado" | "no_encontrado"; fontClass: string; waNumero?: string }) {
+  return variante === "expirado" ? <Expirado fontClass={fontClass} /> : <NoEncontrado fontClass={fontClass} waNumero={waNumero} />;
 }

@@ -145,7 +145,6 @@ export default function TarotCheckoutContent({
   const [pais, setPais]           = useState('UY');
   const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
-  const [emailSolicitado, setEmailSolicitado] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
   // Bloqueo síncrono de doble envío: dos clics en el mismo tick llegan antes
   // de que isLoading deshabilite el botón (detectado en QA 2026-10-18).
@@ -158,21 +157,11 @@ export default function TarotCheckoutContent({
     if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [error]);
 
-  // Auto-activación del checkbox "recibir por email" (sprint de auditoría de
-  // entrega, 2026-09-04): cuando el email pasa de inválido/vacío a válido, se
-  // activa solo — pero deja de intentarlo en cuanto el usuario toca el switch
-  // con la mano, en cualquier dirección, para no pelear contra una elección
-  // manual en cada tecla (ver docs/product/DECISIONS.md).
-  const emailEraValidoRef = useRef(false);
-  const [emailEligioManualmente, setEmailEligioManualmente] = useState(false);
-  useEffect(() => {
-    const esValido = EMAIL_RE.test(form.email.trim());
-    if (esValido && !emailEraValidoRef.current && !emailEligioManualmente) {
-      setEmailSolicitado(true);
-    }
-    emailEraValidoRef.current = esValido;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.email]);
+  // Email (auditoría UX 2026-10-30, C3): sin interruptor "Recibir por email".
+  // Si la persona escribe un email, se lo pide también por ese canal; vacío,
+  // solo WhatsApp. Reemplaza el switch con auto-activación de 2026-09-04
+  // (interruptor + campo para lo mismo generaba la duda de completar ambos).
+  const emailSolicitado = form.email.trim() !== '';
 
   // Descuento
   // Código precargado desde la URL (?codigo=…), p.ej. la oferta VOLVE20 de
@@ -290,7 +279,7 @@ export default function TarotCheckoutContent({
       return;
     }
     if (emailSolicitado && !EMAIL_RE.test(form.email.trim())) {
-      setError('Ingresá un email válido para recibir también tu lectura por ese medio.');
+      setError('Revisá tu email: no parece válido. Si no querés recibirla por email, dejalo vacío.');
       return;
     }
     if (enviandoRef.current) return;
@@ -529,32 +518,9 @@ export default function TarotCheckoutContent({
                   )}
                 </div>
 
-                {/* Email (opcional, requerido solo si se pide como canal) */}
+                {/* Email opcional: si se completa, la lectura llega también por email */}
                 <div>
-                  <Etiqueta htmlFor="email" texto="Email" nota={emailSolicitado ? 'requerido' : 'opcional'}>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={emailSolicitado}
-                      aria-label="También quiero recibir mi lectura por email"
-                      onClick={() => {
-                        setEmailEligioManualmente(true);
-                        setEmailSolicitado(v => !v);
-                      }}
-                      disabled={isLoading}
-                      className="flex items-center gap-2 shrink-0 py-1.5 -my-1.5 disabled:opacity-50"
-                    >
-                      <span className="text-[12px] text-white/60 whitespace-nowrap">Recibir por email</span>
-                      <span
-                        className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                        style={{ background: emailSolicitado ? GOLD : 'rgba(255,255,255,0.18)' }}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${emailSolicitado ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
-                        />
-                      </span>
-                    </button>
-                  </Etiqueta>
+                  <Etiqueta htmlFor="email" texto="Email" nota="opcional" />
                   <ConIcono Icon={Mail}>
                     <input
                       id="email"
@@ -566,9 +532,9 @@ export default function TarotCheckoutContent({
                       value={form.email}
                       onChange={handleChange}
                       disabled={isLoading}
-                      required={emailSolicitado}
                     />
                   </ConIcono>
+                  <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te la mandamos por email.</p>
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
@@ -586,6 +552,7 @@ export default function TarotCheckoutContent({
                       disabled={isLoading}
                     />
                   </ConIcono>
+                  <p className="mt-1.5 text-xs text-white/55">Para personalizar tu lectura.</p>
                 </div>
                 </div>
 

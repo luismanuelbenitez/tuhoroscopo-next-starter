@@ -58,7 +58,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
 
         <div className="fi3">
           <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px]">
-            {precioTexto ? `Quiero mi tirada por ${precioTexto} →` : "Quiero mi tirada →"}
+            {precioTexto ? `Quiero mi lectura por ${precioTexto} →` : "Quiero mi lectura →"}
           </CtaButton>
           <div className="mt-3 flex items-center gap-2">
             <p className="text-[12px] text-white/50" style={{ textShadow: TEXT_SHADOW }}>

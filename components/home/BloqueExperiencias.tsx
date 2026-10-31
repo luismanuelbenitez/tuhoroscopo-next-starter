@@ -96,7 +96,7 @@ function CardProximamente({
       className="rounded-3xl overflow-hidden flex flex-col"
       style={{ width: "min(84vw, 320px)", background: CARD_BG, border: "1px solid rgba(240,197,90,0.28)" }}
     >
-      <div className="relative" style={{ height: 180 }}>
+      <div className="relative h-[130px] md:h-[180px]">
         <ImagenCard archivo={archivo} Fallback={Fallback} />
         <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, transparent 55%, ${CARD_BG} 100%)` }} />
         <p
@@ -109,14 +109,11 @@ function CardProximamente({
       <div className="p-6 flex flex-col flex-1">
         <h3 className="text-lg font-extrabold mb-1.5">{titulo}</h3>
         <p className="text-white/55 text-[13px] leading-relaxed mb-4 flex-1">{descripcion}</p>
-        <button
-          type="button"
-          disabled
-          className="w-fit px-4 py-2 text-[12px] rounded-xl font-semibold"
-          style={{ color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.18)", background: "transparent", cursor: "default" }}
-        >
-          Muy pronto
-        </button>
+        {/* Etiqueta y no botón: un botón deshabilitado parece roto al
+            tocarlo (auditoría UX 2026-10-30, H4). */}
+        <p className="text-[12px] font-semibold uppercase tracking-widest" style={{ color: "rgba(240,197,90,0.75)" }}>
+          ✦ En preparación
+        </p>
       </div>
     </div>
   );

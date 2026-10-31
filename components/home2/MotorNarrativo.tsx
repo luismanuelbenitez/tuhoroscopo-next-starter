@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Network, Fingerprint, Feather, type LucideIcon } from "lucide-react";
+import { BookOpen, Network, Fingerprint, Feather, ChevronDown, type LucideIcon } from "lucide-react";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 import { fluido } from "@/lib/imagen";
 
@@ -54,7 +54,7 @@ export function MotorNarrativo() {
 
       {/* motor-cartas.webp 1536×1024; recorte 2:1 (4:3 en mobile) centrado en las cartas */}
       <div
-        className="relative overflow-hidden rounded-2xl mb-6 aspect-[4/3] md:aspect-[2/1]"
+        className="relative overflow-hidden rounded-2xl mb-6 aspect-[16/9] md:aspect-[2/1]"
         style={{ border: "1px solid rgba(240,197,90,0.28)", boxShadow: "0 12px 36px rgba(0,0,0,0.40)" }}
       >
         <img
@@ -64,7 +64,28 @@ export function MotorNarrativo() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+      {/* Mobile: los 4 pilares plegados (título a la vista, se abren al
+          tocar) para no sumar ~600 px de texto (auditoría UX 2026-10-30, H1). */}
+      <div className="md:hidden flex flex-col gap-2.5">
+        {PILARES.map(({ icon: Icono, t, d }) => (
+          <details
+            key={t}
+            className="group rounded-2xl"
+            style={{ background: "rgba(16,8,30,0.78)", border: "1px solid rgba(240,197,90,0.28)" }}
+          >
+            <summary className="flex items-center gap-3.5 px-4 py-3 cursor-pointer select-none [&::-webkit-details-marker]:hidden" style={{ listStyle: "none" }}>
+              <span className="shrink-0 flex items-center justify-center rounded-full" style={{ width: 38, height: 38, border: "1px solid rgba(240,197,90,0.55)", background: "rgba(240,197,90,0.06)" }}>
+                <Icono size={17} aria-hidden="true" style={{ color: GOLD }} />
+              </span>
+              <span className="flex-1 text-[15px] font-semibold" style={{ color: CREMA }}>{t}</span>
+              <ChevronDown size={16} aria-hidden="true" className="shrink-0 transition-transform group-open:rotate-180" style={{ color: GOLD }} />
+            </summary>
+            <p className="px-4 pb-4 -mt-0.5 text-[13.5px] text-white/70 leading-relaxed">{d}</p>
+          </details>
+        ))}
+      </div>
+
+      <div className="hidden md:grid grid-cols-2 gap-4">
         {PILARES.map(({ icon: Icono, t, d }) => (
           <div
             key={t}

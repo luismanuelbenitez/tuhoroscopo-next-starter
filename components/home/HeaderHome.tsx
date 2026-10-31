@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { LogoIcon } from "@/components/logo-icon";
+import { MenuMovil } from "@/components/marca/MenuMovil";
 import { NavLink, CtaButton } from "./CtaButton";
 
 // Wordmark según decisión de marca (ver memoria brand-wordmark-tu-oraculo):
@@ -49,7 +50,9 @@ export function HeaderHome() {
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <CtaButton href="/tarot" className="text-[12px] px-4 py-2.5 rounded-full">
+          {/* Celular: sin CTA acá — el héroe ya tiene uno y la barra fija
+              aparece al bajar (auditoría UX 2026-10-30, H6). */}
+          <CtaButton href="/tarot" className="hidden md:inline-block text-[12px] px-4 py-2.5 rounded-full">
             Conocer el Tarot →
           </CtaButton>
           <button
@@ -66,16 +69,17 @@ export function HeaderHome() {
       </div>
 
       {menuAbierto && (
-        <div
-          className="md:hidden flex flex-col gap-4 px-4 pb-5 pt-1"
-          style={{ background: "rgba(10,7,20,0.85)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <NavLink href="/">Inicio</NavLink>
-          <NavLink href="/tarot">Productos</NavLink>
-          <NavLink href="/#como-funciona">Cómo funciona</NavLink>
-          <NavLink href="/faq">Preguntas</NavLink>
-          <NavLink href="/contacto">Contacto</NavLink>
-        </div>
+        <MenuMovil
+          links={[
+            { href: "/", label: "Inicio" },
+            { href: "/tarot", label: "Productos" },
+            { href: "/#como-funciona", label: "Cómo funciona" },
+            { href: "/faq", label: "Preguntas" },
+            { href: "/contacto", label: "Contacto" },
+          ]}
+          cta={{ href: "/tarot/checkout", label: "Quiero mi lectura →" }}
+          onCerrar={() => setMenuAbierto(false)}
+        />
       )}
     </div>
   );

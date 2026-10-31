@@ -8,7 +8,7 @@ import Link from "next/link";
 // una línea de precio + un botón, nunca tapa contenido de forma agresiva.
 // `href`/`etiqueta`: las páginas SEO la usan con el tema ya elegido y el
 // mismo texto de su header (auditoría UX 2026-10-30, S5).
-export function StickyCtaTarot({ precioUYU, href = "/tarot/checkout", etiqueta = "Quiero mi tirada →" }: { precioUYU: number | null; href?: string; etiqueta?: string }) {
+export function StickyCtaTarot({ precioUYU, href = "/tarot/checkout", etiqueta = "Quiero mi lectura →" }: { precioUYU: number | null; href?: string; etiqueta?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

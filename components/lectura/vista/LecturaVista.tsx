@@ -20,6 +20,19 @@ function fechaVencimiento(expiraAt: string): string | null {
   return d.toLocaleDateString("es-UY", { day: "numeric", month: "long", timeZone: "America/Montevideo" });
 }
 
+// Signo solar desde "YYYY-MM-DD" (fechas de corte tropicales habituales).
+const SIGNOS: [number, string][] = [
+  [120, "Capricornio"], [219, "Acuario"], [321, "Piscis"], [420, "Aries"], [521, "Tauro"], [621, "Géminis"],
+  [723, "Cáncer"], [823, "Leo"], [923, "Virgo"], [1023, "Libra"], [1122, "Escorpio"], [1222, "Sagitario"], [1231, "Capricornio"],
+];
+function signoSolar(fecha: string | null | undefined): string | null {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(fecha ?? "");
+  if (!m) return null;
+  const md = Number(m[1]) * 100 + Number(m[2]);
+  const signo = SIGNOS.find(([hasta]) => md < hasta)?.[1] ?? "Capricornio";
+  return `Signo ${signo}`;
+}
+
 // Escena de fondo continua: imagen del cabezal arriba y, pegada justo debajo,
 // la continuación (paneles/fondo-pagina-*), ambas a 100% del ancho. El
 // empalme se ubica en la altura real de la imagen del cabezal a ese ancho
@@ -134,12 +147,10 @@ export function LecturaVista({
   // descubre tarde: se precarga (misma URL optimizada que usa la capa).
   preload(urlOptimizada(`${CAB}/escenario-hero-mobile.webp`, 828), { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
   preload(urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920), { as: "image", media: "(min-width: 768px)", fetchPriority: "high" });
-  // Fecha de nacimiento opcional ("YYYY-MM-DD"); UTC para que no se corra un día.
-  const fechaNacimiento = lectura.fecha_nacimiento
-    ? new Date(`${lectura.fecha_nacimiento}T00:00:00Z`).toLocaleDateString("es-UY", {
-        day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-      })
-    : null;
+  // Fecha de nacimiento opcional ("YYYY-MM-DD"): en la portada se muestra
+  // solo el signo, no la fecha completa — el link se reenvía o se muestra en
+  // pantalla y la fecha es un dato personal (auditoría UX 2026-10-30, L3).
+  const fechaNacimiento = signoSolar(lectura.fecha_nacimiento);
   const pasos = lectura.proximos_pasos ?? [];
 
   return (

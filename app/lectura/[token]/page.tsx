@@ -3,6 +3,7 @@ import { Cormorant_Garamond } from "next/font/google";
 import { resolverLecturaPublica, resolverUrlAudioResumenPublica } from "@/lib/tarotLecturaPublica";
 import { LecturaVista } from "@/components/lectura/vista/LecturaVista";
 import { EstadoLectura } from "@/components/lectura/vista/EstadoLectura";
+import { numeroWhatsApp } from "@/lib/contacto";
 
 // Lógica de esta página CONGELADA (docs/product/DECISIONS.md 2026-10-17):
 // resolución por token, estados y URLs de audio/PDF no se tocan sin
@@ -30,7 +31,7 @@ export default async function LecturaPage({ params }: { params: { token: string 
 
   if (!resultado.ok) {
     if (resultado.motivo === "expirado") return <EstadoLectura variante="expirado" fontClass={serif.variable} />;
-    return <EstadoLectura variante="no_encontrado" fontClass={serif.variable} />;
+    return <EstadoLectura variante="no_encontrado" fontClass={serif.variable} waNumero={numeroWhatsApp()} />;
   }
 
   // Best-effort: si tts está apagado o el audio no está listo, esto

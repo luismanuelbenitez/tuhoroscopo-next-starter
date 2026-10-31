@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { LogoIcon } from "@/components/logo-icon";
+import { MenuMovil } from "@/components/marca/MenuMovil";
 import { NavLink, CtaButton } from "@/components/home/CtaButton";
 
 // Mismo criterio que HeaderHome (components/home/): vive DENTRO del
@@ -42,7 +43,7 @@ export function HeaderTarot({ mostrarTestimonios = false }: { mostrarTestimonios
 
         <div className="flex items-center gap-2.5 shrink-0">
           <CtaButton href="/tarot/checkout" className="text-[12px] px-4 py-2.5 rounded-full">
-            Quiero mi tirada →
+            Quiero mi lectura →
           </CtaButton>
           <button
             type="button"
@@ -58,16 +59,17 @@ export function HeaderTarot({ mostrarTestimonios = false }: { mostrarTestimonios
       </div>
 
       {menuAbierto && (
-        <div
-          className="md:hidden flex flex-col gap-4 px-4 pb-5 pt-1"
-          style={{ background: "rgba(10,7,20,0.85)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <NavLink href="/tarot">Tarot</NavLink>
-          <NavLink href="#como-funciona">Cómo funciona</NavLink>
-          <NavLink href="/faq">Preguntas</NavLink>
-          {mostrarTestimonios && <NavLink href="#testimonios">Testimonios</NavLink>}
-          <NavLink href="/contacto">Contacto</NavLink>
-        </div>
+        <MenuMovil
+          links={[
+            { href: "/tarot", label: "Tarot" },
+            { href: "#como-funciona", label: "Cómo funciona" },
+            { href: "/faq", label: "Preguntas" },
+            ...(mostrarTestimonios ? [{ href: "#testimonios", label: "Testimonios" }] : []),
+            { href: "/contacto", label: "Contacto" },
+          ]}
+          cta={{ href: "/tarot/checkout", label: "Quiero mi lectura →" }}
+          onCerrar={() => setMenuAbierto(false)}
+        />
       )}
     </div>
   );

@@ -57,7 +57,7 @@ function calcularPasos(estado: string | null, esCortesia: boolean, conEmail: boo
   return { pasos: [p1, p2, p3], pie, listo };
 }
 
-export default function TarotEstadoContent() {
+export default function TarotEstadoContent({ waNumero = "" }: { waNumero?: string }) {
   const sp = useSearchParams();
 
   const estadoParam       = sp.get("estado") ?? "";
@@ -271,9 +271,10 @@ export default function TarotEstadoContent() {
                   { titulo: "Interpretando tus 5 cartas", texto: "Empieza apenas se confirme el pago.", estado: "pendiente" },
                   { titulo: "Enviando acceso por WhatsApp", texto: "Te avisamos apenas esté lista.", estado: "pendiente" },
                 ]}
-                pie="Si en 30 minutos no recibís nada, escribinos a hola@tuoraculo.uy."
+                pie="Si en 30 minutos no recibís nada, escribinos."
               />
             </div>
+            <AyudaContacto waNumero={waNumero} texto="Hola! Pagué mi lectura de Tarot y figura en proceso." />
           </>
         )}
 
@@ -294,7 +295,7 @@ export default function TarotEstadoContent() {
               >
                 Intentar de nuevo →
               </Link>
-              <p className="mt-3 text-[13px] text-white/55">¿Necesitás ayuda? Escribinos a <a href="mailto:hola@tuoraculo.uy" className="underline" style={{ color: "#C9A7FF" }}>hola@tuoraculo.uy</a></p>
+              <AyudaContacto waNumero={waNumero} texto="Hola! Intenté pagar mi lectura de Tarot y no se confirmó el pago." />
             </div>
           </section>
         )}
@@ -309,5 +310,23 @@ export default function TarotEstadoContent() {
 
       <PieMarca className="mt-12" />
     </PaginaMarca>
+  );
+}
+
+// Ayuda en error y "en proceso": WhatsApp (si está configurado) y email
+// (auditoría UX 2026-10-30, G3) — el producto vive en WhatsApp.
+function AyudaContacto({ waNumero, texto }: { waNumero: string; texto: string }) {
+  return (
+    <p className="mt-3 text-[13.5px] text-white/60">
+      ¿Necesitás ayuda?{" "}
+      {waNumero && (
+        <>
+          <a href={`https://wa.me/${waNumero}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: "#C9A7FF" }}>Escribinos por WhatsApp</a>
+          {" o a "}
+        </>
+      )}
+      {!waNumero && "Escribinos a "}
+      <a href="mailto:hola@tuoraculo.uy" className="underline underline-offset-2" style={{ color: "#C9A7FF" }}>hola@tuoraculo.uy</a>
+    </p>
   );
 }

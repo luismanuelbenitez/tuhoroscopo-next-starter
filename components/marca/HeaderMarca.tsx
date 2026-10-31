@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { LogoIcon } from "@/components/logo-icon";
+import { MenuMovil } from "@/components/marca/MenuMovil";
 import { NavLink, CtaButton } from "@/components/home/CtaButton";
 import { GOLD, SERIF } from "@/components/home/theme";
 
@@ -86,14 +87,7 @@ function HeaderCompleto({ links, cta }: { links: { href: string; label: string }
         </div>
       </div>
 
-      {menuAbierto && (
-        <div
-          className="md:hidden flex flex-col gap-4 px-4 pb-5 pt-1"
-          style={{ background: "rgba(10,7,20,0.85)", backdropFilter: "blur(10px)", borderTop: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          {links.map(l => <NavLink key={l.href} href={l.href}>{l.label}</NavLink>)}
-        </div>
-      )}
+      {menuAbierto && <MenuMovil links={links} cta={cta} onCerrar={() => setMenuAbierto(false)} />}
     </div>
   );
 }

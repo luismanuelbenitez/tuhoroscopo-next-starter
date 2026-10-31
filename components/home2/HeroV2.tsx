@@ -36,7 +36,7 @@ export function HeroV2({ precioUYU }: { precioUYU: number | null }) {
         </p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-8">
           <CtaButton href="/tarot/checkout" className="px-6 py-3 text-[14px] whitespace-nowrap">
-            {precioUYU !== null ? `Quiero mi tirada · $U ${precioUYU} →` : "Quiero mi tirada →"}
+            {precioUYU !== null ? `Quiero mi lectura · $U ${precioUYU} →` : "Quiero mi lectura →"}
           </CtaButton>
           <Link
             href="#como-funciona"

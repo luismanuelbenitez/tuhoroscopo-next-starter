@@ -1,4 +1,4 @@
-import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL } from '@/components/marca/PaginaInstitucional';
+import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL, IndiceLegal, anclaSeccion } from '@/components/marca/PaginaInstitucional';
 import { GOLD } from '@/components/home/theme';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
 
@@ -57,9 +57,10 @@ export default function PoliticaPrivacidad() {
         <p className="text-white/45 text-[13px] mt-2">Última actualización: octubre 2026</p>
       </EncabezadoInstitucional>
 
+      <IndiceLegal titulos={SECTIONS.map(s => s.title)} />
       <div className="space-y-3 mb-10">
         {SECTIONS.map(section => (
-          <PanelInstitucional key={section.title} titulo={section.title}>
+          <PanelInstitucional key={section.title} id={anclaSeccion(section.title)} titulo={section.title}>
             <p>{section.content}</p>
           </PanelInstitucional>
         ))}

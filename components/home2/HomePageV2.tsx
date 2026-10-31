@@ -43,7 +43,7 @@ export function HomePageV2({ precioUYU }: { precioUYU: number | null }) {
                 imagen={{
                   src: "/img/home2/momento-lectura.webp", ancho: 1122, alto: 1402,
                   alt: "Una lectura de Tu Oráculo abierta en el celular, de noche, entre velas y cartas",
-                  posicion: "52% 58%", altoMovil: 380,
+                  posicion: "52% 58%", altoMovil: 240,
                 }}
                 precioUYU={precioUYU}
               />

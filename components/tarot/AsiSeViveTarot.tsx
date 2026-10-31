@@ -5,6 +5,7 @@ import { Link2, Headphones, FileText, MessageCircle, Mail, Music, Download, Play
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 import { CelularMock, DocumentoMock } from "@/components/tarot/Mockups";
 import { fijo, fluido } from "@/lib/imagen";
+import { Carousel } from "@/components/home/Carousel";
 
 // Imágenes del bloque (las genera Manuel). Cada una tiene un reemplazo
 // mientras el archivo no exista (ImagenConFallback), así el bloque nunca se
@@ -180,7 +181,7 @@ const BLOQUES: Bloque[] = [
     // (md:-mb compensa mt-4 + 46px del slot del botón), así se ve más
     // grande sin cambiar el alto de la card ni la alineación con las otras.
     ilustracion: (
-      <div className="w-full mt-auto flex items-end justify-center md:h-[292px] md:-mb-[62px]">
+      <div className="w-full mt-auto flex items-end justify-center h-[260px] md:h-[292px] md:-mb-[62px]">
         <CelularMock
           pantalla="lectura"
           src={IMG.pantallaLecturaReal}
@@ -243,7 +244,7 @@ const BLOQUES: Bloque[] = [
 function Tarjeta({ fondo, icono, aro, Icon, t, sub, d, destacado, ilustracion, boton }: Bloque) {
   return (
     <div
-      className="relative px-5 pb-5 pt-14 md:pt-[76px] flex flex-col items-center text-center"
+      className="relative h-full px-5 pb-5 pt-14 md:pt-[76px] flex flex-col items-center text-center"
       style={{
         borderRadius: RADIO,
         background: "linear-gradient(180deg, rgba(20,11,38,0.94) 0%, rgba(10,6,20,0.94) 100%)",
@@ -353,10 +354,22 @@ export function AsiSeViveTarot() {
       </div>
 
       {/* mt grande: los medallones sobresalen 40px por encima de cada tarjeta. */}
-      <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-x-5 gap-y-16 items-stretch">
+      <div className="hidden md:grid mt-16 grid-cols-3 gap-x-5 items-stretch">
         {BLOQUES.map((b) => (
           <Tarjeta key={b.t} {...b} />
         ))}
+      </div>
+      {/* Mobile: carrusel en vez de 3 tarjetas apiladas (~1.500 px de
+          scroll), con la siguiente asomando (auditoría UX 2026-10-30, H1).
+          pt-10: lugar para el medallón, que sobresale por arriba. */}
+      <div className="md:hidden mt-6 -mx-5 pl-5">
+        <Carousel showArrows={false}>
+          {BLOQUES.map((b) => (
+            <div key={b.t} className="pt-10 h-full pr-1" style={{ width: "min(82vw, 340px)" }}>
+              <Tarjeta {...b} />
+            </div>
+          ))}
+        </Carousel>
       </div>
     </section>
   );

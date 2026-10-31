@@ -51,11 +51,33 @@ export function EncabezadoInstitucional({ eyebrow, titulo, children }: { eyebrow
   );
 }
 
-export function PanelInstitucional({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function PanelInstitucional({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
   return (
-    <section className="rounded-2xl px-5 md:px-7 py-5 md:py-6" style={PANEL_INSTITUCIONAL}>
+    <section id={id} className="rounded-2xl px-5 md:px-7 py-5 md:py-6 scroll-mt-20" style={PANEL_INSTITUCIONAL}>
       <h2 className="mb-2.5" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 22, lineHeight: 1.2, color: CREMA }}>{titulo}</h2>
       <div className="text-white/75 text-[15px] leading-relaxed space-y-3">{children}</div>
     </section>
+  );
+}
+
+/** Ancla de una sección legal a partir de su título ("4. Suscripciones" → "seccion-4"). */
+export function anclaSeccion(titulo: string) {
+  return `seccion-${titulo.split(".")[0].trim()}`;
+}
+
+// Índice de los textos legales (auditoría UX 2026-10-30, P2): en el celular
+// son ~3.500 px; el índice lleva directo a "reembolsos" o "datos".
+export function IndiceLegal({ titulos }: { titulos: string[] }) {
+  return (
+    <nav aria-label="Índice" className="rounded-2xl px-5 md:px-7 py-4 mb-3" style={PANEL_INSTITUCIONAL}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: GOLD }}>Índice</p>
+      <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+        {titulos.map((t) => (
+          <li key={t}>
+            <a href={`#${anclaSeccion(t)}`} className="block py-1.5 text-[14px] text-white/75 hover:text-white underline-offset-4 hover:underline">{t}</a>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }

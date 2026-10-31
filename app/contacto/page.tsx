@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional } from '@/components/marca/PaginaInstitucional';
 import { GOLD, CTA_GRADIENT } from '@/components/home/theme';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
+import { numeroWhatsApp, linkWhatsApp } from '@/lib/contacto';
 
 // Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
 export const metadata = metadataPagina(
@@ -13,7 +14,7 @@ export const metadata = metadataPagina(
 
 // Estética de marca (2026-10-19): envoltorio común PaginaInstitucional.
 // Textos sin cambios.
-const WA_NUMBER = process.env.NEXT_PUBLIC_WA_NUMBER ?? '';
+const WA_NUMBER = numeroWhatsApp();
 
 export default function Contacto() {
   return (
@@ -49,7 +50,7 @@ export default function Contacto() {
               escribirnos acá.
             </p>
             <a
-              href={`https://wa.me/${WA_NUMBER}`}
+              href={linkWhatsApp(WA_NUMBER, 'Hola! Tengo una consulta sobre Tu Oráculo.')}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-[15px] font-semibold rounded-xl px-5 py-3 transition-colors hover:bg-[#F0C55A]/10"

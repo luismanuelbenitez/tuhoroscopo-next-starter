@@ -87,7 +87,7 @@ export function ProductoDestacado({ imagen = IMAGEN_DEFAULT, precioUYU }: { imag
         />
 
         {/* Contenido central — más aire y mejor ritmo vertical */}
-        <div className="px-7 py-8 md:px-9 md:py-11">
+        <div className="px-7 pt-5 pb-7 md:px-9 md:py-11">
           <p
             className="inline-block text-[10px] font-bold uppercase tracking-widest mb-4 px-3 py-1 rounded-full"
             style={{ color: GOLD, background: "rgba(240,197,90,0.10)", border: "1px solid rgba(240,197,90,0.25)" }}
@@ -117,7 +117,7 @@ export function ProductoDestacado({ imagen = IMAGEN_DEFAULT, precioUYU }: { imag
             al bloque (la columna ya estira a la altura de la fila por
             el grid; justify-center la centra dentro de eso) */}
         <div
-          className="px-7 py-10 md:px-7 md:py-11 flex flex-col justify-center md:items-start"
+          className="px-7 py-7 md:px-7 md:py-11 flex flex-col justify-center md:items-start"
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
         >
           <p className="text-2xl font-bold mb-2" style={{ color: GOLD }}>
@@ -125,15 +125,16 @@ export function ProductoDestacado({ imagen = IMAGEN_DEFAULT, precioUYU }: { imag
           </p>
           <p className="text-[11px] text-white/40 mb-8">pago único</p>
           <CtaButton href="/tarot/checkout" className="px-6 py-3 text-sm mb-3 w-full text-center md:w-auto whitespace-nowrap">
-            Quiero mi tirada →
+            Quiero mi lectura →
           </CtaButton>
           <Link
             href="/tarot"
-            className="text-[12px] text-white/55 hover:text-white underline underline-offset-4 decoration-white/25 mb-9 self-center md:self-start"
+            className="text-[12px] text-white/55 hover:text-white underline underline-offset-4 decoration-white/25 py-2 md:mb-7 self-center md:self-start"
           >
             Más información
           </Link>
-          <div className="space-y-4">
+          {/* Mobile: sin los mini íconos (repiten lo de la lista y el héroe). */}
+          <div className="hidden md:block space-y-4">
             {MINI_BULLETS.map(({ label, icon }) => (
               <div key={label} className="flex items-center gap-2.5 text-[12px] text-white/55">
                 <IconoBeneficio icon={icon} size={20} />
