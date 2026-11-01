@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, ChevronDown,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -47,6 +47,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     label: "Dirección",
     items: [
       { href: "/admin/tarot/asistente", icon: BrainCircuit, label: "Asistente CEO" },
+      { href: "/admin/tarot/analista", icon: Telescope, label: "Analista de conversión" },
       { href: "/admin/tarot", icon: LayoutDashboard, label: "Panel", exact: true },
     ],
   },
