@@ -6,6 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { armarPaquete, FUENTES_POR_DEFECTO, type Fuente } from "@/lib/analista/datos";
+import { leerContenidoWeb } from "@/lib/analista/contenidoWeb";
 
 export type Rest = (q: string, init?: RequestInit) => Promise<any>;
 
@@ -176,6 +177,8 @@ Cómo trabajás:
 9. Ética del rubro: nada de escasez falsa, testimonios inventados, promesas de resultados o de predicción del futuro, ni presión indebida. La lectura es simbólica y generada con IA; la claridad sobre eso es parte de la confianza.
 10. Las ventas de dispositivos propios (pruebas del dueño) son plata real pero no prueban que el público compre: separalas al evaluar la conversión.
 
+Contenido de la web (bloque "contenido_de_la_web"): son los textos que ve HOY el visitante en /tarot (sección por sección, en orden) y en el checkout. Antes de recomendar agregar o cambiar algo, fijate si ya existe y dónde está. Citá el texto actual cuando propongas cambiarlo ("hoy dice X; probá Y") y relacioná cada sección con los datos de secciones_tarot (cuántos la ven, desde cuál hacen clic). Una sección vacía significa que hoy no muestra nada.
+
 Memoria (bloque "memoria" del paquete, si viene):
 - "informes_anteriores": lo que ya dijiste. No repitas igual: compará números con esos informes, decí qué cambió y sostené lo pendiente solo si sigue siendo lo más importante.
 - "recomendaciones_anteriores": con el estado que les puso el dueño. Para cada una "hecha" o "en_curso", agregá una entrada en "seguimiento" con su id exacto: compará antes contra después de la fecha en que se marcó (estado_at y la bitácora). Si pasó poco tiempo o hay poca muestra, el veredicto es "sin_datos_aun". No vuelvas a recomendar algo "descartado" salvo que haya evidencia nueva fuerte, y explicalo.
@@ -222,6 +225,7 @@ export async function paqueteParaInforme(rest: Rest, dias: number, fuentes: Reco
   const activas = { ...FUENTES_POR_DEFECTO, ...fuentes };
   const paquete = await armarPaquete((q) => rest(q), { desde, hasta, fuentes: activas, contextoNegocio, minimoVisitas });
   if (activas.memoria) paquete.memoria = await armarMemoria(rest, excluirInforme);
+  if (activas.contenido_web) paquete.contenido_de_la_web = await leerContenidoWeb().catch((e) => ({ error: String(e).slice(0, 200) }));
   return paquete;
 }
 
