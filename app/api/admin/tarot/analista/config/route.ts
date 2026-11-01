@@ -57,16 +57,17 @@ export async function GET(req: NextRequest) {
         contar("funnel_events", ev("section_view,cta_click,faq_open")),
         contar("tarot_pagos", `mp_status=eq.approved&created_at=gte.${hace30}`),
         contar("tarot_accesos_web", `created_at=gte.${hace30}`),
+        contar("tarot_analista_aprendizajes", "activo=eq.true"),
       ]),
     ]);
     const desde: Record<Fuente, string> = {
       trafico: MEDICION_DESDE.sesiones_y_eventos, calidad: MEDICION_DESDE.scroll_y_tiempo, embudo: MEDICION_DESDE.sesiones_y_eventos,
       formulario: MEDICION_DESDE.formulario_y_secciones, secciones: MEDICION_DESDE.formulario_y_secciones,
-      ventas: MEDICION_DESDE.sesiones_y_eventos, postcompra: MEDICION_DESDE.sesiones_y_eventos, meta_csv: "", bitacora: "",
+      ventas: MEDICION_DESDE.sesiones_y_eventos, postcompra: MEDICION_DESDE.sesiones_y_eventos, meta_csv: "", bitacora: "", memoria: "",
     };
     const registros: Record<Fuente, number | null> = {
       trafico: n[0], calidad: n[1], embudo: n[2], formulario: n[3], secciones: n[4], ventas: n[5], postcompra: n[6],
-      meta_csv: csvs.length, bitacora: bitacora.length,
+      meta_csv: csvs.length, bitacora: bitacora.length, memoria: n[7],
     };
     const catalogo = (Object.keys(FUENTES) as Fuente[]).map((k) => ({
       clave: k, descripcion: FUENTES[k], activa: fuentes[k], desde: desde[k] || null, registros_30d: registros[k],

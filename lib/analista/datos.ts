@@ -17,11 +17,12 @@ export const FUENTES = {
   postcompra: "Experiencia después de comprar: abrió la lectura, PDF, recompra, reclamos",
   meta_csv: "Exportaciones de Meta (gasto, alcance y resultados) que subiste",
   bitacora: "Bitácora de cambios (qué cambiaste y cuándo)",
+  memoria: "Memoria: informes anteriores, recomendaciones con su estado y lo que ya sabemos",
 } as const;
 export type Fuente = keyof typeof FUENTES;
 export const FUENTES_POR_DEFECTO: Record<Fuente, boolean> = {
   trafico: true, calidad: true, embudo: true, formulario: true, secciones: true,
-  ventas: true, postcompra: true, meta_csv: true, bitacora: true,
+  ventas: true, postcompra: true, meta_csv: true, bitacora: true, memoria: true,
 };
 
 // Desde cuándo existe cada medición: el analista no debe leer "0" como "nadie".

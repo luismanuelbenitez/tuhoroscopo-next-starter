@@ -21,7 +21,7 @@ const CATEGORIAS: Record<string, string> = { publicidad: "Publicidad", web: "Web
 const DESGLOSES: Record<string, string> = { general: "General (sin desglose)", edad_sexo: "Edad y sexo", ubicacion: "Ubicación (plataforma)", region: "Región", hora: "Hora del día", otro: "Otro" };
 const NOMBRE_FUENTE: Record<string, string> = {
   trafico: "Tráfico", calidad: "Calidad de la visita", embudo: "Embudo", formulario: "Formulario del checkout", secciones: "Secciones de /tarot",
-  ventas: "Ventas", postcompra: "Post-compra", meta_csv: "CSVs de Meta", bitacora: "Bitácora de cambios",
+  ventas: "Ventas", postcompra: "Post-compra", meta_csv: "CSVs de Meta", bitacora: "Bitácora de cambios", memoria: "Memoria del analista",
 };
 const TC = 40;
 const hoyUY = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);

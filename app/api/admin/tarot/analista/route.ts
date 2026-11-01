@@ -27,11 +27,23 @@ export async function GET(req: NextRequest) {
     const id = req.nextUrl.searchParams.get("informe");
     if (id) {
       const campos = req.nextUrl.searchParams.get("datos") === "1" ? "*" : "id,estado,foco,periodo_desde,periodo_hasta,modelo,esfuerzo,contenido,tokens_entrada,tokens_salida,costo_usd,duracion_ms,error,created_at";
-      const [fila] = await rest(`tarot_analista_informes?id=eq.${encodeURIComponent(id)}&select=${campos}`);
-      return NextResponse.json({ ok: !!fila, informe: fila ?? null });
+      const idq = encodeURIComponent(id);
+      const recCampos = "id,informe_id,indice,prioridad,accion,donde,estado,nota,estado_at,evaluacion_veredicto,evaluacion_texto,evaluado_at";
+      const [[fila], recomendaciones, evaluadas] = await Promise.all([
+        rest(`tarot_analista_informes?id=eq.${idq}&select=${campos}`),
+        rest(`tarot_analista_recomendaciones?informe_id=eq.${idq}&select=${recCampos}&order=indice.asc`),
+        rest(`tarot_analista_recomendaciones?evaluado_informe_id=eq.${idq}&select=${recCampos}`),
+      ]);
+      return NextResponse.json({ ok: !!fila, informe: fila ?? null, recomendaciones, evaluadas });
     }
+    // Historial: los últimos 30, o todo (?todos=1) con búsqueda por titular (?q=) y foco (?foco=).
+    const sp = req.nextUrl.searchParams;
+    const q = (sp.get("q") ?? "").replace(/[*,()]/g, " ").trim().slice(0, 80);
+    const filtroFoco = sp.get("foco") && sp.get("foco")! in FOCOS ? `&foco=eq.${sp.get("foco")}` : "";
+    const filtroQ = q ? `&contenido->>titular=ilike.*${encodeURIComponent(q)}*` : "";
+    const limite = sp.get("todos") === "1" ? 500 : 30;
     const [historial, [config], mes] = await Promise.all([
-      rest(`tarot_analista_informes?select=id,estado,foco,periodo_desde,periodo_hasta,modelo,esfuerzo,costo_usd,duracion_ms,error,created_at,titular:contenido->>titular,estado_general:contenido->>estado&order=created_at.desc&limit=30`),
+      rest(`tarot_analista_informes?select=id,estado,foco,periodo_desde,periodo_hasta,modelo,esfuerzo,costo_usd,duracion_ms,error,created_at,titular:contenido->>titular,estado_general:contenido->>estado${filtroFoco}${filtroQ}&order=created_at.desc&limit=${limite}`),
       rest(`tarot_analista_config?id=eq.1&select=modelo,esfuerzo,tope_mensual_usd`),
       rest(`tarot_analista_informes?created_at=gte.${inicioDeMes()}&select=costo_usd`),
     ]);
@@ -60,6 +72,7 @@ export async function POST(req: NextRequest) {
       await rest(`tarot_analista_informes?id=eq.${encodeURIComponent(b.id)}`, { method: "DELETE" });
       return NextResponse.json({ ok: true });
     }
+    if (b?.accion === "recomendacion_estado") return await cambiarEstadoRecomendacion(rest, b);
     if (b?.accion !== "generar") return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
 
     if (!claveAnalista()) return NextResponse.json({ ok: false, motivo: "sin_clave", detalle: `Falta ${NOMBRE_CLAVE} en Vercel.` }, { status: 400 });
@@ -96,4 +109,36 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
   }
+}
+
+// Seguimiento (2026-11-01): Manuel marca cada recomendación. Al marcarla
+// "hecha" se anota en la bitácora (así el próximo informe sabe desde cuándo
+// comparar); si después cambia de estado, esa entrada se borra.
+const ESTADOS_REC = new Set(["pendiente", "en_curso", "hecha", "descartada"]);
+const CATEGORIA_POR_DONDE: Record<string, string> = {
+  meta: "publicidad", pagina_tarot: "web", checkout: "web", medicion: "web", oferta: "precio", postcompra: "producto",
+};
+async function cambiarEstadoRecomendacion(rest: NonNullable<ReturnType<typeof restSupabase>>, b: { id?: unknown; estado?: unknown; nota?: unknown }) {
+  if (typeof b.id !== "string" || !ESTADOS_REC.has(String(b.estado))) return NextResponse.json({ ok: false, motivo: "invalido" }, { status: 400 });
+  const [rec] = await rest(`tarot_analista_recomendaciones?id=eq.${encodeURIComponent(b.id)}&select=id,accion,donde,estado,bitacora_id`);
+  if (!rec) return NextResponse.json({ ok: false, motivo: "no_existe" }, { status: 404 });
+  const estado = String(b.estado);
+  const nota = typeof b.nota === "string" ? b.nota.trim().slice(0, 500) || null : null;
+  let bitacoraId: string | null = rec.bitacora_id;
+  if (estado === "hecha" && !bitacoraId) {
+    const hoy = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    const [fila] = await rest("tarot_analista_bitacora", {
+      method: "POST", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ fecha: hoy, categoria: CATEGORIA_POR_DONDE[rec.donde] ?? "otro", descripcion: `Recomendación aplicada: ${rec.accion}${nota ? ` (${nota})` : ""}`.slice(0, 500) }),
+    });
+    bitacoraId = fila?.id ?? null;
+  } else if (estado !== "hecha" && bitacoraId) {
+    await rest(`tarot_analista_bitacora?id=eq.${bitacoraId}`, { method: "DELETE" });
+    bitacoraId = null;
+  }
+  await rest(`tarot_analista_recomendaciones?id=eq.${rec.id}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ estado, nota, estado_at: new Date().toISOString(), bitacora_id: bitacoraId }),
+  });
+  return NextResponse.json({ ok: true });
 }
