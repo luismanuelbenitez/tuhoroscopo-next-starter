@@ -157,7 +157,7 @@ export default function AnalistaPage() {
 
         {datos && !datos.clave_configurada && (
           <div className="mb-4 rounded-lg border border-amber-800/50 bg-amber-950/20 px-4 py-2.5 text-xs text-amber-200">
-            Para generar informes falta <span className="font-mono">ANTHROPIC_API_KEY</span> en las variables de entorno de Vercel (después, volver a publicar). La configuración y la vista previa de datos funcionan igual.
+            Para generar informes falta <span className="font-mono">ANTHROPIC_API_KEY_PANEL_ADMIN</span> en las variables de entorno de Vercel (después, volver a publicar). La configuración y la vista previa de datos funcionan igual.
           </div>
         )}
         {errorMsg && (

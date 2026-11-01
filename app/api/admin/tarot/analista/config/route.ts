@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
 import { FUENTES, FUENTES_POR_DEFECTO, MEDICION_DESDE, type Fuente } from "@/lib/analista/datos";
-import { ESFUERZOS, MODELOS, costoEstimado, paqueteParaInforme, type Esfuerzo, type Modelo } from "@/lib/analista/informe";
+import { ESFUERZOS, MODELOS, claveAnalista, costoEstimado, paqueteParaInforme, type Esfuerzo, type Modelo } from "@/lib/analista/informe";
 import { leerCsvMeta } from "@/lib/analista/csv";
 
 // Configuración del Analista de conversión (2026-11-01). GET: configuración,
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true, config, catalogo, modelos, esfuerzos: ESFUERZOS, bitacora,
       csvs: csvs.map((c: { filas_total: unknown[] } & Record<string, unknown>) => ({ ...c, filas_total: Array.isArray(c.filas_total) ? c.filas_total.length : 0 })),
-      clave_configurada: !!process.env.ANTHROPIC_API_KEY,
+      clave_configurada: !!claveAnalista(),
     });
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "fetch_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });

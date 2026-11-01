@@ -108,7 +108,7 @@ export default function AnalistaConfigPage() {
 
         {d && !d.clave_configurada && (
           <div className="mb-4 rounded-lg border border-amber-800/50 bg-amber-950/20 px-4 py-2.5 text-xs text-amber-200">
-            Falta <span className="font-mono">ANTHROPIC_API_KEY</span> en Vercel para generar informes. Lo demás de esta pantalla funciona igual.
+            Falta <span className="font-mono">ANTHROPIC_API_KEY_PANEL_ADMIN</span> en Vercel para generar informes. Lo demás de esta pantalla funciona igual.
           </div>
         )}
         {aviso && <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-900/60 bg-emerald-950/20 px-4 py-2.5 text-xs text-emerald-200"><Check size={13} /> {aviso}</div>}

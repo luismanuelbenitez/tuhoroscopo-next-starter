@@ -9,6 +9,11 @@ import { armarPaquete, FUENTES_POR_DEFECTO, type Fuente } from "@/lib/analista/d
 
 export type Rest = (q: string, init?: RequestInit) => Promise<any>;
 
+// Clave propia del panel (separada de la que usan las lecturas en Supabase):
+// se puede revocar o topear sin afectar a los clientes.
+export const NOMBRE_CLAVE = "ANTHROPIC_API_KEY_PANEL_ADMIN";
+export const claveAnalista = () => process.env.ANTHROPIC_API_KEY_PANEL_ADMIN || process.env.ANTHROPIC_API_KEY || "";
+
 // Precios por millón de tokens (USD), entrada / salida. El razonamiento
 // interno se cobra como salida (ya viene sumado en usage.output_tokens).
 export const MODELOS = {
@@ -152,8 +157,8 @@ export async function generarInforme(rest: Rest, id: string, o: OpcionesInforme)
     const paquete = await paqueteParaInforme(rest, o.dias, o.fuentes, o.contextoNegocio, o.minimoVisitas);
     await guardar({ datos_enviados: paquete });
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("Falta ANTHROPIC_API_KEY en las variables de entorno de Vercel.");
+    const apiKey = claveAnalista();
+    if (!apiKey) throw new Error(`Falta ${NOMBRE_CLAVE} en las variables de entorno de Vercel.`);
     const client = new Anthropic({ apiKey });
     const stream = client.messages.stream({
       model: o.modelo,

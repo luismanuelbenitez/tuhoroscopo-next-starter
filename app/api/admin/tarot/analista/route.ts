@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
-import { FOCOS, MODELOS, generarInforme, type Esfuerzo, type Foco, type Modelo } from "@/lib/analista/informe";
+import { FOCOS, MODELOS, NOMBRE_CLAVE, claveAnalista, generarInforme, type Esfuerzo, type Foco, type Modelo } from "@/lib/analista/informe";
 import { FUENTES_POR_DEFECTO } from "@/lib/analista/datos";
 
 // Analista de conversión (2026-11-01). GET: historial de informes (o uno con
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true, historial, config, focos: FOCOS,
       gasto_mes_usd: mes.reduce((t: number, r: { costo_usd: number | null }) => t + (Number(r.costo_usd) || 0), 0),
-      clave_configurada: !!process.env.ANTHROPIC_API_KEY,
+      clave_configurada: !!claveAnalista(),
     });
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, motivo: "fetch_error", detalle: e instanceof Error ? e.message : String(e) }, { status: 502 });
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
     if (b?.accion !== "generar") return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
 
-    if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ ok: false, motivo: "sin_clave", detalle: "Falta ANTHROPIC_API_KEY en Vercel." }, { status: 400 });
+    if (!claveAnalista()) return NextResponse.json({ ok: false, motivo: "sin_clave", detalle: `Falta ${NOMBRE_CLAVE} en Vercel.` }, { status: 400 });
     const foco: Foco = b.foco in FOCOS ? b.foco : "general";
     const dias = DIAS_PERMITIDOS.has(Number(b.dias)) ? Number(b.dias) : 7;
 
