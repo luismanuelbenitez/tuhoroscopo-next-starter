@@ -7,7 +7,7 @@ import {
   ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
   ArrowLeft, User, Mail, Calendar, List, PenLine, Zap, Sparkles,
 } from 'lucide-react';
-import { getStoredAttribution, getOrCreateSessionId } from '@/lib/analytics';
+import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
@@ -197,6 +197,12 @@ export default function TarotCheckoutContent({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Analista de conversión (2026-11-01): dónde se frena la gente dentro del
+  // formulario. Solo escucha (nombres de campo, nunca lo escrito); no cambia
+  // ningún comportamiento del checkout.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => (formRef.current ? medirFormulario(formRef.current) : undefined), []);
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
@@ -231,14 +237,18 @@ export default function TarotCheckoutContent({
       const data = await res.json();
 
       if (!res.ok || !data?.ok) {
+        trackCheckoutPaso('coupon_result', 'error');
         setCodigoError(data?.error ?? 'Error al validar el código.');
         return;
       }
 
       if (!data.valido) {
+        trackCheckoutPaso('coupon_result', 'invalido');
         setCodigoError(data.error ?? 'Código inválido o expirado.');
         return;
       }
+
+      trackCheckoutPaso('coupon_result', data.orden_gratuita === true ? 'cortesia' : 'ok');
 
       setDescuento({
         uso_id:             data.uso_id,
@@ -248,6 +258,7 @@ export default function TarotCheckoutContent({
         orden_gratuita:     data.orden_gratuita === true,
       });
     } catch {
+      trackCheckoutPaso('coupon_result', 'red');
       setCodigoError('No se pudo verificar el código. Intentá de nuevo.');
     } finally {
       setCodigoValidando(false);
@@ -270,15 +281,19 @@ export default function TarotCheckoutContent({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    trackCheckoutPaso('form_submit', descuento ? 'con_codigo' : 'sin_codigo', precioFinal ?? undefined);
     if (PRECIO_BASE === null) {
+      trackCheckoutPaso('form_error', 'precio');
       setError('El precio no está disponible ahora mismo. Recargá la página o volvé a intentar en unos minutos.');
       return;
     }
     if (!aceptaTerminos) {
+      trackCheckoutPaso('form_error', 'terminos');
       setError('Necesitás aceptar los Términos del servicio para continuar.');
       return;
     }
     if (emailSolicitado && !EMAIL_RE.test(form.email.trim())) {
+      trackCheckoutPaso('form_error', 'email');
       setError('Revisá tu email: no parece válido. Si no querés recibirla por email, dejalo vacío.');
       return;
     }
@@ -320,6 +335,8 @@ export default function TarotCheckoutContent({
       funnel_session_id: getOrCreateSessionId() || null,
     };
 
+    // Motivo que se registra si algo falla (solo el código, nunca el mensaje).
+    let motivoError = 'respuesta';
     try {
       const res = await fetch('/api/tarot/crear-orden', {
         method: 'POST',
@@ -328,6 +345,7 @@ export default function TarotCheckoutContent({
       });
       const data = await res.json();
       if (!res.ok) {
+        motivoError = `orden:${typeof data?.error === 'string' ? data.error : res.status}`;
         // Si el cupón expiró o ya no está reservado, limpiar el estado para que el usuario pueda re-aplicarlo
         if (data?.error === 'CODIGO_DESCUENTO_EXPIRADO' || data?.error === 'CODIGO_DESCUENTO_NO_RESERVADO') {
           setDescuento(null);
@@ -343,6 +361,8 @@ export default function TarotCheckoutContent({
             nombre: form.nombre.trim(),
           }));
         } catch { /* non-blocking */ }
+        trackCheckoutPaso('mp_redirect', 'cortesia', 0);
+        enviarEventosAhora();
         window.location.href = data.redirect_url;
         return;
       }
@@ -359,11 +379,15 @@ export default function TarotCheckoutContent({
         // 2026-08-22). value = precioFinal (con descuento si se aplicó),
         // igual criterio que usa Purchase más adelante con precio_cobrado.
         metaInitiateCheckout(precioFinal ?? 0);
+        trackCheckoutPaso('mp_redirect', descuento ? 'con_codigo' : 'sin_codigo', precioFinal ?? undefined);
+        enviarEventosAhora();
         window.location.href = data.init_point;
       } else {
+        motivoError = 'sin_link_pago';
         throw new Error('No se recibió la URL de pago.');
       }
     } catch (err: unknown) {
+      trackCheckoutPaso('form_error', motivoError);
       setError(err instanceof Error ? err.message : 'Error inesperado. Intentá de nuevo.');
       setIsLoading(false);
       enviandoRef.current = false;
@@ -385,6 +409,7 @@ export default function TarotCheckoutContent({
             <div className="min-w-0">
               <Link
                 href={'/tarot' as never}
+                onClick={() => trackCheckoutPaso('checkout_back', 'volver_tarot')}
                 className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-6"
                 style={{ textShadow: TEXT_SHADOW }}
               >
@@ -423,6 +448,7 @@ export default function TarotCheckoutContent({
               </div>
 
               <form
+                ref={formRef}
                 onSubmit={handleSubmit}
                 className="rounded-2xl p-5 md:p-6 space-y-5"
                 style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
@@ -611,7 +637,7 @@ export default function TarotCheckoutContent({
                 {!descuento && !cuponAbierto ? (
                   <button
                     type="button"
-                    onClick={() => setCuponAbierto(true)}
+                    onClick={() => { setCuponAbierto(true); trackCheckoutPaso('coupon_opened'); }}
                     className="self-start inline-flex items-center gap-1.5 py-2 text-[13.5px] text-white/65 hover:text-white transition-colors"
                   >
                     <Tag size={14} style={{ color: GOLD }} />
@@ -711,6 +737,7 @@ export default function TarotCheckoutContent({
                 <label className="flex items-start gap-3 py-1 text-[13.5px] text-white/75 cursor-pointer leading-relaxed">
                   <input
                     type="checkbox"
+                    name="acepta_terminos"
                     checked={aceptaTerminos}
                     onChange={e => setAceptaTerminos(e.target.checked)}
                     disabled={isLoading}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { trackViewItem, trackLandingViewed } from "@/lib/analytics";
+import { useEffect, type ReactNode } from "react";
+import { trackViewItem, trackLandingViewed, medirSecciones } from "@/lib/analytics";
 import { metaViewContent } from "@/lib/metaPixel";
 import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
 import { TarotBackgroundStage } from "@/components/tarot/TarotBackgroundStage";
@@ -24,6 +24,14 @@ import { DudasTarot } from "@/components/tarot/DudasTarot";
 // hasta antes del footer (footer queda afuera, lo pone el layout). Ancho
 // maestro 960px, igual que Home, para que ambas páginas se sientan parte
 // de la misma experiencia.
+
+// Marcador de sección para el Analista de conversión (2026-11-01): qué
+// secciones se ven y desde cuál se hace clic al checkout. display:contents
+// no genera caja, así que el diseño queda idéntico.
+function Seccion({ id, children }: { id: string; children: ReactNode }) {
+  return <div data-seccion={id} style={{ display: "contents" }}>{children}</div>;
+}
+
 export default function TarotLandingContent({ precioUYU, testimonios }: { precioUYU: number | null; testimonios: TestimonioTarot[] }) {
   useEffect(() => {
     trackViewItem("tarot", precioUYU ?? undefined);
@@ -31,6 +39,7 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
     metaViewContent(precioUYU ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => medirSecciones(document.body), []);
 
   return (
     <>
@@ -49,15 +58,15 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
       >
         <div className="max-w-[960px] mx-auto">
           <TarotBackgroundStage>
-            <HeaderTarot mostrarTestimonios={testimonios.length > 0} />
-            <HeroTarot precioUYU={precioUYU} />
-            <QueIncluyeTarot />
-            <AsiSeViveTarot />
-            <ComoFuncionaTarot />
-            <LecturasPorTema />
-            <TestimoniosTarot testimonios={testimonios} />
-            <DudasTarot />
-            <CtaFinalTarot precioUYU={precioUYU} />
+            <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} /></Seccion>
+            <Seccion id="hero"><HeroTarot precioUYU={precioUYU} /></Seccion>
+            <Seccion id="que_incluye"><QueIncluyeTarot /></Seccion>
+            <Seccion id="asi_se_vive"><AsiSeViveTarot /></Seccion>
+            <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
+            <Seccion id="por_tema"><LecturasPorTema /></Seccion>
+            <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
+            <Seccion id="dudas"><DudasTarot /></Seccion>
+            <Seccion id="cta_final"><CtaFinalTarot precioUYU={precioUYU} /></Seccion>
             {/* Pie de marca: también Privacidad, Términos y Contacto (es la
                 página donde se decide la compra). */}
             <PieMarca />
@@ -65,7 +74,7 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
         </div>
       </div>
 
-      <StickyCtaTarot precioUYU={precioUYU} />
+      <Seccion id="sticky"><StickyCtaTarot precioUYU={precioUYU} /></Seccion>
     </>
   );
 }

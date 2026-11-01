@@ -208,7 +208,7 @@ function rangoPantalla(): string {
 
 // ── Cola de eventos (nunca bloquea) ─────────────────────────────────────────
 
-type EventoCola = { event_name: string; path?: string; product_id?: string; product_name?: string; value?: number; currency?: string };
+type EventoCola = { event_name: string; path?: string; product_id?: string; product_name?: string; value?: number; currency?: string; detalle?: string };
 const ENDPOINT = '/api/analytics/event';
 const MAX_LOTE = 20;
 let cola: EventoCola[] = [];
@@ -260,6 +260,7 @@ function internalEvent(eventName: string, extra: Omit<EventoCola, 'event_name'> 
       ...(extra.product_name ? { product_name: extra.product_name } : {}),
       ...(typeof extra.value === 'number' ? { value: extra.value } : {}),
       ...(extra.currency ? { currency: extra.currency } : {}),
+      ...(extra.detalle ? { detalle: extra.detalle } : {}),
     });
     // Agrupa los eventos de los próximos 2 s en una sola llamada; al salir de
     // la página se envía lo pendiente en el acto.
@@ -337,6 +338,149 @@ export function medirInteraccion(path: string): () => void {
     try {
       window.removeEventListener('scroll', alScrollear);
       if (intervalo) clearInterval(intervalo);
+    } catch { /* non-blocking */ }
+  };
+}
+
+// ── Analista de conversión (2026-11-01) ────────────────────────────────────
+// Dónde se frena la gente: formulario del checkout y secciones de /tarot.
+// Mismas reglas que el resto: cola, sendBeacon, try/catch en todo. El
+// `detalle` es SOLO un identificador (nombre del campo, sección, motivo):
+// nunca se lee ni se manda lo que la persona escribe.
+
+const detalleSeguro = (v: string | null | undefined): string | undefined => {
+  const d = (v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+    .replace(/\s+/g, '_').replace(/[^a-z0-9_.:-]/g, '').slice(0, 40);
+  return d || undefined;
+};
+
+/** Paso del checkout: form_submit, form_error, coupon_*, mp_redirect, checkout_back… */
+export function trackCheckoutPaso(evento: string, detalle?: string, valor?: number): void {
+  internalEvent(evento, { detalle: detalleSeguro(detalle), ...(typeof valor === 'number' ? { value: valor } : {}) });
+}
+
+/** Manda ya lo pendiente (antes de salir de la página hacia Mercado Pago). */
+export function enviarEventosAhora(): void {
+  try { enviarLote(); } catch { /* non-blocking */ }
+}
+
+/**
+ * Escucha el formulario por delegación (sin tocar cada campo):
+ *  - form_started: primer campo que la persona toca (detalle = campo).
+ *  - form_field_done: salió de un campo con algo escrito, una vez por campo.
+ *  - form_invalid: el navegador frenó el envío por un campo obligatorio.
+ * Devuelve la función que deja de escuchar.
+ */
+export function medirFormulario(form: HTMLFormElement): () => void {
+  if (typeof window === 'undefined') return () => {};
+  let empezado = false;
+  const completados = new Set<string>();
+  const invalidos = new Set<string>();
+  const nombreCampo = (t: EventTarget | null): string | undefined => {
+    const el = t as HTMLInputElement | null;
+    if (!el || !('name' in el)) return undefined;
+    return detalleSeguro(el.name || el.id || el.getAttribute?.('aria-label') || el.type);
+  };
+  const alEntrar = (e: Event) => {
+    try {
+      if (empezado) return;
+      const campo = nombreCampo(e.target);
+      if (!campo) return;
+      empezado = true;
+      internalEvent('form_started', { detalle: campo });
+    } catch { /* non-blocking */ }
+  };
+  const alSalir = (e: Event) => {
+    try {
+      const el = e.target as HTMLInputElement;
+      const campo = nombreCampo(el);
+      if (!campo || completados.has(campo)) return;
+      const lleno = el.type === 'checkbox' ? el.checked : String(el.value ?? '').trim() !== '';
+      if (!lleno) return;
+      completados.add(campo);
+      internalEvent('form_field_done', { detalle: campo });
+    } catch { /* non-blocking */ }
+  };
+  const alInvalido = (e: Event) => {
+    try {
+      const campo = nombreCampo(e.target);
+      if (!campo || invalidos.has(campo)) return;
+      invalidos.add(campo);
+      internalEvent('form_invalid', { detalle: campo });
+    } catch { /* non-blocking */ }
+  };
+  try {
+    form.addEventListener('focusin', alEntrar);
+    form.addEventListener('focusout', alSalir);
+    form.addEventListener('change', alSalir);
+    // 'invalid' no burbujea: se escucha en fase de captura.
+    form.addEventListener('invalid', alInvalido, true);
+  } catch { /* non-blocking */ }
+  return () => {
+    try {
+      form.removeEventListener('focusin', alEntrar);
+      form.removeEventListener('focusout', alSalir);
+      form.removeEventListener('change', alSalir);
+      form.removeEventListener('invalid', alInvalido, true);
+    } catch { /* non-blocking */ }
+  };
+}
+
+/**
+ * Secciones de una landing: cada elemento con data-seccion="…" (el marcador
+ * puede ser display:contents; se observa su primer hijo con caja).
+ *  - section_view: la sección se vio (≥35 % en pantalla), una vez cada una.
+ *  - cta_click: clic en un enlace al checkout (detalle = sección del botón).
+ *  - faq_open: se abrió una pregunta (<details>), detalle = número.
+ */
+export function medirSecciones(raiz: HTMLElement): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const vistas = new Set<string>();
+  let observador: IntersectionObserver | null = null;
+  const seccionDe = (el: Element | null) => detalleSeguro(el?.closest('[data-seccion]')?.getAttribute('data-seccion'));
+  const alClic = (e: MouseEvent) => {
+    try {
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || !a.getAttribute('href')?.startsWith('/tarot/checkout')) return;
+      internalEvent('cta_click', { detalle: seccionDe(a) ?? 'otro' });
+    } catch { /* non-blocking */ }
+  };
+  const alAbrir = (e: Event) => {
+    try {
+      const d = e.target as HTMLDetailsElement;
+      if (!(d instanceof HTMLDetailsElement) || !d.open) return;
+      const todos = Array.from(raiz.querySelectorAll('details'));
+      internalEvent('faq_open', { detalle: `${seccionDe(d) ?? 'faq'}:${todos.indexOf(d) + 1}` });
+    } catch { /* non-blocking */ }
+  };
+  try {
+    if ('IntersectionObserver' in window) {
+      observador = new IntersectionObserver((entradas) => {
+        for (const en of entradas) {
+          if (!en.isIntersecting) continue;
+          const id = (en.target as HTMLElement).dataset.seccionMedida;
+          if (!id || vistas.has(id)) continue;
+          vistas.add(id);
+          internalEvent('section_view', { detalle: id });
+          observador?.unobserve(en.target);
+        }
+      }, { threshold: 0.35 });
+      raiz.querySelectorAll<HTMLElement>('[data-seccion]').forEach((m) => {
+        const id = detalleSeguro(m.getAttribute('data-seccion'));
+        const blanco = (getComputedStyle(m).display === 'contents' ? m.firstElementChild : m) as HTMLElement | null;
+        if (!id || !blanco) return;
+        blanco.dataset.seccionMedida = id;
+        observador!.observe(blanco);
+      });
+    }
+    raiz.addEventListener('click', alClic, { capture: true, passive: true });
+    raiz.addEventListener('toggle', alAbrir, true);
+  } catch { /* non-blocking */ }
+  return () => {
+    try {
+      observador?.disconnect();
+      raiz.removeEventListener('click', alClic, true);
+      raiz.removeEventListener('toggle', alAbrir, true);
     } catch { /* non-blocking */ }
   };
 }

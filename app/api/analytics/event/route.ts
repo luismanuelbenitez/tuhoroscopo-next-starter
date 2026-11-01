@@ -23,7 +23,16 @@ const MAX_BYTES = 8 * 1024;
 const MAX_LOTE = 20;
 // scroll_depth / time_on_page (2026-10-31): interacción con la página; el
 // valor (% o segundos) va en `value`. No cuentan como páginas vistas.
-const EVENTOS_PERMITIDOS = new Set(['page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page']);
+// Analista de conversión (2026-11-01): formulario del checkout y secciones /
+// botones de /tarot. Llevan `detalle` (dónde pasó: campo, sección, motivo).
+const EVENTOS_PERMITIDOS = new Set([
+  'page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page',
+  'form_started', 'form_field_done', 'form_invalid', 'form_submit', 'form_error',
+  'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back',
+  'section_view', 'cta_click', 'faq_open',
+]);
+// Solo identificadores (nombre de campo, sección, código): nunca texto libre.
+const DETALLE_VALIDO = /^[a-z0-9_.:-]{1,40}$/;
 const PRODUCTOS_PERMITIDOS = new Set(['tarot_one_shot', 'horoscopo_diario']);
 const ID_VALIDO = /^[a-z0-9-]{8,64}$/i;
 const RANGOS_PANTALLA = new Set(['<360', '360-413', '414-767', '768-1023', '1024-1439', '1440+']);
@@ -104,6 +113,7 @@ export async function POST(req: Request) {
       const path = txt(ev.path, 200);
       const producto = txt(ev.product_id, 40);
       const valor = typeof ev.value === 'number' && Number.isFinite(ev.value) && ev.value >= 0 && ev.value <= 100000 ? ev.value : undefined;
+      const detalle = txt(ev.detalle, 40);
       return [{
         event_name: nombre,
         path: path && path.startsWith('/') ? path : null,
@@ -111,6 +121,7 @@ export async function POST(req: Request) {
         product_name: producto && PRODUCTOS_PERMITIDOS.has(producto) ? txt(ev.product_name, 80) ?? null : null,
         value: valor ?? null,
         currency: ev.currency === 'UYU' || ev.currency === 'ARS' ? ev.currency : 'UYU',
+        detalle: detalle && DETALLE_VALIDO.test(detalle) ? detalle : null,
       }];
     });
     if (!eventos.length) return vacio();
