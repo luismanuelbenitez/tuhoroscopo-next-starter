@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { leer, leerTodo, metaConfig, type MetaConfig } from "@/lib/metaAds/graph";
+import { leer, leerTodo, metaConfig, MetaError, type MetaConfig } from "@/lib/metaAds/graph";
 
 // Sincronización Meta Ads → Supabase (2026-11-02). Solo lee de Meta.
 // Trae cuenta, configuración completa de campañas / conjuntos / anuncios,
@@ -182,7 +182,15 @@ export async function sincronizar(rest: Rest, opciones: { dias: number; origen: 
     await cerrar({ ok: true, desde: resumen.desde, hasta: resumen.hasta, conteos: { ...resumen, guardado } });
     return { ok: true as const, resumen, guardado };
   } catch (e) {
-    const motivo = e instanceof Error ? e.message : String(e);
+    let motivo = e instanceof Error ? e.message : String(e);
+    // Sin permiso sobre la cuenta: se informa qué cuentas SÍ ve la clave, para
+    // distinguir un número de cuenta equivocado de un permiso faltante.
+    if (e instanceof MetaError && e.codigo === 200) {
+      const visibles = await leerTodo<Fila>(cfg, "me/adaccounts", { fields: "account_id,name" })
+        .then((l) => (l.length ? l.map((c) => `${c.name} (${c.account_id})`).join(", ") : "ninguna"))
+        .catch((x) => `no se pudo consultar (${x instanceof Error ? x.message.slice(0, 120) : "error"})`);
+      motivo += ` · Cuenta configurada: ${cfg.cuenta}. La clave puede ver: ${visibles}`;
+    }
     await cerrar({ ok: false, error: motivo.slice(0, 500) }).catch(() => {});
     return { ok: false as const, motivo };
   }
