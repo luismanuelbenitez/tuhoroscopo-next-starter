@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
 import type { ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import Image from "next/image";
+import { ChevronDown, Layers, MessageCircle, Headphones, FileText, KeyRound } from "lucide-react";
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 import { PANEL_INSTITUCIONAL as PANEL } from "@/components/marca/PaginaInstitucional";
 import { CardTestimonio } from "@/components/tarot/TestimoniosTarot";
@@ -117,6 +118,56 @@ export function PosicionesTarot({ lecturas }: { lecturas: [string, string, strin
         </li>
       ))}
     </ol>
+  );
+}
+
+// Qué se recibe, con una lectura real de ejemplo (2026-11-02). Las páginas
+// por tema eran solo texto: quien llega desde un anuncio no veía el producto.
+// La captura es la lectura de demostración de Paula (nunca de clientes).
+const QUE_RECIBIS = [
+  { Icon: Layers, t: "5 cartas interpretadas para tu consulta" },
+  { Icon: KeyRound, t: "Mensaje personal y 3 claves para avanzar" },
+  { Icon: Headphones, t: "Resumen en audio para escuchar" },
+  { Icon: FileText, t: "PDF para guardar" },
+  { Icon: MessageCircle, t: "Te llega por WhatsApp en minutos" },
+];
+
+export function AsiTeLlega({ imagen = "/img/tarot/contenedores/asi-se-vive/pantalla-lectura-real.webp", pie, precioUYU = null }: {
+  imagen?: string; pie: string; precioUYU?: number | null;
+}) {
+  const precio = precioTexto(precioUYU);
+  return (
+    <section className="rounded-2xl px-5 md:px-7 py-6 md:py-7 mt-5" style={{ ...PANEL, border: "1px solid rgba(240,197,90,0.45)" }}>
+      <h2 className="mb-4 text-center" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(23px, 3.8vw, 28px)", lineHeight: 1.2, color: CREMA }}>Así te llega tu lectura</h2>
+      <div className="grid grid-cols-[42%_1fr] md:grid-cols-[220px_1fr] gap-4 md:gap-7 items-center">
+        <figure>
+          <div className="relative aspect-[9/17] rounded-[22px] overflow-hidden" style={{ border: "2px solid rgba(240,197,90,0.55)", boxShadow: "0 12px 36px rgba(0,0,0,0.5), 0 0 24px rgba(240,197,90,0.15)" }}>
+            <Image src={imagen} alt={pie} fill sizes="(max-width: 767px) 42vw, 220px" className="object-cover object-top" />
+          </div>
+          <figcaption className="mt-2 text-center text-[11.5px] text-white/50">{pie}</figcaption>
+        </figure>
+        <ul className="space-y-3">
+          {QUE_RECIBIS.map(({ Icon, t }) => (
+            <li key={t} className="flex items-start gap-2.5 text-[14.5px] md:text-[15.5px] leading-snug text-white/85">
+              <Icon aria-hidden="true" size={18} className="shrink-0 mt-[1px]" style={{ color: GOLD }} />
+              <span>{t}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="mt-5 text-center text-[13px] text-white/60">
+        {precio && <><span className="font-semibold" style={{ color: GOLD }}>{precio}</span> · </>}Pago único · Pago seguro con Mercado Pago
+      </p>
+    </section>
+  );
+}
+
+/** Botón de compra entre secciones (para que nadie tenga que volver arriba). */
+export function CtaIntermedio({ href, tema, children }: { href: string; tema?: string; children: ReactNode }) {
+  return (
+    <div className="mt-6 text-center">
+      <CtaSeo href={href} ubicacion="medio" tema={tema}>{children}</CtaSeo>
+    </div>
   );
 }
 

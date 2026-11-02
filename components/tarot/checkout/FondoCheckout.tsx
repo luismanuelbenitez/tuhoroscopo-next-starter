@@ -11,6 +11,7 @@ const DIR = "/img/tarot/contenedores/checkout";
 // LCP de las páginas SEO/institucionales en celular). Misma imagen.
 export const FONDO_CHECKOUT_MOBILE = urlOptimizada(`${DIR}/fondo-checkout-mobile.webp`, 828);
 const MASCARA = "linear-gradient(180deg, #000 0, #000 80%, transparent 100%)";
+const MASCARA_CONTINUACION = "linear-gradient(180deg, transparent 0, #000 14%, #000 78%, transparent 100%)";
 
 export function FondoCheckout() {
   const capa = {
@@ -40,6 +41,11 @@ export function FondoCheckout() {
   return (
     <>
       <div aria-hidden="true" className="md:hidden" style={{ ...capa, width: "100%", aspectRatio: "780 / 4400", backgroundImage: `url(${FONDO_CHECKOUT_MOBILE})` }} />
+      {/* Continuación (2026-11-02): en páginas largas (SEO, FAQ) la escena
+          mobile terminaba a ~2200 px y el resto quedaba liso. Misma imagen
+          espejada en vertical, empieza donde la primera se desvanece y se
+          funde en ambos extremos. En páginas cortas el contenedor la recorta. */}
+      <div aria-hidden="true" className="md:hidden" style={{ ...capa, top: "calc(100vw * 4.85)", width: "100%", aspectRatio: "780 / 4400", backgroundImage: `url(${FONDO_CHECKOUT_MOBILE})`, transform: "translateX(-50%) scaleY(-1)", maskImage: MASCARA_CONTINUACION, WebkitMaskImage: MASCARA_CONTINUACION, opacity: 0.85 }} />
       <div aria-hidden="true" className="hidden md:block" style={{ ...capa, width: "min(1280px, 100%)", aspectRatio: "2560 / 2400", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-checkout-desktop.webp`, 1920)})` }} />
       {/* Pie: escena baja (velas, cristales) apoyada abajo, se funde hacia
           arriba — cubre lo que la escena principal no alcanza. Misma imagen

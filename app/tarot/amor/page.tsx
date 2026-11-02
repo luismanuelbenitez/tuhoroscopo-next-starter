@@ -2,7 +2,7 @@ import { getPrecioTarot } from "@/lib/getPrecioTarot";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
 import {
-  HeroSeo, Seccion, Lista, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema,
+  HeroSeo, Seccion, Lista, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema, AsiTeLlega, CtaIntermedio,
 } from "@/components/seo/BloquesSeo";
 
 // Intención: una duda sobre un vínculo (pareja, ex, alguien que empieza).
@@ -23,13 +23,16 @@ export default async function TarotAmor() {
         precioUYU={precioUYU}
         eyebrow="Tarot del amor"
         titulo="Tarot del amor: claridad para tu vínculo"
-        cta={<CtaSeo href={CTA} ubicacion="hero" tema="amor">Consultar sobre amor</CtaSeo>}
+        cta={<CtaSeo href={CTA} ubicacion="hero" tema="amor">Quiero mi lectura de amor →</CtaSeo>}
       >
         <p>
           Cuando una relación te tiene dando vueltas, una lectura de tarot puede ayudarte a ordenar lo que sentís y a
           mirar el vínculo desde otro lugar. No para que alguien decida por vos, sino para ver con más claridad.
         </p>
       </HeroSeo>
+
+      {/* 2026-11-02: el producto a la vista antes del texto explicativo. */}
+      <AsiTeLlega pie="Ejemplo de una lectura de amor" precioUYU={precioUYU} />
 
       <Seccion titulo="Cómo se lee una consulta de amor">
         <p>Tus 5 cartas recorren el vínculo en cinco momentos:</p>
@@ -60,6 +63,8 @@ export default async function TarotAmor() {
         </p>
       </Seccion>
 
+      <CtaIntermedio href={CTA} tema="amor">Hacer mi consulta de amor →</CtaIntermedio>
+
       <Seccion titulo="Para qué te sirve (y para qué no)">
         <p>
           Una lectura de amor es una herramienta de reflexión: te ayuda a nombrar lo que sentís, a ver patrones y a
@@ -84,6 +89,14 @@ export default async function TarotAmor() {
           {
             q: "¿La otra persona se entera?",
             a: "No. Tu consulta y tu lectura te llegan solo a vos, por WhatsApp y, si lo pedís, por email.",
+          },
+          {
+            q: "¿Cómo pago?",
+            a: "Con Mercado Pago: tarjeta de crédito, débito o los medios que te ofrezca al pagar. Es un pago único, sin suscripción ni cobros posteriores.",
+          },
+          {
+            q: "¿Y si no me llega?",
+            a: "Te llega en menos de 15 minutos desde que se confirma el pago. Si no la recibiste o no podés abrirla, escribinos a hola@tuoraculo.uy con el número de WhatsApp que usaste y te la reenviamos.",
           },
         ]}
       />
