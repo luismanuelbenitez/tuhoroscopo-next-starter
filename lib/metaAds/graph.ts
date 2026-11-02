@@ -20,8 +20,10 @@ export function graphBase(): string {
 export interface MetaConfig { token: string; cuenta: string }
 
 // Tolerante a lo que se pega en Vercel: espacios, comillas o "act_" alrededor.
+// Del número de cuenta se toman solo los dígitos: al copiarlo de la pantalla de
+// Meta vienen marcas invisibles de dirección de texto (no se ven en Vercel).
 const limpiar = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, "").trim() ?? "";
-const idCuenta = () => limpiar(process.env.META_ADS_ACCOUNT_ID).replace(/^act_?/i, "").replace(/\s/g, "");
+const idCuenta = () => limpiar(process.env.META_ADS_ACCOUNT_ID).replace(/\D/g, "");
 
 export function metaConfig(): MetaConfig | null {
   const token = limpiar(process.env.META_ADS_TOKEN);
