@@ -9,57 +9,64 @@ import { metadataPagina } from '@/lib/seo/metadataPagina';
 export const metadata = metadataPagina(
   '/terminos-del-servicio',
   'Términos del servicio | Tu Oráculo',
-  'Condiciones de uso de Tu Oráculo: descripción del servicio de Tarot online, pago único, entregas, reembolsos y alcance de las lecturas.',
+  'Condiciones de Tu Oráculo: qué es la lectura de Tarot, precio y pago único, entrega, arrepentimiento y devoluciones, y dónde reclamar.',
 );
 
 export default async function TerminosServicio() {
   const precioTarot = await getPrecioTarot();
   const precioTarotTexto = precioTarot !== null ? `$U ${precioTarot}` : 'el precio que ves en el checkout';
 
+  // Revisión legal (2026-11-02): entrega por todos los canales, arrepentimiento
+  // y devoluciones (Ley 17.250 art. 16), responsabilidad sin cláusula de tope
+  // (art. 31), ley aplicable y dónde reclamar. Lenguaje simple, a pedido.
   const SECTIONS = [
     {
-      title: '1. Descripción del servicio',
-      content: 'Tu Oráculo es una empresa uruguaya de experiencias digitales de autoconocimiento. Hoy ofrece un producto: Tarot, lecturas individuales generadas por inteligencia artificial y entregadas vía WhatsApp, de uso personal y no comercial. Tu Oráculo es un servicio operado por Luis Manuel Benítez Rodríguez, titular de una empresa unipersonal registrada en Uruguay, RUT 214998320016.',
+      title: '1. Quién presta el servicio',
+      content: 'Tu Oráculo es un servicio de Luis Manuel Benítez Rodríguez, empresa unipersonal registrada en Uruguay, RUT 214998320016. Contacto: hola@tuoraculo.uy.',
     },
     {
-      title: '2. Condiciones de uso',
-      content: 'Al usar nuestros servicios aceptás estos Términos en su totalidad. Debés ser mayor de 18 años para contratar una lectura. No podés usar el servicio con fines comerciales, revender el contenido ni reproducirlo sin autorización.',
+      title: '2. Qué es tu lectura',
+      content: 'Es una lectura de Tarot de 5 cartas sobre la consulta que nos dejás en el formulario. La escribe inteligencia artificial aplicando la simbología del tarot tradicional. Te la entregamos por WhatsApp (y por email, si lo pedís) con un enlace para leerla en la web, un PDF para guardar y un resumen en audio.',
     },
     {
-      title: '3. Tarot — Pago único',
-      content: `Las lecturas de tarot son un producto de pago único: cuestan ${precioTarotTexto}, sin suscripción ni renovación automática. Cada contratación corresponde a una lectura individual sobre la consulta especificada en el formulario. El pago se procesa a través de Mercado Pago.`,
+      title: '3. Quién puede comprar',
+      content: 'Tenés que ser mayor de 18 años. La lectura es para tu uso personal: no podés revenderla ni usarla con fines comerciales.',
     },
     {
-      title: '4. Suscripciones',
-      content: 'Hoy Tu Oráculo no vende suscripciones: el Tarot es de pago único. Si en el futuro ofrecemos un producto por suscripción, su precio, su renovación y cómo darse de baja se informarán antes de contratar. Quien tenga una suscripción anterior activa puede cancelarla en cualquier momento desde su perfil en Mercado Pago o escribiéndonos a hola@tuoraculo.uy. La cancelación detiene la renovación siguiente; no hay reembolso proporcional por el mes en curso salvo que la cancelación ocurra dentro de las primeras 24 horas del cargo.',
+      title: '4. Precio y pago',
+      content: `La lectura cuesta ${precioTarotTexto}, en pesos uruguayos. Es un pago único y final: no se suman cargos, no hay suscripción ni renovación automática. El pago lo procesa Mercado Pago y nosotros nunca vemos los datos de tu tarjeta. Hoy no vendemos suscripciones; si en el futuro lo hacemos, te vamos a informar precio, renovación y cómo darte de baja antes de contratar.`,
     },
     {
-      title: '5. Contenido generado por inteligencia artificial',
-      content: 'Las lecturas de Tarot son generadas íntegramente por modelos de inteligencia artificial aplicando simbología del tarot tradicional a la consulta del usuario. El contenido tiene exclusivamente carácter simbólico y de reflexión personal. No constituye asesoramiento profesional de ningún tipo (psicológico, médico, legal, financiero ni de ninguna otra índole). Tu Oráculo no garantiza resultados ni la exactitud de ninguna interpretación. El usuario asume la responsabilidad por el uso que haga del contenido recibido.',
+      title: '5. Entrega',
+      content: 'Tu lectura se genera y se envía apenas se confirma el pago: suele llegar en pocos minutos, y como máximo en 15. Si no te llega, escribinos y te la reenviamos. Si por un problema nuestro no podemos entregártela, te devolvemos el 100% de lo que pagaste.',
     },
     {
-      title: '6. Entregas y tiempos',
-      content: 'Las lecturas de Tarot se entregan en menos de 15 minutos tras la confirmación del pago, salvo problemas técnicos imprevistos — en ese caso, nos ponemos en contacto con el usuario.',
+      title: '6. Arrepentimiento y devoluciones',
+      content: 'Tenés 5 días hábiles desde la compra para arrepentirte, como prevé la Ley de Relaciones de Consumo. Si todavía no recibiste tu lectura, te devolvemos el total. Como la lectura es contenido digital que se entrega al instante, al comprar pedís que la preparemos de inmediato. Aun así, si tu lectura llegó incompleta, con fallas o no corresponde a tu consulta, la hacemos de nuevo o te devolvemos el dinero, lo que prefieras. Para cualquiera de estos casos escribinos a hola@tuoraculo.uy o por WhatsApp; la devolución se hace por Mercado Pago, al mismo medio de pago.',
     },
     {
-      title: '7. Pagos y seguridad',
-      content: 'Todos los pagos son procesados por Mercado Pago. Tu Oráculo no almacena datos de tarjeta ni información de pago sensible en sus servidores. Las disputas de pago deben gestionarse directamente con Mercado Pago de acuerdo a sus políticas.',
+      title: '7. Qué es y qué no es una lectura de Tarot',
+      content: 'El contenido tiene carácter simbólico y de reflexión personal. No predice el futuro y no reemplaza asesoramiento profesional (psicológico, médico, legal, financiero ni de ningún otro tipo). Las decisiones que tomes son tuyas.',
     },
     {
-      title: '8. Limitación de responsabilidad',
-      content: 'Tu Oráculo ofrece contenido de bienestar, astrología práctica y simbología tarot con fines recreativos y de reflexión. No somos responsables por decisiones tomadas en base al contenido de nuestros mensajes o lecturas. La responsabilidad total de Tu Oráculo ante cualquier reclamación se limita al importe abonado por el servicio en cuestión.',
+      title: '8. Responsabilidad',
+      content: 'Nos comprometemos a entregarte el servicio tal como se describe acá. No respondemos por decisiones que tomes basándote en una lectura, por su carácter simbólico. Nada de estos Términos limita los derechos que te da la ley como consumidor.',
     },
     {
       title: '9. Propiedad intelectual',
-      content: 'El contenido generado por Tu Oráculo (mensajes, lecturas, diseños) es propiedad de Tu Oráculo. Podés usarlo para uso personal, pero no reproducirlo, distribuirlo ni comercializarlo sin autorización escrita.',
+      content: 'Los textos, diseños e imágenes de Tu Oráculo son nuestros. Tu lectura es para vos: podés guardarla y compartirla con quien quieras, pero no reproducirla ni venderla con fines comerciales.',
     },
     {
-      title: '10. Modificaciones',
-      content: 'Nos reservamos el derecho de actualizar estos Términos en cualquier momento. Cambios significativos serán comunicados por WhatsApp o en el sitio web. El uso continuado del servicio después de notificada una actualización implica aceptación de los nuevos términos.',
+      title: '10. Tus datos',
+      content: 'Cómo usamos y protegemos tu información está en la Política de privacidad, que forma parte de estos Términos.',
     },
     {
-      title: '11. Contacto',
-      content: 'Para cualquier consulta relacionada con estos Términos, escribinos a hola@tuoraculo.uy.',
+      title: '11. Cambios en estos Términos',
+      content: 'Podemos actualizar estos Términos. Cada compra se rige por los Términos vigentes en el momento en que la hiciste.',
+    },
+    {
+      title: '12. Ley aplicable y reclamos',
+      content: 'Estos Términos se rigen por las leyes de Uruguay. Si tenés un problema, escribinos primero: lo resolvemos rápido. También podés acudir al Área de Defensa del Consumidor del Ministerio de Economía y Finanzas.',
     },
   ];
 
@@ -67,7 +74,7 @@ export default async function TerminosServicio() {
     <PaginaInstitucional>
       <EncabezadoInstitucional eyebrow="Legal" titulo="Términos del servicio">
         <p>Estas condiciones regulan el uso de Tu Oráculo y de su lectura de Tarot.</p>
-        <p className="text-white/45 text-[13px] mt-2">Última actualización: octubre 2026</p>
+        <p className="text-white/45 text-[13px] mt-2">Última actualización: noviembre 2026</p>
       </EncabezadoInstitucional>
 
       <IndiceLegal titulos={SECTIONS.map(s => s.title)} />

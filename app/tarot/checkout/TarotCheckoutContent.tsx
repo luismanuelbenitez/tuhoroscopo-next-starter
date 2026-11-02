@@ -826,16 +826,20 @@ export default function TarotCheckoutContent({
                     required
                     className="mt-0.5 h-[22px] w-[22px] shrink-0 cursor-pointer accent-[#F0C55A]"
                   />
+                  {/* Texto legal (2026-11-02): mayoría de edad + aceptación. Entrega
+                      inmediata y arrepentimiento (Términos 6), proveedores en el
+                      exterior y datos sensibles (Privacidad 4 y 6) quedan en los
+                      textos aceptados: sin sumar lectura al checkout, a pedido. */}
                   <span>
-                    Leí y acepto la{' '}
-                    <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
-                      Política de privacidad
-                    </a>{' '}
-                    y los{' '}
+                    Soy mayor de 18 y acepto los{' '}
                     <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
-                      Términos del servicio
+                      Términos
+                    </a>{' '}
+                    y la{' '}
+                    <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
+                      Privacidad
                     </a>
-                    , incluyendo que la lectura es generada por IA con fines simbólicos.
+                    .
                   </span>
                 </label>
                 {erroresCampo.acepta_terminos && <div className="!-mt-3"><ErrorCampo texto={erroresCampo.acepta_terminos} /></div>}
@@ -854,7 +858,7 @@ export default function TarotCheckoutContent({
                       <span style={{ color: GOLD }}>✦</span> {esCortesia ? 'Sin cargo' : 'Pago único · Sin suscripción'} · Podés recibirla también por email.
                     </p>
                     {/* Garantía de entrega (2026-11-01): lo mismo que dicen los
-                        Términos (punto 6), dicho donde se decide el pago. */}
+                        Términos (punto 5), dicho donde se decide el pago. */}
                     <p className="text-[12.5px] text-white/60 mt-0.5">
                       <span style={{ color: GOLD }}>✦</span> Si no te llega, escribinos y te la reenviamos.
                     </p>
