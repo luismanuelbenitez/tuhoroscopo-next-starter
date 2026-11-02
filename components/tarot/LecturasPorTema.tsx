@@ -8,10 +8,15 @@ import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 // y el hub: este bloque reparte autoridad hacia las consultas por tema y
 // orienta a quien llega con una duda concreta. Estética de la propia landing
 // (paneles con filete dorado, Cormorant); sin imágenes (cero peso extra).
+//
+// 2026-11-01: la acción principal de cada tarjeta lleva al checkout con el
+// tema ya elegido (?tema=); antes mandaba a la página del tema y sacaba del
+// camino de compra a quien venía de un anuncio. La página del tema sigue
+// enlazada con un link chico (enlazado interno para SEO).
 const TEMAS = [
-  { href: "/tarot/amor", Icon: Heart, t: "Amor y vínculos", d: "Una relación, alguien que empieza o algo que terminó." },
-  { href: "/tarot/trabajo-y-dinero", Icon: Briefcase, t: "Trabajo y dinero", d: "Un cambio laboral, un proyecto o tu relación con la plata." },
-  { href: "/tarot/decisiones", Icon: Compass, t: "Una decisión", d: "Cuando tenés que elegir y no terminás de decidirte." },
+  { href: "/tarot/amor", tema: "amor", Icon: Heart, t: "Amor y vínculos", d: "Una relación, alguien que empieza o algo que terminó." },
+  { href: "/tarot/trabajo-y-dinero", tema: "trabajo", Icon: Briefcase, t: "Trabajo y dinero", d: "Un cambio laboral, un proyecto o tu relación con la plata." },
+  { href: "/tarot/decisiones", tema: "decision", Icon: Compass, t: "Una decisión", d: "Cuando tenés que elegir y no terminás de decidirte." },
 ];
 
 export function LecturasPorTema() {
@@ -29,11 +34,10 @@ export function LecturasPorTema() {
         La misma lectura de 5 cartas, enfocada en el tema que elijas.
       </p>
       <div className="grid gap-3 md:grid-cols-3">
-        {TEMAS.map(({ href, Icon, t, d }) => (
-          <Link
+        {TEMAS.map(({ href, tema, Icon, t, d }) => (
+          <div
             key={href}
-            href={href as Route<string>}
-            className="group rounded-2xl px-5 py-5 text-left transition hover:brightness-110"
+            className="rounded-2xl px-5 py-5 text-left flex flex-col"
             style={{ background: "rgba(12,7,24,0.72)", border: "1px solid rgba(240,197,90,0.32)" }}
           >
             <span className="flex items-center gap-2.5 mb-1.5">
@@ -41,8 +45,22 @@ export function LecturasPorTema() {
               <span className="font-semibold text-[15.5px]" style={{ color: CREMA }}>{t}</span>
             </span>
             <span className="block text-white/60 text-[13.5px] leading-snug">{d}</span>
-            <span className="block mt-2.5 text-[13px] font-semibold" style={{ color: GOLD }}>Ver cómo es esta lectura →</span>
-          </Link>
+            <span className="mt-auto pt-3.5 flex items-center justify-between gap-3 flex-wrap">
+              <Link
+                href={`/tarot/checkout?tema=${tema}` as Route<string>}
+                className="inline-flex items-center rounded-full px-4 min-h-[40px] text-[13.5px] font-semibold transition hover:bg-[#F0C55A]/15"
+                style={{ color: GOLD, border: "1px solid rgba(240,197,90,0.55)" }}
+              >
+                Quiero esta lectura →
+              </Link>
+              <Link
+                href={href as Route<string>}
+                className="py-2 text-[12.5px] text-white/50 underline underline-offset-2 decoration-white/25 hover:text-white/80"
+              >
+                Ver más
+              </Link>
+            </span>
+          </div>
         ))}
       </div>
       <p className="mt-6 text-[13.5px] text-white/55">

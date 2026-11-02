@@ -261,6 +261,7 @@ export async function armarPaquete(get: Getter, o: OpcionesPaquete) {
       abrieron_codigo_de_descuento: evActual.filter((e) => e.event_name === "coupon_opened").length,
       resultado_del_codigo: det("coupon_result"),
       volvieron_a_tarot_desde_checkout: evActual.filter((e) => e.event_name === "checkout_back").length,
+      pidieron_ayuda_por_whatsapp: det("help_click"),
       tiempo_en_checkout_visitas_por_tramo: {
         menos_de_10s: tiemposCheckout.filter((t) => t < 10).length,
         "10_a_29s": tiemposCheckout.filter((t) => t >= 10 && t < 30).length,

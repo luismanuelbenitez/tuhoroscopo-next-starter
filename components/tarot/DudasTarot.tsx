@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
+import { linkWhatsApp } from "@/lib/contacto";
 
 // Dudas antes de comprar, junto al CTA final (Paquete SEO 2, 2026-10-21).
-// Solo las 4 objeciones reales que frenan la compra; el resto vive en /faq.
+// Solo las objeciones reales que frenan la compra; el resto vive en /faq.
 // Respuestas alineadas con /faq, Términos y Política de privacidad — sin
 // prometer nada que el producto no haga. <details> nativo: sin JS y con el
 // texto siempre en el HTML. Sin imágenes (cero peso extra).
@@ -19,7 +20,17 @@ const DUDAS = [
   },
   {
     q: "¿Cuánto tarda en llegar?",
-    a: "Menos de 15 minutos desde que se confirma tu pago. Si pasado ese tiempo no la recibiste, escribinos a hola@tuoraculo.uy y te la enviamos.",
+    a: "Menos de 15 minutos desde que se confirma tu pago. Te llega por WhatsApp y, si dejaste tu email, también por email.",
+  },
+  // 2026-11-01: las dos dudas de pago que faltaban antes de comprar.
+  {
+    q: "¿Cómo pago?",
+    a: "Con Mercado Pago: tarjeta de crédito, débito o los medios que te ofrezca al pagar. Es un pago único, sin suscripción ni cobros posteriores, y Tu Oráculo nunca ve ni guarda los datos de tu tarjeta.",
+  },
+  {
+    q: "¿Y si no me llega o tengo un problema?",
+    a: "Si pasaron 15 minutos desde el pago y no la recibiste, o no podés abrirla, escribinos con el número de WhatsApp que usaste al comprar y lo resolvemos: te la reenviamos o la generamos de nuevo.",
+    contacto: true,
   },
   {
     q: "¿Qué puede y qué no puede hacer el Tarot?",
@@ -27,7 +38,7 @@ const DUDAS = [
   },
 ];
 
-export function DudasTarot() {
+export function DudasTarot({ waNumero = "" }: { waNumero?: string }) {
   return (
     <section aria-labelledby="dudas-tarot" className="relative px-5 md:px-8 pt-10 pb-4 md:pt-12 max-w-[680px] mx-auto">
       <p className="text-[11px] font-bold uppercase tracking-widest mb-2 text-center" style={{ color: GOLD }}>Antes de pedir tu lectura</p>
@@ -57,6 +68,23 @@ export function DudasTarot() {
                   <Link href="/politica-de-privacidad" className="underline underline-offset-2 hover:text-white/85" style={{ color: "rgba(240,197,90,0.9)" }}>
                     Política de privacidad
                   </Link>
+                  .
+                </>
+              )}
+              {d.contacto && (
+                <>
+                  {" "}
+                  {waNumero && (
+                    <>
+                      <a href={linkWhatsApp(waNumero, "Hola! Compré una lectura de Tarot y tengo un problema.")} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-white/85" style={{ color: "rgba(240,197,90,0.9)" }}>
+                        Escribinos por WhatsApp
+                      </a>
+                      {" o a "}
+                    </>
+                  )}
+                  <a href="mailto:hola@tuoraculo.uy" className="underline underline-offset-2 hover:text-white/85" style={{ color: "rgba(240,197,90,0.9)" }}>
+                    hola@tuoraculo.uy
+                  </a>
                   .
                 </>
               )}

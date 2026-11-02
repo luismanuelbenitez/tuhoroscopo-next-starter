@@ -28,7 +28,7 @@ const MAX_LOTE = 20;
 const EVENTOS_PERMITIDOS = new Set([
   'page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page',
   'form_started', 'form_field_done', 'form_invalid', 'form_submit', 'form_error',
-  'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back',
+  'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back', 'help_click',
   'section_view', 'cta_click', 'faq_open',
 ]);
 // Solo identificadores (nombre de campo, sección, código): nunca texto libre.

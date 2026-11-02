@@ -18,6 +18,7 @@ import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
 import { FechaNacimiento } from '@/components/tarot/checkout/FechaNacimiento';
 import { PieMarca } from '@/components/marca/PieMarca';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
+import { linkWhatsApp } from '@/lib/contacto';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
 // 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
@@ -160,8 +161,8 @@ function formatearTelefono(raw: string, pais: string): string {
 }
 
 export default function TarotCheckoutContent({
-  temaInicial, precioBase, codigoInicial, nombreInicial, nacimientoInicial,
-}: { temaInicial?: string; precioBase: number | null; codigoInicial?: string; nombreInicial?: string; nacimientoInicial?: string }) {
+  temaInicial, precioBase, codigoInicial, nombreInicial, nacimientoInicial, waNumero = '',
+}: { temaInicial?: string; precioBase: number | null; codigoInicial?: string; nombreInicial?: string; nacimientoInicial?: string; waNumero?: string }) {
   const PRECIO_BASE = precioBase;
   // El precio no pudo verificarse contra la fuente canónica (tarot_configuracion.precio_base_uyu)
   // — no se muestra ni se permite pagar un precio no verificado (ver docs/product/DECISIONS.md).
@@ -852,6 +853,11 @@ export default function TarotCheckoutContent({
                     <p className="text-[12.5px] text-white/60 mt-0.5">
                       <span style={{ color: GOLD }}>✦</span> {esCortesia ? 'Sin cargo' : 'Pago único · Sin suscripción'} · Podés recibirla también por email.
                     </p>
+                    {/* Garantía de entrega (2026-11-01): lo mismo que dicen los
+                        Términos (punto 6), dicho donde se decide el pago. */}
+                    <p className="text-[12.5px] text-white/60 mt-0.5">
+                      <span style={{ color: GOLD }}>✦</span> Si no te llega, escribinos y te la reenviamos.
+                    </p>
                   </div>
                 </div>
 
@@ -904,6 +910,26 @@ export default function TarotCheckoutContent({
                     <span className="text-white/25">·</span>
                     <span>Sin suscripción</span>
                   </div>
+                  )}
+
+                  {/* Ayuda antes de pagar (2026-11-01): quien duda en el último
+                      paso puede preguntar en vez de irse. Abre en otra pestaña
+                      para no perder lo que ya completó. */}
+                  {waNumero && (
+                    <p className="mt-3 text-center text-[13px] text-white/60">
+                      ¿Dudas antes de pagar?{' '}
+                      <a
+                        href={linkWhatsApp(waNumero, 'Hola! Estoy por comprar una lectura de Tarot y tengo una duda.')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => trackCheckoutPaso('help_click', 'whatsapp')}
+                        className="inline-flex items-center gap-1 py-2 underline underline-offset-2 hover:text-white/90"
+                        style={{ color: GOLD }}
+                      >
+                        <MessageCircle size={13} className="shrink-0" />
+                        Escribinos por WhatsApp
+                      </a>
+                    </p>
                   )}
                 </div>
 

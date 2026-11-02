@@ -32,7 +32,7 @@ function Seccion({ id, children }: { id: string; children: ReactNode }) {
   return <div data-seccion={id} style={{ display: "contents" }}>{children}</div>;
 }
 
-export default function TarotLandingContent({ precioUYU, testimonios }: { precioUYU: number | null; testimonios: TestimonioTarot[] }) {
+export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "" }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string }) {
   useEffect(() => {
     trackViewItem("tarot", precioUYU ?? undefined);
     trackLandingViewed("tarot");
@@ -65,7 +65,7 @@ export default function TarotLandingContent({ precioUYU, testimonios }: { precio
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
             <Seccion id="por_tema"><LecturasPorTema /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
-            <Seccion id="dudas"><DudasTarot /></Seccion>
+            <Seccion id="dudas"><DudasTarot waNumero={waNumero} /></Seccion>
             <Seccion id="cta_final"><CtaFinalTarot precioUYU={precioUYU} /></Seccion>
             {/* Pie de marca: también Privacidad, Términos y Contacto (es la
                 página donde se decide la compra). */}
