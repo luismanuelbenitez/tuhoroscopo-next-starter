@@ -6,8 +6,10 @@ import type { LucideIcon } from "lucide-react";
 // Primitivas visuales de los campos del checkout. Solo presentación: el
 // estado, las validaciones y el envío siguen en TarotCheckoutContent.
 
+// 16px en celular: con menos, Safari de iPhone agranda la página al tocar el
+// campo (auditoría checkout móvil 2026-11-01). Escritorio sigue en 14.5px.
 export const inputCheckout =
-  "w-full rounded-xl px-4 py-3 h-12 ring-1 ring-white/15 text-white text-[14.5px] placeholder:text-white/40 " +
+  "w-full rounded-xl px-4 py-3 h-12 ring-1 ring-white/15 text-white text-[16px] md:text-[14.5px] placeholder:text-white/40 " +
   "focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 transition-shadow";
 
 export const inputBg = { background: "rgba(255,255,255,0.045)" } as const;

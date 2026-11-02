@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import {
   ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, Calendar, List, PenLine, Zap, Sparkles,
+  ArrowLeft, User, Mail, List, PenLine, Zap, Sparkles,
 } from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
@@ -15,6 +15,7 @@ import { ResumenCompra, ResumenCompacto } from '@/components/tarot/checkout/Resu
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
 import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
+import { FechaNacimiento } from '@/components/tarot/checkout/FechaNacimiento';
 import { PieMarca } from '@/components/marca/PieMarca';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
@@ -95,7 +96,26 @@ const EMPTY: FormState = {
   pregunta: '',
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MENSAJES_CAMPO: Record<string, string> = {
+  nombre: 'Escribí tu nombre.',
+  telefono: 'Ingresá tu WhatsApp: ahí te llega la lectura.',
+  tema: 'Elegí un tema para tu lectura.',
+  acepta_terminos: 'Marcá la casilla para continuar.',
+  email: 'Revisá tu email: no parece válido. Si no querés recibirla por email, dejalo vacío.',
+};
+const RING_ERROR = '!ring-red-400/60';
+
+function ErrorCampo({ texto }: { texto?: string }) {
+  if (!texto) return null;
+  return (
+    <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs text-red-300">
+      <AlertCircle size={12} className="shrink-0" />
+      {texto}
+    </p>
+  );
+}
+
+const EMAIL_RE =/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function telefonoValido(raw: string, pais: string): boolean {
   const digits = raw.replace(/\D/g, '');
@@ -114,6 +134,17 @@ function telefonoE164(raw: string, pais: string): string {
   }
   // Argentina: +549 + número (el 9 es requerido por WhatsApp para móviles AR)
   return `+549${phoneRaw}`;
+}
+
+// Autocompletar o pegar (2026-11-01): el teléfono puede llegar entero de
+// golpe como "+598 99 123 456" o "99 123 456". Solo cuando entran varios
+// dígitos a la vez se lleva al formato local 09XXXXXXX; tecleando no cambia nada.
+function normalizarTelefonoPegado(valor: string, anterior: string, pais: string): string {
+  const digits = valor.replace(/\D/g, '');
+  if (pais !== 'UY' || digits.length - anterior.length < 2) return digits;
+  if (digits.length === 11 && digits.startsWith('598')) return `0${digits.slice(3)}`;
+  if (digits.length === 8 && digits.startsWith('9')) return `0${digits}`;
+  return digits;
 }
 
 function formatearTelefono(raw: string, pais: string): string {
@@ -203,6 +234,27 @@ export default function TarotCheckoutContent({
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => (formRef.current ? medirFormulario(formRef.current) : undefined), []);
 
+  // La pregunta crece con lo escrito, hasta ~12 líneas (2026-11-01).
+  const preguntaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = preguntaRef.current;
+    if (!el) return;
+    // 'important': la clase !h-auto del campo le gana a un style.height común.
+    el.style.removeProperty('height');
+    if (form.pregunta) el.style.setProperty('height', `${Math.min(el.scrollHeight + 2, 320)}px`, 'important');
+  }, [form.pregunta]);
+
+  // Errores por campo (2026-11-01): reemplazan el globo gris del navegador
+  // ("Completa este campo") por un aviso propio debajo de cada campo.
+  const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({});
+  function limpiarErrorCampo(campo: string) {
+    setErroresCampo(prev => {
+      if (!prev[campo]) return prev;
+      const { [campo]: _, ...resto } = prev;
+      return resto;
+    });
+  }
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
@@ -282,6 +334,20 @@ export default function TarotCheckoutContent({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     trackCheckoutPaso('form_submit', descuento ? 'con_codigo' : 'sin_codigo', precioFinal ?? undefined);
+    // El form va con noValidate: checkValidity() igual dispara los eventos
+    // 'invalid' (los mide medirFormulario) pero sin el globo del navegador.
+    const formEl = formRef.current;
+    if (formEl && !formEl.checkValidity()) {
+      const invalidos = Array.from(formEl.elements).filter(
+        (el): el is HTMLInputElement => 'validity' in el && !(el as HTMLInputElement).validity.valid && !!(el as HTMLInputElement).name,
+      );
+      setErroresCampo(Object.fromEntries(invalidos.map(el => [el.name, MENSAJES_CAMPO[el.name] ?? 'Completá este campo.'])));
+      const primero = invalidos[0];
+      primero?.focus({ preventScroll: true });
+      primero?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setErroresCampo({});
     if (PRECIO_BASE === null) {
       trackCheckoutPaso('form_error', 'precio');
       setError('El precio no está disponible ahora mismo. Recargá la página o volvé a intentar en unos minutos.');
@@ -410,7 +476,8 @@ export default function TarotCheckoutContent({
               <Link
                 href={'/tarot' as never}
                 onClick={() => trackCheckoutPaso('checkout_back', 'volver_tarot')}
-                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-6"
+                // Celular: píldora oscura, el link caía sobre el sol del fondo (2026-11-01).
+                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-6 max-md:rounded-full max-md:px-3 max-md:-mx-1 max-md:bg-black/45 max-md:text-white/90 max-md:backdrop-blur-sm"
                 style={{ textShadow: TEXT_SHADOW }}
               >
                 <ArrowLeft size={15} />
@@ -432,7 +499,7 @@ export default function TarotCheckoutContent({
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
                   Completá tu experiencia
                 </h1>
-                <p className="text-white/75 text-[14.5px] leading-relaxed mt-3 max-w-[480px]">
+                <p className="text-white/90 md:text-white/75 text-[14.5px] leading-relaxed mt-3 max-w-[480px]">
                   Contanos un poco sobre vos y tu consulta. Podés hacer una pregunta puntual o simplemente recibir una lectura completa sobre tu momento actual.
                 </p>
               </div>
@@ -450,6 +517,7 @@ export default function TarotCheckoutContent({
               <form
                 ref={formRef}
                 onSubmit={handleSubmit}
+                noValidate
                 className="rounded-2xl p-5 md:p-6 space-y-5"
                 style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
               >
@@ -464,15 +532,19 @@ export default function TarotCheckoutContent({
                     <input
                       id="nombre"
                       name="nombre"
-                      className={`${inputCheckout} pl-11`}
+                      className={`${inputCheckout} pl-11 ${erroresCampo.nombre ? RING_ERROR : ''}`}
                       style={inputBg}
                       placeholder="¿Cómo te llamás?"
+                      autoComplete="given-name"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
                       value={form.nombre}
-                      onChange={handleChange}
+                      onChange={(e) => { handleChange(e); limpiarErrorCampo('nombre'); }}
                       disabled={isLoading}
                       required
                     />
                   </ConIcono>
+                  <ErrorCampo texto={erroresCampo.nombre} />
                 </div>
 
                 {/* Teléfono */}
@@ -489,7 +561,7 @@ export default function TarotCheckoutContent({
                         }}
                         disabled={isLoading}
                         aria-label="País"
-                        className="appearance-none rounded-xl pl-4 pr-9 md:pl-3 md:pr-7 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[14px]"
+                        className="appearance-none rounded-xl pl-4 pr-9 md:pl-3 md:pr-7 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[16px] md:text-[14px]"
                         style={inputBg}
                       >
                         {PAISES.map(p => (
@@ -508,15 +580,19 @@ export default function TarotCheckoutContent({
                           className={`${inputCheckout} pl-11 md:pl-4 ${
                             telefonoValido(form.telefono, pais)
                               ? '!ring-emerald-500/55 focus:!ring-emerald-400/60'
-                              : ''
+                              : erroresCampo.telefono ? RING_ERROR : ''
                           }`}
                           style={inputBg}
                           placeholder={paisInfo.placeholder}
+                          type="tel"
                           inputMode="numeric"
+                          autoComplete="tel-national"
+                          enterKeyHint="next"
                           value={form.telefono}
                           onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, paisInfo.maxDigits);
+                            const digits = normalizarTelefonoPegado(e.target.value, form.telefono, pais).slice(0, paisInfo.maxDigits);
                             setForm(prev => ({ ...prev, telefono: digits }));
+                            limpiarErrorCampo('telefono');
                           }}
                           disabled={isLoading}
                           required
@@ -539,6 +615,8 @@ export default function TarotCheckoutContent({
                             ? `Faltan ${10 - form.telefono.length} dígito${10 - form.telefono.length !== 1 ? 's' : ''}`
                             : 'Ingresá el número sin el 0 inicial ni el 15')}
                     </p>
+                  ) : erroresCampo.telefono ? (
+                    <ErrorCampo texto={erroresCampo.telefono} />
                   ) : (
                     <p className="mt-1.5 text-xs text-white/55">{paisInfo.hint}</p>
                   )}
@@ -552,32 +630,32 @@ export default function TarotCheckoutContent({
                       id="email"
                       name="email"
                       type="email"
-                      className={`${inputCheckout} pl-11`}
+                      className={`${inputCheckout} pl-11 ${erroresCampo.email ? RING_ERROR : ''}`}
                       style={inputBg}
                       placeholder="tu@email.com"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      enterKeyHint="next"
                       value={form.email}
-                      onChange={handleChange}
+                      onChange={(e) => { handleChange(e); limpiarErrorCampo('email'); }}
                       disabled={isLoading}
                     />
                   </ConIcono>
-                  <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te la mandamos por email.</p>
+                  {erroresCampo.email
+                    ? <ErrorCampo texto={erroresCampo.email} />
+                    : <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te la mandamos por email.</p>}
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
                 <div>
                   <Etiqueta htmlFor="fecha_nacimiento" texto="Fecha de nacimiento" nota="opcional" />
-                  <ConIcono Icon={Calendar}>
-                    <input
-                      id="fecha_nacimiento"
-                      name="fecha_nacimiento"
-                      type="date"
-                      className={`${inputCheckout} pl-11 [color-scheme:dark]`}
-                      style={inputBg}
-                      value={form.fecha_nacimiento}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                    />
-                  </ConIcono>
+                  <FechaNacimiento
+                    id="fecha_nacimiento"
+                    valor={form.fecha_nacimiento}
+                    onCambio={(v) => setForm(prev => ({ ...prev, fecha_nacimiento: v }))}
+                    disabled={isLoading}
+                  />
                   <p className="mt-1.5 text-xs text-white/55">Para personalizar tu lectura.</p>
                 </div>
                 </div>
@@ -592,10 +670,10 @@ export default function TarotCheckoutContent({
                       <select
                         id="tema"
                         name="tema"
-                        className={`${inputCheckout} pl-11 pr-10 appearance-none cursor-pointer ${form.tema ? '' : 'text-white/40'}`}
+                        className={`${inputCheckout} pl-11 pr-10 appearance-none cursor-pointer ${form.tema ? '' : 'text-white/40'} ${erroresCampo.tema ? RING_ERROR : ''}`}
                         style={inputBg}
                         value={form.tema}
-                        onChange={handleChange}
+                        onChange={(e) => { handleChange(e); limpiarErrorCampo('tema'); }}
                         disabled={isLoading}
                         required
                       >
@@ -607,6 +685,7 @@ export default function TarotCheckoutContent({
                     </ConIcono>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
                   </div>
+                  <ErrorCampo texto={erroresCampo.tema} />
                 </div>
 
                 {/* Pregunta (opcional) */}
@@ -616,12 +695,14 @@ export default function TarotCheckoutContent({
                     <textarea
                       id="pregunta"
                       name="pregunta"
+                      ref={preguntaRef}
                       rows={4}
-                      // Mobile (2026-10-21): el texto de ejemplo ocupa ~8 líneas en
-                      // pantallas angostas y con 4 filas quedaba cortado. Escritorio igual.
-                      className={`${inputCheckout} !h-auto min-h-[14rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
+                      // Mobile (2026-11-01): el ejemplo solo, sin la frase que ya
+                      // dice la bajada del paso 2; arranca en ~3 líneas y crece al
+                      // escribir (antes 14rem fijos empujaban el botón de pago).
+                      className={`${inputCheckout} !h-auto min-h-[7.5rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
                       style={inputBg}
-                      placeholder={`Si hay algo puntual que quieras explorar, contámelo. Si no, podés recibir una lectura abierta sobre tu momento actual.\nEj: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
+                      placeholder={`Ej: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
                       value={form.pregunta}
                       onChange={handleChange}
                       disabled={isLoading}
@@ -690,7 +771,7 @@ export default function TarotCheckoutContent({
                       <input
                         type="text"
                         aria-label="Código de descuento"
-                        className="flex-1 min-w-0 rounded-xl px-4 h-11 ring-1 ring-white/15 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 text-sm uppercase tracking-widest"
+                        className="flex-1 min-w-0 rounded-xl px-4 h-11 ring-1 ring-white/15 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 text-[16px] md:text-sm uppercase tracking-widest"
                         style={inputBg}
                         placeholder="TU-CODIGO"
                         value={codigoCampo}
@@ -739,7 +820,7 @@ export default function TarotCheckoutContent({
                     type="checkbox"
                     name="acepta_terminos"
                     checked={aceptaTerminos}
-                    onChange={e => setAceptaTerminos(e.target.checked)}
+                    onChange={e => { setAceptaTerminos(e.target.checked); limpiarErrorCampo('acepta_terminos'); }}
                     disabled={isLoading}
                     required
                     className="mt-0.5 h-[22px] w-[22px] shrink-0 cursor-pointer accent-[#F0C55A]"
@@ -756,6 +837,7 @@ export default function TarotCheckoutContent({
                     , incluyendo que la lectura es generada por IA con fines simbólicos.
                   </span>
                 </label>
+                {erroresCampo.acepta_terminos && <div className="!-mt-3"><ErrorCampo texto={erroresCampo.acepta_terminos} /></div>}
 
                 {/* Reassurance pre-pago */}
                 <div
