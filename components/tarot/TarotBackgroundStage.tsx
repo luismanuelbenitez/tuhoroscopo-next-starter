@@ -40,7 +40,11 @@ export function TarotBackgroundStage({ children, fondos = FONDOS }: { children: 
     // esto recorta la cola sobrante en vez de dejarla "colgando" después
     // del escenario — pudo verse en el footer mientras no tenían overflow.
     <div className="relative overflow-hidden">
-      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Escritorio (2026-11-02): costados fundidos con el violeta, como la
+          escena de Home; antes terminaba en un borde recto a 960 px y se veía
+          como una caja más ancha. Mobile sigue de borde a borde. */}
+      <style>{`@media (min-width: 768px) { .tarot-fondo-lados { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%); } }`}</style>
+      <div className="tarot-fondo-lados" style={{ position: "absolute", top: 0, left: 0, width: "100%", display: "flex", flexDirection: "column" }}>
         {fondos.map((src, i) => {
           const [w, h] = TAMANOS[src] ?? [793, 1983];
           return <img key={src} {...fluido(src, w, h, SIZES, { prioridad: i === 0 })} alt="" aria-hidden="true" style={{ width: "100%", height: "auto", display: "block" }} />;
