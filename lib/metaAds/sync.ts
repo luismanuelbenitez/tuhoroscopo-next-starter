@@ -8,7 +8,7 @@ import { leer, leerTodo, metaConfig, MetaError, type MetaConfig } from "@/lib/me
 
 // Campos pedidos a Meta. La configuración se guarda COMPLETA (config jsonb)
 // para poder analizarla después sin capturas.
-const CAMPOS_CUENTA = "id,name,account_status,disable_reason,currency,timezone_name,amount_spent,spend_cap,balance,business_name,min_daily_budget,funding_source_details";
+const CAMPOS_CUENTA = "id,name,account_status,disable_reason,currency,timezone_name,amount_spent,spend_cap,balance,business_name,min_daily_budget";
 const CAMPOS_CAMPANA = "id,name,objective,status,configured_status,effective_status,buying_type,daily_budget,lifetime_budget,budget_remaining,bid_strategy,spend_cap,special_ad_categories,start_time,stop_time,created_time,updated_time,issues_info,smart_promotion_type,is_budget_schedule_enabled";
 const CAMPOS_CONJUNTO = "id,name,campaign_id,status,configured_status,effective_status,daily_budget,lifetime_budget,budget_remaining,bid_strategy,bid_amount,billing_event,optimization_goal,promoted_object,targeting,attribution_spec,destination_type,pacing_type,start_time,end_time,created_time,updated_time,issues_info,learning_stage_info,daily_min_spend_target,daily_spend_cap";
 const CAMPOS_ANUNCIO = "id,name,adset_id,campaign_id,status,configured_status,effective_status,created_time,updated_time,issues_info,ad_review_feedback,tracking_specs,conversion_specs,preview_shareable_link,creative{id,name,title,body,object_type,call_to_action_type,url_tags,link_url,video_id,image_hash,object_story_spec,asset_feed_spec,instagram_permalink_url,effective_object_story_id,degrees_of_freedom_spec}";

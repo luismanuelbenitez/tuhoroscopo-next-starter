@@ -31,12 +31,19 @@ export class MetaError extends Error {
 }
 
 // Mensaje legible y sin datos sensibles (la clave nunca está en la URL).
-function errorDe(status: number, cuerpo: unknown): MetaError {
+// `consulta` dice qué pedido falló (ej. "insights por ubicación").
+function errorDe(status: number, cuerpo: unknown, consulta = ""): MetaError {
   const e = (cuerpo as { error?: { message?: string; code?: number; error_subcode?: number } })?.error;
-  return new MetaError(`Meta ${status}: ${(e?.message ?? "error desconocido").slice(0, 300)}`, e?.code, e?.error_subcode);
+  return new MetaError(`Meta ${status}${consulta ? ` [${consulta}]` : ""}: ${(e?.message ?? "error desconocido").slice(0, 300)}`, e?.code, e?.error_subcode);
 }
 
 type Params = Record<string, string | number | boolean | object | undefined>;
+
+function nombreConsulta(ruta: string, params: Params): string {
+  const tramo = ruta.split("/").slice(1).join("/") || "cuenta";
+  const desglose = typeof params.breakdowns === "string" ? ` por ${params.breakdowns.startsWith("hourly") ? "hora" : "ubicación"}` : "";
+  return `${tramo}${desglose}`;
+}
 
 function armarUrl(ruta: string, params: Params): string {
   const u = new URL(`${graphBase()}/${ruta.replace(/^\//, "")}`);
@@ -47,14 +54,14 @@ function armarUrl(ruta: string, params: Params): string {
   return u.toString();
 }
 
-async function pedir(url: string, token: string): Promise<Record<string, unknown>> {
+async function pedir(url: string, token: string, consulta = ""): Promise<Record<string, unknown>> {
   // Las páginas siguientes las arma Meta: solo se siguen si son del mismo host.
   if (new URL(url).host !== new URL(graphBase()).host) throw new MetaError("Paginación hacia otro host: descartada");
   for (let intento = 0; ; intento++) {
     const r = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
     const cuerpo = await r.json().catch(() => null);
     if (r.ok && cuerpo) return cuerpo as Record<string, unknown>;
-    const err = errorDe(r.status, cuerpo);
+    const err = errorDe(r.status, cuerpo, consulta);
     // Límite de frecuencia o error transitorio: un par de reintentos con espera.
     const transitorio = r.status >= 500 || [1, 2, 4, 17, 32, 613].includes(err.codigo ?? -1);
     if (!transitorio || intento >= 2) throw err;
@@ -63,7 +70,7 @@ async function pedir(url: string, token: string): Promise<Record<string, unknown
 }
 
 export async function leer<T = Record<string, unknown>>(cfg: MetaConfig, ruta: string, params: Params = {}): Promise<T> {
-  return (await pedir(armarUrl(ruta, params), cfg.token)) as T;
+  return (await pedir(armarUrl(ruta, params), cfg.token, nombreConsulta(ruta, params))) as T;
 }
 
 // Lista completa siguiendo la paginación (tope de seguridad: 50 páginas).
@@ -71,7 +78,7 @@ export async function leerTodo<T = Record<string, unknown>>(cfg: MetaConfig, rut
   const filas: T[] = [];
   let url: string | null = armarUrl(ruta, { limit: 200, ...params });
   for (let i = 0; url && i < 50; i++) {
-    const r = await pedir(url, cfg.token);
+    const r = await pedir(url, cfg.token, nombreConsulta(ruta, params));
     filas.push(...((r.data as T[]) ?? []));
     url = ((r.paging as { next?: string } | undefined)?.next) ?? null;
   }
