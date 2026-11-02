@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -88,7 +88,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/testimonios",     icon: Star,      label: "Testimonios" },
       { href: "/admin/tarot/campanas",        icon: Megaphone, label: "Campañas" },
       { href: "/admin/tarot/campanas-ads",    icon: Target,    label: "Campañas Ads" },
-      { href: "/admin/tarot/meta-ads",        icon: Radar,     label: "Meta Ads" },
+      { href: "/admin/tarot/meta-ads",        icon: BarChart3, label: "Meta Ads" },
       { href: "/admin/tarot/product-intelligence", icon: Sparkles, label: "Product Intelligence" },
     ],
   },
@@ -101,7 +101,16 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-const CLAVE_GRUPOS_CERRADOS = "tarot_menu_grupos_cerrados";
+// Favoritos (2026-11-02): grupo fijo y abierto debajo de Dirección con lo de
+// uso diario; los demás grupos (Dirección incluida) arrancan plegados. Con la estrella de cada ítem se agregan o quitan
+// favoritos; grupos abiertos y favoritos se recuerdan en este navegador.
+const FAVORITOS_INICIALES = [
+  "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
+  "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
+];
+const TODOS_LOS_ITEMS = GRUPOS.flatMap((g) => g.items);
+const CLAVE_GRUPOS_ABIERTOS = "tarot_menu_grupos_abiertos";
+const CLAVE_FAVORITOS = "tarot_menu_favoritos";
 
 export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed]           = useState(false);
@@ -109,23 +118,37 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [noLeidas, setNoLeidas]             = useState(0);
   const [noLeidasWhatsapp, setNoLeidasWhatsapp] = useState(0);
   const pathname = usePathname();
-  // Grupos plegados: se recuerdan en este navegador. El grupo de la página
-  // actual siempre se muestra abierto.
-  const [cerrados, setCerrados] = useState<Set<string>>(new Set());
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
+  const [favoritos, setFavoritos] = useState<string[]>(FAVORITOS_INICIALES);
   useEffect(() => {
     try {
-      const v = localStorage.getItem(CLAVE_GRUPOS_CERRADOS);
-      if (v) setCerrados(new Set(JSON.parse(v) as string[]));
-    } catch { /* sin storage: todo abierto */ }
+      const a = localStorage.getItem(CLAVE_GRUPOS_ABIERTOS);
+      if (a) setAbiertos(new Set(JSON.parse(a) as string[]));
+      const f = localStorage.getItem(CLAVE_FAVORITOS);
+      if (f) setFavoritos((JSON.parse(f) as string[]).filter((h) => TODOS_LOS_ITEMS.some((it) => it.href === h)));
+    } catch { /* sin storage: valores iniciales */ }
   }, []);
-  const alternarGrupo = (label: string) => setCerrados((prev) => {
+  const alternarGrupo = (label: string) => setAbiertos((prev) => {
     const n = new Set(prev);
     if (n.has(label)) n.delete(label); else n.add(label);
-    try { localStorage.setItem(CLAVE_GRUPOS_CERRADOS, JSON.stringify(Array.from(n))); } catch { /* noop */ }
+    try { localStorage.setItem(CLAVE_GRUPOS_ABIERTOS, JSON.stringify(Array.from(n))); } catch { /* noop */ }
+    return n;
+  });
+  const alternarFavorito = (href: string) => setFavoritos((prev) => {
+    const n = prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href];
+    try { localStorage.setItem(CLAVE_FAVORITOS, JSON.stringify(n)); } catch { /* noop */ }
     return n;
   });
   const esActivo = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const activoEnFavoritos = favoritos.some((h) => {
+    const it = TODOS_LOS_ITEMS.find((x) => x.href === h);
+    return it ? esActivo(it.href, it.exact) : false;
+  });
+  const grupoFavoritos = {
+    label: "Favoritos",
+    items: favoritos.map((h) => TODOS_LOS_ITEMS.find((it) => it.href === h)).filter((it): it is NavItem => !!it),
+  };
 
   // Poll unread alert count from DB — cada 30s + al recuperar visibilidad
   // (ver lib/usePollingRefresh.ts, mismo mecanismo que Centro de Alertas y Dashboard).
@@ -191,30 +214,37 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 space-y-3">
-          {GRUPOS.map((grupo) => {
-            const tieneActivo = grupo.items.some((it) => esActivo(it.href, it.exact));
-            const abierto = collapsed || tieneActivo || !cerrados.has(grupo.label);
+          {/* Con la barra angosta se muestran solo los favoritos y los demás
+              grupos como íconos, igual que antes. */}
+          {[GRUPOS[0], grupoFavoritos, ...GRUPOS.slice(1)].map((grupo) => {
+            const esFavoritos = grupo === grupoFavoritos;
+            if (esFavoritos && grupo.items.length === 0 && !collapsed) {
+              return <p key="fav" className="px-3 text-[11px] text-gray-600">Tocá la ☆ de un ítem para sumarlo a Favoritos.</p>;
+            }
+            const tieneActivo = !esFavoritos && !activoEnFavoritos && grupo.items.some((it) => esActivo(it.href, it.exact));
+            const abierto = collapsed || esFavoritos || tieneActivo || abiertos.has(grupo.label);
             return (
             <div key={grupo.label}>
               {!collapsed && (
-                <button onClick={() => alternarGrupo(grupo.label)} disabled={tieneActivo}
-                  className="w-full flex items-center justify-between px-3 mb-1 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-400 disabled:hover:text-gray-600 disabled:cursor-default">
-                  {grupo.label}
-                  {!tieneActivo && <ChevronDown size={12} className={`transition-transform ${abierto ? "" : "-rotate-90"}`} />}
+                <button onClick={() => alternarGrupo(grupo.label)} disabled={tieneActivo || esFavoritos}
+                  className={`w-full flex items-center justify-between px-3 mb-1 text-xs font-semibold uppercase tracking-wider hover:text-gray-400 disabled:cursor-default ${esFavoritos ? "text-amber-500/80 disabled:hover:text-amber-500/80" : "text-gray-600 disabled:hover:text-gray-600"}`}>
+                  <span className="flex items-center gap-1.5">{esFavoritos && <Star size={11} className="fill-current" />}{grupo.label}</span>
+                  {!tieneActivo && !esFavoritos && <ChevronDown size={12} className={`transition-transform ${abierto ? "" : "-rotate-90"}`} />}
                 </button>
               )}
               {abierto && (
               <div className="space-y-0.5">
                 {grupo.items.map(({ href, icon: Icon, label, exact }) => {
                   const isActive = esActivo(href, exact);
+                  const esFav = favoritos.includes(href);
                   const badgeCount = href === "/admin/tarot/alertas" ? noLeidas
                     : href === "/admin/tarot/whatsapp" ? noLeidasWhatsapp
                     : 0;
                   const badgeCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-500" : "bg-amber-500";
                   const dotCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-400" : "bg-amber-400";
                   return (
+                    <div key={href} className="group relative">
                     <Link
-                      key={href}
                       href={href as Route<string>}
                       title={collapsed ? label : undefined}
                       className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg mx-1.5 transition-colors ${
@@ -230,14 +260,25 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                         )}
                       </span>
                       {!collapsed && (
-                        <span className="text-sm truncate flex-1">{label}</span>
+                        <span className="text-sm truncate flex-1 pr-4">{label}</span>
                       )}
                       {!collapsed && badgeCount > 0 && (
-                        <span className={`ml-auto text-xs ${badgeCls} text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center`}>
+                        <span className={`ml-auto mr-4 text-xs ${badgeCls} text-gray-950 font-bold rounded-full px-1.5 leading-5 min-w-[18px] text-center`}>
                           {badgeCount > 99 ? "99+" : badgeCount}
                         </span>
                       )}
                     </Link>
+                    {!collapsed && (
+                      <button
+                        type="button"
+                        onClick={() => alternarFavorito(href)}
+                        title={esFav ? "Quitar de Favoritos" : "Agregar a Favoritos"}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded transition-opacity ${esFav ? "text-amber-400/80" : "text-gray-600 hover:text-amber-300"} ${esFavoritos ? "opacity-0 group-hover:opacity-100" : esFav ? "opacity-60 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                      >
+                        <Star size={12} className={esFav ? "fill-current" : ""} />
+                      </button>
+                    )}
+                    </div>
                   );
                 })}
               </div>
