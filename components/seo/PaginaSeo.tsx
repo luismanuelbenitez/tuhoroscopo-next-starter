@@ -88,7 +88,7 @@ export function PaginaSeo({
   // background CSS, el navegador lo descubre tarde. Precarga solo en mobile.
   preload(FONDO_CHECKOUT_MOBILE, { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
   return (
-    <PaginaMarca fondo={<FondoCheckout />} fuera={<StickyCtaTarot precioUYU={precioUYU} href={ctaHref} etiqueta="Quiero mi lectura →" />}>
+    <PaginaMarca fondo={<FondoCheckout angosto />} fuera={<StickyCtaTarot precioUYU={precioUYU} href={ctaHref} etiqueta="Quiero mi lectura →" />}>
       <style dangerouslySetInnerHTML={{ __html: "details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <SeoTracking pagina={clave} />
