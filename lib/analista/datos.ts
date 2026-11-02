@@ -5,6 +5,8 @@
 // ventas cobradas cuentan todas (regla de negocio) y se informa cuántas son
 // internas. Solo lectura.
 
+import { configEnPalabras } from "@/lib/metaAds/configEnPalabras";
+
 export type Getter = (q: string) => Promise<unknown>;
 
 export const FUENTES = {
@@ -15,7 +17,7 @@ export const FUENTES = {
   secciones: "Secciones de /tarot vistas, botones de compra y preguntas abiertas",
   ventas: "Ventas cobradas: cantidad, ingresos, ticket, tema y origen",
   postcompra: "Experiencia después de comprar: abrió la lectura, PDF, recompra, reclamos",
-  meta_csv: "Exportaciones de Meta (gasto, alcance y resultados) que subiste",
+  meta_csv: "Meta Ads: datos leídos en vivo (configuración, gasto, ubicaciones) y exportaciones que subiste",
   bitacora: "Bitácora de cambios (qué cambiaste y cuándo)",
   memoria: "Memoria: informes anteriores, recomendaciones con su estado y lo que ya sabemos",
   contenido_web: "Textos actuales de /tarot (por sección) y del checkout, leídos en vivo",
@@ -336,6 +338,35 @@ export async function armarPaquete(get: Getter, o: OpcionesPaquete) {
     }));
   }
   if (on.bitacora && bitacora.length) paquete.bitacora_de_cambios = bitacora;
+
+  // Meta Ads en vivo (2026-11-02): lo sincronizado por la integración de solo
+  // lectura (configuración en palabras, rendimiento por día y por ubicación,
+  // cambios). Va con la misma fuente que los CSV de Meta.
+  if (on.meta_csv) {
+    const d0 = desdeISO.slice(0, 10), d1 = hastaISO.slice(0, 10);
+    const [objetos, rend, cambios, cuenta] = await Promise.all([
+      get(`meta_ads_objetos?select=id,nivel,nombre,estado,estado_efectivo,campana_id,conjunto_id,utm_campaign,config&estado=not.in.(DELETED,ARCHIVED)`) as Promise<any[]>,
+      get(`meta_ads_rendimiento?fecha=gte.${d0}&fecha=lte.${d1}&select=fecha,anuncio_id,ubicacion,gasto,impresiones,alcance,frecuencia,clics_enlace,vistas_pagina,inicios_pago,compras&limit=5000`) as Promise<any[]>,
+      get(`meta_ads_cambios?detectado_at=gte.${desdeISO}&tipo=neq.config&select=nombre,nivel,tipo,antes,despues,detectado_at&order=detectado_at.asc&limit=100`) as Promise<any[]>,
+      get(`meta_ads_cuenta?select=moneda&limit=1`) as Promise<{ moneda: string }[]>,
+    ]).catch(() => [[], [], [], []] as any[][]);
+    if (objetos.length) {
+      const moneda = cuenta[0]?.moneda ?? "UYU";
+      const nombre = new Map(objetos.map((o) => [o.id, o.nombre]));
+      paquete.meta_ads_en_vivo = {
+        moneda,
+        nota: "Datos leídos de la API de Meta. 'compras' es lo que atribuye Meta (hasta 7 días después del clic); las ventas reales son las del resto del paquete.",
+        estructura: objetos.map((o) => ({ nivel: o.nivel, nombre: o.nombre, estado: o.estado_efectivo, utm_campaign: o.utm_campaign, configuracion: Object.fromEntries(configEnPalabras(o.nivel, o.config ?? {}, moneda)) })),
+        por_dia_y_anuncio: rend.filter((r) => r.ubicacion === "total").map((r) => ({ ...r, anuncio: nombre.get(r.anuncio_id), ubicacion: undefined, anuncio_id: undefined })),
+        por_ubicacion: Object.values(rend.filter((r) => r.ubicacion !== "total").reduce((m: Record<string, any>, r) => {
+          const x = (m[r.ubicacion] ??= { ubicacion: r.ubicacion, gasto: 0, impresiones: 0, clics_enlace: 0, compras: 0 });
+          x.gasto += Number(r.gasto); x.impresiones += r.impresiones; x.clics_enlace += r.clics_enlace; x.compras += r.compras;
+          return m;
+        }, {})),
+        cambios_de_estado: cambios,
+      };
+    }
+  }
 
   return paquete;
 }

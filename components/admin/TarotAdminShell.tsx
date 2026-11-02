@@ -88,6 +88,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/testimonios",     icon: Star,      label: "Testimonios" },
       { href: "/admin/tarot/campanas",        icon: Megaphone, label: "Campañas" },
       { href: "/admin/tarot/campanas-ads",    icon: Target,    label: "Campañas Ads" },
+      { href: "/admin/tarot/meta-ads",        icon: Radar,     label: "Meta Ads" },
       { href: "/admin/tarot/product-intelligence", icon: Sparkles, label: "Product Intelligence" },
     ],
   },

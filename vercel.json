@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/asistente-diario", "schedule": "0 11 * * *" }
+    { "path": "/api/cron/asistente-diario", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/meta-ads", "schedule": "5 * * * *" }
   ]
 }
