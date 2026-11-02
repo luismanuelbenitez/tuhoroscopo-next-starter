@@ -101,8 +101,8 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-// Favoritos (2026-11-02): grupo fijo y abierto debajo de Dirección con lo de
-// uso diario; los demás grupos (Dirección incluida) arrancan plegados. Con la estrella de cada ítem se agregan o quitan
+// Favoritos (2026-11-02): grupo fijo y abierto arriba de todo con lo de uso
+// diario; los demás grupos (Dirección incluida) arrancan plegados. Con la estrella de cada ítem se agregan o quitan
 // favoritos; grupos abiertos y favoritos se recuerdan en este navegador.
 const FAVORITOS_INICIALES = [
   "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
@@ -216,7 +216,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 overflow-y-auto py-3 space-y-3">
           {/* Con la barra angosta se muestran solo los favoritos y los demás
               grupos como íconos, igual que antes. */}
-          {[GRUPOS[0], grupoFavoritos, ...GRUPOS.slice(1)].map((grupo) => {
+          {[grupoFavoritos, ...GRUPOS].map((grupo) => {
             const esFavoritos = grupo === grupoFavoritos;
             if (esFavoritos && grupo.items.length === 0 && !collapsed) {
               return <p key="fav" className="px-3 text-[11px] text-gray-600">Tocá la ☆ de un ítem para sumarlo a Favoritos.</p>;
