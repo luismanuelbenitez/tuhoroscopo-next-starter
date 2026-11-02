@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { leer, leerTodo, metaConfig, MetaError, type MetaConfig } from "@/lib/metaAds/graph";
+import { faltaConfig, leer, leerTodo, metaConfig, MetaError, type MetaConfig } from "@/lib/metaAds/graph";
 
 // Sincronización Meta Ads → Supabase (2026-11-02). Solo lee de Meta.
 // Trae cuenta, configuración completa de campañas / conjuntos / anuncios,
@@ -170,7 +170,15 @@ type Rest = (q: string, init?: RequestInit) => Promise<unknown>;
 
 export async function sincronizar(rest: Rest, opciones: { dias: number; origen: "cron" | "manual" | "inicial" }) {
   const cfg = metaConfig();
-  if (!cfg) return { ok: false as const, motivo: "sin_configurar" };
+  if (!cfg) {
+    // Queda registrado (sin valores) para poder diagnosticarlo desde la base;
+    // el cron horario no, para no llenar el registro.
+    const detalle = faltaConfig() ?? "configuración incompleta";
+    if (opciones.origen !== "cron") {
+      await rest("meta_ads_sync", { method: "POST", body: JSON.stringify({ origen: opciones.origen, ok: false, error: `Sin configurar: ${detalle}`, terminado_at: new Date().toISOString() }) }).catch(() => {});
+    }
+    return { ok: false as const, motivo: "sin_configurar", detalle };
+  }
   const [registro] = (await rest("meta_ads_sync", {
     method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ origen: opciones.origen }),
   })) as { id: number }[];

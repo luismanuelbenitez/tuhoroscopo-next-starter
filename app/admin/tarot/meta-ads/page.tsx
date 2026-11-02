@@ -141,7 +141,7 @@ export default function MetaAdsPage() {
     const r = await fetch("/api/admin/tarot/meta-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accion: "sincronizar", dias: diasSync }) })
       .then((x) => x.json()).catch(() => null);
     setSincronizando(false);
-    if (!r?.ok) setError(r?.motivo === "sin_configurar" ? "Falta cargar la clave de Meta en Vercel." : r?.motivo ?? "Falló la sincronización.");
+    if (!r?.ok) setError(r?.motivo === "sin_configurar" ? `Falta configurar Meta en Vercel: ${r.detalle ?? "clave o número de cuenta"}.` : r?.motivo ?? "Falló la sincronización.");
     cargar();
   }
 

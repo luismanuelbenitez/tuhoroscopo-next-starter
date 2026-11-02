@@ -19,11 +19,27 @@ export function graphBase(): string {
 
 export interface MetaConfig { token: string; cuenta: string }
 
+// Tolerante a lo que se pega en Vercel: espacios, comillas o "act_" alrededor.
+const limpiar = (v: string | undefined) => v?.trim().replace(/^["']|["']$/g, "").trim() ?? "";
+const idCuenta = () => limpiar(process.env.META_ADS_ACCOUNT_ID).replace(/^act_?/i, "").replace(/\s/g, "");
+
 export function metaConfig(): MetaConfig | null {
-  const token = process.env.META_ADS_TOKEN?.trim();
-  const id = process.env.META_ADS_ACCOUNT_ID?.trim().replace(/^act_/, "");
-  if (!token || !id || !/^\d{5,25}$/.test(id)) return null;
+  const token = limpiar(process.env.META_ADS_TOKEN);
+  const id = idCuenta();
+  if (!token || !/^\d{5,25}$/.test(id)) return null;
   return { token, cuenta: `act_${id}` };
+}
+
+// Qué falta, sin mostrar valores (para el aviso del panel).
+export function faltaConfig(): string | null {
+  const token = limpiar(process.env.META_ADS_TOKEN);
+  const id = idCuenta();
+  const faltas: string[] = [];
+  if (!token) faltas.push("META_ADS_TOKEN no está cargada en este entorno");
+  else if (!token.startsWith("EAA")) faltas.push(`META_ADS_TOKEN no parece una clave de Meta (debería empezar con EAA, tiene ${token.length} caracteres)`);
+  if (!id) faltas.push("META_ADS_ACCOUNT_ID no está cargada en este entorno");
+  else if (!/^\d{5,25}$/.test(id)) faltas.push(`META_ADS_ACCOUNT_ID debe ser solo el número (tiene ${id.length} caracteres, no todos dígitos)`);
+  return faltas.length ? faltas.join(" · ") : null;
 }
 
 export class MetaError extends Error {
