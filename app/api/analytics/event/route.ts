@@ -26,7 +26,7 @@ const MAX_LOTE = 20;
 // Analista de conversión (2026-11-01): formulario del checkout y secciones /
 // botones de /tarot. Llevan `detalle` (dónde pasó: campo, sección, motivo).
 const EVENTOS_PERMITIDOS = new Set([
-  'page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page',
+  'page_view', 'landing_viewed', 'product_viewed', 'checkout_started', 'scroll_depth', 'time_on_page', 'page_exit',
   'form_started', 'form_field_done', 'form_invalid', 'form_submit', 'form_error',
   'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back', 'help_click',
   'section_view', 'cta_click', 'faq_open',
@@ -104,6 +104,11 @@ export async function POST(req: Request) {
     if (!sessionId || !ID_VALIDO.test(sessionId)) return vacio();
     if (excede(`s:${sessionId}`, MAX_POR_SESION)) return vacio();
     const visitorId = txt(sesionIn.visitor_id, 64);
+    // Hora real (2026-11-02): `enviado` (lote) − `t` (evento), ambos del reloj
+    // del navegador, así no importa si ese reloj está corrido. Acotado a 30 min.
+    const enviado = typeof body.enviado === 'number' && Number.isFinite(body.enviado) ? body.enviado : null;
+    const edadMs = (t: unknown) =>
+      enviado !== null && typeof t === 'number' && Number.isFinite(t) ? Math.round(Math.min(Math.max(enviado - t, 0), 1_800_000)) : null;
 
     const eventos = eventosIn.slice(0, MAX_LOTE).flatMap((e) => {
       if (!e || typeof e !== 'object') return [];
@@ -122,6 +127,7 @@ export async function POST(req: Request) {
         value: valor ?? null,
         currency: ev.currency === 'UYU' || ev.currency === 'ARS' ? ev.currency : 'UYU',
         detalle: detalle && DETALLE_VALIDO.test(detalle) ? detalle : null,
+        edad_ms: edadMs(ev.t),
       }];
     });
     if (!eventos.length) return vacio();

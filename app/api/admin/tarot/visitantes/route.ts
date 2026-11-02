@@ -29,7 +29,19 @@ export async function GET(req: NextRequest) {
     if (!id) return NextResponse.json({ ok: false, motivo: "id_requerido" }, { status: 400 });
     const { data, error } = await supabase.rpc("visitantes_sesion_detalle", { p_sesion: id });
     if (error) return NextResponse.json({ ok: false, motivo: "error_query", detalle: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, ...data });
+    // Recorrido con el `detalle` de cada evento (sección, botón, campo) para
+    // contarlo en palabras (2026-11-02). Se lee acá y no depende de la versión
+    // de la función SQL.
+    const { data: ev } = await supabase
+      .from("funnel_events")
+      .select("event_name, path, created_at, value, metadata")
+      .eq("session_id", id)
+      .order("created_at", { ascending: true })
+      .limit(500);
+    const eventos = ev
+      ? ev.map((e) => ({ evento: e.event_name, path: e.path, at: e.created_at, valor: e.value, detalle: (e.metadata as { detalle?: string } | null)?.detalle ?? null }))
+      : (data as { eventos?: unknown })?.eventos;
+    return NextResponse.json({ ok: true, ...data, eventos });
   }
 
   const { desde, hasta } = rango(sp);

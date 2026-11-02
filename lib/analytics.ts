@@ -208,7 +208,9 @@ function rangoPantalla(): string {
 
 // ── Cola de eventos (nunca bloquea) ─────────────────────────────────────────
 
-type EventoCola = { event_name: string; path?: string; product_id?: string; product_name?: string; value?: number; currency?: string; detalle?: string };
+// t (2026-11-02): hora del navegador al ocurrir; con `enviado` del lote el
+// servidor calcula hace cuánto pasó y guarda la hora real (no la de llegada).
+type EventoCola = { event_name: string; path?: string; product_id?: string; product_name?: string; value?: number; currency?: string; detalle?: string; t?: number };
 const ENDPOINT = '/api/analytics/event';
 const MAX_LOTE = 20;
 let cola: EventoCola[] = [];
@@ -226,6 +228,7 @@ function enviarLote(): void {
     const body = JSON.stringify({
       sesion: { session_id: sessionId, visitor_id: obtenerVisitante(), screen_bucket: rangoPantalla(), ...(s?.ctx ?? {}) },
       eventos: lote,
+      enviado: Date.now(),
     });
     let enviado = false;
     try {
@@ -261,6 +264,7 @@ function internalEvent(eventName: string, extra: Omit<EventoCola, 'event_name'> 
       ...(typeof extra.value === 'number' ? { value: extra.value } : {}),
       ...(extra.currency ? { currency: extra.currency } : {}),
       ...(extra.detalle ? { detalle: extra.detalle } : {}),
+      t: Date.now(),
     });
     // Agrupa los eventos de los próximos 2 s en una sola llamada; al salir de
     // la página se envía lo pendiente en el acto.
@@ -279,6 +283,10 @@ function internalEvent(eventName: string, extra: Omit<EventoCola, 'event_name'> 
 // Sin estado de React ni librerías: listener pasivo con requestAnimationFrame
 // y un intervalo de 5 s. Todo en try/catch: si algo falla, no mide y listo.
 // Las señales usan la misma cola que el resto (se envían agrupadas y al salir).
+//  - page_exit (2026-11-02): al ocultar la página (salir, cambiar de app o de
+//    pestaña, navegar) manda los segundos visibles EXACTOS (value) y cuánto de
+//    la página llegó a ver (detalle "vio_NN", incluye la primera pantalla). Puede
+//    repetirse si la persona vuelve; vale el último. Hasta 5 por página.
 const UMBRALES_SCROLL = [25, 50, 75, 100];
 const UMBRALES_TIEMPO = [10, 30, 60, 120];
 
@@ -291,6 +299,30 @@ export function medirInteraccion(path: string): () => void {
   let visibleSeg = 0;
   let pendiente = false;
   let intervalo: ReturnType<typeof setInterval> | null = null;
+  let maxVisto = 0;
+  let visibleMs = 0;
+  let visibleDesde: number | null = document.visibilityState === 'visible' ? performance.now() : null;
+  let salidas = 0;
+
+  const porcentajeVisto = () => {
+    const doc = document.documentElement;
+    const alto = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
+    return alto > 0 ? Math.min(100, Math.round(((window.scrollY + window.innerHeight) / alto) * 100)) : 0;
+  };
+  const registrarSalida = () => {
+    try {
+      if (visibleDesde !== null) { visibleMs += performance.now() - visibleDesde; visibleDesde = null; }
+      if (salidas >= 5) return;
+      salidas += 1;
+      maxVisto = Math.max(maxVisto, porcentajeVisto());
+      internalEvent('page_exit', { path: p, value: Math.min(3600, Math.round(visibleMs / 1000)), detalle: `vio_${maxVisto}` });
+      enviarLote();
+    } catch { /* non-blocking */ }
+  };
+  const alCambiarVisibilidad = () => {
+    if (document.visibilityState === 'hidden') registrarSalida();
+    else if (visibleDesde === null) visibleDesde = performance.now();
+  };
 
   const leerScroll = () => {
     pendiente = false;
@@ -299,6 +331,7 @@ export function medirInteraccion(path: string): () => void {
       const alto = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
       if (alto <= 0) return;
       const visto = ((window.scrollY + window.innerHeight) / alto) * 100;
+      maxVisto = Math.max(maxVisto, Math.min(100, Math.round(visto)));
       for (const u of UMBRALES_SCROLL) {
         if (u > scrollEnviado && visto >= (u === 100 ? 98 : u)) {
           scrollEnviado = u;
@@ -315,6 +348,9 @@ export function medirInteraccion(path: string): () => void {
   };
 
   try {
+    maxVisto = porcentajeVisto();
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    window.addEventListener('pagehide', registrarSalida);
     window.addEventListener('scroll', alScrollear, { passive: true });
     intervalo = setInterval(() => {
       try {
@@ -336,6 +372,10 @@ export function medirInteraccion(path: string): () => void {
 
   return () => {
     try {
+      // Navegación interna (cambio de ruta sin recargar): también es salir de esta página.
+      if (document.visibilityState === 'visible') registrarSalida();
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+      window.removeEventListener('pagehide', registrarSalida);
       window.removeEventListener('scroll', alScrollear);
       if (intervalo) clearInterval(intervalo);
     } catch { /* non-blocking */ }
