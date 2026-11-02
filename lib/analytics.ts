@@ -303,29 +303,41 @@ export function medirInteraccion(path: string): () => void {
   let visibleMs = 0;
   let visibleDesde: number | null = document.visibilityState === 'visible' ? performance.now() : null;
   let salidas = 0;
+  // Una salida por cada vez que la página estuvo visible: al irse, el navegador
+  // avisa dos veces (visibilitychange + pagehide) y antes quedaban duplicadas.
+  let salidaPendiente = true;
+  let terminado = false;
 
   const porcentajeVisto = () => {
     const doc = document.documentElement;
     const alto = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
     return alto > 0 ? Math.min(100, Math.round(((window.scrollY + window.innerHeight) / alto) * 100)) : 0;
   };
-  const registrarSalida = () => {
+  // medirAhora = false en la navegación interna: ahí el cierre corre cuando la
+  // página NUEVA ya está en pantalla, así que se usa solo lo medido antes.
+  const registrarSalida = (medirAhora: boolean) => {
     try {
       if (visibleDesde !== null) { visibleMs += performance.now() - visibleDesde; visibleDesde = null; }
-      if (salidas >= 5) return;
+      if (!salidaPendiente || salidas >= 5) return;
+      salidaPendiente = false;
       salidas += 1;
-      maxVisto = Math.max(maxVisto, porcentajeVisto());
+      if (medirAhora) maxVisto = Math.max(maxVisto, porcentajeVisto());
       internalEvent('page_exit', { path: p, value: Math.min(3600, Math.round(visibleMs / 1000)), detalle: `vio_${maxVisto}` });
       enviarLote();
     } catch { /* non-blocking */ }
   };
   const alCambiarVisibilidad = () => {
-    if (document.visibilityState === 'hidden') registrarSalida();
-    else if (visibleDesde === null) visibleDesde = performance.now();
+    if (document.visibilityState === 'hidden') registrarSalida(true);
+    else {
+      if (visibleDesde === null) visibleDesde = performance.now();
+      salidaPendiente = true;
+    }
   };
+  const alOcultarPagina = () => registrarSalida(true);
 
   const leerScroll = () => {
     pendiente = false;
+    if (terminado) return;
     try {
       const doc = document.documentElement;
       const alto = Math.max(doc.scrollHeight, document.body?.scrollHeight ?? 0);
@@ -347,10 +359,15 @@ export function medirInteraccion(path: string): () => void {
     window.requestAnimationFrame(leerScroll);
   };
 
+  // Primera pantalla: se lee un instante después, cuando la navegación ya
+  // volvió arriba (al montar todavía puede estar el scroll de la página anterior).
+  let lecturaInicial: ReturnType<typeof setTimeout> | null = null;
   try {
-    maxVisto = porcentajeVisto();
+    lecturaInicial = setTimeout(() => {
+      try { if (!terminado) maxVisto = Math.max(maxVisto, porcentajeVisto()); } catch { /* non-blocking */ }
+    }, 400);
     document.addEventListener('visibilitychange', alCambiarVisibilidad);
-    window.addEventListener('pagehide', registrarSalida);
+    window.addEventListener('pagehide', alOcultarPagina);
     window.addEventListener('scroll', alScrollear, { passive: true });
     intervalo = setInterval(() => {
       try {
@@ -373,9 +390,11 @@ export function medirInteraccion(path: string): () => void {
   return () => {
     try {
       // Navegación interna (cambio de ruta sin recargar): también es salir de esta página.
-      if (document.visibilityState === 'visible') registrarSalida();
+      terminado = true;
+      if (lecturaInicial) clearTimeout(lecturaInicial);
+      if (document.visibilityState === 'visible') registrarSalida(false);
       document.removeEventListener('visibilitychange', alCambiarVisibilidad);
-      window.removeEventListener('pagehide', registrarSalida);
+      window.removeEventListener('pagehide', alOcultarPagina);
       window.removeEventListener('scroll', alScrollear);
       if (intervalo) clearInterval(intervalo);
     } catch { /* non-blocking */ }
