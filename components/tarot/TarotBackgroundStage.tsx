@@ -29,7 +29,7 @@ const TAMANOS: Record<string, [number, number]> = {
   "/img/tarot/generales/tarot-fondo-desktop.webp": [793, 1983],
   "/img/tarot/generales/tarot-fondo-desktop2.webp": [793, 1763],
 };
-const SIZES = "(max-width: 960px) 100vw, 960px";
+const SIZES = "(max-width: 767px) 100vw, 1280px";
 
 // `fondos` permite que otra página del túnel (ej: checkout, más corta que
 // la landing) use solo una de las imágenes; por defecto, las dos de /tarot.
@@ -39,11 +39,13 @@ export function TarotBackgroundStage({ children, fondos = FONDOS }: { children: 
     // contenido real (position:absolute, no empujan el alto del escenario),
     // esto recorta la cola sobrante en vez de dejarla "colgando" después
     // del escenario — pudo verse en el footer mientras no tenían overflow.
-    <div className="relative overflow-hidden">
-      {/* Escritorio (2026-11-02): costados fundidos con el violeta, como la
-          escena de Home; antes terminaba en un borde recto a 960 px y se veía
-          como una caja más ancha. Mobile sigue de borde a borde. */}
-      <style>{`@media (min-width: 768px) { .tarot-fondo-lados { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%); } }`}</style>
+    // overflow-y: clip (no hidden) para que en escritorio el fondo pueda salir
+    // a los costados del contenedor de 960, como en la Home.
+    <div className="relative" style={{ overflowX: "visible", overflowY: "clip" }}>
+      {/* Escritorio (2026-11-02): misma medida que la escena de la Home
+          (EscenarioV2): 4/3 del contenedor de 960 = 1280 px, centrada y con
+          los costados fundidos un 12 %. Mobile sigue de borde a borde. */}
+      <style>{`@media (min-width: 768px) { .tarot-fondo-lados { width: 133.333% !important; left: 50% !important; transform: translateX(-50%); -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%); } }`}</style>
       <div className="tarot-fondo-lados" style={{ position: "absolute", top: 0, left: 0, width: "100%", display: "flex", flexDirection: "column" }}>
         {fondos.map((src, i) => {
           const [w, h] = TAMANOS[src] ?? [793, 1983];

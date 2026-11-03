@@ -465,7 +465,7 @@ export default function TarotCheckoutContent({
   // contenido). Solo presentación: todos los handlers y estados de arriba
   // son los mismos de antes del rediseño.
   return (
-    <PaginaMarca fondo={<FondoCheckout />}>
+    <PaginaMarca fondo={<FondoCheckout angosto />}>
       <div className="relative">
         <HeaderMarca variante="minimo" />
 

@@ -16,9 +16,13 @@ const MASCARA_CONTINUACION = "linear-gradient(180deg, transparent 0, #000 14%, #
 // Páginas SEO por tema (2026-11-02, `angosto`): en escritorio la escena del
 // checkout (1280 px) se veía más ancha que el escenario de Home y /tarot, y
 // terminaba a ~1200 px dejando el medio liso. Ahí va al ancho del header y de
-// Home (960 px), fundida a los costados, y la escena se repite hacia abajo. El checkout queda como estaba.
-const ANCHO_ANGOSTO = "min(960px, 100%)";
-const MASCARA_LATERAL = "linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%)";
+// Home (960 px), fundida a los costados, y la escena se repite hacia abajo.
+// Estética pareja (2026-11-02): en escritorio TODAS las variantes (checkout
+// incluido, a 1280 px) funden los costados como la Home; el celular no cambia.
+// Misma medida que la escena de la Home (EscenarioV2): 4/3 del ancho maestro
+// de 960 (1280 px) con los costados fundidos un 12 %.
+const ANCHO_ANGOSTO = "calc(min(960px, 100%) * 4 / 3)";
+const MASCARA_LATERAL = "linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%)";
 const conLaterales = (vertical: string) => ({
   maskImage: `${vertical}, ${MASCARA_LATERAL}`,
   WebkitMaskImage: `${vertical}, ${MASCARA_LATERAL}`,
@@ -75,15 +79,15 @@ export function FondoCheckout({ angosto = false }: { angosto?: boolean } = {}) {
       {angosto && Array.from({ length: TRAMOS_MOBILE }, (_, k) => (
         <div key={`m${k}`} aria-hidden="true" className="md:hidden" style={{ ...capa, top: `calc(100vw * ${(4.7 + 1.32 * k).toFixed(2)})`, width: "100%", aspectRatio: "780 / 1170", backgroundImage: `url(${MEDIO_MOBILE})`, maskImage: MASCARA_MEDIO, WebkitMaskImage: MASCARA_MEDIO, transform: `translateX(-50%)${k % 2 ? " scaleX(-1)" : ""}` }} />
       ))}
-      <div aria-hidden="true" className="hidden md:block" style={{ ...capa, width: angosto ? ANCHO_ANGOSTO : "min(1280px, 100%)", aspectRatio: "2560 / 2400", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-checkout-desktop.webp`, 1920)})`, ...(angosto ? conLaterales(MASCARA) : {}) }} />
+      <div aria-hidden="true" className="hidden md:block" style={{ ...capa, width: ANCHO_ANGOSTO, aspectRatio: "2560 / 2400", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-checkout-desktop.webp`, 1920)})`, ...conLaterales(MASCARA) }} />
       {angosto && Array.from({ length: TRAMOS_DESKTOP }, (_, k) => (
-        <div key={`d${k}`} aria-hidden="true" className="hidden md:block" style={{ ...capa, top: `calc(min(960px, 100vw) * ${(0.8 + 0.59 * k).toFixed(2)})`, width: ANCHO_ANGOSTO, aspectRatio: "1536 / 1024", backgroundImage: `url(${MEDIO_DESKTOP})`, transform: `translateX(-50%)${k % 2 ? " scaleX(-1)" : ""}`, ...conLaterales(MASCARA_MEDIO) }} />
+        <div key={`d${k}`} aria-hidden="true" className="hidden md:block" style={{ ...capa, top: `calc(min(960px, 100vw) * ${((4 / 3) * (0.8 + 0.59 * k)).toFixed(3)})`, width: ANCHO_ANGOSTO, aspectRatio: "1536 / 1024", backgroundImage: `url(${MEDIO_DESKTOP})`, transform: `translateX(-50%)${k % 2 ? " scaleX(-1)" : ""}`, ...conLaterales(MASCARA_MEDIO) }} />
       ))}
       {/* Pie: escena baja (velas, cristales) apoyada abajo, se funde hacia
           arriba — cubre lo que la escena principal no alcanza. Misma imagen
           que el cierre de /lectura (copiada a esta carpeta). */}
       <div aria-hidden="true" className="md:hidden" style={{ ...pie, width: "100%", aspectRatio: "780 / 900", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-pie-mobile.webp`, 828)})` }} />
-      <div aria-hidden="true" className="hidden md:block" style={{ ...pie, width: angosto ? ANCHO_ANGOSTO : "min(1280px, 100%)", aspectRatio: "1920 / 960", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-pie-desktop.webp`, 1920)})`, ...(angosto ? conLaterales(MASCARA_PIE) : {}) }} />
+      <div aria-hidden="true" className="hidden md:block" style={{ ...pie, width: ANCHO_ANGOSTO, aspectRatio: "1920 / 960", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-pie-desktop.webp`, 1920)})`, ...conLaterales(MASCARA_PIE) }} />
     </>
   );
 }
