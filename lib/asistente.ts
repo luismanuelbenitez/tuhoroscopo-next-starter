@@ -7,6 +7,8 @@
 
 import { calcularEstrategico, type Getter } from "@/lib/estrategico";
 import { armarEjecucion, resumirEjecuciones, REFERENCIA_MS, duracionHumana, type LogEjecucion } from "@/lib/ejecuciones";
+import { hallazgosDePendientes, type Pendiente } from "@/lib/pendientes";
+import { diagnosticar, type MetaPanel } from "@/lib/metaAds/diagnostico";
 
 export type Gravedad = "critico" | "atencion" | "info" | "bien";
 export type EstadoArea = "bien" | "atencion" | "critico";
@@ -252,6 +254,21 @@ export async function correrChequeos(getRaw: Getter, ahora = Date.now()): Promis
   if (aConfirmar.length) {
     add({ clave: `costos_a_confirmar:${aConfirmar.map((c) => c.nombre).join("|")}`, area: "datos", gravedad: "info", titulo: `${plural(aConfirmar.length, "costo para confirmar", "costos para confirmar")}: ${aConfirmar.map((c) => c.nombre).join(", ")}`,
       detalle: "Están cargados con un monto aproximado.", que_hacer: "Revisalos contra la factura y borrá la nota \"confirmar\".", link: "/admin/tarot/presupuesto" });
+  }
+
+  // ── Pendientes y Meta Ads (2026-11-02) ─────────────────────────────────────
+  // Otros módulos de inteligencia del admin. Si alguno falla, se omite.
+  const [pendientes, panelMeta] = await Promise.all([
+    (get(`admin_pendientes?estado=in.(abierto,en_curso,esperando)&select=*`) as Promise<Pendiente[]>).catch(() => [] as Pendiente[]),
+    (get(`rpc/meta_ads_panel?p_dias=14`) as Promise<MetaPanel | null>).catch(() => null),
+  ]);
+  for (const h of hallazgosDePendientes(pendientes)) add(h);
+  if (panelMeta?.cuenta) {
+    for (const a of diagnosticar(panelMeta).avisos.filter((x) => x.gravedad !== "amarillo")) {
+      add({ clave: `meta_ads:${a.objeto_id ?? "cuenta"}:${a.titulo.replace(/[\d.,$]+/g, "").trim().slice(0, 80)}`, area: "comercial",
+        gravedad: a.gravedad === "rojo" ? "atencion" : "info", titulo: `Meta Ads: ${a.titulo}`, detalle: a.detalle,
+        que_hacer: "Revisalo en Meta Ads; si hay que hacer algo, convertilo en pendiente.", link: "/admin/tarot/meta-ads" });
+    }
   }
 
   // ── Armado por área ────────────────────────────────────────────────────────

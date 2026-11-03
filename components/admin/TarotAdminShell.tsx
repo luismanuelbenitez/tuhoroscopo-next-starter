@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3, ListTodo,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -47,6 +47,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     label: "Dirección",
     items: [
       { href: "/admin/tarot/asistente", icon: BrainCircuit, label: "Asistente CEO" },
+      { href: "/admin/tarot/pendientes", icon: ListTodo, label: "Pendientes" },
       { href: "/admin/tarot/analista", icon: Telescope, label: "Analista de conversión" },
       { href: "/admin/tarot", icon: LayoutDashboard, label: "Panel", exact: true },
     ],
@@ -105,7 +106,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
 // diario; los demás grupos (Dirección incluida) arrancan plegados. Con la estrella de cada ítem se agregan o quitan
 // favoritos; grupos abiertos y favoritos se recuerdan en este navegador.
 const FAVORITOS_INICIALES = [
-  "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
+  "/admin/tarot/pendientes", "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
   "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
 ];
 const TODOS_LOS_ITEMS = GRUPOS.flatMap((g) => g.items);
@@ -117,6 +118,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const [noLeidas, setNoLeidas]             = useState(0);
   const [noLeidasWhatsapp, setNoLeidasWhatsapp] = useState(0);
+  const [pendientesUrgentes, setPendientesUrgentes] = useState(0);
   const pathname = usePathname();
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const [favoritos, setFavoritos] = useState<string[]>(FAVORITOS_INICIALES);
@@ -175,6 +177,15 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
     } catch { /* silencioso */ }
   }, []);
   usePollingRefresh(pollNoLeidasWhatsapp);
+
+  // Pendientes urgentes (vencidos, vencen hoy o prioridad alta), mismo polling.
+  const pollPendientes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/tarot/pendientes?solo_contador=true", { cache: "no-store" });
+      if (res.ok) setPendientesUrgentes((await res.json()).urgentes ?? 0);
+    } catch { /* silencioso */ }
+  }, []);
+  usePollingRefresh(pollPendientes);
 
   async function handleLogout() {
     setCerrandoSesion(true);
@@ -239,6 +250,7 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
                   const esFav = favoritos.includes(href);
                   const badgeCount = href === "/admin/tarot/alertas" ? noLeidas
                     : href === "/admin/tarot/whatsapp" ? noLeidasWhatsapp
+                    : href === "/admin/tarot/pendientes" ? pendientesUrgentes
                     : 0;
                   const badgeCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-500" : "bg-amber-500";
                   const dotCls = href === "/admin/tarot/whatsapp" ? "bg-emerald-400" : "bg-amber-400";

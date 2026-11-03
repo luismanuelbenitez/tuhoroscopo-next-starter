@@ -18,7 +18,7 @@ export const FUENTES = {
   ventas: "Ventas cobradas: cantidad, ingresos, ticket, tema y origen",
   postcompra: "Experiencia después de comprar: abrió la lectura, PDF, recompra, reclamos",
   meta_csv: "Meta Ads: datos leídos en vivo (configuración, gasto, ubicaciones) y exportaciones que subiste",
-  bitacora: "Bitácora de cambios (qué cambiaste y cuándo)",
+  bitacora: "Bitácora de cambios (qué cambiaste y cuándo) y pendientes abiertos",
   memoria: "Memoria: informes anteriores, recomendaciones con su estado y lo que ya sabemos",
   contenido_web: "Textos actuales de /tarot (por sección) y del checkout, leídos en vivo",
 } as const;
@@ -338,6 +338,12 @@ export async function armarPaquete(get: Getter, o: OpcionesPaquete) {
     }));
   }
   if (on.bitacora && bitacora.length) paquete.bitacora_de_cambios = bitacora;
+  // Pendientes abiertos (2026-11-02): lo que ya está planeado, para no
+  // recomendar algo que ya se decidió hacer y para priorizar sobre eso.
+  if (on.bitacora) {
+    const pend = (await get(`admin_pendientes?estado=in.(abierto,en_curso,esperando)&select=titulo,area,prioridad,estado,vence&order=prioridad.asc&limit=60`).catch(() => [])) as any[];
+    if (pend.length) paquete.pendientes_abiertos = pend;
+  }
 
   // Meta Ads en vivo (2026-11-02): lo sincronizado por la integración de solo
   // lectura (configuración en palabras, rendimiento por día y por ubicación,

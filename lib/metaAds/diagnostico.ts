@@ -16,7 +16,7 @@ export interface MetaObjeto {
 }
 export interface MetaDia { fecha: string; gasto: number; impresiones: number; clics_enlace: number; vistas_pagina: number; compras_meta: number; visitas: number; checkout: number; ventas: number; ingresos: number }
 export interface MetaHora { fecha: string; hora: number; gasto: number; impresiones: number; clics_enlace: number }
-export interface MetaUbicacion { ubicacion: string; gasto: number; impresiones: number; clics_enlace: number; vistas_pagina: number; compras_meta: number }
+export interface MetaUbicacion { ubicacion: string; gasto: number; impresiones: number; clics_enlace: number; vistas_pagina: number; compras_meta: number; ultimo_gasto?: string | null }
 export interface MetaPorAnuncio { anuncio_id: string; gasto: number; impresiones: number; clics_enlace: number; vistas_pagina: number; compras_meta: number; frecuencia_max: number | null }
 export interface MetaPanel {
   cuenta: MetaCuenta | null; ultimo_sync: { ok: boolean; error: string | null; iniciado_at: string; terminado_at: string | null } | null;
@@ -132,11 +132,13 @@ export function diagnosticar(d: MetaPanel): { avisos: Aviso[]; semaforo: { grave
     }
   }
 
-  // Audience Network
-  const an = d.ubicaciones.filter((u) => u.ubicacion.startsWith("audience_network") && u.gasto > 0);
+  // Audience Network: solo si gastó ahí en los últimos 2 días (si ya se sacó,
+  // el gasto viejo del período no vuelve a avisar).
+  const ayer = new Date(Date.parse(`${hoy}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const an = d.ubicaciones.filter((u) => u.ubicacion.startsWith("audience_network") && u.gasto > 0 && (!u.ultimo_gasto || u.ultimo_gasto >= ayer));
   if (an.length) {
     const g = an.reduce((s, u) => s + u.gasto, 0);
-    avisos.push({ gravedad: "naranja", titulo: "Gasto en Audience Network", detalle: `${fmt(g, moneda)} en apps y webs externas en el período. Suelen ser clics de baja calidad.` });
+    avisos.push({ gravedad: "naranja", titulo: "Gasto en Audience Network", detalle: `${fmt(g, moneda)} en apps y webs externas en el período, con gasto reciente. Suelen ser clics de baja calidad.` });
   }
 
   // Frecuencia
