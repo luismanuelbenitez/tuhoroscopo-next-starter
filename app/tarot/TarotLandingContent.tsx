@@ -66,7 +66,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
           <TarotBackgroundStage>
             <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} /></Seccion>
             <Seccion id="hero">{respaldo ? <HeroTarotAnterior precioUYU={precioUYU} /> : <HeroTarot precioUYU={precioUYU} />}</Seccion>
-            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" /><QueIncluyeTarot variante={variante} /></Seccion>
+            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" />{/* Móvil: variante A elegida por Manuel (2026-11-03). /tarot-anterior conserva el bloque viejo; en /pruebas/tarot se elige. */}<QueIncluyeTarot variante={prueba ? variante : respaldo ? undefined : "a"} /></Seccion>
             <Seccion id="asi_se_vive"><AsiSeViveTarot /></Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
             <Seccion id="por_tema"><LecturasPorTema /></Seccion>

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Info } from "lucide-react";
+import { Info, BookOpen, Headphones, Music, Pause, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { trackDemo } from "@/lib/analytics";
+import { LECTURA_EJEMPLO, AUDIO_EJEMPLO } from "@/lib/tarot/lecturaEjemplo";
 import { SERIF } from "@/components/home/theme";
 import { fijo, fluido, urlOptimizada } from "@/lib/imagen";
 
@@ -53,7 +56,9 @@ function useEnVista<T extends HTMLElement>(umbral = 0.5) {
   return [ref, visto] as const;
 }
 
-function CartaGiratoria({ img, alt, revelada, demora, ancho }: { img: string; alt: string; revelada: boolean; demora: number; ancho: string }) {
+// srcCompleto: ruta propia (cartas de la lectura de ejemplo); si no, img es
+// un archivo de la carpeta del bloque.
+function CartaGiratoria({ img, alt, revelada, demora, ancho, srcCompleto }: { img: string; alt: string; revelada: boolean; demora: number; ancho: string; srcCompleto?: string }) {
   const cara: CSSProperties = { position: "absolute", inset: 0, backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", borderRadius: 8 };
   return (
     <div className="relative shrink-0" style={{ width: ancho, perspective: 900 }}>
@@ -64,7 +69,7 @@ function CartaGiratoria({ img, alt, revelada, demora, ancho }: { img: string; al
         <div aria-hidden="true" style={{ ...cara, backgroundImage: `url(${urlOptimizada(DORSO, 256)})`, backgroundSize: "100% 100%", border: "2px solid rgba(240,197,90,0.75)", boxShadow: "0 8px 22px rgba(0,0,0,0.55)" }} />
         <div style={{ ...cara, transform: "rotateY(180deg)", padding: 3, background: MARCO_DORADO, boxShadow: "0 8px 22px rgba(0,0,0,0.55), 0 0 20px rgba(240,197,90,0.3)" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img {...fluido(`${BASE}/${img}`, 767, 1151, "160px")} alt={alt} loading="lazy" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", borderRadius: 5 }} />
+          <img {...(srcCompleto ? { src: urlOptimizada(srcCompleto, 256) } : fluido(`${BASE}/${img}`, 767, 1151, "160px"))} alt={alt} loading="lazy" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", borderRadius: 5 }} />
         </div>
       </div>
     </div>
@@ -89,12 +94,12 @@ function Medallon({ img }: { img: string }) {
   return <img {...fijo(`${BASE}/${img}`, 56)} alt="" aria-hidden="true" loading="lazy" style={{ width: 50, height: 50, flexShrink: 0, objectFit: "contain" }} />;
 }
 
-function Cierre({ titulo }: { titulo: string }) {
+function Cierre({ titulo, items = CIERRE }: { titulo: string; items?: typeof CIERRE }) {
   return (
     <div className="mt-10">
       <p className="text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: DORADO, textShadow: SOMBRA }}>✦ {titulo} ✦</p>
       <div className="mt-4 flex flex-col gap-2.5 max-w-[420px] mx-auto text-left">
-        {CIERRE.map(({ img, t, d }) => (
+        {items.map(({ img, t, d }) => (
           <div key={t} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ border: "1px solid rgba(240,197,90,0.45)", background: "rgba(14,7,26,0.9)" }}>
             <Medallon img={img} />
             <div className="min-w-0">
@@ -111,8 +116,89 @@ function Cierre({ titulo }: { titulo: string }) {
 // ── A · Abanico que se revela ─────────────────────────────────────────
 const ABANICO = [{ rot: -9, y: 16 }, { rot: -4.5, y: 5 }, { rot: 0, y: 0 }, { rot: 4.5, y: 5 }, { rot: 9, y: 16 }];
 
+// Audio con un solo <audio> por botón, sin autoplay (en la landing nunca suena
+// nada sin un toque). Ambientación: misma música que /lectura, en loop y
+// con fundido de entrada a volumen bajo.
+function useAudio(src: string, { loop = false, volumen = 1, fade = false } = {}) {
+  const ref = useRef<HTMLAudioElement | null>(null);
+  const [sonando, setSonando] = useState(false);
+  useEffect(() => () => ref.current?.pause(), []);
+  async function toggle(): Promise<boolean> {
+    if (sonando) { ref.current?.pause(); setSonando(false); return false; }
+    if (!ref.current) {
+      const a = new Audio(src);
+      a.preload = "none";
+      a.loop = loop;
+      a.onended = () => setSonando(false);
+      ref.current = a;
+    }
+    const a = ref.current;
+    try {
+      a.volume = fade ? 0 : volumen;
+      await a.play();
+      setSonando(true);
+      if (fade) {
+        const t0 = performance.now();
+        const paso = (now: number) => { const k = Math.min(1, (now - t0) / 2600); a.volume = k * volumen; if (k < 1) requestAnimationFrame(paso); };
+        requestAnimationFrame(paso);
+      }
+      return true;
+    } catch { setSonando(false); return false; }
+  }
+  return { sonando, toggle };
+}
+
+const PERGAMINO_RESUMEN = "/img/lectura/contenedores/paneles/pergamino-resumen-mobile.webp";
+const BOTON_OSCURO = "w-full inline-flex items-center justify-center gap-2 rounded-full min-h-[46px] px-5 text-[15px] font-semibold text-[#F5EFE0] bg-[linear-gradient(180deg,#22164a,#120b2a)] border border-[rgba(231,184,71,0.55)] shadow-[0_4px_14px_rgba(20,10,40,0.35)]";
+const BOTON_CLARO = "w-full inline-flex items-center justify-center gap-2 rounded-full min-h-[46px] px-5 text-[15px] font-semibold text-[#4a3522] border border-[rgba(90,60,20,0.35)] bg-[rgba(255,250,235,0.35)]";
+
+// El panel "Resumen de tu lectura" de /lectura, con los mismos 3 botones,
+// sobre la lectura de ejemplo de Paula (siempre aclarado que es ficticia).
+function ResumenEjemplo() {
+  const [abierto, setAbierto] = useState(false);
+  const voz = useAudio(AUDIO_EJEMPLO);
+  const ambiente = useAudio("/audio/tarot-ambiente.mp3", { loop: true, volumen: 0.25, fade: true });
+  return (
+    <div className="mt-9 max-w-[420px] mx-auto">
+      <div className="relative grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${urlOptimizada(PERGAMINO_RESUMEN, 828)})`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.5))" }}>
+        <div aria-hidden="true" className="[grid-area:1/1]" style={{ aspectRatio: "780 / 720" }} />
+        <div className="[grid-area:1/1] flex flex-col items-center text-center px-[11%] pt-[9%] pb-[11%]">
+          <h3 className="px-[14%]" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, lineHeight: 1.1, color: "#241426" }}>Resumen de la lectura</h3>
+          <p className="mt-2 text-[14px] leading-snug" style={{ color: "#4a3522" }}>
+            Las 5 cartas juntas, en texto y en voz. Probalo con el de Paula.
+          </p>
+          <div className="mt-4 w-full flex flex-col gap-2">
+            <button type="button" aria-expanded={abierto} aria-controls="resumen-ejemplo" className={BOTON_OSCURO} onClick={() => { setAbierto((v) => !v); if (!abierto) trackDemo("ver_resumen"); }}>
+              <BookOpen size={17} style={{ color: DORADO }} /> {abierto ? "Ocultar resumen" : "Ver resumen"}
+            </button>
+            <button type="button" className={BOTON_CLARO} onClick={async () => { if (await voz.toggle()) trackDemo("audio_play"); }}>
+              {voz.sonando ? <Pause size={17} style={{ color: "#7a5418" }} /> : <Headphones size={17} style={{ color: "#7a5418" }} />}
+              {voz.sonando ? "Pausar resumen" : "Escuchar resumen"}
+            </button>
+            <button type="button" className={BOTON_CLARO} onClick={async () => { if (await ambiente.toggle()) trackDemo("ambiente_play"); }}>
+              {ambiente.sonando ? <Pause size={17} style={{ color: "#7a5418" }} /> : <Music size={17} style={{ color: "#7a5418" }} />}
+              {ambiente.sonando ? "Pausar ambiente" : "Ambientar la lectura"}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="resumen-ejemplo" hidden={!abierto} className="mt-3 rounded-2xl px-5 py-4 text-left" style={{ background: "rgba(14,7,26,0.94)", border: "1px solid rgba(240,197,90,0.4)" }}>
+        <p className="text-[16px] leading-[1.7] whitespace-pre-line" style={{ fontFamily: SERIF, fontWeight: 600, color: CREMA }}>{LECTURA_EJEMPLO.resumen_lectura}</p>
+      </div>
+      <p className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "rgba(246,234,210,0.8)", textShadow: SOMBRA }}>
+        <Info size={13} style={{ color: DORADO }} /> Ejemplo · Paula es un personaje ficticio
+      </p>
+    </div>
+  );
+}
+
+// A usa la tirada de Paula (las mismas cartas del video y del resumen en
+// audio), así lo que se ve y lo que se escucha cuentan la misma historia.
+const CARTAS_A = LECTURA_EJEMPLO.cartas.slice(0, 5).map((c, i) => ({ ...POSICIONES[i], nombre: c.nombre_carta, src: c.imagen_url ?? "" }));
+
 export function VarianteA() {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
+  useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
   return (
     <div className="px-5 py-12 text-center">
       <Encabezado eyebrow="Viví la experiencia" titulo={<>Así se revela<br />tu lectura</>}>
@@ -121,9 +207,9 @@ export function VarianteA() {
 
       <p className="mt-9 text-[12px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.18em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
       <div ref={filaRef} className="mt-5 flex justify-center items-start">
-        {POSICIONES.map((p, i) => (
+        {CARTAS_A.map((p, i) => (
           <div key={p.t} className="-mx-[3px]" style={{ transform: `translateY(${ABANICO[i].y}px) rotate(${ABANICO[i].rot}deg)` }}>
-            <CartaGiratoria img={p.img} alt={p.nombre} revelada={visto} demora={i * 320} ancho="min(18vw, 74px)" />
+            <CartaGiratoria img={p.img} srcCompleto={p.src} alt={p.nombre} revelada={visto} demora={i * 320} ancho="min(18vw, 74px)" />
           </div>
         ))}
       </div>
@@ -144,7 +230,15 @@ export function VarianteA() {
         ))}
       </ol>
 
-      <Cierre titulo="Y al final, todo se une en" />
+      <ResumenEjemplo />
+
+      <Cierre titulo="Y además recibís" items={CIERRE.slice(1)} />
+
+      <p className="mt-6">
+        <Link href="/tarot/ejemplo" onClick={() => trackDemo("ver_ejemplo")} className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline underline-offset-4" style={{ color: DORADO, textShadow: SOMBRA }}>
+          Ver una lectura de ejemplo <ArrowRight size={15} />
+        </Link>
+      </p>
     </div>
   );
 }

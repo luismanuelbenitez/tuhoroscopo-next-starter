@@ -30,6 +30,8 @@ const EVENTOS_PERMITIDOS = new Set([
   'form_started', 'form_field_done', 'form_invalid', 'form_submit', 'form_error',
   'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back', 'help_click',
   'section_view', 'cta_click', 'faq_open',
+  // Bloque 2 de /tarot (2026-11-03): cartas reveladas, resumen, audio, ambiente, ejemplo.
+  'demo_interaccion',
 ]);
 // Solo identificadores (nombre de campo, sección, código): nunca texto libre.
 const DETALLE_VALIDO = /^[a-z0-9_.:-]{1,40}$/;

@@ -418,6 +418,13 @@ export function trackCheckoutPaso(evento: string, detalle?: string, valor?: numb
   internalEvent(evento, { detalle: detalleSeguro(detalle), ...(typeof valor === 'number' ? { value: valor } : {}) });
 }
 
+/** Bloque 2 de /tarot: cartas_reveladas, ver_resumen, audio_play, ambiente_play, ver_ejemplo. */
+export function trackDemo(detalle: string): void {
+  // /pruebas/tarot no mide (es para comparar variantes).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/pruebas')) return;
+  internalEvent('demo_interaccion', { detalle: detalleSeguro(detalle) });
+}
+
 /** Manda ya lo pendiente (antes de salir de la página hacia Mercado Pago). */
 export function enviarEventosAhora(): void {
   try { enviarLote(); } catch { /* non-blocking */ }
