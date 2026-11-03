@@ -56,8 +56,8 @@ function Presentacion() {
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: GOLD }}>Así se ve una lectura</p>
         <p className="text-[14px] md:text-[15px] leading-relaxed text-white/85 max-w-[620px] mx-auto">
           Creamos a <strong className="text-white">Paula</strong>, una persona que <strong className="text-white">no existe</strong>, para mostrarte
-          una lectura completa: consultó por <em>amor y vínculos</em> y estas son las 5 cartas que le salieron, con el texto tal
-          cual lo recibiría. Tu lectura parte de <strong className="text-white">tu</strong> consulta y de <strong className="text-white">tus</strong> cartas.
+          cómo se ve una lectura completa: consultó por su <em>situación general</em> y estas son sus 5 cartas, con la
+          interpretación y el resumen en audio. Tu lectura parte de <strong className="text-white">tu</strong> consulta y de <strong className="text-white">tus</strong> cartas.
         </p>
       </div>
     </div>

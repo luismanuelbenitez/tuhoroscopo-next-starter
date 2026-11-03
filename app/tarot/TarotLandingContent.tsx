@@ -7,6 +7,7 @@ import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
 import { TarotBackgroundStage } from "@/components/tarot/TarotBackgroundStage";
 import { HeaderTarot } from "@/components/tarot/HeaderTarot";
 import { HeroTarot } from "@/components/tarot/HeroTarot";
+import { HeroTarotAnterior } from "@/components/tarot/HeroTarotAnterior";
 import { QueIncluyeTarot } from "@/components/tarot/QueIncluyeTarot";
 import { AsiSeViveTarot } from "@/components/tarot/AsiSeViveTarot";
 import { ComoFuncionaTarot } from "@/components/tarot/ComoFuncionaTarot";
@@ -32,14 +33,17 @@ function Seccion({ id, children }: { id: string; children: ReactNode }) {
   return <div data-seccion={id} style={{ display: "contents" }}>{children}</div>;
 }
 
-export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "" }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string }) {
+// respaldo: /tarot-anterior (portada sin video). No mide nada, para no
+// ensuciar el embudo ni las señales de Meta.
+export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "", respaldo = false }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string; respaldo?: boolean }) {
   useEffect(() => {
+    if (respaldo) return;
     trackViewItem("tarot", precioUYU ?? undefined);
     trackLandingViewed("tarot");
     metaViewContent(precioUYU ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => medirSecciones(document.body), []);
+  useEffect(() => { if (!respaldo) return medirSecciones(document.body); }, [respaldo]);
 
   return (
     <>
@@ -59,7 +63,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
         <div className="max-w-[960px] mx-auto">
           <TarotBackgroundStage>
             <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} /></Seccion>
-            <Seccion id="hero"><HeroTarot precioUYU={precioUYU} /></Seccion>
+            <Seccion id="hero">{respaldo ? <HeroTarotAnterior precioUYU={precioUYU} /> : <HeroTarot precioUYU={precioUYU} />}</Seccion>
             <Seccion id="que_incluye"><QueIncluyeTarot /></Seccion>
             <Seccion id="asi_se_vive"><AsiSeViveTarot /></Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
