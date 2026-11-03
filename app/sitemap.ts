@@ -8,6 +8,7 @@ import { PAGINAS_SEO, SITIO } from "@/lib/seo/paginasSeo";
 const PUBLICAS: { ruta: string; prioridad: number }[] = [
   { ruta: "/", prioridad: 1 },
   { ruta: "/tarot", prioridad: 0.9 },
+  { ruta: "/como-funciona", prioridad: 0.5 },
   { ruta: "/faq", prioridad: 0.5 },
   { ruta: "/quienes-somos", prioridad: 0.4 },
   { ruta: "/contacto", prioridad: 0.3 },

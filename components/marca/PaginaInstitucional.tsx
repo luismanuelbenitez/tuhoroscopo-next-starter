@@ -13,7 +13,7 @@ import { GOLD, SERIF, CREMA } from "@/components/home/theme";
 const NAV = [
   { href: "/", label: "Inicio" },
   { href: "/tarot", label: "Productos" },
-  { href: "/#como-funciona", label: "Cómo funciona" },
+  { href: "/como-funciona", label: "Cómo funciona" },
   { href: "/faq", label: "Preguntas" },
   { href: "/contacto", label: "Contacto" },
 ];

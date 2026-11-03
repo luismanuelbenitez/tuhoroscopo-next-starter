@@ -4,14 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { GOLD } from "@/components/home/theme";
 import { IconoConFallback } from "@/components/home/IconoConFallback";
 
-// Los 4 pasos reales del producto (no "tu experiencia" genérico). Nunca
-// decir que el usuario elige las cartas: se sortean ("aparecen para vos").
-const PASOS = [
-  { n: "1", icon: "/img/home/como_funciona/b4_elegi_experiencia.webp", t: "Elegís el tema", d: "Amor, trabajo, dinero, una decisión… y si querés, escribís tu consulta." },
-  { n: "2", icon: "/img/home/como_funciona/b4_datos_pago.webp", t: "Pagás con Mercado Pago", d: "Pago único, simple y seguro. Sin suscripción." },
-  { n: "3", icon: "/img/home/como_funciona/b4_whatsapp_experiencia.webp", t: "Cinco cartas aparecen para vos", d: "Tu lectura llega por WhatsApp en minutos." },
-  { n: "4", icon: "/img/home/como_funciona/b4_experiencia_movil.webp", t: "La leés, la escuchás y la guardás", d: "Online, con resumen en audio y tu PDF." },
-];
+import { PASOS } from "./pasosComoFunciona";
 
 export function ComoFuncionaV2() {
   return (

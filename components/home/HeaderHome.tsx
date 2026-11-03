@@ -44,7 +44,7 @@ export function HeaderHome() {
         <div className="hidden md:flex items-center gap-7">
           <NavLink href="/">Inicio</NavLink>
           <NavLink href="/tarot">Productos</NavLink>
-          <NavLink href="/#como-funciona">Cómo funciona</NavLink>
+          <NavLink href="/como-funciona">Cómo funciona</NavLink>
           <NavLink href="/faq">Preguntas</NavLink>
           <NavLink href="/contacto">Contacto</NavLink>
         </div>
@@ -73,7 +73,7 @@ export function HeaderHome() {
           links={[
             { href: "/", label: "Inicio" },
             { href: "/tarot", label: "Productos" },
-            { href: "/#como-funciona", label: "Cómo funciona" },
+            { href: "/como-funciona", label: "Cómo funciona" },
             { href: "/faq", label: "Preguntas" },
             { href: "/contacto", label: "Contacto" },
           ]}
