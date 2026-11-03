@@ -26,6 +26,18 @@ const conLaterales = (vertical: string) => ({
   WebkitMaskComposite: "source-in",
 }) as const;
 
+// Tramo medio (2026-11-02, imagen generada para esto): decoración solo a los
+// costados, centro oscuro. Se repite hacia abajo entre la escena y el pie; una
+// copia normal y la siguiente espejada de izquierda a derecha (nunca boca
+// abajo) para que no se note la repetición. Cada copia se funde arriba y abajo
+// y se superpone un poco con la anterior. Lo que pasa del largo de la página
+// lo recorta el contenedor.
+const MEDIO_DESKTOP = urlOptimizada(`${DIR}/fondo-medio-desktop.webp`, 1920);
+const MEDIO_MOBILE = urlOptimizada(`${DIR}/fondo-medio-mobile.webp`, 828);
+const MASCARA_MEDIO = "linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%)";
+const TRAMOS_DESKTOP = 12;
+const TRAMOS_MOBILE = 10;
+
 export function FondoCheckout({ angosto = false }: { angosto?: boolean } = {}) {
   const capa = {
     position: "absolute",
@@ -58,12 +70,14 @@ export function FondoCheckout({ angosto = false }: { angosto?: boolean } = {}) {
           mobile terminaba a ~2200 px y el resto quedaba liso. Misma imagen,
           derecha, empieza donde la primera se desvanece y se funde en ambos
           extremos. En páginas cortas el contenedor la recorta. */}
-      <div aria-hidden="true" className="md:hidden" style={{ ...capa, top: "calc(100vw * 4.85)", width: "100%", aspectRatio: "780 / 4400", backgroundImage: `url(${FONDO_CHECKOUT_MOBILE})`, maskImage: MASCARA_CONTINUACION, WebkitMaskImage: MASCARA_CONTINUACION, opacity: 0.85 }} />
+      {/* Checkout: la misma escena repetida una vez. Páginas `angosto`: tramo medio. */}
+      {!angosto && <div aria-hidden="true" className="md:hidden" style={{ ...capa, top: "calc(100vw * 4.85)", width: "100%", aspectRatio: "780 / 4400", backgroundImage: `url(${FONDO_CHECKOUT_MOBILE})`, maskImage: MASCARA_CONTINUACION, WebkitMaskImage: MASCARA_CONTINUACION, opacity: 0.85 }} />}
+      {angosto && Array.from({ length: TRAMOS_MOBILE }, (_, k) => (
+        <div key={`m${k}`} aria-hidden="true" className="md:hidden" style={{ ...capa, top: `calc(100vw * ${(4.7 + 1.32 * k).toFixed(2)})`, width: "100%", aspectRatio: "780 / 1170", backgroundImage: `url(${MEDIO_MOBILE})`, maskImage: MASCARA_MEDIO, WebkitMaskImage: MASCARA_MEDIO, transform: `translateX(-50%)${k % 2 ? " scaleX(-1)" : ""}` }} />
+      ))}
       <div aria-hidden="true" className="hidden md:block" style={{ ...capa, width: angosto ? ANCHO_ANGOSTO : "min(1280px, 100%)", aspectRatio: "2560 / 2400", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-checkout-desktop.webp`, 1920)})`, ...(angosto ? conLaterales(MASCARA) : {}) }} />
-      {/* Continuaciones: la misma escena DERECHA (espejada quedaban velas y
-          lunas boca abajo), fundida arriba y abajo; el resto se recorta. */}
-      {angosto && [1, 2, 3].map((k) => (
-        <div key={k} aria-hidden="true" className="hidden md:block" style={{ ...capa, top: `calc(min(960px, 100vw) * ${(0.8 * k).toFixed(1)})`, width: ANCHO_ANGOSTO, aspectRatio: "2560 / 2400", backgroundImage: `url(${urlOptimizada(`${DIR}/fondo-checkout-desktop.webp`, 1920)})`, opacity: 0.85, ...conLaterales(MASCARA_CONTINUACION) }} />
+      {angosto && Array.from({ length: TRAMOS_DESKTOP }, (_, k) => (
+        <div key={`d${k}`} aria-hidden="true" className="hidden md:block" style={{ ...capa, top: `calc(min(960px, 100vw) * ${(0.8 + 0.59 * k).toFixed(2)})`, width: ANCHO_ANGOSTO, aspectRatio: "1536 / 1024", backgroundImage: `url(${MEDIO_DESKTOP})`, transform: `translateX(-50%)${k % 2 ? " scaleX(-1)" : ""}`, ...conLaterales(MASCARA_MEDIO) }} />
       ))}
       {/* Pie: escena baja (velas, cristales) apoyada abajo, se funde hacia
           arriba — cubre lo que la escena principal no alcanza. Misma imagen

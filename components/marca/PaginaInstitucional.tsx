@@ -26,7 +26,7 @@ export const PANEL_INSTITUCIONAL = {
 
 export function PaginaInstitucional({ children }: { children: ReactNode }) {
   return (
-    <PaginaMarca fondo={<FondoCheckout />}>
+    <PaginaMarca fondo={<FondoCheckout angosto />}>
       <style dangerouslySetInnerHTML={{ __html: "details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
       <HeaderMarca variante="completo" links={NAV} cta={{ href: "/tarot", label: "Conocer el Tarot →" }} />
       <main className="relative px-5 pt-12 md:pt-16 pb-14 mx-auto w-full max-w-[760px]" style={{ fontVariantNumeric: "lining-nums" }}>
