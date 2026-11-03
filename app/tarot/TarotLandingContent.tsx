@@ -8,7 +8,7 @@ import { TarotBackgroundStage } from "@/components/tarot/TarotBackgroundStage";
 import { HeaderTarot } from "@/components/tarot/HeaderTarot";
 import { HeroTarot } from "@/components/tarot/HeroTarot";
 import { HeroTarotAnterior } from "@/components/tarot/HeroTarotAnterior";
-import { QueIncluyeTarot } from "@/components/tarot/QueIncluyeTarot";
+import { QueIncluyeTarot, type VarianteQueIncluye } from "@/components/tarot/QueIncluyeTarot";
 import { AsiSeViveTarot } from "@/components/tarot/AsiSeViveTarot";
 import { ComoFuncionaTarot } from "@/components/tarot/ComoFuncionaTarot";
 import { TestimoniosTarot } from "@/components/tarot/TestimoniosTarot";
@@ -33,17 +33,19 @@ function Seccion({ id, children }: { id: string; children: ReactNode }) {
   return <div data-seccion={id} style={{ display: "contents" }}>{children}</div>;
 }
 
-// respaldo: /tarot-anterior (portada sin video). No mide nada, para no
+// respaldo: /tarot-anterior (portada sin video). prueba: /pruebas/tarot
+// (variantes del bloque 2). Ninguno de los dos mide nada, para no
 // ensuciar el embudo ni las señales de Meta.
-export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "", respaldo = false }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string; respaldo?: boolean }) {
+export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "", respaldo = false, prueba = false, variante }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string; respaldo?: boolean; prueba?: boolean; variante?: VarianteQueIncluye }) {
+  const sinMedicion = respaldo || prueba;
   useEffect(() => {
-    if (respaldo) return;
+    if (sinMedicion) return;
     trackViewItem("tarot", precioUYU ?? undefined);
     trackLandingViewed("tarot");
     metaViewContent(precioUYU ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => { if (!respaldo) return medirSecciones(document.body); }, [respaldo]);
+  useEffect(() => { if (!sinMedicion) return medirSecciones(document.body); }, [sinMedicion]);
 
   return (
     <>
@@ -64,7 +66,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
           <TarotBackgroundStage>
             <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} /></Seccion>
             <Seccion id="hero">{respaldo ? <HeroTarotAnterior precioUYU={precioUYU} /> : <HeroTarot precioUYU={precioUYU} />}</Seccion>
-            <Seccion id="que_incluye"><QueIncluyeTarot /></Seccion>
+            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" /><QueIncluyeTarot variante={variante} /></Seccion>
             <Seccion id="asi_se_vive"><AsiSeViveTarot /></Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
             <Seccion id="por_tema"><LecturasPorTema /></Seccion>

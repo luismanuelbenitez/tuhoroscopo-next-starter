@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Carousel } from "@/components/home/Carousel";
 import { SERIF } from "@/components/home/theme";
 import { fijo, fluido } from "@/lib/imagen";
+import { VarianteA, VarianteB, VarianteC } from "@/components/tarot/QueIncluyeVariantes";
 
 const BASE = "/img/tarot/contenedores/que-incluye";
 
@@ -183,7 +184,13 @@ function FondoConFallback({ src, carga }: { src: string; carga?: ReturnType<type
 // ocupar el ancho TOTAL del escenario (960px, el mismo ancho que el fondo
 // de la página), no el ancho de contenido con gutter lateral que usa el
 // resto de las secciones.
-export function QueIncluyeTarot() {
+// variante: solo desde /pruebas/tarot (2026-11-03). Sin variante, el bloque
+// móvil es el de producción.
+export type VarianteQueIncluye = "a" | "b" | "c";
+const VARIANTES = { a: VarianteA, b: VarianteB, c: VarianteC };
+
+export function QueIncluyeTarot({ variante }: { variante?: VarianteQueIncluye } = {}) {
+  const Variante = variante ? VARIANTES[variante] : null;
   return (
     <section className="relative max-w-[960px] mx-auto">
       {/* ── Desktop ── grid-cols-1 = repeat(1, minmax(0,1fr)): la columna
@@ -229,7 +236,8 @@ export function QueIncluyeTarot() {
       </div>
 
       {/* ── Mobile ── (pendiente de rediseño: todavía sin pergamino propio) */}
-      <div className="md:hidden grid grid-cols-1 text-center">
+      {Variante && <div className="md:hidden"><Variante /></div>}
+      <div className={Variante ? "hidden" : "md:hidden grid grid-cols-1 text-center"}>
 
         <div className="px-6 py-12" style={{ gridArea: "1 / 1", alignSelf: "start" }}>
           <p className="text-[11px] font-bold uppercase mb-4" style={{ color: MOVIL_ACENTO, letterSpacing: "0.18em" }}>
