@@ -1,5 +1,6 @@
 import type { LecturaPublica } from "@/lib/tarotLecturaPublica";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { urlOptimizada } from "@/lib/imagen";
 import { DIR, SERIF, GOLD, FondoLectura, FONDO_PAGINA, EstilosCartaViva } from "./Base";
 import { HeroLectura } from "./HeroLectura";
@@ -139,9 +140,13 @@ function PieLectura() {
   );
 }
 
+// aviso / cierre: solo para la lectura de ejemplo (/tarot/ejemplo, 2026-11-03).
+// aviso va arriba de todo; cierre reemplaza PDF + "otra lectura" (sin datos
+// de Paula precargados en el checkout). En /lectura/[token] no se pasan y la
+// vista queda exactamente igual.
 export function LecturaVista({
-  lectura, audioResumenUrl, pdfHref, fontClass,
-}: { lectura: LecturaPublica; audioResumenUrl: string | null; pdfHref: string; fontClass: string }) {
+  lectura, audioResumenUrl, pdfHref, fontClass, aviso, cierre,
+}: { lectura: LecturaPublica; audioResumenUrl: string | null; pdfHref: string; fontClass: string; aviso?: ReactNode; cierre?: ReactNode }) {
   // Fecha de nacimiento opcional ("YYYY-MM-DD"): en la portada se muestra
   // solo el signo, no la fecha completa — el link se reenvía o se muestra en
   // pantalla y la fecha es un dato personal (auditoría UX 2026-10-30, L3).
@@ -152,6 +157,7 @@ export function LecturaVista({
     <main className={`${fontClass} min-h-screen relative`} style={{ background: FONDO_PAGINA, color: "#F0F1F5" }}>
       <FondoLectura />
       <EstilosCartaViva />
+      {aviso}
 
       {/* Mismo ancho maestro que Home y /tarot (960). container-type: la capa
           de escena mide su empalme en cqw (= ancho de este contenedor). */}
@@ -171,8 +177,12 @@ export function LecturaVista({
           <div className="space-y-4 md:space-y-5">
             <MensajeBloque mensaje={lectura.mensaje_final} />
             {pasos.length > 0 && <ClavesBloque pasos={pasos} />}
-            <PdfBloque pdfHref={pdfHref} venceTexto={fechaVencimiento(lectura.expira_at)} />
-            <OtraLecturaBloque nombre={lectura.nombre?.trim() || null} nacimiento={lectura.fecha_nacimiento ?? null} />
+            {cierre ?? (
+              <>
+                <PdfBloque pdfHref={pdfHref} venceTexto={fechaVencimiento(lectura.expira_at)} />
+                <OtraLecturaBloque nombre={lectura.nombre?.trim() || null} nacimiento={lectura.fecha_nacimiento ?? null} />
+              </>
+            )}
           </div>
           <PieLectura />
         </div>

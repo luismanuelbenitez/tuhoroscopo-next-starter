@@ -42,8 +42,11 @@ export function HeaderTarot({ mostrarTestimonios = false }: { mostrarTestimonios
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <CtaButton href="/tarot/checkout" className="text-[12px] px-4 py-2.5 rounded-full">
-            Quiero mi lectura →
+          {/* Celulares de 360 px: el texto largo empujaba el menú fuera de la
+              pantalla (auditoría móvil 2026-11-03). */}
+          <CtaButton href="/tarot/checkout" className="text-[12px] px-3.5 min-[390px]:px-4 py-2.5 rounded-full whitespace-nowrap">
+            <span className="hidden min-[390px]:inline">Quiero mi lectura →</span>
+            <span className="min-[390px]:hidden">Mi lectura →</span>
           </CtaButton>
           <button
             type="button"

@@ -63,7 +63,8 @@ export async function middleware(req: NextRequest) {
   // por posesión de link) — el header/footer de marketing del sitio
   // rompían la sensación de "entré a mi lectura" duplicando el branding
   // propio de la página y cerrando con links de navegación del sitio.
-  if (pathname.startsWith("/lectura/")) {
+  // /tarot/ejemplo (2026-11-03) es la misma vista con la lectura de ejemplo.
+  if (pathname.startsWith("/lectura/") || pathname === "/tarot/ejemplo") {
     requestHeaders.set("x-hide-chrome", "1");
   }
 

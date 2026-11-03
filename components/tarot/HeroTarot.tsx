@@ -1,9 +1,11 @@
 "use client";
 
-import { Zap, MessageCircle, Smartphone, Volume2, FileText } from "lucide-react";
+import Link from "next/link";
+import { Zap, MessageCircle, Volume2, FileText, Eye } from "lucide-react";
 import { GOLD } from "@/components/home/theme";
 import { CtaButton } from "@/components/home/CtaButton";
 import { fijo } from "@/lib/imagen";
+import { VideoDemoTarot } from "@/components/tarot/VideoDemoTarot";
 
 const CREMA = "#F5EFE0";
 const TEXT_SHADOW = "0 2px 14px rgba(0,0,0,0.65)";
@@ -12,61 +14,84 @@ const MP_LOGO = "/img/tarot/generales/MP_RGB_HANDSHAKE_pluma_horizontal.png";
 const BENEFICIOS = [
   { Icon: Zap, label: "Entrega en minutos" },
   { Icon: MessageCircle, label: "Por WhatsApp y/o mail" },
-  { Icon: Smartphone, label: "Lectura online" },
-  { Icon: Volume2, label: "Resumen con voz de IA + ambientación" },
+  { Icon: Volume2, label: "Resumen en audio" },
   { Icon: FileText, label: "PDF para guardar" },
 ];
 
-// Sin celular/documento flotando: el fondo de la página ya tiene
-// protagonismo propio (velas, cristales, el libro "Tarot") y la escena de
-// objetos competía con eso. Columna de texto única, sin segunda columna.
+// Portada v2 (2026-11-03, auditoría móvil de Google Ads: 5 de 6 visitas se
+// iban sin pasar de acá). Antes era un párrafo de 5 líneas y lo que muestra
+// el producto quedaba 3 pantallas más abajo. Ahora: promesa corta + video de
+// 14 s con lo que se recibe + ejemplo de lectura, todo en la primera
+// pantalla del celular. El precio pasa a la línea de abajo del botón.
 export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
   const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
 
+  const ejemplo = (
+    <Link href="/tarot/ejemplo" className="inline-flex items-center gap-1.5 text-[13px] font-semibold underline underline-offset-4 decoration-1" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
+      <Eye size={14} className="shrink-0" /> Ver una lectura de ejemplo
+    </Link>
+  );
+
   return (
-    <div className="relative px-6 md:px-12" style={{ paddingTop: "7%", paddingBottom: "5%" }}>
+    <div className="relative px-5 md:px-12" style={{ paddingTop: "6%", paddingBottom: "5%" }}>
       {/* Mobile: velo oscuro detrás del texto, que cae sobre el libro y las
           velas de la escena (auditoría UX 2026-10-30, T3). */}
-      <div aria-hidden="true" className="md:hidden absolute inset-x-0 top-[4%] bottom-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 85% 60% at 35% 50%, rgba(8,4,18,0.62) 0%, rgba(8,4,18,0.35) 55%, transparent 85%)" }} />
-      <div className="fi1 relative max-w-[520px]">
-        {/* SEO (2026-10-21): el H1 es la intención principal de la página
-            ("tarot personalizado online") con el estilo del antetítulo; el
-            "Tarot" grande queda como título visual, sin cambiar el diseño. */}
-        <h1 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
-          Tarot personalizado online
-        </h1>
-        <p aria-hidden="true" className="mb-1" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(2.2rem, 6vw, 3.6rem)", lineHeight: 1.05, textShadow: TEXT_SHADOW }}>
-          <span style={{ color: CREMA }}>Tarot</span>
-        </p>
-        <p className="mb-4" style={{ color: GOLD, fontSize: "clamp(1.05rem, 2.2vw, 1.3rem)", fontWeight: 600, textShadow: TEXT_SHADOW }}>
-          5 cartas, interpretadas para vos.
-        </p>
-        <p className="text-white/90 md:text-white/80 text-[14px] md:text-[15px] leading-relaxed mb-6" style={{ textShadow: TEXT_SHADOW }}>
-          Hacé tu consulta y recibí en minutos una lectura personalizada de 5 cartas. Explorá cada
-          carta desde tu celular, escuchá el resumen con voz generada por IA, ambientá tu lectura
-          con música y guardá tu PDF para volver cuando quieras.
-        </p>
+      <div aria-hidden="true" className="md:hidden absolute inset-x-0 top-[2%] bottom-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 90% 65% at 40% 50%, rgba(8,4,18,0.70) 0%, rgba(8,4,18,0.40) 55%, transparent 88%)" }} />
+      <div className="relative md:flex md:items-center md:gap-12">
+        <div className="fi1 md:flex-1 max-w-[520px]">
+          {/* SEO (2026-10-21): el H1 es la intención principal de la página
+              ("tarot personalizado online") con el estilo del antetítulo. */}
+          <h1 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-2.5" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
+            Tarot personalizado online
+          </h1>
+          <p className="mb-2" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.9rem, 5.4vw, 3.1rem)", lineHeight: 1.05, color: CREMA, textShadow: TEXT_SHADOW }}>
+            Tu tirada de 5 cartas,{" "}
+            <span style={{ color: GOLD }}>interpretada para tu pregunta.</span>
+          </p>
+          <p className="text-white/90 md:text-white/80 text-[14.5px] md:text-[16px] leading-snug mb-4 md:mb-6" style={{ textShadow: TEXT_SHADOW }}>
+            En minutos te llega por WhatsApp, explicada carta por carta.
+          </p>
 
-        <div className="fi2 flex flex-wrap gap-x-5 gap-y-2.5 mb-7">
-          {BENEFICIOS.map(({ Icon, label }) => (
-            <div key={label} className="flex items-center gap-2">
-              <Icon size={14} style={{ color: GOLD, flexShrink: 0 }} />
-              <span className="text-[12.5px] text-white/70" style={{ textShadow: TEXT_SHADOW }}>{label}</span>
+          {/* Celular: video y beneficios lado a lado, así todo entra en la primera pantalla. */}
+          <div className="flex md:hidden items-center gap-4 mb-5">
+            <VideoDemoTarot className="w-[42%] max-w-[190px] shrink-0" />
+            <div className="flex flex-col gap-3 min-w-0">
+              {BENEFICIOS.map(({ Icon, label }) => (
+                <div key={label} className="flex items-start gap-2">
+                  <Icon size={15} style={{ color: GOLD, flexShrink: 0, marginTop: 2 }} />
+                  <span className="text-[13.5px] leading-snug text-white/85" style={{ textShadow: TEXT_SHADOW }}>{label}</span>
+                </div>
+              ))}
+              <div className="pt-1">{ejemplo}</div>
             </div>
-          ))}
+          </div>
+
+          <div className="hidden md:flex flex-wrap gap-x-5 gap-y-2.5 mb-7">
+            {BENEFICIOS.map(({ Icon, label }) => (
+              <div key={label} className="flex items-center gap-2">
+                <Icon size={14} style={{ color: GOLD, flexShrink: 0 }} />
+                <span className="text-[13px] text-white/75" style={{ textShadow: TEXT_SHADOW }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="fi3">
+            <CtaButton href="/tarot/checkout" className="block md:inline-block w-full md:w-auto px-7 py-3.5 text-[16px]">
+              Quiero mi lectura →
+            </CtaButton>
+            <div className="mt-2.5 flex items-center justify-center md:justify-start gap-2 flex-wrap">
+              <p className="text-[12.5px] text-white/65" style={{ textShadow: TEXT_SHADOW }}>
+                {precioTexto ? <><span className="font-semibold text-white/90">{precioTexto}</span> · </> : null}Pago único con
+              </p>
+              {/* Paquete SEO 2: PNG 1049×426 → se pinta a 59×24 */}
+              <img {...fijo(MP_LOGO, 60, 24)} alt="Mercado Pago" style={{ height: 24, width: "auto", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
+            </div>
+            <div className="hidden md:block mt-5">{ejemplo}</div>
+          </div>
         </div>
 
-        <div className="fi3">
-          <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px]">
-            {precioTexto ? `Quiero mi lectura por ${precioTexto} →` : "Quiero mi lectura →"}
-          </CtaButton>
-          <div className="mt-3 flex items-center gap-2">
-            <p className="text-[12px] text-white/50" style={{ textShadow: TEXT_SHADOW }}>
-              Pago único · Sin suscripción · Pago seguro con
-            </p>
-            {/* Paquete SEO 2: PNG 1049×426 → se pinta a 59×24 */}
-            <img {...fijo(MP_LOGO, 60, 24)} alt="Mercado Pago" style={{ height: 24, width: "auto", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
-          </div>
+        <div className="hidden md:block shrink-0 w-[250px]">
+          <VideoDemoTarot />
         </div>
       </div>
     </div>
