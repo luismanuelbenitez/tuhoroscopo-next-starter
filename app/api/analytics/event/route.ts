@@ -144,7 +144,14 @@ export async function POST(req: Request) {
     const gclid = sesionIn.gclid === true;
     const landing = txt(sesionIn.landing_path, 200);
     const pantalla = txt(sesionIn.screen_bucket, 12);
-    const esInterno = (req.headers.get('cookie') ?? '').split(/;\s*/).includes('tuo_interno=1');
+    // Revisión de anuncios (2026-11-04): Meta entra a la página desde sus
+    // centros de datos (Prineville, Luleå, Fort Worth…) al aprobar un anuncio.
+    // Las campañas solo apuntan a Uruguay: una visita "Meta Ads" desde otro
+    // país es esa revisión y no cuenta como visita real.
+    const pais = txt(req.headers.get('x-vercel-ip-country'), 2) ?? null;
+    const fuente = clasificarFuente({ ...utm, referrerHost, fbclid, gclid, in_app: tecnico.in_app });
+    const revisionMeta = fuente === 'Meta Ads' && !!pais && pais !== 'UY';
+    const esInterno = (req.headers.get('cookie') ?? '').split(/;\s*/).includes('tuo_interno=1') || revisionMeta;
 
     const sesion = {
       session_id: sessionId,
@@ -154,14 +161,14 @@ export async function POST(req: Request) {
       referrer_host: referrerHost,
       ...utm,
       fbclid, gclid,
-      fuente: clasificarFuente({ ...utm, referrerHost, fbclid, gclid, in_app: tecnico.in_app }),
+      fuente,
       device_type: tecnico.device_type,
       os: tecnico.os,
       browser: tecnico.browser,
       in_app: tecnico.in_app,
       screen_bucket: pantalla && RANGOS_PANTALLA.has(pantalla) ? pantalla : null,
       // Ubicación aproximada que agrega Vercel por cabeceras (la IP no se guarda).
-      country: txt(req.headers.get('x-vercel-ip-country'), 2) ?? null,
+      country: pais,
       region: txt(req.headers.get('x-vercel-ip-country-region'), 10) ?? null,
       city: decodificar(req.headers.get('x-vercel-ip-city')) ?? null,
       es_interno: esInterno,
