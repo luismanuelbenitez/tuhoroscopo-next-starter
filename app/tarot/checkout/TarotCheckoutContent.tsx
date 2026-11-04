@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 import {
   ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, List, PenLine, Zap, Sparkles,
+  ArrowLeft, User, Mail, PenLine, Zap, Sparkles,
 } from 'lucide-react';
 import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
@@ -33,12 +33,12 @@ const PAISES = [
 ];
 
 const TEMAS = [
-  { value: 'general',   label: '🧿 Situación general' },
-  { value: 'amor',      label: '❤️  Amor y vínculos' },
-  { value: 'trabajo',   label: '💼 Trabajo y proyectos' },
-  { value: 'dinero',    label: '💰 Dinero y recursos' },
-  { value: 'salud',     label: '🌿 Salud y bienestar' },
-  { value: 'decision',  label: '🔮 Decisión personal' },
+  { value: 'general',   emoji: '🧿', corto: 'Mi momento' },
+  { value: 'amor',      emoji: '❤️', corto: 'Amor y vínculos' },
+  { value: 'trabajo',   emoji: '💼', corto: 'Trabajo' },
+  { value: 'dinero',    emoji: '💰', corto: 'Dinero' },
+  { value: 'salud',     emoji: '🌿', corto: 'Salud y bienestar' },
+  { value: 'decision',  emoji: '🔮', corto: 'Una decisión' },
 ];
 
 const EJEMPLOS_POR_TEMA: Record<string, string> = {
@@ -478,7 +478,7 @@ export default function TarotCheckoutContent({
                 href={'/tarot' as never}
                 onClick={() => trackCheckoutPaso('checkout_back', 'volver_tarot')}
                 // Celular: píldora oscura, el link caía sobre el sol del fondo (2026-11-01).
-                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-6 max-md:rounded-full max-md:px-3 max-md:-mx-1 max-md:bg-black/45 max-md:text-white/90 max-md:backdrop-blur-sm"
+                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-4 max-md:rounded-full max-md:px-3 max-md:-mx-1 max-md:bg-black/45 max-md:text-white/90 max-md:backdrop-blur-sm"
                 style={{ textShadow: TEXT_SHADOW }}
               >
                 <ArrowLeft size={15} />
@@ -488,7 +488,7 @@ export default function TarotCheckoutContent({
               {/* Velo oscuro detrás del título: el fondo tiene adornos (luna,
                   hojas) justo en esta zona — mismo recurso de legibilidad
                   que HeroTarot (text-shadow) más un degradé radial suave. */}
-              <div className="relative isolate mb-6" style={{ textShadow: TEXT_SHADOW }}>
+              <div className="relative isolate mb-5" style={{ textShadow: TEXT_SHADOW }}>
                 <div
                   aria-hidden="true"
                   className="absolute -inset-x-8 -inset-y-6 -z-10 pointer-events-none"
@@ -498,15 +498,15 @@ export default function TarotCheckoutContent({
                   Tarot personalizado
                 </p>
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
-                  Completá tu experiencia
+                  Tu lectura, en un minuto
                 </h1>
-                <p className="text-white/90 md:text-white/75 text-[14.5px] leading-relaxed mt-3 max-w-[480px]">
-                  Contanos un poco sobre vos y tu consulta. Podés hacer una pregunta puntual o simplemente recibir una lectura completa sobre tu momento actual.
+                <p className="text-white/90 md:text-white/75 text-[15px] leading-relaxed mt-2 max-w-[480px]">
+                  Elegí tu tema, dejá tu WhatsApp y pagá. En minutos te llega tu lectura.
                 </p>
               </div>
 
               {/* Mobile: qué se compra y cuánto cuesta, antes del formulario. */}
-              <div className="md:hidden mb-5">
+              <div className="md:hidden mb-4">
                 <ResumenCompacto
                   nombre={form.nombre}
                   precioBase={PRECIO_BASE}
@@ -523,7 +523,73 @@ export default function TarotCheckoutContent({
                 style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
               >
 
-                <Paso n={1} titulo="Tus datos" bajada="Así personalizamos tu lectura." />
+                <Paso n={1} titulo="Tu consulta" bajada="Elegí un tema. La pregunta es opcional." />
+
+                {/* Tema en botones (auditoría 2026-11-04): 28 visitas llegaron al
+                    checkout en 21 días y 26 se fueron sin escribir nada; las 2
+                    que empezaron pagaron. Se arranca por lo fácil y propio de la
+                    consulta (un toque) en vez de pedir nombre y teléfono primero.
+                    Mismo campo "tema" (radio requerido): validación y medición
+                    iguales que con el selector. */}
+                <fieldset>
+                  <legend className="mb-2 text-[14px] font-medium text-white/90">
+                    Tema de la consulta <span className="text-[12px] font-normal text-white/45">(requerido)</span>
+                  </legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TEMAS.map(t => {
+                      const elegido = form.tema === t.value;
+                      return (
+                        <label
+                          key={t.value}
+                          className={`relative flex items-center gap-2 rounded-xl px-3 min-h-[50px] text-[14.5px] leading-tight cursor-pointer transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#F0C55A]/60 ${elegido ? 'font-semibold' : 'text-white/85'} ${erroresCampo.tema ? RING_ERROR + ' ring-1' : ''}`}
+                          style={elegido
+                            ? { background: 'linear-gradient(180deg, #f6d77e, #e9b94a)', color: '#180e00', border: '1px solid #fbe39a', boxShadow: '0 0 14px rgba(240,197,90,0.35)' }
+                            : { ...inputBg, border: '1px solid rgba(255,255,255,0.15)' }}
+                        >
+                          <input
+                            type="radio"
+                            name="tema"
+                            value={t.value}
+                            checked={elegido}
+                            onChange={(e) => { handleChange(e); limpiarErrorCampo('tema'); }}
+                            disabled={isLoading}
+                            required
+                            className="sr-only"
+                          />
+                          <span aria-hidden="true" className="text-[17px]">{t.emoji}</span>
+                          {t.corto}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <ErrorCampo texto={erroresCampo.tema} />
+                </fieldset>
+
+                {/* Pregunta (opcional) */}
+                <div>
+                  <Etiqueta htmlFor="pregunta" texto="Tu pregunta" nota="opcional" />
+                  <ConIcono Icon={PenLine} arriba>
+                    <textarea
+                      id="pregunta"
+                      name="pregunta"
+                      ref={preguntaRef}
+                      rows={3}
+                      // Mobile (2026-11-01): el ejemplo solo, sin la frase que ya
+                      // dice la bajada del paso 2; arranca en ~3 líneas y crece al
+                      // escribir (antes 14rem fijos empujaban el botón de pago).
+                      className={`${inputCheckout} !h-auto min-h-[5.5rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
+                      style={inputBg}
+                      placeholder={`Ej: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
+                      value={form.pregunta}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      maxLength={500}
+                    />
+                  </ConIcono>
+                  <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
+                </div>
+
+                <Paso n={2} titulo="¿A quién se la enviamos?" bajada="Tus datos y tu consulta son privados." separado />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
 
                 {/* Nombre */}
@@ -659,58 +725,6 @@ export default function TarotCheckoutContent({
                   />
                   <p className="mt-1.5 text-xs text-white/55">Para personalizar tu lectura.</p>
                 </div>
-                </div>
-
-                <Paso n={2} titulo="Tu consulta" bajada="Podés hacer una pregunta puntual o dejar que la lectura sea general." separado />
-
-                {/* Tema */}
-                <div>
-                  <Etiqueta htmlFor="tema" texto="Tema de la consulta" nota="requerido" />
-                  <div className="relative">
-                    <ConIcono Icon={List}>
-                      <select
-                        id="tema"
-                        name="tema"
-                        className={`${inputCheckout} pl-11 pr-10 appearance-none cursor-pointer ${form.tema ? '' : 'text-white/40'} ${erroresCampo.tema ? RING_ERROR : ''}`}
-                        style={inputBg}
-                        value={form.tema}
-                        onChange={(e) => { handleChange(e); limpiarErrorCampo('tema'); }}
-                        disabled={isLoading}
-                        required
-                      >
-                        <option value="" disabled style={{ background: '#1a0a3a' }}>Elegí un área</option>
-                        {TEMAS.map(t => (
-                          <option key={t.value} value={t.value} style={{ background: '#1a0a3a', color: 'white' }}>{t.label}</option>
-                        ))}
-                      </select>
-                    </ConIcono>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
-                  </div>
-                  <ErrorCampo texto={erroresCampo.tema} />
-                </div>
-
-                {/* Pregunta (opcional) */}
-                <div>
-                  <Etiqueta htmlFor="pregunta" texto="Tu pregunta" nota="opcional" />
-                  <ConIcono Icon={PenLine} arriba>
-                    <textarea
-                      id="pregunta"
-                      name="pregunta"
-                      ref={preguntaRef}
-                      rows={4}
-                      // Mobile (2026-11-01): el ejemplo solo, sin la frase que ya
-                      // dice la bajada del paso 2; arranca en ~3 líneas y crece al
-                      // escribir (antes 14rem fijos empujaban el botón de pago).
-                      className={`${inputCheckout} !h-auto min-h-[7.5rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
-                      style={inputBg}
-                      placeholder={`Ej: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
-                      value={form.pregunta}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                      maxLength={500}
-                    />
-                  </ConIcono>
-                  <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
                 </div>
 
                 <Paso n={3} titulo="Tu compra" bajada={esCortesia ? 'Revisá y confirmá tu lectura.' : 'Revisá y confirmá tu pago.'} separado />
