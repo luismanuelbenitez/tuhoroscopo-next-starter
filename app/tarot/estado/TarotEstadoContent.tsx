@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { trackPurchase } from "@/lib/analytics";
 import { metaPurchase } from "@/lib/metaPixel";
+import { googleAdsCompra } from "@/lib/googleAds";
 import confetti from "canvas-confetti";
 import { Loader2 } from "lucide-react";
 import { PaginaMarca } from "@/components/marca/PaginaMarca";
@@ -116,6 +117,12 @@ export default function TarotEstadoContent({ waNumero = "" }: { waNumero?: strin
             eventId:  data.transaction_id,
             value:    data.value,
             currency: data.currency ?? "UYU",
+          });
+          // Google Ads (2026-11-04): mismo gate; no hace nada sin las variables.
+          googleAdsCompra({
+            transactionId: data.transaction_id,
+            value:         data.value,
+            currency:      data.currency ?? "UYU",
           });
         }
       } catch { /* best-effort, no bloquea la UI */ }

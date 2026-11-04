@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { GoogleAdsTag } from "@/components/GoogleAdsTag";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { MetaPixel } from "@/components/MetaPixel";
 import { StyledJsxRegistry } from "@/components/StyledJsxRegistry";
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         )}
+        <GoogleAdsTag />
         {process.env.NEXT_PUBLIC_META_PIXEL_ID && (
           <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} />
         )}
