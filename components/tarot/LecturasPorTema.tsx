@@ -19,9 +19,31 @@ const TEMAS = [
   { href: "/tarot/decisiones", tema: "decision", Icon: Compass, t: "Una decisión", d: "Cuando tenés que elegir y no terminás de decidirte." },
 ];
 
+// Móvil (auditoría 2026-11-04): las tarjetas repetían los temas del gancho
+// del bloque 2 (que ya lleva al checkout con el tema elegido) y con otros
+// nombres. En el celular queda solo una línea de enlaces a las páginas por
+// tema (lo que importa para el SEO); en escritorio, igual que antes.
+function EnlacesMovil() {
+  const enlace = "underline underline-offset-2 decoration-[rgba(240,197,90,0.4)] hover:text-white/85 py-1.5 inline-block";
+  return (
+    <nav aria-label="Lecturas por tema" className="relative md:hidden px-5 pt-2 pb-8 text-center text-[14px] leading-relaxed text-white/60">
+      <p>Más sobre cada consulta:</p>
+      <p className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-0.5" style={{ color: "rgba(240,197,90,0.9)" }}>
+        {TEMAS.map(({ href, t }) => (
+          <Link key={href} href={href as Route<string>} className={enlace}>{t}</Link>
+        ))}
+        <Link href={"/tarot/lectura-personalizada" as Route<string>} className={enlace}>Qué incluye</Link>
+        <Link href={"/tarot/online-uruguay" as Route<string>} className={enlace}>Tarot online en Uruguay</Link>
+      </p>
+    </nav>
+  );
+}
+
 export function LecturasPorTema() {
   return (
-    <section aria-labelledby="lecturas-por-tema" className="relative px-5 md:px-8 py-10 md:py-12 max-w-[860px] mx-auto text-center">
+    <>
+    <EnlacesMovil />
+    <section aria-labelledby="lecturas-por-tema" className="relative hidden md:block px-5 md:px-8 py-10 md:py-12 max-w-[860px] mx-auto text-center">
       <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>Tu lectura, para tu consulta</p>
       <h2
         id="lecturas-por-tema"
@@ -74,5 +96,6 @@ export function LecturasPorTema() {
         </Link>
       </p>
     </section>
+    </>
   );
 }

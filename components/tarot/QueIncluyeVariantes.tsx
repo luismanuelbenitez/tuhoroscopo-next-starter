@@ -84,7 +84,7 @@ function Encabezado({ eyebrow, titulo, children }: { eyebrow: string; titulo: Re
     <div className="relative">
       <div aria-hidden="true" className="absolute -inset-x-4 -inset-y-6" style={VELO} />
       <div className="relative">
-        <p className="text-[12px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.2em", textShadow: SOMBRA }}>{eyebrow}</p>
+        <p className="text-[13.5px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.18em", textShadow: SOMBRA }}>{eyebrow}</p>
         <h2 className="mt-2" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 34, lineHeight: 1.08, color: CREMA, textShadow: SOMBRA }}>{titulo}</h2>
         <p className="mt-3 mx-auto max-w-[340px] text-[16px] leading-relaxed font-medium" style={{ color: CREMA, textShadow: SOMBRA }}>{children}</p>
       </div>
@@ -188,7 +188,7 @@ function ResumenEjemplo() {
       <div id="resumen-ejemplo" hidden={!abierto} className="mt-3 rounded-2xl px-5 py-4 text-left" style={{ background: "rgba(14,7,26,0.94)", border: "1px solid rgba(240,197,90,0.4)" }}>
         <p className="text-[16px] leading-[1.7] whitespace-pre-line" style={{ fontFamily: SERIF, fontWeight: 600, color: CREMA }}>{LECTURA_EJEMPLO.resumen_lectura}</p>
       </div>
-      <p className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "rgba(246,234,210,0.8)", textShadow: SOMBRA }}>
+      <p className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: "rgba(246,234,210,0.8)", textShadow: SOMBRA }}>
         <Info size={13} style={{ color: DORADO }} /> Ejemplo · Paula es un personaje ficticio
       </p>
     </div>
@@ -198,6 +198,9 @@ function ResumenEjemplo() {
 // A usa la tirada de Paula (las mismas cartas del video y del resumen en
 // audio), así lo que se ve y lo que se escucha cuentan la misma historia.
 const CARTAS_A = LECTURA_EJEMPLO.cartas.slice(0, 5).map((c, i) => ({ ...POSICIONES[i], nombre: c.nombre_carta, src: c.imagen_url ?? "" }));
+// En la landing no se muestra "DERECHA" (auditoría 2026-11-04: no le dice
+// nada a quien compra); orientación vacía = CartaPorCarta no dibuja la etiqueta.
+const CARTAS_DEMO = LECTURA_EJEMPLO.cartas.map((c) => ({ ...c, orientacion: "" }));
 
 // Gancho del bloque A (idea de Manuel 2026-11-03): "¿Tenés una pregunta que
 // te da vueltas?" y los temas que se turnan. Los botones llevan al checkout
@@ -305,6 +308,39 @@ function ClavesEjemplo() {
   );
 }
 
+// PDF (Manuel 2026-11-04): se despliega como el mensaje y las claves y
+// muestra la primera página del PDF con las cartas de Paula (portada de
+// props/pdf-pagina1 con sus 5 cartas encima). El botón no dice "Descargar":
+// en el ejemplo no hay nada para bajar, y un botón de descarga que no
+// descarga frustra; se aclara que el PDF se baja desde el link personal.
+function PdfEjemplo() {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <TarjetaPergamino
+      id="pdf-ejemplo"
+      ilustracion={<Ilustracion src={`${PAN_LECTURA}/ilustracion-pdf.webp`} medallon={null} Icon={FileText} size={76} />}
+      titulo="Tu lectura en PDF"
+      descripcion="Tu lectura completa, con las 5 cartas, el resumen, el mensaje y las claves. Es tuya para siempre."
+      accion={<BotonDesplegar abierto={abierto} onClick={() => { setAbierto((v) => !v); if (!abierto) trackDemo("ver_pdf"); }} textoCerrado="Ver cómo es el PDF" controla="pdf-ejemplo-vista" />}
+    >
+      <div id="pdf-ejemplo-vista" hidden={!abierto} className="mt-4 pt-4 border-t border-[rgba(120,85,30,0.3)] text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={abierto ? urlOptimizada("/img/tarot/ejemplo/pdf-miniatura.webp", 640) : undefined}
+          alt="Primera página del PDF de la lectura de ejemplo: el nombre, la fecha y las 5 cartas en sus posiciones"
+          width={620}
+          height={877}
+          className="mx-auto w-[74%] max-w-[260px] h-auto rounded-[6px]"
+          style={{ boxShadow: "0 14px 32px rgba(40,20,5,0.45), 0 0 0 1px rgba(120,85,30,0.35)", transform: "rotate(-1.5deg)" }}
+        />
+        <p className="mt-4 text-[15px] leading-relaxed px-1" style={{ color: TINTA_TEXTO }}>
+          Así empieza el PDF del ejemplo. Con tu lectura, lo descargás desde tu link personal y lo guardás para siempre.
+        </p>
+      </div>
+    </TarjetaPergamino>
+  );
+}
+
 export function VarianteA() {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
   useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
@@ -317,7 +353,7 @@ export function VarianteA() {
         Hacés tu consulta y aparecen 5 cartas para vos. Cada una responde algo distinto de tu momento.
       </Encabezado>
 
-      <p className="mt-9 text-[12px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.18em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
+      <p className="mt-9 text-[13.5px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.16em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
       <div ref={filaRef} className="mt-5 flex justify-center items-start">
         {CARTAS_A.map((p, i) => (
           <div key={p.t} className="-mx-[3px]" style={{ transform: `translateY(${ABANICO[i].y}px) rotate(${ABANICO[i].rot}deg)` }}>
@@ -333,29 +369,43 @@ export function VarianteA() {
           tipografía de /lectura se apunta a la de /tarot (Cormorant). */}
       <div className="mt-10 max-w-[480px] mx-auto text-left" style={{ ["--font-serif-editorial" as string]: "var(--font-cormorant)" }}>
         <EstilosCartaViva />
-        <div onClickCapture={(e) => { if ((e.target as HTMLElement).closest("summary")) trackDemo("carta_abierta"); }}>
-          <CartaPorCarta cartas={LECTURA_EJEMPLO.cartas} />
+        {/* Rótulos de /lectura (10,5 px y 13,5 px) agrandados solo acá. */}
+        <div
+          className="[&_summary_span.block]:!text-[13px] [&_section>div:first-child>p]:!text-[15px]"
+          onClickCapture={(e) => { if ((e.target as HTMLElement).closest("summary")) trackDemo("carta_abierta"); }}
+        >
+          <CartaPorCarta cartas={CARTAS_DEMO} />
         </div>
 
         <p className="mt-10 mb-4 text-center text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: DORADO, textShadow: SOMBRA }}>✦ Y además recibís ✦</p>
         <div className="space-y-4">
           <MensajeEjemplo />
           <ClavesEjemplo />
-          <TarjetaPergamino
-            id="pdf-ejemplo"
-            ilustracion={<Ilustracion src={`${PAN_LECTURA}/ilustracion-pdf.webp`} medallon={null} Icon={FileText} size={76} />}
-            titulo="Tu lectura en PDF"
-            descripcion="Tu lectura completa, con las 5 cartas, el resumen, el mensaje y las claves. Es tuya para siempre."
-            accion={null}
-          />
+          <PdfEjemplo />
         </div>
       </div>
 
-      <p className="mt-8">
-        <Link href="/tarot/ejemplo" onClick={() => trackDemo("ver_ejemplo")} className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline underline-offset-4" style={{ color: DORADO, textShadow: SOMBRA }}>
-          Ver una lectura de ejemplo <ArrowRight size={15} />
+      {/* Compra justo después de ver la experiencia (auditoría 2026-11-04:
+          el bloque terminaba sin botón, solo con un enlace que saca de la
+          página). El ejemplo completo queda como segunda opción. */}
+      <div className="mt-10 max-w-[420px] mx-auto">
+        <p style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, lineHeight: 1.15, color: CREMA, textShadow: SOMBRA }}>
+          Ahora, la tuya
+        </p>
+        <p className="mt-2 text-[15.5px] leading-snug font-medium" style={{ color: CREMA, textShadow: SOMBRA }}>
+          Tus 5 cartas, interpretadas para tu consulta. Te llega por WhatsApp en minutos.
+        </p>
+        <Link
+          href="/tarot/checkout"
+          className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-2xl min-h-[56px] px-6 text-[18px] font-bold"
+          style={{ background: "linear-gradient(135deg, #d4a017 0%, #f0c55a 45%, #ffd860 100%)", color: "#180e00", boxShadow: "0 6px 24px rgba(240,197,90,0.32)" }}
+        >
+          Quiero mi lectura <ArrowRight size={19} />
         </Link>
-      </p>
+        <Link href="/tarot/ejemplo" onClick={() => trackDemo("ver_ejemplo")} className="mt-2 inline-flex items-center gap-1.5 py-3 text-[15px] font-semibold underline underline-offset-4" style={{ color: DORADO, textShadow: SOMBRA }}>
+          Ver la lectura completa de ejemplo <ArrowRight size={15} />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -382,7 +432,7 @@ export function VarianteB() {
         5 cartas, cada una en su lugar. Así se arma la respuesta a tu consulta.
       </Encabezado>
 
-      <p className="mt-9 text-[12px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.18em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
+      <p className="mt-9 text-[13.5px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.16em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
       <div className="relative mt-5 max-w-[400px] mx-auto rounded-2xl px-4 py-5" style={{ border: "1px solid rgba(240,197,90,0.4)", background: "rgba(14,7,26,0.88)" }}>
         {/* Hilo dorado que une las 5 cartas */}
         <div aria-hidden="true" className="absolute left-[55px] top-8 bottom-8 w-px" style={{ background: "linear-gradient(180deg, transparent, rgba(240,197,90,0.6) 10%, rgba(240,197,90,0.6) 90%, transparent)" }} />

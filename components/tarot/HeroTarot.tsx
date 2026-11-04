@@ -27,7 +27,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
   const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
 
   const ejemplo = (
-    <Link href="/tarot/ejemplo" className="inline-flex items-center gap-1.5 text-[13px] font-semibold underline underline-offset-4 decoration-1" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
+    <Link href="/tarot/ejemplo" className="inline-flex items-center gap-1.5 py-2.5 -my-2.5 text-[14px] font-semibold underline underline-offset-4 decoration-1" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
       <Eye size={14} className="shrink-0" /> Ver una lectura de ejemplo
     </Link>
   );
@@ -41,7 +41,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
         <div className="fi1 md:flex-1 max-w-[520px]">
           {/* SEO (2026-10-21): el H1 es la intención principal de la página
               ("tarot personalizado online") con el estilo del antetítulo. */}
-          <h1 className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest mb-2.5" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
+          <h1 className="text-[12px] md:text-[11px] font-bold uppercase tracking-widest mb-2.5" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
             Tarot personalizado online
           </h1>
           <p className="mb-2" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.9rem, 5.4vw, 3.1rem)", lineHeight: 1.05, color: CREMA, textShadow: TEXT_SHADOW }}>

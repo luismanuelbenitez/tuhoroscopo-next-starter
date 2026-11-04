@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit3, CreditCard, Sparkles, Smartphone } from "lucide-react";
+import { Edit3, CreditCard, Sparkles } from "lucide-react";
 import { fijo, fluido } from "@/lib/imagen";
 import { GOLD, SERIF } from "@/components/home/theme";
 
@@ -90,13 +90,6 @@ function ComoFuncionaDesktop() {
 
 // ── Mobile ─────────────────────────────────────────────────────────────
 
-const PASOS = [
-  { n: "1", Icon: Edit3, t: "Hacé tu consulta", d: "Contanos tu nombre, tu WhatsApp, el tema y, si querés, una pregunta puntual." },
-  { n: "2", Icon: CreditCard, t: "Realizá el pago", d: "Pago único, procesado de forma segura con Mercado Pago." },
-  { n: "3", Icon: Sparkles, t: "Recibí tu Tarot", d: "En menos de 15 minutos te llega por WhatsApp y, si lo elegiste, también por email." },
-  { n: "4", Icon: Smartphone, t: "Viví la experiencia", d: "Recorré tus 5 cartas, escuchá el resumen, ambientá tu lectura y descargá tu PDF." },
-];
-
 function PasoIcono({ Icon, size }: { Icon: typeof Edit3; size: number }) {
   return (
     <div
@@ -108,31 +101,27 @@ function PasoIcono({ Icon, size }: { Icon: typeof Edit3; size: number }) {
   );
 }
 
+// Celular compacto (auditoría 2026-11-04): en 21 días ninguna visita móvil
+// llegó a este bloque. Quedan 3 pasos en una sola tarjeta; el 4 ("Abrí tu
+// lectura") es lo que el bloque 2 ya muestra en vivo. El paso 2 suma lo
+// que decía "¿Cómo pago?" (esa duda se oculta en celular).
+const PASOS_MOVIL = [
+  { n: "1", Icon: Edit3, t: "Elegí tu tema", d: "Y dejá tu nombre y tu WhatsApp. La pregunta es opcional." },
+  { n: "2", Icon: CreditCard, t: "Pagá con Mercado Pago", d: "Pago único, sin suscripción. Nunca vemos los datos de tu tarjeta." },
+  { n: "3", Icon: Sparkles, t: "Recibila en minutos", d: "En menos de 15 minutos te llega por WhatsApp (y por email, si lo dejaste)." },
+];
+
 function ComoFuncionaMobile() {
   return (
-    <div className="md:hidden px-5 py-14 text-center">
-      <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
-        Simple, rápido y desde tu celular
-      </p>
-      <h2 className="text-2xl font-extrabold mb-3">¿Cómo funciona?</h2>
-      <p className="text-white/60 text-[13px] mb-7 max-w-md mx-auto">
-        Cuatro pasos para vivir tu lectura personalizada.
-      </p>
-      {/* Lista y no carrusel (auditoría UX 2026-10-30): son 4 pasos cortos
-          que entran en una pantalla; en carrusel quedaban 3 escondidos. */}
-      <ol className="flex flex-col gap-3 max-w-[440px] mx-auto text-left">
-        {PASOS.map(({ n, Icon, t, d }) => (
-          <li
-            key={n}
-            className="flex items-center gap-4 rounded-2xl px-4 py-3.5"
-            style={{ background: "rgba(10,6,22,0.72)", border: "1px solid rgba(240,197,90,0.22)" }}
-          >
-            <PasoIcono Icon={Icon} size={44} />
+    <div className="relative md:hidden px-5 py-10 text-center">
+      <h2 className="mb-5" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: 30, lineHeight: 1.1, color: "#F6EAD2" }}>¿Cómo funciona?</h2>
+      <ol className="max-w-[440px] mx-auto text-left rounded-2xl px-4 py-2 divide-y divide-[rgba(240,197,90,0.16)]" style={{ background: "rgba(10,6,22,0.82)", border: "1px solid rgba(240,197,90,0.28)" }}>
+        {PASOS_MOVIL.map(({ n, Icon, t, d }) => (
+          <li key={n} className="flex items-center gap-3.5 py-3.5">
+            <PasoIcono Icon={Icon} size={40} />
             <div className="min-w-0">
-              <p className="text-[15px] font-semibold leading-snug">
-                <span style={{ color: GOLD }}>{n}.</span> {t}
-              </p>
-              <p className="text-[13px] text-white/70 leading-snug mt-0.5">{d}</p>
+              <p className="text-[15.5px] font-semibold leading-snug"><span style={{ color: GOLD }}>{n}.</span> {t}</p>
+              <p className="text-[14px] text-white/75 leading-snug mt-0.5">{d}</p>
             </div>
           </li>
         ))}

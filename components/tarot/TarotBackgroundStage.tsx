@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { fluido } from "@/lib/imagen";
+import { fluido, urlOptimizada } from "@/lib/imagen";
 
 // A diferencia de HomeBackgroundStage, acá el fondo NO se estira a todo el
 // alto del escenario: cada imagen se apoya a su tamaño natural (ancho 100%,
@@ -30,6 +30,11 @@ const TAMANOS: Record<string, [number, number]> = {
   "/img/tarot/generales/tarot-fondo-desktop2.webp": [793, 1763],
 };
 const SIZES = "(max-width: 767px) 100vw, 1280px";
+// Fondo del medio en celular (ver comentario en el JSX). 10 tramos cubren
+// hasta ~18 × el ancho de pantalla (la página mide ~15 en 360 px).
+const MEDIO_MOBILE = urlOptimizada("/img/tarot/contenedores/medio/fondo-medio-tarot-mobile.webp", 828);
+const TRAMOS_MEDIO = 10;
+const MASCARA_TRAMO = "linear-gradient(180deg, transparent 0, #000 10%, #000 90%, transparent 100%)";
 
 // `fondos` permite que otra página del túnel (ej: checkout, más corta que
 // la landing) use solo una de las imágenes; por defecto, las dos de /tarot.
@@ -52,6 +57,44 @@ export function TarotBackgroundStage({ children, fondos = FONDOS }: { children: 
           return <img key={src} {...fluido(src, w, h, SIZES, { prioridad: i === 0 })} alt="" aria-hidden="true" style={{ width: "100%", height: "auto", display: "block" }} />;
         })}
       </div>
+      {/* Celular (Manuel 2026-11-04): tres fondos apilados.
+          1) Cabezal: las dos escenas de arriba (FONDOS), terminan en ~4,72 × ancho.
+          2) Medio: contenedores/medio/fondo-medio-tarot-mobile.webp (cortinas
+             violetas, velas y cristales SOLO a los costados, centro oscuro;
+             original 1024×1536 de Manuel). Va entre el cabezal y el pie, en
+             tramos a su proporción (no estirada: a lo largo de ~3.400 px las
+             velas quedarían 6 veces más altas). Cada tramo se funde arriba y
+             abajo, se superpone con el anterior y se alterna espejado de
+             izquierda a derecha (nunca boca abajo) para que no se note la
+             repetición. Lo que sobra lo recorta el escenario (overflow clip).
+          3) Pie: contenedores/checkout/fondo-pie-mobile.webp, apoyado abajo y
+             fundido hacia arriba (más abajo).
+          Escritorio no cambia: ahí las dos escenas ya cubren la página. */}
+      {Array.from({ length: TRAMOS_MEDIO }, (_, k) => (
+        <div
+          key={k}
+          aria-hidden="true"
+          className="md:hidden"
+          style={{
+            position: "absolute", left: 0, width: "100%", aspectRatio: "780 / 1170",
+            top: `calc(100vw * ${(4.45 + 1.32 * k).toFixed(2)})`,
+            backgroundImage: `url(${MEDIO_MOBILE})`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", pointerEvents: "none",
+            transform: k % 2 ? "scaleX(-1)" : undefined,
+            maskImage: MASCARA_TRAMO, WebkitMaskImage: MASCARA_TRAMO,
+          }}
+        />
+      ))}
+      <div
+        aria-hidden="true"
+        className="md:hidden"
+        style={{
+          position: "absolute", left: 0, right: 0, bottom: 0, aspectRatio: "780 / 900",
+          backgroundImage: `url(${urlOptimizada("/img/tarot/contenedores/checkout/fondo-pie-mobile.webp", 828)})`,
+          backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", pointerEvents: "none",
+          maskImage: "linear-gradient(0deg, #000 0, #000 55%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(0deg, #000 0, #000 55%, transparent 100%)",
+        }}
+      />
       {/* Degradé suave para legibilidad del texto del Hero, mismo recurso que Home */}
       <div
         aria-hidden="true"

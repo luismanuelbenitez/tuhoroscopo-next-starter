@@ -20,11 +20,14 @@ const DUDAS = [
   },
   {
     q: "¿Cuánto tarda en llegar?",
+    // Celular (auditoría 2026-11-04): lo responden los pasos de "Cómo funciona".
+    soloEscritorio: true,
     a: "Menos de 15 minutos desde que se confirma tu pago. Te llega por WhatsApp y, si dejaste tu email, también por email.",
   },
   // 2026-11-01: las dos dudas de pago que faltaban antes de comprar.
   {
     q: "¿Cómo pago?",
+    soloEscritorio: true,
     a: "Con Mercado Pago: tarjeta de crédito, débito o los medios que te ofrezca al pagar. Es un pago único, sin suscripción ni cobros posteriores, y Tu Oráculo nunca ve ni guarda los datos de tu tarjeta.",
   },
   {
@@ -53,7 +56,7 @@ export function DudasTarot({ waNumero = "" }: { waNumero?: string }) {
         {DUDAS.map((d) => (
           <details
             key={d.q}
-            className="group rounded-2xl overflow-hidden"
+            className={`group rounded-2xl overflow-hidden ${d.soloEscritorio ? "hidden md:block" : ""}`}
             style={{ background: "rgba(12,7,24,0.72)", border: "1px solid rgba(240,197,90,0.28)" }}
           >
             <summary className="flex items-center justify-between gap-4 cursor-pointer select-none px-5 py-4 transition-colors hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden" style={{ listStyle: "none" }}>
