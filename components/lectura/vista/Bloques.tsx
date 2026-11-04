@@ -29,7 +29,9 @@ function ImagenConFallback({ src, fallback, size }: { src: string; fallback: Rea
   return <img ref={ref} src={urlOptimizada(src, 256)} alt="" aria-hidden="true" width={size} height={size} style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} onError={() => setFalló(true)} />;
 }
 
-function Ilustracion({ src, medallon, Icon, size }: { src: string; medallon: string | null; Icon: LucideIcon; size: number }) {
+// Exportadas (2026-11-03) para el bloque 2 de /tarot, que muestra la lectura
+// de ejemplo con las mismas piezas. Sin cambios de comportamiento.
+export function Ilustracion({ src, medallon, Icon, size }: { src: string; medallon: string | null; Icon: LucideIcon; size: number }) {
   const icono = (
     <span className="flex items-center justify-center rounded-full shrink-0" style={{ width: size, height: size, background: "radial-gradient(circle at 40% 35%, #2a1648, #0c0718)", border: `2px solid ${GOLD}` }}>
       <Icon size={size * 0.42} style={{ color: GOLD }} />
@@ -245,7 +247,7 @@ function BadgeOrientacion({ orientacion }: { orientacion: string }) {
 
 // ── Tarjetas de pergamino (mensaje / claves / PDF / otra lectura) ─────
 
-function TarjetaPergamino({
+export function TarjetaPergamino({
   id, ilustracion, titulo, descripcion, accion, children,
 }: { id: string; ilustracion: ReactNode; titulo: string; descripcion: ReactNode; accion: ReactNode; children?: ReactNode }) {
   return (
@@ -268,7 +270,7 @@ function TarjetaPergamino({
   );
 }
 
-function BotonDesplegar({ abierto, onClick, textoCerrado, controla }: { abierto: boolean; onClick: () => void; textoCerrado: string; controla: string }) {
+export function BotonDesplegar({ abierto, onClick, textoCerrado, controla }: { abierto: boolean; onClick: () => void; textoCerrado: string; controla: string }) {
   return (
     <button type="button" onClick={onClick} aria-expanded={abierto} aria-controls={controla} className={BOTON_OSCURO}>
       {abierto ? "Ocultar" : textoCerrado}

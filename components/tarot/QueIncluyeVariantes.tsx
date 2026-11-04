@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Info, BookOpen, Headphones, Music, Pause, ArrowRight } from "lucide-react";
+import { Info, BookOpen, Headphones, Music, Pause, ArrowRight, Mail, KeyRound, FileText } from "lucide-react";
+import { CartaPorCarta, TarjetaPergamino, Ilustracion, BotonDesplegar } from "@/components/lectura/vista/Bloques";
+import { EstilosCartaViva, TINTA_TEXTO } from "@/components/lectura/vista/Base";
 import Link from "next/link";
 import type { Route } from "next";
 import { trackDemo } from "@/lib/analytics";
@@ -259,6 +261,50 @@ function PreguntaRotativa() {
   );
 }
 
+// Mensaje y claves de Paula en las tarjetas de pergamino de /lectura. Los
+// botones dicen "de Paula" / "sus claves" (no "mi"): es un ejemplo ficticio.
+const PAN_LECTURA = "/img/lectura/contenedores/paneles";
+
+function MensajeEjemplo() {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <TarjetaPergamino
+      id="mensaje-ejemplo"
+      ilustracion={<Ilustracion src={`${PAN_LECTURA}/ilustracion-mensaje.webp`} medallon={null} Icon={Mail} size={76} />}
+      titulo="Mensaje personal"
+      descripcion="Una reflexión final para acompañarte en este momento de tu camino."
+      accion={<BotonDesplegar abierto={abierto} onClick={() => { setAbierto((v) => !v); if (!abierto) trackDemo("ver_mensaje"); }} textoCerrado="Leer el de Paula" controla="mensaje-ejemplo-texto" />}
+    >
+      <div id="mensaje-ejemplo-texto" hidden={!abierto} className="mt-4 pt-4 border-t border-[rgba(120,85,30,0.3)]">
+        <p className="text-[17px] leading-[1.7] text-center px-1" style={{ fontFamily: SERIF, fontWeight: 700, color: "#160a03" }}>{LECTURA_EJEMPLO.mensaje_final}</p>
+      </div>
+    </TarjetaPergamino>
+  );
+}
+
+function ClavesEjemplo() {
+  const [abierto, setAbierto] = useState(false);
+  const pasos = LECTURA_EJEMPLO.proximos_pasos ?? [];
+  return (
+    <TarjetaPergamino
+      id="claves-ejemplo"
+      ilustracion={<Ilustracion src={`${PAN_LECTURA}/ilustracion-claves.webp`} medallon={null} Icon={KeyRound} size={76} />}
+      titulo="3 claves para avanzar"
+      descripcion="Recomendaciones prácticas para llevar lo que apareció en la lectura a tu día a día."
+      accion={<BotonDesplegar abierto={abierto} onClick={() => { setAbierto((v) => !v); if (!abierto) trackDemo("ver_claves"); }} textoCerrado="Ver sus 3 claves" controla="claves-ejemplo-lista" />}
+    >
+      <ol id="claves-ejemplo-lista" hidden={!abierto} className="mt-4 pt-4 border-t border-[rgba(120,85,30,0.3)] space-y-3.5">
+        {pasos.map((paso, i) => (
+          <li key={i} className="flex gap-3.5">
+            <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[15px] font-bold" style={{ background: "linear-gradient(180deg,#22164a,#120b2a)", color: DORADO, fontFamily: SERIF, fontVariantNumeric: "lining-nums", lineHeight: 1 }}>{i + 1}</span>
+            <p className="pt-0.5 text-[15.5px] leading-relaxed" style={{ color: TINTA_TEXTO }}>{paso}</p>
+          </li>
+        ))}
+      </ol>
+    </TarjetaPergamino>
+  );
+}
+
 export function VarianteA() {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
   useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
@@ -282,25 +328,30 @@ export function VarianteA() {
 
       <ResumenEjemplo />
 
-      <ol className="mt-8 max-w-[420px] mx-auto text-left rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(240,197,90,0.4)", background: "rgba(14,7,26,0.9)" }}>
-        {POSICIONES.map((p, i) => (
-          <li
-            key={p.t}
-            className="flex items-center gap-3 px-4 py-3 motion-reduce:!opacity-100 motion-reduce:!transform-none"
-            style={{ borderTop: i ? "1px solid rgba(240,197,90,0.15)" : undefined, opacity: visto ? 1 : 0, transform: visto ? "none" : "translateY(6px)", transition: "opacity 500ms, transform 500ms", transitionDelay: `${900 + i * 320}ms` }}
-          >
-            <span className="shrink-0 flex items-center justify-center rounded-full text-[14px] font-bold" style={{ width: 28, height: 28, background: "rgba(240,197,90,0.15)", border: `1px solid ${DORADO}`, color: DORADO }}>{i + 1}</span>
-            <div className="min-w-0">
-              <p style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 19, lineHeight: 1.1, color: CREMA }}>{p.t}</p>
-              <p className="text-[14px] leading-snug" style={{ color: "rgba(246,234,210,0.85)" }}>{p.q}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      {/* Desde acá, las mismas piezas de /lectura con la lectura de Paula:
+          carta por carta (desplegable) y las tarjetas de pergamino. La
+          tipografía de /lectura se apunta a la de /tarot (Cormorant). */}
+      <div className="mt-10 max-w-[480px] mx-auto text-left" style={{ ["--font-serif-editorial" as string]: "var(--font-cormorant)" }}>
+        <EstilosCartaViva />
+        <div onClickCapture={(e) => { if ((e.target as HTMLElement).closest("summary")) trackDemo("carta_abierta"); }}>
+          <CartaPorCarta cartas={LECTURA_EJEMPLO.cartas} />
+        </div>
 
-      <Cierre titulo="Y además recibís" items={CIERRE.slice(1)} />
+        <p className="mt-10 mb-4 text-center text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: DORADO, textShadow: SOMBRA }}>✦ Y además recibís ✦</p>
+        <div className="space-y-4">
+          <MensajeEjemplo />
+          <ClavesEjemplo />
+          <TarjetaPergamino
+            id="pdf-ejemplo"
+            ilustracion={<Ilustracion src={`${PAN_LECTURA}/ilustracion-pdf.webp`} medallon={null} Icon={FileText} size={76} />}
+            titulo="Tu lectura en PDF"
+            descripcion="Tu lectura completa, con las 5 cartas, el resumen, el mensaje y las claves. Es tuya para siempre."
+            accion={null}
+          />
+        </div>
+      </div>
 
-      <p className="mt-6">
+      <p className="mt-8">
         <Link href="/tarot/ejemplo" onClick={() => trackDemo("ver_ejemplo")} className="inline-flex items-center gap-1.5 text-[15px] font-semibold underline underline-offset-4" style={{ color: DORADO, textShadow: SOMBRA }}>
           Ver una lectura de ejemplo <ArrowRight size={15} />
         </Link>
