@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3, ListTodo,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3, ListTodo, Search,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -90,6 +90,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/campanas",        icon: Megaphone, label: "Campañas" },
       { href: "/admin/tarot/campanas-ads",    icon: Target,    label: "Campañas Ads" },
       { href: "/admin/tarot/meta-ads",        icon: BarChart3, label: "Meta Ads" },
+      { href: "/admin/tarot/google-ads",      icon: Search,    label: "Google Ads" },
       { href: "/admin/tarot/product-intelligence", icon: Sparkles, label: "Product Intelligence" },
     ],
   },
@@ -107,11 +108,28 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
 // favoritos; grupos abiertos y favoritos se recuerdan en este navegador.
 const FAVORITOS_INICIALES = [
   "/admin/tarot/pendientes", "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
-  "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
+  "/admin/tarot/google-ads", "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
 ];
 const TODOS_LOS_ITEMS = GRUPOS.flatMap((g) => g.items);
 const CLAVE_GRUPOS_ABIERTOS = "tarot_menu_grupos_abiertos";
 const CLAVE_FAVORITOS = "tarot_menu_favoritos";
+// Ítems nuevos que se suman una sola vez a favoritos ya guardados, debajo de
+// otro (2026-11-04: Google Ads debajo de Meta Ads). Si después se lo quita
+// con la estrella, no vuelve a aparecer.
+const NUEVOS_FAVORITOS: { href: string; despuesDe: string; clave: string }[] = [
+  { href: "/admin/tarot/google-ads", despuesDe: "/admin/tarot/meta-ads", clave: "tarot_menu_fav_google_ads" },
+];
+function sumarNuevosFavoritos(lista: string[]): string[] {
+  let n = lista;
+  for (const { href, despuesDe, clave } of NUEVOS_FAVORITOS) {
+    if (localStorage.getItem(clave)) continue;
+    localStorage.setItem(clave, "1");
+    if (n.includes(href)) continue;
+    const i = n.indexOf(despuesDe);
+    n = i >= 0 ? [...n.slice(0, i + 1), href, ...n.slice(i + 1)] : [...n, href];
+  }
+  return n;
+}
 
 export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed]           = useState(false);
@@ -127,7 +145,12 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
       const a = localStorage.getItem(CLAVE_GRUPOS_ABIERTOS);
       if (a) setAbiertos(new Set(JSON.parse(a) as string[]));
       const f = localStorage.getItem(CLAVE_FAVORITOS);
-      if (f) setFavoritos((JSON.parse(f) as string[]).filter((h) => TODOS_LOS_ITEMS.some((it) => it.href === h)));
+      if (f) {
+        const guardados = (JSON.parse(f) as string[]).filter((h) => TODOS_LOS_ITEMS.some((it) => it.href === h));
+        const conNuevos = sumarNuevosFavoritos(guardados);
+        if (conNuevos !== guardados) localStorage.setItem(CLAVE_FAVORITOS, JSON.stringify(conNuevos));
+        setFavoritos(conNuevos);
+      }
     } catch { /* sin storage: valores iniciales */ }
   }, []);
   const alternarGrupo = (label: string) => setAbiertos((prev) => {
