@@ -10,6 +10,7 @@ export interface MetaObjeto {
   id: string; nivel: "campana" | "conjunto" | "anuncio"; campana_id: string | null; conjunto_id: string | null; nombre: string | null;
   estado: string | null; estado_efectivo: string | null; presupuesto_diario: number | null; presupuesto_total: number | null;
   presupuesto_restante: number | null; inicio: string | null; fin: string | null; utm_campaign: string | null; utm_content: string | null;
+  primer_visto_at?: string | null;
   problemas: { issues_info?: { error_message?: string; error_summary?: string; level?: string }[];
     ad_review_feedback?: { global?: Record<string, string> } ; learning_stage_info?: { status?: string } } | null;
   visto_at: string;
@@ -125,10 +126,18 @@ export function diagnosticar(d: MetaPanel): { avisos: Aviso[]; semaforo: { grave
   const anunciosActivos = d.objetos.filter((o) => o.nivel === "anuncio" && o.estado_efectivo === "ACTIVE");
   const horasHoy = d.horas.filter((h) => String(h.fecha).slice(0, 10) === hoy);
   const ultimaConGasto = [...d.horas].filter((h) => h.gasto > 0).sort((a, b) => (a.fecha + String(a.hora).padStart(2, "0")).localeCompare(b.fecha + String(b.hora).padStart(2, "0"))).pop();
+  // Recién publicados (2026-11-04): las primeras 6 h desde que se los vio no
+  // cuentan como "no gasta" (revisión y arranque de Meta); aviso amarillo.
+  const SEIS_HORAS = 6 * 3_600_000;
+  const esNuevo = (o: MetaObjeto) => !!o.primer_visto_at && Date.now() - new Date(o.primer_visto_at).getTime() < SEIS_HORAS;
   if (anunciosActivos.length && hora >= 12) {
     const recientes = horasHoy.filter((h) => h.hora >= hora - 3 && h.hora < hora);
     if (!recientes.some((h) => h.gasto > 0)) {
-      avisos.push({ gravedad: "rojo", titulo: "Figura activo pero no está gastando", detalle: ultimaConGasto ? `Último gasto registrado: ${String(ultimaConGasto.fecha).slice(0, 10)} a las ${ultimaConGasto.hora}:00.` : "Sin gasto en hoy ni ayer." });
+      if (anunciosActivos.every(esNuevo)) {
+        avisos.push({ gravedad: "amarillo", titulo: "Recién publicada: esperando las primeras impresiones", detalle: "Es normal que tarde unas horas (revisión y arranque). Si a las 6 horas sigue sin gasto, este aviso pasa a rojo." });
+      } else {
+        avisos.push({ gravedad: "rojo", titulo: "Figura activo pero no está gastando", detalle: ultimaConGasto ? `Último gasto registrado: ${String(ultimaConGasto.fecha).slice(0, 10)} a las ${ultimaConGasto.hora}:00.` : "Sin gasto en hoy ni ayer." });
+      }
     }
   }
 

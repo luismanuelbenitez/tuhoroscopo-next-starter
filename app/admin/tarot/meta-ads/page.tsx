@@ -10,8 +10,10 @@ import { estadoEs, estadoCuentaEs, ubicacionEs, type Aviso, type MetaObjeto, typ
 // por hora, configuración completa de cada campaña / conjunto / anuncio y
 // cambios detectados. Nada de esta página puede modificar los anuncios.
 
+interface CampanaLista { id: string; nombre: string | null; estado: string | null; estado_efectivo: string | null; utm_campaign: string | null; inicio: string | null; fin: string | null; gasto_total: number; primer_dia: string | null; ultimo_dia: string | null }
 type Datos = MetaPanel & {
   ok: boolean; configurado: boolean; avisos: Aviso[];
+  campana_elegida: string; dias_periodo: number; campanas: CampanaLista[];
   semaforo: { gravedad: string; titulo: string; detalle: string };
 };
 
@@ -32,6 +34,7 @@ const hace = (s: string | null | undefined) => {
   const min = Math.round((Date.now() - new Date(s).getTime()) / 60000);
   return min < 1 ? "recién" : min < 60 ? `hace ${min} min` : min < 1440 ? `hace ${Math.round(min / 60)} h` : `hace ${Math.round(min / 1440)} d`;
 };
+const fechaCorta = (s: string) => new Date(s).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", timeZone: "America/Montevideo" });
 const diaCorto = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 
 function estadoClase(ef: string | null) {
@@ -129,11 +132,15 @@ export default function MetaAdsPage() {
   const [diasSync, setDiasSync] = useState(3);
   const [detalle, setDetalle] = useState<string | null>(null);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
+  // Campaña a mirar (2026-11-04): null = la que elija el servidor (la activa
+  // más reciente); "todas" = toda la cuenta como antes.
+  const [campana, setCampana] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    const r = await fetch("/api/admin/tarot/meta-ads").then((x) => x.json()).catch(() => null);
+    const q = campana ? `?campana=${encodeURIComponent(campana)}` : "";
+    const r = await fetch(`/api/admin/tarot/meta-ads${q}`).then((x) => x.json()).catch(() => null);
     if (r?.ok) { setD(r); setError(null); } else setError(r?.detalle ?? r?.motivo ?? "No se pudieron cargar los datos.");
-  }, []);
+  }, [campana]);
   useEffect(() => { cargar(); }, [cargar]);
 
   async function sincronizar() {
@@ -172,6 +179,23 @@ export default function MetaAdsPage() {
           </div>
         </div>
 
+        {d && (d.campanas?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3">
+            <span className="text-xs text-gray-400">Campaña:</span>
+            <select value={d.campana_elegida} onChange={(e) => setCampana(e.target.value)} className="min-w-0 max-w-full rounded border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white">
+              {d.campanas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre ?? c.id} · {estadoEs(c.estado_efectivo)}{c.inicio ? ` · desde ${fechaCorta(c.inicio)}` : ""}{c.gasto_total ? ` · gastó ${plata(c.gasto_total, d.cuenta?.moneda)}` : ""}
+                </option>
+              ))}
+              <option value="todas">Todas las campañas de la cuenta</option>
+            </select>
+            <span className="text-[11px] text-gray-500">
+              {d.campana_elegida === "todas" ? `Toda la cuenta · últimos ${d.dias_periodo} días` : `Solo esta campaña · desde que empezó (${d.dias_periodo} ${d.dias_periodo === 1 ? "día" : "días"})`}
+            </span>
+          </div>
+        )}
+
         {error && <p className="flex items-center gap-2 rounded-lg border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-200"><AlertCircle size={14} /> {error}</p>}
         {d && !d.configurado && <SinConectar />}
 
@@ -206,7 +230,7 @@ export default function MetaAdsPage() {
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
               {[
-                ["Gasto (14 días)", plata(t.gasto, moneda)],
+                [d.campana_elegida === "todas" ? `Gasto (${d.dias_periodo} días)` : "Gasto de la campaña", plata(t.gasto, moneda)],
                 ["Clics al enlace", entero(t.clics)],
                 ["Visitas registradas", entero(t.visitas)],
                 ["Ventas reales", entero(t.ventas)],
@@ -270,7 +294,7 @@ export default function MetaAdsPage() {
             </Tarjeta>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <Tarjeta titulo="¿Dónde se mostró? (14 días)">
+              <Tarjeta titulo="¿Dónde se mostró?">
                 {!d.ubicaciones.length && <p className="text-xs text-gray-500">Sin datos.</p>}
                 <ul className="space-y-1.5 text-xs">
                   {d.ubicaciones.map((u) => (
@@ -281,7 +305,7 @@ export default function MetaAdsPage() {
                   ))}
                 </ul>
               </Tarjeta>
-              <Tarjeta titulo="Por hora (hoy y ayer, hora de la cuenta)">
+              <Tarjeta titulo="Por hora (hoy y ayer, toda la cuenta: Meta no lo separa por campaña)">
                 <Horas horas={d.horas} moneda={moneda} />
               </Tarjeta>
             </div>

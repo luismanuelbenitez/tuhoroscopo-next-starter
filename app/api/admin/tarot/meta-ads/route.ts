@@ -26,9 +26,21 @@ export async function GET(req: NextRequest) {
       ]);
       return NextResponse.json({ ok: true, objeto: (filas as unknown[])[0] ?? null, cambios });
     }
-    const dias = Math.min(Math.max(Number(req.nextUrl.searchParams.get("dias")) || 14, 1), 90);
-    const panel = (await rest("rpc/meta_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: dias }) })) as MetaPanel;
-    return NextResponse.json({ ok: true, configurado, ...panel, ...diagnosticar(panel) });
+    // Por campaña (Manuel 2026-11-04): ?campana=<id> o "todas". Sin el
+    // parámetro se elige la campaña activa más reciente (si no hay activas, la
+    // última). Con una campaña elegida, el período cubre toda su vida (≤ 90 d).
+    const pedida = req.nextUrl.searchParams.get("campana");
+    if (pedida && pedida !== "todas" && !/^\d{5,25}$/.test(pedida)) return NextResponse.json({ ok: false, motivo: "campana_invalida" }, { status: 400 });
+    const lista = (await rest("meta_ads_objetos?nivel=eq.campana&select=id,estado,inicio,primer_visto_at")) as { id: string; estado: string | null; inicio: string | null; primer_visto_at: string }[];
+    const reciente = (x: { inicio: string | null; primer_visto_at: string }) => new Date(x.inicio ?? x.primer_visto_at).getTime();
+    const ordenadas = [...lista].sort((a, b) => reciente(b) - reciente(a));
+    const campana = pedida === "todas" ? null : pedida ?? (ordenadas.find((c) => c.estado === "ACTIVE") ?? ordenadas[0])?.id ?? null;
+    const elegida = lista.find((c) => c.id === campana);
+    const diasPedidos = Number(req.nextUrl.searchParams.get("dias"));
+    const diasCampana = elegida ? Math.ceil((Date.now() - reciente(elegida)) / 86_400_000) + 1 : 14;
+    const dias = Math.min(Math.max(diasPedidos || diasCampana, 1), 90);
+    const panel = (await rest("rpc/meta_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: dias, p_campana: campana }) })) as MetaPanel;
+    return NextResponse.json({ ok: true, configurado, campana_elegida: campana ?? "todas", dias_periodo: dias, ...panel, ...diagnosticar(panel) });
   } catch (e) {
     return NextResponse.json({ ok: false, motivo: "error", detalle: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
