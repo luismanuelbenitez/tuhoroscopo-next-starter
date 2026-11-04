@@ -66,14 +66,14 @@ function Capa({ src, top, mascara, className }: { src: string; top: string; masc
   );
 }
 
-function Cierre({ src, className }: { src: string; className: string }) {
+function Cierre({ src, className, alto = "50cqw" }: { src: string; className: string; alto?: string }) {
   const mascara = "linear-gradient(0deg, #000 0, #000 55%, transparent 100%)";
   return (
     <div
       aria-hidden="true"
       className={`absolute inset-x-0 bottom-0 pointer-events-none ${className}`}
       style={{
-        height: "50cqw",
+        height: alto,
         backgroundImage: `url(${src})`,
         backgroundRepeat: "no-repeat",
         backgroundSize: "100% auto",
@@ -82,6 +82,29 @@ function Cierre({ src, className }: { src: string; className: string }) {
         WebkitMaskImage: mascara,
       }}
     />
+  );
+}
+
+// PC ≥1024 (Manuel 2026-11-04): la escena medía solo los 960 de la columna y
+// en pantallas anchas los costados quedaban lisos entre el cabezal y el pie.
+// Como Home, /tarot y el checkout: escena a 4/3 de la columna (1280 px, sin
+// pasar el ancho de pantalla), centrada y fundida a los costados un 12 %.
+// Las mismas medidas de arriba, en función del ancho de la imagen (--a).
+const ANCHO_ESCENA = "min(133.333cqw, 100vw)";
+const a = (k: number) => `calc(var(--a) * ${k})`;
+
+function EscenaAncha() {
+  const lados = "linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%)";
+  return (
+    <div
+      aria-hidden="true"
+      className="hidden lg:block absolute top-0 bottom-0 left-1/2 -translate-x-1/2 pointer-events-none"
+      style={{ ["--a" as string]: ANCHO_ESCENA, width: "var(--a)", maskImage: lados, WebkitMaskImage: lados }}
+    >
+      <Capa className="" src={urlOptimizada(`${PAN}/fondo-pagina-desktop.webp`, 1920)} top={a(0.56667)} mascara={`linear-gradient(180deg, #000 0, #000 ${a(1.68)}, transparent ${a(2.08333)})`} />
+      <Capa className="" src={urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920)} top="0" mascara={`linear-gradient(180deg, #000 0, #000 ${a(0.56667)}, transparent ${a(0.66667)})`} />
+      <Cierre className="" src={urlOptimizada(`${PAN}/fondo-cierre-desktop.webp`, 1920)} alto={a(0.5)} />
+    </div>
   );
 }
 
@@ -94,13 +117,15 @@ function EscenarioLectura() {
     <>
       <Capa className="md:hidden" src={urlOptimizada(`${PAN}/fondo-pagina-mobile.webp`, 828)} top="180.128cqw" mascara="linear-gradient(180deg, #000 0, #000 484cqw, transparent 564cqw)" />
       <Capa className="md:hidden" src={urlOptimizada(`${CAB}/escenario-hero-mobile.webp`, 828)} top="0" mascara={mascaraMobile} />
-      <Capa className="hidden md:block" src={urlOptimizada(`${PAN}/fondo-pagina-desktop.webp`, 1920)} top="56.667cqw" mascara="linear-gradient(180deg, #000 0, #000 168cqw, transparent 208.333cqw)" />
-      <Capa className="hidden md:block" src={urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920)} top="0" mascara={mascaraDesktop} />
+      {/* 768–1023 px: escena al ancho de la columna (como siempre). */}
+      <Capa className="hidden md:block lg:hidden" src={urlOptimizada(`${PAN}/fondo-pagina-desktop.webp`, 1920)} top="56.667cqw" mascara="linear-gradient(180deg, #000 0, #000 168cqw, transparent 208.333cqw)" />
+      <Capa className="hidden md:block lg:hidden" src={urlOptimizada(`${CAB}/escenario-hero-desktop.webp`, 1920)} top="0" mascara={mascaraDesktop} />
       {/* Cierre: escena baja apoyada en el pie de la página que sube hasta
           donde llegue y se funde hacia arriba (paneles/fondo-cierre-*.webp).
           Si el archivo no existe, no se ve nada. */}
       <Cierre className="md:hidden" src={urlOptimizada(`${PAN}/fondo-cierre-mobile.webp`, 828)} />
-      <Cierre className="hidden md:block" src={urlOptimizada(`${PAN}/fondo-cierre-desktop.webp`, 1920)} />
+      <Cierre className="hidden md:block lg:hidden" src={urlOptimizada(`${PAN}/fondo-cierre-desktop.webp`, 1920)} />
+      <EscenaAncha />
     </>
   );
 }

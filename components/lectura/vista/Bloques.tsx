@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ArrowRight, BookOpen, Sparkles, Mail, KeyRound, FileText } from "lucide-react";
+import { ChevronDown, ArrowRight, BookOpen, Sparkles, Mail, KeyRound, FileText, Download, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CartaPublica } from "@/lib/tarotLecturaPublica";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { ResumenAudioControls } from "@/components/lectura/ResumenAudioControls";
 import { DIR, SERIF, CREMA, GOLD, TINTA, TINTA_SUAVE, TINTA_TEXTO, PERGAMINO_TARJETA, PERGAMINO_CLASES, CartaConMarco } from "./Base";
 import { urlOptimizada } from "@/lib/imagen";
+import { VisorPdf } from "./VisorPdf";
 
 // Bloques interactivos de /lectura bajo el hero (rediseño 2026-10-18).
 // Solo presentación: los "Leer / Ver" despliegan contenido que ya llegó con
@@ -95,11 +96,14 @@ export function ResumenBloque({ resumen, audioResumenUrl }: { resumen: string; a
           proporción del pergamino y el contenido. La celda toma la altura
           MAYOR: conserva 780×720 cuando todo entra y crece cuando no (en
           pantallas angostas el último botón quedaba sobre el borde). */}
-      <div className="lg:hidden relative w-full max-w-[480px] mx-auto grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${urlOptimizada(`${PAN}/pergamino-resumen-mobile.webp`, 828)})`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
+      {/* 768–1023 px (PC con ventana angosta o zoom; Manuel 2026-11-04): a
+          480 px el texto quedaba corto, encima del sol y la luna, y la mitad
+          de abajo vacía. Ahí: 440 px, texto más angosto y todo centrado. */}
+      <div className="lg:hidden relative w-full max-w-[480px] md:max-w-[440px] mx-auto grid grid-cols-[minmax(0,1fr)]" style={{ backgroundImage: `url(${urlOptimizada(`${PAN}/pergamino-resumen-mobile.webp`, 828)})`, backgroundSize: "100% 100%", filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.45))" }}>
         <div aria-hidden="true" className="[grid-area:1/1]" style={{ aspectRatio: "780 / 720" }} />
-        <div className="[grid-area:1/1] flex flex-col items-center text-center px-[11%] pt-[9%] pb-[11%]">
+        <div className="[grid-area:1/1] flex flex-col items-center md:justify-center text-center px-[11%] pt-[9%] pb-[11%]">
           <div className="px-[16%]">{titulo}</div>
-          <div className="mt-2">{intro}</div>
+          <div className="mt-2 md:px-[8%]">{intro}</div>
           <div className="mt-4 w-full flex flex-col items-stretch gap-2 [&>*]:w-full [&_button]:w-full">{botones}</div>
         </div>
       </div>
@@ -326,7 +330,11 @@ export function ClavesBloque({ pasos }: { pasos: string[] }) {
   );
 }
 
+// PDF (Manuel 2026-11-04): "Ver mi PDF" despliega las páginas dentro de la
+// lectura (VisorPdf), así desde WhatsApp se ve sin salir de la app. Guardarlo
+// sí abre el navegador del teléfono (WhatsApp avisa que sale): se aclara antes.
 export function PdfBloque({ pdfHref, venceTexto }: { pdfHref: string; venceTexto: string | null }) {
+  const [abierto, setAbierto] = useState(false);
   return (
     <TarjetaPergamino
       id="pdf"
@@ -338,12 +346,24 @@ export function PdfBloque({ pdfHref, venceTexto }: { pdfHref: string; venceTexto
           {venceTexto && <span className="block mt-1 text-[12.5px]" style={{ color: "#7a6448" }}>Disponible online hasta el {venceTexto}. El PDF es tuyo para siempre.</span>}
         </>
       }
-      accion={
-        <a href={pdfHref} className={BOTON_OSCURO}>
-          Descargar PDF <ArrowRight size={15} style={{ color: GOLD }} />
-        </a>
-      }
-    />
+      accion={<BotonDesplegar abierto={abierto} onClick={() => setAbierto((v) => !v)} textoCerrado="Ver mi PDF" controla="pdf-vista" />}
+    >
+      <div id="pdf-vista" hidden={!abierto} className="mt-4 pt-4 border-t border-[rgba(120,85,30,0.3)]">
+        {/* Se monta recién al abrir: la librería y el PDF (~2 MB) no se piden antes. */}
+        {abierto && <VisorPdf src={pdfHref} />}
+        <div className="mt-5 flex flex-col items-center text-center">
+          <a href={pdfHref} download className={BOTON_OSCURO}>
+            <Download size={15} style={{ color: GOLD }} /> Guardar en el teléfono
+          </a>
+          {/* Un poco más visible (Manuel 2026-11-04): ícono, tinta más oscura y
+              filete suave; sin color de alerta. */}
+          <p className="mt-3 inline-flex items-start gap-2 rounded-xl px-3.5 py-2.5 text-left text-[14px] leading-snug max-w-[340px]" style={{ color: TINTA_TEXTO, background: "rgba(122,84,24,0.08)", border: "1px solid rgba(122,84,24,0.28)" }}>
+            <Info size={17} className="shrink-0 mt-px" style={{ color: "#7a5418" }} />
+            <span><strong className="font-semibold">Si estás en WhatsApp</strong>, se abre en tu navegador para que puedas guardarlo.</span>
+          </p>
+        </div>
+      </div>
+    </TarjetaPergamino>
   );
 }
 

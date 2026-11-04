@@ -48,7 +48,10 @@ export default async function LecturaPage({ params }: { params: { token: string 
     <LecturaVista
       lectura={resultado}
       audioResumenUrl={audioResumenUrl}
-      pdfHref={`/api/lectura/${params.token}/pdf`}
+      // /pdf/[token] (Manuel 2026-11-04): el PDF sale siempre de tuoraculo.uy,
+      // igual que el botón de WhatsApp. La ruta vieja (/api/lectura/…/pdf)
+      // redirigía a la URL de Supabase Storage; queda solo para el admin.
+      pdfHref={`/pdf/${params.token}`}
       fontClass={serif.variable}
     />
   );

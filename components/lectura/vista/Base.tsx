@@ -119,6 +119,9 @@ export const PERGAMINO_CLASES = "border-[34px] [border-image-width:34px] md:bord
 
 /** Marco dorado metálico de carta, hecho con código (igual que /tarot). */
 const MARCO_DORADO = "linear-gradient(145deg, #8a6420 0%, #f3d27a 22%, #b8862b 45%, #fbe39a 62%, #9c7224 82%, #e9c56a 100%)";
+// Mientras la imagen de la carta carga se veía el marco dorado por dentro
+// (un rectángulo dorado liso). Ahora asoma el dorso de la marca (Manuel 2026-11-04).
+const FONDO_DORSO = `url(${urlOptimizada("/img/lectura/contenedores/cabezal/dorso-carta.webp", 256)}) center / cover no-repeat, #1a0f33`;
 
 export function CartaConMarco({
   src, alt, invertida, ancho, grosor = 3, radio = 8, className = "",
@@ -135,7 +138,7 @@ export function CartaConMarco({
           alt={alt}
           lazy
           className={invertida ? "rotate-180" : ""}
-          style={{ display: "block", width: "100%", aspectRatio: "2 / 3", objectFit: "cover", borderRadius: Math.max(1, radio - grosor) }}
+          style={{ display: "block", width: "100%", aspectRatio: "2 / 3", objectFit: "cover", borderRadius: Math.max(1, radio - grosor), background: FONDO_DORSO }}
         />
       ) : (
         <div className="flex items-center justify-center text-[10px] text-center px-1" style={{ aspectRatio: "2 / 3", borderRadius: Math.max(1, radio - grosor), background: "#0c0718", color: "#8b84a3" }}>
