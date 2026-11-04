@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Info, BookOpen, Headphones, Music, Pause, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import { trackDemo } from "@/lib/analytics";
 import { LECTURA_EJEMPLO, AUDIO_EJEMPLO } from "@/lib/tarot/lecturaEjemplo";
 import { SERIF } from "@/components/home/theme";
@@ -196,11 +197,76 @@ function ResumenEjemplo() {
 // audio), así lo que se ve y lo que se escucha cuentan la misma historia.
 const CARTAS_A = LECTURA_EJEMPLO.cartas.slice(0, 5).map((c, i) => ({ ...POSICIONES[i], nombre: c.nombre_carta, src: c.imagen_url ?? "" }));
 
+// Gancho del bloque A (idea de Manuel 2026-11-03): "¿Tenés una pregunta que
+// te da vueltas?" y los temas que se turnan. Los botones llevan al checkout
+// con ese tema ya elegido (?tema=, mismo valor que su selector), un paso
+// menos. El tema que aparece arriba ilumina su botón.
+const TEMAS_GANCHO = [
+  { v: "amor", t: "Amor y vínculos", e: "❤️" },
+  { v: "trabajo", t: "Trabajo y proyectos", e: "💼" },
+  { v: "dinero", t: "Dinero y recursos", e: "💰" },
+  { v: "salud", t: "Salud y bienestar", e: "🌿" },
+  { v: "decision", t: "Una decisión", e: "🔮" },
+];
+
+function PreguntaRotativa() {
+  const [ref, visto] = useEnVista<HTMLDivElement>(0.4);
+  const [i, setI] = useState(0);
+  const [saliendo, setSaliendo] = useState(false);
+  useEffect(() => {
+    if (!visto || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let t2: number | undefined;
+    const t = window.setInterval(() => {
+      setSaliendo(true);
+      t2 = window.setTimeout(() => { setI((n) => (n + 1) % TEMAS_GANCHO.length); setSaliendo(false); }, 350);
+    }, 2000);
+    return () => { window.clearInterval(t); window.clearTimeout(t2); };
+  }, [visto]);
+  const tema = TEMAS_GANCHO[i];
+  return (
+    <div ref={ref} className="relative">
+      <div aria-hidden="true" className="absolute -inset-x-4 -inset-y-6" style={VELO} />
+      <div className="relative">
+        <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 32, lineHeight: 1.1, color: CREMA, textShadow: SOMBRA }}>
+          ¿Tenés una pregunta<br />que te da vueltas?
+        </h2>
+        <p className="sr-only">Amor y vínculos, trabajo, dinero, salud y bienestar o una decisión.</p>
+        <div aria-hidden="true" className="mt-3 h-[44px] flex items-center justify-center">
+          <span
+            className="inline-block text-[28px] font-bold motion-reduce:!transition-none"
+            style={{ fontFamily: SERIF, color: DORADO, textShadow: SOMBRA, opacity: saliendo ? 0 : 1, transform: saliendo ? "translateY(-10px)" : "none", transition: "opacity 350ms, transform 350ms" }}
+          >
+            {tema.t}
+          </span>
+        </div>
+        <p className="mt-4 text-[15px] font-medium" style={{ color: CREMA, textShadow: SOMBRA }}>Elegí tu tema y empezá tu lectura:</p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2 max-w-[400px] mx-auto">
+          {TEMAS_GANCHO.map((x, n) => (
+            <Link
+              key={x.v}
+              href={`/tarot/checkout?tema=${x.v}` as Route<string>}
+              className="rounded-full px-3.5 min-h-[42px] inline-flex items-center gap-1.5 text-[14.5px] font-semibold transition-all"
+              style={n === i
+                ? { background: "linear-gradient(180deg, #f6d77e, #e9b94a)", color: "#180e00", border: "1px solid #fbe39a", boxShadow: "0 0 18px rgba(240,197,90,0.45)" }
+                : { background: "rgba(14,7,26,0.9)", color: CREMA, border: "1px solid rgba(240,197,90,0.45)" }}
+            >
+              <span aria-hidden="true">{x.e}</span> {x.t}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function VarianteA() {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
   useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
   return (
     <div className="px-5 py-12 text-center">
+      <PreguntaRotativa />
+
+      <div className="mt-14" />
       <Encabezado eyebrow="Viví la experiencia" titulo={<>Así se revela<br />tu lectura</>}>
         Hacés tu consulta y aparecen 5 cartas para vos. Cada una responde algo distinto de tu momento.
       </Encabezado>
@@ -213,6 +279,8 @@ export function VarianteA() {
           </div>
         ))}
       </div>
+
+      <ResumenEjemplo />
 
       <ol className="mt-8 max-w-[420px] mx-auto text-left rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(240,197,90,0.4)", background: "rgba(14,7,26,0.9)" }}>
         {POSICIONES.map((p, i) => (
@@ -229,8 +297,6 @@ export function VarianteA() {
           </li>
         ))}
       </ol>
-
-      <ResumenEjemplo />
 
       <Cierre titulo="Y además recibís" items={CIERRE.slice(1)} />
 
