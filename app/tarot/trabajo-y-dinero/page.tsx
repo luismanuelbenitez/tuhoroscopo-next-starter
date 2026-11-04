@@ -2,7 +2,7 @@ import { getPrecioTarot } from "@/lib/getPrecioTarot";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
 import {
-  HeroSeo, Seccion, Lista, Destacado, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema,
+  HeroSeo, Seccion, Lista, Destacado, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema, AsiTeLlega,
 } from "@/components/seo/BloquesSeo";
 
 // Intención: dudas de trabajo, proyectos o dinero. El checkout tiene "trabajo"
@@ -36,6 +36,10 @@ export default async function TarotTrabajoYDinero() {
           cartas te ayuda a mirar la situación con perspectiva y a encontrar por dónde empezar.
         </p>
       </HeroSeo>
+
+      {/* Qué se recibe (2026-11-04, igual que /tarot/amor): captura de la
+          lectura de ejemplo de Paula ("Situación general"), nunca de clientes. */}
+      <AsiTeLlega imagen="/img/tarot/ejemplo/pantalla-ejemplo.webp" pie="Ejemplo de lectura · Paula es un personaje ficticio" precioUYU={precioUYU} />
 
       <Seccion titulo="Trabajo y proyectos">
         <p>
