@@ -432,7 +432,10 @@ export function enviarEventosAhora(): void {
 
 /**
  * Escucha el formulario por delegación (sin tocar cada campo):
- *  - form_started: primer campo que la persona toca (detalle = campo).
+ *  - form_started: primer campo que la persona toca (detalle = campo). Solo
+ *    campos de datos: tocar "Pagar" o "¿Tenés un código?" no es empezar
+ *    (2026-11-04). También al cambiar un valor: en Safari de iPhone tocar un
+ *    botón de tema (radio) no le da foco y no dispara focusin.
  *  - form_field_done: salió de un campo con algo escrito, una vez por campo.
  *  - form_invalid: el navegador frenó el envío por un campo obligatorio.
  * Devuelve la función que deja de escuchar.
@@ -447,9 +450,18 @@ export function medirFormulario(form: HTMLFormElement): () => void {
     if (!el || !('name' in el)) return undefined;
     return detalleSeguro(el.name || el.id || el.getAttribute?.('aria-label') || el.type);
   };
+  const esCampoDeDatos = (t: EventTarget | null): boolean => {
+    const el = t as HTMLElement | null;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'SELECT' || tag === 'TEXTAREA') return true;
+    if (tag !== 'INPUT') return false;
+    const tipo = (el as HTMLInputElement).type;
+    return tipo !== 'submit' && tipo !== 'button' && tipo !== 'reset' && tipo !== 'hidden';
+  };
   const alEntrar = (e: Event) => {
     try {
-      if (empezado) return;
+      if (empezado || !esCampoDeDatos(e.target)) return;
       const campo = nombreCampo(e.target);
       if (!campo) return;
       empezado = true;
@@ -477,6 +489,7 @@ export function medirFormulario(form: HTMLFormElement): () => void {
   };
   try {
     form.addEventListener('focusin', alEntrar);
+    form.addEventListener('change', alEntrar);
     form.addEventListener('focusout', alSalir);
     form.addEventListener('change', alSalir);
     // 'invalid' no burbujea: se escucha en fase de captura.
@@ -485,6 +498,7 @@ export function medirFormulario(form: HTMLFormElement): () => void {
   return () => {
     try {
       form.removeEventListener('focusin', alEntrar);
+      form.removeEventListener('change', alEntrar);
       form.removeEventListener('focusout', alSalir);
       form.removeEventListener('change', alSalir);
       form.removeEventListener('invalid', alInvalido, true);

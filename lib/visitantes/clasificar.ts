@@ -67,6 +67,10 @@ export function clasificarFuente(p: {
   const pago = /cpc|ppc|paid|ads?$|cpm|paidsocial|paid_social/.test(med);
   const esMeta = /^(facebook|fb|instagram|ig|meta|an|msg|messenger)$/.test(src);
   if ((esMeta && (pago || p.fbclid)) || (src === "meta")) return "Meta Ads";
+  // Ubicaciones de Meta que {{site_source_name}} manda como "wa" (Estado de
+  // WhatsApp) o "th"/"threads" (2026-11-04): con utm_medium pago son el
+  // anuncio de Meta, no un link compartido por WhatsApp.
+  if (pago && /^(wa|whatsapp|th|threads)$/.test(src)) return "Meta Ads";
   if (p.gclid || (src === "google" && pago)) return "Google Ads";
   if (src === "whatsapp" || src === "wa") return "WhatsApp";
   if (src === "email" || med === "email") return "Email";
