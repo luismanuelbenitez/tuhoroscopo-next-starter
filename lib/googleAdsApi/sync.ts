@@ -5,6 +5,7 @@
 
 import { consultar, googleAdsConfig, GoogleAdsError } from "@/lib/googleAdsApi/api";
 import { estable, registrarHistorial, type CampanaHistorial } from "@/lib/adsHistorial";
+import { medirVelocidad, type VelocidadPagina } from "@/lib/googleAdsApi/velocidad";
 
 type Rest = (q: string, init?: RequestInit) => Promise<any>;
 type Fila = Record<string, any>;
@@ -128,6 +129,9 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
       q(`SELECT search_term_view.search_term, search_term_view.status, campaign.id, ad_group.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN '${desde30}' AND '${hasta}'`),
       leerConfiguracion(q),
     ]);
+    // Páginas de destino según Google (clics y, si Google lo calcula, su
+    // puntaje de velocidad móvil 1–10). No frena la sincronización si falla.
+    const paginas = await q(`SELECT landing_page_view.unexpanded_final_url, metrics.impressions, metrics.clicks, metrics.speed_score, metrics.mobile_friendly_clicks_percentage FROM landing_page_view WHERE segments.date BETWEEN '${desde30}' AND '${hasta}'`).catch(() => [] as Fila[]);
 
     const presupuestoDe = new Map(presupuestos.map((p) => [p.campaignBudget?.resourceName, p.campaignBudget]));
     const fotoCampanas = campanas.map((c) => {
@@ -154,6 +158,13 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
       impresiones: n(t.metrics?.impressions), clics: n(t.metrics?.clicks), costo: plata(t.metrics?.costMicros), conversiones: n(t.metrics?.conversions),
     })).sort((a, b) => b.costo - a.costo || b.clics - a.clics || b.impresiones - a.impresiones).slice(0, 300);
 
+    const fotoPaginas = paginas.map((p) => ({
+      // Sin el sufijo de seguimiento ({ignore}?utm_…): solo la dirección.
+      url: String(p.landingPageView?.unexpandedFinalUrl ?? "").replace(/\{ignore\}.*$/, "").split("?")[0],
+      impresiones: n(p.metrics?.impressions), clics: n(p.metrics?.clicks),
+      velocidad_google: p.metrics?.speedScore != null ? n(p.metrics.speedScore) : null,
+      clics_moviles_ok: p.metrics?.mobileFriendlyClicksPercentage != null ? cuota(p.metrics.mobileFriendlyClicksPercentage) : null,
+    })).sort((a, b) => b.clics - a.clics || b.impresiones - a.impresiones);
     const filasDia = porDia.map((r) => ({
       fecha: r.segments?.date, campana_id: String(r.campaign?.id),
       impresiones: n(r.metrics?.impressions), clics: n(r.metrics?.clicks), costo: plata(r.metrics?.costMicros),
@@ -171,16 +182,36 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
         { clave: "campanas", datos: fotoCampanas, synced_at: ahora },
         { clave: "palabras_30d", datos: { desde: desde30, hasta, filas: fotoPalabras }, synced_at: ahora },
         { clave: "terminos_30d", datos: { desde: desde30, hasta, filas: fotoTerminos }, synced_at: ahora },
+        { clave: "paginas_destino_30d", datos: { desde: desde30, hasta, filas: fotoPaginas }, synced_at: ahora },
       ]),
     });
+    // Velocidad de la página de destino: una medición por día (PageSpeed).
+    const velocidad = await medirSiCorresponde(rest).catch(() => null);
     // Histórico de configuración: no frena la sincronización si falla.
     const historial = await registrarHistorial(rest, "google", historialGoogle(fondo, cuenta[0]?.customer ?? {}, presupuestoDe))
       .catch((e) => ({ error: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
     await rest(`google_ads_sync?id=eq.${log.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ok: true, terminado_at: ahora, consultas, ...("error" in historial ? { error: `historial: ${historial.error}` } : {}) }) });
-    return { ok: true as const, dias, campanas: fotoCampanas.length, filas_dia: filasDia.length, palabras: fotoPalabras.length, terminos: fotoTerminos.length, historial };
+    return { ok: true as const, dias, campanas: fotoCampanas.length, filas_dia: filasDia.length, palabras: fotoPalabras.length, terminos: fotoTerminos.length, historial, velocidad: velocidad ? "medida" : "al día" };
   } catch (e: unknown) {
     const mensaje = (e instanceof GoogleAdsError || e instanceof Error ? e.message : String(e)).slice(0, 500);
     await rest(`google_ads_sync?id=eq.${log.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ok: false, terminado_at: new Date().toISOString(), error: mensaje, consultas }) }).catch(() => {});
     return { ok: false as const, motivo: "error", detalle: mensaje };
   }
+}
+
+// Mide la velocidad de /tarot si la última medición tiene más de 20 h (o si
+// se fuerza desde el tablero). Guarda en google_ads_datos ("velocidad_pagina").
+export async function medirSiCorresponde(rest: Rest, forzar = false): Promise<VelocidadPagina | null> {
+  if (!forzar) {
+    const [ult] = (await rest("google_ads_datos?clave=eq.velocidad_pagina&select=synced_at")) as { synced_at: string }[];
+    if (ult && Date.now() - new Date(ult.synced_at).getTime() < 20 * 3600_000) return null;
+  }
+  const v = await medirVelocidad();
+  // Sin datos (cupo agotado, error): no se guarda, así la próxima hora reintenta.
+  if (v.movil.rendimiento == null && v.escritorio.rendimiento == null) return forzar ? v : null;
+  await rest("google_ads_datos?on_conflict=clave", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify([{ clave: "velocidad_pagina", datos: v, synced_at: v.medido_at }]),
+  });
+  return v;
 }

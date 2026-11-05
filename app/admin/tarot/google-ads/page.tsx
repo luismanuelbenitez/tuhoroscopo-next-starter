@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, Info, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, Info, RefreshCw, Search } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
+import { PaginaDestino, type Destino } from "@/components/admin/googleAds/PaginaDestino";
 
-// Google Ads (2026-11-04). Panel de SOLO LECTURA de lo que la web mide de las
-// visitas que llegan desde anuncios de Google: embudo, términos de búsqueda
-// (vienen en el link del anuncio), páginas de llegada, dispositivos y
-// recorrido de cada visita. Sin conexión a la cuenta de Google Ads: el gasto,
-// las impresiones y los clics se ven allá (links abajo).
+// Google Ads (2026-11-04). Panel de SOLO LECTURA: arriba, cómo califica Google
+// la página de destino (2026-11-05); después lo que la API lee de la cuenta
+// (gasto, palabras, búsquedas) y abajo lo que la web mide de esas visitas
+// (embudo, términos, páginas, dispositivos y recorrido de cada visita).
 
 interface Fila { visitas: number; checkout: number; ventas: number }
 interface Datos {
@@ -32,6 +32,7 @@ interface Cuenta {
   conectada: boolean; ultima_lectura: { iniciado_at: string; terminado_at: string | null; ok: boolean | null; error: string | null } | null;
   tipo_cambio?: number; campanas?: CampanaG[]; por_dia?: DiaG[];
   palabras?: { desde: string; hasta: string; filas: PalabraG[] } | null; terminos?: { desde: string; hasta: string; filas: TerminoG[] } | null;
+  destino?: Destino;
 }
 
 const entero = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("es-UY"));
@@ -58,8 +59,8 @@ const ETAPA: Record<string, string> = {
 
 function Tarjeta({ titulo, children, extra }: { titulo: string; children: React.ReactNode; extra?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
-      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-white">{titulo}</p>{extra}</div>
+    <div className="rounded-2xl border border-gray-800 bg-gradient-to-b from-gray-900/80 to-gray-950/60 p-5 shadow-[0_8px_30px_-18px_rgba(0,0,0,0.8)]">
+      <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold tracking-tight text-white">{titulo}</p>{extra}</div>
       {children}
     </div>
   );
@@ -172,10 +173,11 @@ function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
     ["Cuota de impresiones", cuota != null ? `${Math.round(cuota * 100)}%` : "—", "de las búsquedas posibles"],
   ];
   return (
-    <div className="space-y-4 rounded-xl border border-sky-900/50 bg-sky-950/10 p-4 md:p-5">
+    <section className="space-y-4 rounded-2xl border border-sky-900/50 bg-gradient-to-b from-sky-950/30 via-gray-900/30 to-gray-950/30 p-4 shadow-[0_10px_40px_-22px_rgba(56,189,248,0.45)] md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">Tu cuenta de Google Ads</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-300">Cuenta</p>
+          <p className="text-base font-semibold text-white">Tu cuenta de Google Ads</p>
           <p className="text-[11px] text-gray-400">
             Leída por la API {c.ultima_lectura?.terminado_at ? hace(c.ultima_lectura.terminado_at) : "—"} · se lee sola cada hora · solo lectura (no puede cambiar nada)
             {c.ultima_lectura?.ok === false && <span className="text-red-300"> · última lectura con error: {c.ultima_lectura.error}</span>}
@@ -197,9 +199,9 @@ function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         {kpis.map(([t, v, s]) => (
-          <div key={t} className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5">
-            <p className="text-[11px] text-gray-500">{t}</p>
-            <p className="mt-1 text-xl font-bold text-white tabular-nums">{v}</p>
+          <div key={t} className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 ring-1 ring-inset ring-white/[0.02]">
+            <p className="text-[10px] uppercase tracking-wider text-gray-500">{t}</p>
+            <p className="mt-1 text-xl font-bold tracking-tight text-white tabular-nums">{v}</p>
             {s && <p className="text-[11px] text-gray-500">{s}</p>}
           </div>
         ))}
@@ -207,11 +209,11 @@ function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
       <p className="text-[11px] text-gray-500">Últimos {d.dias} días según Google. El costo por venta usa el dólar a {tc} y las ventas que midió la web desde anuncios de Google.</p>
 
       {(palabrasGratis.length > 0 || clicsGratis > 0) && (
-        <p className="flex items-start gap-2 rounded-xl border border-red-900/70 bg-red-950/30 p-3 text-xs text-red-200">
+        <p className={`flex items-start gap-2 rounded-xl border p-3 text-xs ${palabrasGratis.length ? "border-red-900/70 bg-red-950/30 text-red-200" : "border-gray-800 bg-gray-900/60 text-gray-300"}`}>
           <AlertTriangle size={14} className="mt-px shrink-0" />
           <span>
             {clicsGratis > 0 && <>En 30 días, {clicsGratis} de {clicsTerm} clics fueron de búsquedas con &quot;gratis&quot; ({usd(costoGratis)}). </>}
-            {palabrasGratis.length > 0 && <>Tus palabras clave {palabrasGratis.map((p) => `«${p.palabra}»`).join(" y ")} llevan &quot;gratis&quot;: conviene pausarlas y agregar &quot;gratis&quot; como negativa (lo hacés vos en Google Ads).</>}
+            {palabrasGratis.length > 0 ? <>Hay palabras clave activas con &quot;gratis&quot; ({palabrasGratis.map((p) => `«${p.palabra}»`).join(", ")}): traen gente que no quiere pagar.</> : <>Desde el 5/11 &quot;gratis&quot; es palabra negativa: esos clics ya no se pagan.</>}
           </span>
         </p>
       )}
@@ -242,7 +244,7 @@ function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
           diaCorto(x.fecha), entero(x.impresiones), entero(x.clics), usd(Number(x.costo)), x.cuota_impresiones != null ? `${Math.round(x.cuota_impresiones * 100)}%` : "—",
         ])} />
       </Tarjeta>
-    </div>
+    </section>
   );
 }
 
@@ -251,7 +253,7 @@ function avisos(d: Datos): { tono: "rojo" | "amarillo" | "info"; texto: string }
   const r = d.resumen; const out: { tono: "rojo" | "amarillo" | "info"; texto: string }[] = [];
   const gratis = d.terminos.filter((t) => esGratis(t.termino));
   const vGratis = gratis.reduce((a, t) => a + t.visitas, 0);
-  if (vGratis > 0) out.push({ tono: gratis.some((t) => t.ventas > 0) ? "info" : "rojo", texto: `${vGratis} de ${r.visitas} visitas buscaron algo "gratis" (${gratis.map((t) => `«${t.termino}»`).join(", ")}). Conviene agregar "gratis" como palabra negativa: pagás clics de quien no quiere pagar.` });
+  if (vGratis > 0) out.push({ tono: gratis.some((t) => t.ventas > 0) ? "info" : "rojo", texto: `${vGratis} de ${r.visitas} visitas buscaron algo "gratis" (${gratis.map((t) => `«${t.termino}»`).join(", ")}). Desde el 5/11 "gratis" es palabra negativa: las que siguen en la lista son de antes.` });
   if (r.checkout >= 3 && r.empezaron_form === 0) out.push({ tono: "amarillo", texto: `${r.checkout} visitas llegaron al checkout y ninguna empezó el formulario.` });
   if (r.visitas > 0 && d.terminos.length === 0) out.push({ tono: "info", texto: "No llegan los términos de búsqueda: agregá en la campaña el sufijo de URL final con utm_term={keyword}." });
   if (!d.medicion.compra) out.push({ tono: "info", texto: "Hasta activar la medición, Google no sabe qué clics terminaron en compra y optimiza a ciegas." });
@@ -286,10 +288,27 @@ export default function GoogleAdsPage() {
   return (
     <TarotAdminShell>
       <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-gray-800 bg-[radial-gradient(ellipse_at_top_left,rgba(66,133,244,0.18),transparent_55%),linear-gradient(180deg,rgba(17,24,39,0.9),rgba(3,7,18,0.6))] px-5 py-4">
           <div>
-            <h1 className="text-xl font-bold text-white">Google Ads</h1>
-            <p className="mt-1 max-w-2xl text-xs text-gray-400">Arriba, lo que Google dice de tu cuenta (gasto, clics, palabras y búsquedas). Abajo, lo que la web mide de esas visitas (checkout y ventas).</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Anuncios · Búsqueda</p>
+            <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-bold tracking-tight text-white"><Search size={20} className="text-sky-300" /> Google Ads</h1>
+            <p className="mt-1 max-w-2xl text-xs text-gray-400">Cómo califica Google tu página, qué dice la cuenta (gasto, palabras, búsquedas) y qué hacen esas visitas en la web (checkout y ventas). Solo lectura.</p>
+            {d && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {(d.cuenta?.campanas ?? []).map((k) => {
+                  const bien = ["ELIGIBLE", "LEARNING"].includes(k.estado_principal);
+                  return (
+                    <span key={k.id} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${bien ? "border-emerald-800/70 bg-emerald-950/40 text-emerald-200" : "border-amber-800/60 bg-amber-950/30 text-amber-200"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${bien ? "bg-emerald-400" : "bg-amber-400"}`} />
+                      {k.nombre} · {ESTADO_CAMPANA[k.estado_principal] ?? k.estado_principal}{k.motivos?.includes("MOST_ADS_UNDER_REVIEW") ? " (anuncio en revisión)" : ""}
+                    </span>
+                  );
+                })}
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${d.medicion.compra ? "border-emerald-800/70 bg-emerald-950/40 text-emerald-200" : "border-red-900/70 bg-red-950/40 text-red-200"}`}>
+                  {d.medicion.compra ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />} {d.medicion.compra ? "Mide compras" : "No mide compras"}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <select value={dias} onChange={(e) => setDias(Number(e.target.value))} className="rounded border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white">
@@ -314,8 +333,12 @@ export default function GoogleAdsPage() {
 
         {d && r && (
           <>
+            <PaginaDestino destino={d.cuenta?.destino} alMedir={cargar} />
             <CuentaGoogle d={d} alLeer={cargar} />
-            <p className="pt-1 text-sm font-semibold text-white">Lo que mide la web</p>
+            <div className="pt-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Web</p>
+              <p className="text-base font-semibold text-white">Lo que mide la web de esas visitas</p>
+            </div>
             <Medicion d={d} />
 
             {avisos(d).map((a) => (
@@ -326,9 +349,9 @@ export default function GoogleAdsPage() {
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
               {embudo.map(([t, n], i) => (
-                <div key={t} className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
-                  <p className="text-[11px] text-gray-500">{t}</p>
-                  <p className="mt-1 text-2xl font-bold text-white tabular-nums">{entero(n)}</p>
+                <div key={t} className={`rounded-xl border p-4 ${i === embudo.length - 1 && n > 0 ? "border-emerald-900/70 bg-emerald-950/30" : "border-gray-800 bg-gradient-to-b from-gray-900/80 to-gray-950/60"}`}>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500">{t}</p>
+                  <p className="mt-1 text-2xl font-bold tracking-tight text-white tabular-nums">{entero(n)}</p>
                   {i > 0 && <p className="text-[11px] text-gray-500">{pct(n, r.visitas)} de las visitas</p>}
                 </div>
               ))}

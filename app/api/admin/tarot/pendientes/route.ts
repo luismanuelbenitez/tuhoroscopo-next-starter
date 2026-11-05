@@ -7,8 +7,10 @@ import {
 
 // Pendientes (2026-11-02). GET: lista propia + señales de Normativa y Meta Ads;
 // ?solo_contador=true devuelve solo los urgentes (vencidos, vencen hoy o
-// prioridad alta) para el número del menú. POST: alta (también "convertir una
-// señal", con origen + origen_ref). PATCH: edición. DELETE: borrar.
+// prioridad alta) para el número del menú, sin los ya marcados como leídos.
+// POST: alta (también "convertir una señal", con origen + origen_ref) o
+// {accion:"marcar_leidos"} (2026-11-05: siguen abiertos, pero el número del
+// menú deja de contarlos). PATCH: edición. DELETE: borrar.
 export const dynamic = "force-dynamic";
 
 const txt = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
@@ -38,7 +40,9 @@ export async function GET(req: NextRequest) {
   try {
     const todos = (await rest("admin_pendientes?select=*&order=created_at.desc&limit=500")) as Pendiente[];
     const activos = todos.filter((p) => ESTADOS_ACTIVOS.includes(p.estado));
-    const urgentes = activos.filter((p) => estaVencido(p) || venceHoy(p) || p.prioridad === "alta").length;
+    const urgentesLista = activos.filter((p) => estaVencido(p) || venceHoy(p) || p.prioridad === "alta");
+    // El número del menú: solo los urgentes que todavía no se marcaron como leídos.
+    const urgentes = urgentesLista.filter((p) => !p.leido_at).length;
     if (req.nextUrl.searchParams.get("solo_contador") === "true") return NextResponse.json({ ok: true, urgentes });
     const senales = await leerSenales(rest, new Set(todos.map((p) => p.origen_ref).filter((r): r is string => !!r)));
     return NextResponse.json({ ok: true, pendientes: todos, senales, urgentes });
@@ -52,6 +56,14 @@ export async function POST(req: NextRequest) {
   const rest = restSupabase();
   if (!rest) return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  if (b.accion === "marcar_leidos") {
+    try {
+      await rest(`admin_pendientes?estado=in.(${ESTADOS_ACTIVOS.join(",")})&leido_at=is.null`, { method: "PATCH", body: JSON.stringify({ leido_at: new Date().toISOString() }) });
+      return NextResponse.json({ ok: true });
+    } catch (e) {
+      return NextResponse.json({ ok: false, motivo: "error", detalle: e instanceof Error ? e.message : String(e) }, { status: 500 });
+    }
+  }
   const c = campos(b);
   if (!c.titulo || c.titulo.length < 3) return NextResponse.json({ ok: false, motivo: "titulo_requerido" }, { status: 400 });
   const origen = enLista(b.origen, ["manual", "meta_ads", "normativa", "asistente"] as const) ?? "manual";

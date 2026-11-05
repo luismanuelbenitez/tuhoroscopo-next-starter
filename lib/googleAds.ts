@@ -16,6 +16,8 @@ const LABEL = limpiar(process.env.NEXT_PUBLIC_GOOGLE_ADS_COMPRA_LABEL);
 
 export const GOOGLE_ADS_ID = /^AW-\d{6,15}$/.test(ID) ? ID : "AW-965019966";
 const COMPRA_LABEL = /^[A-Za-z0-9_-]{6,40}$/.test(LABEL) ? LABEL : "mx6yCP-3r7AdEL6SlMwD";
+/** Para el tablero: la conversión de compra se envía (ID y etiqueta válidos). */
+export const COMPRA_ACTIVA = !!GOOGLE_ADS_ID && !!COMPRA_LABEL;
 
 /**
  * Compra confirmada. Mismo gate que GA4 y Meta (TarotEstadoContent): solo

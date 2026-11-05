@@ -8,7 +8,8 @@ import { sincronizarGoogleAds } from "@/lib/googleAdsApi/sync";
 // porque Google ajusta conversiones con atraso.
 // Vercel manda "Authorization: Bearer <CRON_SECRET>".
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// 300 s (2026-11-05): una vez por día también mide la velocidad de /tarot con PageSpeed.
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   const secreto = process.env.CRON_SECRET;

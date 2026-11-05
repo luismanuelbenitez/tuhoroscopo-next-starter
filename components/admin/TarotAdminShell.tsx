@@ -213,6 +213,11 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
     } catch { /* silencioso */ }
   }, []);
   usePollingRefresh(pollPendientes);
+  // "Marcar como leídas" en Pendientes: el número se actualiza sin esperar al polling.
+  useEffect(() => {
+    window.addEventListener("pendientes:leidos", pollPendientes);
+    return () => window.removeEventListener("pendientes:leidos", pollPendientes);
+  }, [pollPendientes]);
 
   async function handleLogout() {
     setCerrandoSesion(true);

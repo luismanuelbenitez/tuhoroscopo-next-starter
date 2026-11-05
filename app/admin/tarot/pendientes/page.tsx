@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { AlertCircle, Check, ChevronDown, ChevronRight, ExternalLink, ListTodo, Plus, Radar, Scale, Trash2, X } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, ChevronDown, ChevronRight, ExternalLink, ListTodo, Plus, Radar, Scale, Trash2, X } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import {
   AREAS_PENDIENTE, ESTADOS_ACTIVOS, ESTADOS_PENDIENTE, RESPONSABLES, estaVencido, venceHoy,
@@ -69,6 +69,11 @@ export default function PendientesPage() {
     const { id, ...resto } = form;
     if (await enviar(id ? "PATCH" : "POST", id ? { id, ...resto } : resto)) setForm(null);
   }
+  // Marcar como leídas (2026-11-05): siguen abiertas, pero el número del menú
+  // deja de contarlas. El menú se actualiza al instante con el evento.
+  async function marcarLeidas() {
+    if (await enviar("POST", { accion: "marcar_leidos" })) window.dispatchEvent(new Event("pendientes:leidos"));
+  }
   const convertir = (s: Senal) =>
     enviar("POST", { titulo: s.titulo, detalle: s.detalle, area: s.area, prioridad: s.prioridad, enlace: s.enlace, origen: s.origen, origen_ref: s.origen_ref, responsable: "manuel" });
 
@@ -82,6 +87,7 @@ export default function PendientesPage() {
   const vencidos = activos.filter(estaVencido).length;
   const hoy = activos.filter(venceHoy).length;
   const altas = activos.filter((p) => p.prioridad === "alta").length;
+  const sinLeer = activos.filter((p) => !p.leido_at).length;
   const senalesNuevas = senales.filter((s) => !s.ya_es_pendiente);
 
   return (
@@ -92,9 +98,19 @@ export default function PendientesPage() {
             <h1 className="flex items-center gap-2 text-xl font-bold text-white"><ListTodo size={18} className="text-amber-400" /> Pendientes</h1>
             <p className="text-xs text-gray-500">Lo que hay que hacer, en un solo lugar. El Asistente CEO avisa de los vencidos y de los de prioridad alta.</p>
           </div>
-          <button onClick={() => setForm({ ...VACIO })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-amber-400">
-            <Plus size={14} /> Nuevo pendiente
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={marcarLeidas}
+              disabled={sinLeer === 0}
+              title="Siguen abiertos; solo dejan de sumar al número del menú. Los nuevos vuelven a sumar."
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-gray-800 disabled:cursor-default disabled:opacity-40"
+            >
+              <CheckCheck size={14} /> {sinLeer ? `Marcar como leídas (${sinLeer})` : "Todo leído"}
+            </button>
+            <button onClick={() => setForm({ ...VACIO })} className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-amber-400">
+              <Plus size={14} /> Nuevo pendiente
+            </button>
+          </div>
         </div>
 
         {error && <p className="flex items-center gap-2 rounded-lg border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-200"><AlertCircle size={14} /> {error}</p>}

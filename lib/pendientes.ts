@@ -28,6 +28,8 @@ export interface Pendiente {
   prioridad: "alta" | "media" | "baja"; estado: EstadoPendiente; vence: string | null; enlace: string | null;
   origen: "manual" | "meta_ads" | "normativa" | "asistente"; origen_ref: string | null; notas: string | null;
   created_at: string; updated_at: string; resuelto_at: string | null;
+  // Visto con "Marcar como leídas" (2026-11-05): ya no suma al número del menú.
+  leido_at: string | null;
 }
 
 // Señal de otro módulo que todavía no es un pendiente propio.
