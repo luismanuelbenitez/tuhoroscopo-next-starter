@@ -5,11 +5,17 @@
 // Sin ellas no se carga nada. Se validan con formato estricto porque van
 // dentro de un script en la página.
 
-const ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID ?? "";
-const LABEL = process.env.NEXT_PUBLIC_GOOGLE_ADS_COMPRA_LABEL ?? "";
+//
+// 2026-11-05: en producción la etiqueta nunca se cargaba (las variables de
+// Vercel no pasaban el formato: espacio, comillas o entorno equivocado).
+// Se limpian y, si faltan, se usan los de la cuenta 315-139-7440 leídos por
+// la API (no son secretos: van igual en el HTML público).
+const limpiar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "");
+const ID = limpiar(process.env.NEXT_PUBLIC_GOOGLE_ADS_ID);
+const LABEL = limpiar(process.env.NEXT_PUBLIC_GOOGLE_ADS_COMPRA_LABEL);
 
-export const GOOGLE_ADS_ID = /^AW-\d{6,15}$/.test(ID) ? ID : null;
-const COMPRA_LABEL = /^[A-Za-z0-9_-]{6,40}$/.test(LABEL) ? LABEL : null;
+export const GOOGLE_ADS_ID = /^AW-\d{6,15}$/.test(ID) ? ID : "AW-965019966";
+const COMPRA_LABEL = /^[A-Za-z0-9_-]{6,40}$/.test(LABEL) ? LABEL : "mx6yCP-3r7AdEL6SlMwD";
 
 /**
  * Compra confirmada. Mismo gate que GA4 y Meta (TarotEstadoContent): solo
