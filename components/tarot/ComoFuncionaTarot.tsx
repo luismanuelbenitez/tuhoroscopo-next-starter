@@ -1,5 +1,3 @@
-"use client";
-
 import { Edit3, CreditCard, Sparkles } from "lucide-react";
 import { fijo, fluido } from "@/lib/imagen";
 import { GOLD, SERIF } from "@/components/home/theme";

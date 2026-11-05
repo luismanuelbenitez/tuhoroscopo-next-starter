@@ -1,8 +1,5 @@
-"use client";
-
-import { useEffect, type ReactNode } from "react";
-import { trackViewItem, trackLandingViewed, medirSecciones } from "@/lib/analytics";
-import { metaViewContent } from "@/lib/metaPixel";
+import type { ReactNode } from "react";
+import { MedicionLandingTarot } from "./MedicionLandingTarot";
 import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
 import { TarotBackgroundStage } from "@/components/tarot/TarotBackgroundStage";
 import { HeaderTarot } from "@/components/tarot/HeaderTarot";
@@ -36,27 +33,26 @@ function Seccion({ id, children }: { id: string; children: ReactNode }) {
 // respaldo: /tarot-anterior (portada sin video). prueba: /pruebas/tarot
 // (variantes del bloque 2). Ninguno de los dos mide nada, para no
 // ensuciar el embudo ni las señales de Meta.
+//
+// Componente de servidor (2026-11-05, objetivo LCP móvil 2,5 s): las
+// secciones sin interacción llegan armadas y el celular no ejecuta su JS.
+// La medición vive en MedicionLandingTarot (cliente).
+const ESTILOS_PAGINA = `
+  body { background-image: none !important; background-color: #0b0818 !important; }
+  body::before { display: none !important; }
+  header { display: none !important; }
+  /* Sin footer global en esta landing: cierra con la línea de copyright propia. */
+  footer { display: none !important; }
+`;
+
 export default function TarotLandingContent({ precioUYU, testimonios, waNumero = "", respaldo = false, prueba = false, variante }: { precioUYU: number | null; testimonios: TestimonioTarot[]; waNumero?: string; respaldo?: boolean; prueba?: boolean; variante?: VarianteQueIncluye }) {
   const sinMedicion = respaldo || prueba;
-  useEffect(() => {
-    if (sinMedicion) return;
-    trackViewItem("tarot", precioUYU ?? undefined);
-    trackLandingViewed("tarot");
-    metaViewContent(precioUYU ?? undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => { if (!sinMedicion) return medirSecciones(document.body); }, [sinMedicion]);
 
   return (
     <>
+      {!sinMedicion && <MedicionLandingTarot precioUYU={precioUYU} />}
       <GlobalHomeStyles />
-      <style jsx global>{`
-        body { background-image: none !important; background-color: #0b0818 !important; }
-        body::before { display: none !important; }
-        header { display: none !important; }
-        /* Sin footer global en esta landing: cierra con la línea de copyright propia. */
-        footer { display: none !important; }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: ESTILOS_PAGINA }} />
 
       <div
         className="min-h-screen text-white"

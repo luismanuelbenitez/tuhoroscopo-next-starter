@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Zap, MessageCircle, Volume2, FileText, Eye } from "lucide-react";
 import { GOLD } from "@/components/home/theme";
@@ -38,7 +36,9 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
           velas de la escena (auditoría UX 2026-10-30, T3). */}
       <div aria-hidden="true" className="md:hidden absolute inset-x-0 top-[2%] bottom-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 90% 65% at 40% 50%, rgba(8,4,18,0.70) 0%, rgba(8,4,18,0.40) 55%, transparent 88%)" }} />
       <div className="relative md:flex md:items-center md:gap-12">
-        <div className="fi1 md:flex-1 max-w-[520px]">
+        {/* Sin animación de entrada (2026-11-05): el bloque de arriba se ve
+            desde el primer cuadro; la animación demoraba el LCP. */}
+        <div className="md:flex-1 max-w-[520px]">
           {/* SEO (2026-10-21): el H1 es la intención principal de la página
               con el estilo del antetítulo. 2026-11-05: dice las búsquedas
               que compra Google Ads ("lectura de tarot online"), que es lo
@@ -56,7 +56,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
 
           {/* Celular: video y beneficios lado a lado, así todo entra en la primera pantalla. */}
           <div className="flex md:hidden items-center gap-4 mb-5">
-            <VideoDemoTarot className="w-[42%] max-w-[190px] shrink-0" />
+            <VideoDemoTarot movil className="w-[42%] max-w-[190px] shrink-0" />
             <div className="flex flex-col gap-3 min-w-0">
               {BENEFICIOS.map(({ Icon, label }) => (
                 <div key={label} className="flex items-start gap-2">
@@ -77,7 +77,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
             ))}
           </div>
 
-          <div className="fi3">
+          <div>
             <CtaButton href="/tarot/checkout" className="block md:inline-block w-full md:w-auto px-7 py-3.5 text-[16px]">
               Quiero mi lectura →
             </CtaButton>

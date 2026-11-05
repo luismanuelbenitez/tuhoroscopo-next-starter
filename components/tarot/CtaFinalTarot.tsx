@@ -1,5 +1,3 @@
-"use client";
-
 import { CtaButton } from "@/components/home/CtaButton";
 import { fijo } from "@/lib/imagen";
 

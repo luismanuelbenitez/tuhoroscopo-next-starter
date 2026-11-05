@@ -16,6 +16,7 @@
  * inventa un content_id nuevo para Meta.
  */
 import { PRODUCTS } from '@/lib/analytics';
+import { cargarScript } from '@/lib/cargaDiferida';
 
 interface FbqStub {
   (...args: unknown[]): void;
@@ -79,11 +80,9 @@ function ensurePixelBootstrap(): void {
   window.fbq = stub;
   if (!window._fbq) window._fbq = stub;
 
-  const script = document.createElement('script');
-  script.async = true;
-  script.src = 'https://connect.facebook.net/en_US/fbevents.js';
-  const firstScript = document.getElementsByTagName('script')[0];
-  firstScript?.parentNode?.insertBefore(script, firstScript);
+  // El SDK baja después de que la página se ve (fuera del embudo de pago);
+  // el stub ya encola los eventos. Ver lib/cargaDiferida.ts.
+  cargarScript('https://connect.facebook.net/en_US/fbevents.js');
 }
 
 /**

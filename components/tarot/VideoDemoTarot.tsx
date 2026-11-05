@@ -11,14 +11,18 @@ import { urlOptimizada } from "@/lib/imagen";
 // video se pide recién cuando la tarjeta está en pantalla y la página ya
 // cargó. Con "ahorro de datos" o movimiento reducido queda la imagen fija.
 const DIR = "/img/tarot/video";
-const POSTER = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 640);
+// Celular: se pinta a ~160 px (×2,6 de densidad) → 384; escritorio: 250 px → 640.
+const POSTER_MOVIL = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 384);
+const POSTER_ESCRITORIO = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 640);
 
-export function VideoDemoTarot({ className = "" }: { className?: string }) {
+export function VideoDemoTarot({ className = "", movil = false }: { className?: string; movil?: boolean }) {
+  const poster = movil ? POSTER_MOVIL : POSTER_ESCRITORIO;
   // La imagen fija es el elemento más grande de la primera pantalla del
   // celular (LCP). Como poster de <video> el navegador la pedía tarde y con
   // prioridad baja: 8,1 s en Lighthouse móvil (2026-11-05, Google Ads la
   // califica por la experiencia en la página). Se precarga con prioridad alta.
-  preload(POSTER, { as: "image", fetchPriority: "high" });
+  // Solo la del celular (la de escritorio está oculta en el celular).
+  if (movil) preload(POSTER_MOVIL, { as: "image", fetchPriority: "high" });
   const ref = useRef<HTMLVideoElement>(null);
   const [cargar, setCargar] = useState(false);
 
@@ -47,7 +51,7 @@ export function VideoDemoTarot({ className = "" }: { className?: string }) {
       <video
         ref={ref}
         className="absolute inset-0 w-full h-full object-cover"
-        poster={POSTER}
+        poster={poster}
         muted
         loop
         playsInline

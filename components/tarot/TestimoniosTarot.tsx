@@ -1,5 +1,3 @@
-"use client";
-
 import { Star } from "lucide-react";
 import { GOLD, SERIF } from "@/components/home/theme";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
