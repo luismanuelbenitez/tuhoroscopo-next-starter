@@ -2,12 +2,15 @@
 //
 // Único punto de contacto con Meta Ads. Solo hace GET: no existe ninguna
 // función que cree, edite o pause nada, y además la clave (usuario del
-// sistema con permiso ads_read) no lo permitiría. La clave viaja en el
+// sistema con permiso ads_read) no lo permitiría. REGLA MÁXIMA (lib/reglaMaxima.ts):
+// cada pedido pasa por asegurarSoloLectura() antes de salir. La clave viaja en el
 // encabezado Authorization, nunca en la URL, así no queda en registros.
 //
 // Variables (Vercel): META_ADS_TOKEN, META_ADS_ACCOUNT_ID (act_… o solo el
 // número). Opcional: META_ADS_GRAPH_VERSION. META_ADS_GRAPH_BASE solo se
 // respeta fuera de producción (pruebas contra un servidor simulado).
+
+import { asegurarSoloLectura } from "@/lib/reglaMaxima";
 
 const VERSION = process.env.META_ADS_GRAPH_VERSION || "v26.0";
 const BASE_OFICIAL = `https://graph.facebook.com/${VERSION}`;
@@ -75,6 +78,7 @@ function armarUrl(ruta: string, params: Params): string {
 async function pedir(url: string, token: string, consulta = ""): Promise<Record<string, unknown>> {
   // Las páginas siguientes las arma Meta: solo se siguen si son del mismo host.
   if (new URL(url).host !== new URL(graphBase()).host) throw new MetaError("Paginación hacia otro host: descartada");
+  asegurarSoloLectura("meta", "GET", url);
   for (let intento = 0; ; intento++) {
     const r = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
     const cuerpo = await r.json().catch(() => null);

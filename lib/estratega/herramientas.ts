@@ -135,10 +135,23 @@ export const HERRAMIENTAS: Herramienta[] = [
   {
     name: "google_ads",
     titulo: "Google Ads",
-    description: "Lo que la web mide de las visitas de Google Ads: resumen (visitas, vieron producto, checkout, empezaron formulario, fueron a pagar, ventas, ingresos), por día, páginas de llegada, dispositivos, términos de búsqueda (utm_term), visitas una por una y comparación con otras fuentes. El GASTO de Google no está acá: está en Presupuesto (publicidad cargada a mano) o en el documento de economía.",
+    description: "Dos partes. (1) cuenta_google: datos de la cuenta de Google Ads leídos por la API cada hora (en USD): campañas con estado, motivos (ej. BUDGET_CONSTRAINED = limitada por presupuesto, BIDDING_STRATEGY_LEARNING = aprendiendo), tipo de puja y presupuesto; rendimiento por día y campaña (impresiones, clics, costo, conversiones, cuota de impresiones y cuánta se pierde por presupuesto o por ranking/puja); palabras clave y términos de búsqueda reales de 30 días con costo y clics. (2) web: lo que la web mide de esas visitas (visitas, checkout, ventas, ingresos en $, por día, páginas de llegada, dispositivos y utm_term). Para el costo por venta: costo de Google (USD × tipo de cambio de economia) contra ventas medidas en la web.",
     input_schema: { type: "object", additionalProperties: false, properties: { dias: { type: "integer", description: "Días hacia atrás (1 a 90). Por defecto 14." } } },
     ejemplo: { dias: 14 },
-    correr: async (rest, i) => rest("rpc/google_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: entero(i.dias, 14, 1, 90) }) }),
+    correr: async (rest, i) => {
+      const dias = entero(i.dias, 14, 1, 90);
+      const [web, datos, porDia, sync] = await Promise.all([
+        rest("rpc/google_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: dias }) }),
+        rest("google_ads_datos?select=clave,datos,synced_at"),
+        rest(`google_ads_rendimiento?fecha=gte.${haceDias(dias - 1)}&select=fecha,campana_id,impresiones,clics,costo,conversiones,valor_conversiones,cuota_impresiones,perdida_por_presupuesto,perdida_por_ranking&order=fecha.asc`),
+        rest("google_ads_sync?select=terminado_at,ok,error&order=iniciado_at.desc&limit=1"),
+      ]);
+      const d = Object.fromEntries((datos as { clave: string; datos: unknown }[]).map((x) => [x.clave, x.datos]));
+      const cuenta_google = d.cuenta
+        ? { moneda: "USD", ultima_lectura: sync?.[0] ?? null, cuenta: d.cuenta, campanas: d.campanas, por_dia: porDia, palabras_30d: d.palabras_30d, terminos_30d: d.terminos_30d }
+        : { conectada: false, nota: "La API de Google Ads todavía no sincronizó: no hay gasto ni palabras clave de Google." };
+      return { cuenta_google, web };
+    },
   },
   {
     name: "experimentos",

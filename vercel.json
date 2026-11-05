@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/asistente-diario", "schedule": "0 11 * * *" },
     { "path": "/api/cron/meta-ads", "schedule": "5 * * * *" },
-    { "path": "/api/cron/estratega-semanal", "schedule": "0 12 * * 1" }
+    { "path": "/api/cron/estratega-semanal", "schedule": "0 12 * * 1" },
+    { "path": "/api/cron/google-ads", "schedule": "15 * * * *" }
   ]
 }

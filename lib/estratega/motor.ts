@@ -6,6 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { NOMBRE_CLAVE, claveAnalista, costoReal } from "@/lib/analista/informe";
+import { REGLA_MAXIMA } from "@/lib/reglaMaxima";
 import { correrHerramienta, definicionesHerramientas, type Contexto, type Rest } from "@/lib/estratega/herramientas";
 
 export const MODELO_ESTRATEGA = "claude-opus-5-5";
@@ -16,6 +17,8 @@ export interface Consulta { herramienta: string; entrada: unknown; error: boolea
 interface Documento { clave: string; titulo: string; contenido: string; updated_at: string }
 
 const INSTRUCCIONES = `Sos el Estratega de anuncios de Tu Oráculo (tuhoroscopocosmico.com), un negocio uruguayo chico que vende lecturas de tarot online por $690 y las entrega por WhatsApp. Le hablás a Manuel, el dueño. Tu trabajo: decirle dónde poner la plata de publicidad para vender de forma rentable, con un costo por cliente (CAC) que permita crecer y formalizar la empresa.
+
+${REGLA_MAXIMA}
 
 Cómo trabajás:
 - Primero leé los documentos de "Lo que sabés" (abajo). Son la base: reglas, economía, guías y experimentos.

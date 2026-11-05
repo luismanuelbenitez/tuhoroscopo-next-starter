@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
 import { GOOGLE_ADS_ID } from "@/lib/googleAds";
+import { sincronizarGoogleAds } from "@/lib/googleAdsApi/sync";
 
 // Google Ads (2026-11-04), solo lectura. Sin conexión a la API de Google Ads:
 // lo que la web mide de las visitas de anuncios de Google (rpc google_ads_panel)
@@ -29,4 +30,16 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ ok: false, motivo: "error", detalle: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
+}
+
+// POST {accion:"sincronizar", dias}: lee la cuenta de Google Ads ahora (solo
+// lectura, REGLA MÁXIMA). Lo mismo que hace el cron cada hora.
+export async function POST(req: NextRequest) {
+  if (!(await requireAdminSession())) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
+  const rest = restSupabase();
+  if (!rest) return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });
+  const b = (await req.json().catch(() => ({}))) as { accion?: string; dias?: number };
+  if (b.accion !== "sincronizar") return NextResponse.json({ ok: false, motivo: "accion_invalida" }, { status: 400 });
+  const r = await sincronizarGoogleAds(rest, { dias: Math.min(Math.max(Number(b.dias) || 3, 1), 90), origen: "manual" });
+  return NextResponse.json(r, { status: r.ok ? 200 : r.motivo === "sin_configurar" ? 400 : 502 });
 }
