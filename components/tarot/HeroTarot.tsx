@@ -40,9 +40,11 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
       <div className="relative md:flex md:items-center md:gap-12">
         <div className="fi1 md:flex-1 max-w-[520px]">
           {/* SEO (2026-10-21): el H1 es la intención principal de la página
-              ("tarot personalizado online") con el estilo del antetítulo. */}
+              con el estilo del antetítulo. 2026-11-05: dice las búsquedas
+              que compra Google Ads ("lectura de tarot online"), que es lo
+              que mide la relevancia de la página de destino. */}
           <h1 className="text-[12px] md:text-[11px] font-bold uppercase tracking-widest mb-2.5" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
-            Tarot personalizado online
+            Lectura de tarot online personalizada
           </h1>
           <p className="mb-2" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.9rem, 5.4vw, 3.1rem)", lineHeight: 1.05, color: CREMA, textShadow: TEXT_SHADOW }}>
             Tu tirada de 5 cartas,{" "}

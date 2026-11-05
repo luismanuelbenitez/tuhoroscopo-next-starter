@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
 import { urlOptimizada } from "@/lib/imagen";
 
 // Video corto de la portada de /tarot (2026-11-03): 14 s del anuncio V6
@@ -13,6 +14,11 @@ const DIR = "/img/tarot/video";
 const POSTER = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 640);
 
 export function VideoDemoTarot({ className = "" }: { className?: string }) {
+  // La imagen fija es el elemento más grande de la primera pantalla del
+  // celular (LCP). Como poster de <video> el navegador la pedía tarde y con
+  // prioridad baja: 8,1 s en Lighthouse móvil (2026-11-05, Google Ads la
+  // califica por la experiencia en la página). Se precarga con prioridad alta.
+  preload(POSTER, { as: "image", fetchPriority: "high" });
   const ref = useRef<HTMLVideoElement>(null);
   const [cargar, setCargar] = useState(false);
 

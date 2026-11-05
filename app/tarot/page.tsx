@@ -9,8 +9,8 @@ import { numeroWhatsApp } from '@/lib/contacto';
 // de las páginas por tema (Paquete SEO 1, 2026-10-21).
 export const metadata = metadataPagina(
   '/tarot',
-  'Tarot online personalizado: tu lectura de 5 cartas | Tu Oráculo',
-  'Tarot online personalizado: 5 cartas interpretadas para tu consulta, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único, sin suscripción.',
+  'Lectura de tarot online personalizada: 5 cartas | Tu Oráculo',
+  'Lectura de tarot online personalizada: 5 cartas interpretadas para tu consulta, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único, sin suscripción.',
 );
 
 export default async function TarotPage({
