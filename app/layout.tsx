@@ -69,11 +69,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1">{children}</main>
           {!hideChrome && <Footer />}
         </StyledJsxRegistry>
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+        {/* Admin (2026-11-04): sin Google Analytics, Google Ads ni píxel de Meta:
+            las visitas al panel inflaban GA (tiempo, páginas) y las audiencias de Meta. */}
+        {!isAdmin && process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
         )}
-        <GoogleAdsTag />
-        {process.env.NEXT_PUBLIC_META_PIXEL_ID && (
+        {!isAdmin && <GoogleAdsTag />}
+        {!isAdmin && process.env.NEXT_PUBLIC_META_PIXEL_ID && (
           <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} />
         )}
         {/* Vercel Web Analytics + Speed Insights (2026-10-22): tráfico agregado
