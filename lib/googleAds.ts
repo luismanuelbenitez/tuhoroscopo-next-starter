@@ -36,3 +36,22 @@ export function googleAdsCompra(params: { transactionId: string; value: number; 
     });
   } catch { /* best-effort */ }
 }
+
+// Acción secundaria "Inicio de checkout" (2026-11-05): solo para observar en
+// Google Ads qué búsquedas llegan al checkout (las compras son pocas para
+// juzgar palabras). No es principal: Google no la usa para pujar.
+const INICIO_CHECKOUT_LABEL = "_tmuCKau67IdEL6SlMwD";
+
+/** Llegada a /tarot/checkout. Mismo punto que begin_checkout de GA4 y
+ *  checkout_started del embudo. Crea la cola de gtag si todavía no existe
+ *  (el checkout puede montar antes que el script del layout). */
+export function googleAdsInicioCheckout(value: number): void {
+  try {
+    if (!GOOGLE_ADS_ID || typeof window === "undefined") return;
+    const w = window as unknown as { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
+    w.dataLayer = w.dataLayer || [];
+    // eslint-disable-next-line prefer-rest-params
+    w.gtag = w.gtag || function () { w.dataLayer!.push(arguments); };
+    w.gtag("event", "conversion", { send_to: `${GOOGLE_ADS_ID}/${INICIO_CHECKOUT_LABEL}`, value, currency: "UYU" });
+  } catch { /* best-effort */ }
+}

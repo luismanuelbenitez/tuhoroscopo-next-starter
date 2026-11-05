@@ -18,6 +18,7 @@ import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
 import { FechaNacimiento } from '@/components/tarot/checkout/FechaNacimiento';
 import { PieMarca } from '@/components/marca/PieMarca';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
+import { googleAdsInicioCheckout } from '@/lib/googleAds';
 import { linkWhatsApp } from '@/lib/contacto';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
@@ -226,6 +227,8 @@ export default function TarotCheckoutContent({
     import('@/lib/analytics').then(({ trackBeginCheckout }) => {
       trackBeginCheckout('tarot', PRECIO_BASE);
     });
+    // Google Ads, acción secundaria (solo observación): mismo punto.
+    googleAdsInicioCheckout(PRECIO_BASE);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
