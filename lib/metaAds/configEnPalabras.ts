@@ -19,7 +19,7 @@ const PUJA: Record<string, string> = {
   LOWEST_COST_WITHOUT_CAP: "Volumen más alto (sin tope de costo)", COST_CAP: "Tope de costo por resultado",
   LOWEST_COST_WITH_BID_CAP: "Tope de puja", LOWEST_COST_WITH_MIN_ROAS: "ROAS mínimo",
 };
-const EVENTO: Record<string, string> = { PURCHASE: "Compra", INITIATED_CHECKOUT: "Inicio de pago", VIEW_CONTENT: "Ver contenido", ADD_TO_CART: "Agregar al carrito", LEAD: "Cliente potencial" };
+const EVENTO: Record<string, string> = { PURCHASE: "Compra", INITIATED_CHECKOUT: "Inicio de pago", VIEW_CONTENT: "Ver contenido", CONTENT_VIEW: "Ver contenido", ADD_TO_CART: "Agregar al carrito", LEAD: "Cliente potencial" };
 const CTA: Record<string, string> = { LEARN_MORE: "Más información", SHOP_NOW: "Comprar", ORDER_NOW: "Pedir ahora", SIGN_UP: "Registrarte", BOOK_NOW: "Reservar", GET_OFFER: "Obtener oferta", CONTACT_US: "Contactarnos", WHATSAPP_MESSAGE: "Enviar WhatsApp" };
 const GENERO: Record<number, string> = { 1: "Hombres", 2: "Mujeres" };
 

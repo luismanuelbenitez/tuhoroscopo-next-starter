@@ -154,6 +154,28 @@ export const HERRAMIENTAS: Herramienta[] = [
     },
   },
   {
+    name: "historial_campanas",
+    titulo: "Histórico de configuración de campañas",
+    description: "Cada versión de cada campaña de Meta y Google (una nueva cada vez que cambia algo de la configuración, también pausar o activar): vigencia (desde / hasta), resumen en claro (objetivo, puja, presupuesto, público, ubicaciones, palabras clave, anuncios), qué cambió contra la versión anterior, diagnóstico de la plataforma (nivel de calidad por palabra, fuerza del anuncio, aprendizaje, recomendaciones), resultados mientras estuvo vigente (gasto, clics y CTR de la plataforma; visitas, % que se va en 5 s, checkout, ventas e ingresos medidos en la web; costo por visita, por checkout y por venta en $) y el análisis escrito. Es la base para comparar qué configuración funcionó y cuál no. Con completa=true y una campaña trae también la configuración completa tal cual la da la plataforma.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        plataforma: { type: "string", enum: ["meta", "google"] },
+        campana: { type: "string", description: "Id de campaña (Meta o Google) para filtrar." },
+        completa: { type: "boolean", description: "Incluir la configuración completa (solo con campana)." },
+      },
+    },
+    ejemplo: { plataforma: "google" },
+    correr: async (rest, i) => {
+      const filtros = [
+        i.plataforma === "meta" || i.plataforma === "google" ? `plataforma=eq.${i.plataforma}` : null,
+        typeof i.campana === "string" && /^\d{5,25}$/.test(i.campana) ? `campana_id=eq.${i.campana}` : null,
+      ].filter(Boolean);
+      const campos = `id,plataforma,campana_id,campana_nombre,utm_campaign,version,estado,vigente_desde,vigente_hasta,origen,resumen,cambios,diagnostico,resultados,analisis${i.completa === true && filtros.some((f) => f!.startsWith("campana_id")) ? ",config" : ""}`;
+      return rest(`ads_config_historial?${[...filtros, `select=${campos}`, "order=vigente_desde.desc", "limit=40"].join("&")}`);
+    },
+  },
+  {
     name: "experimentos",
     titulo: "Campañas registradas",
     description: "Campañas y experimentos registrados en Admin → Campañas Ads: utm_campaign, plataforma, objetivo, página de destino, presupuesto, fechas, estado y notas.",

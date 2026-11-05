@@ -1,5 +1,7 @@
 import { createHash } from "crypto";
 import { faltaConfig, leer, leerTodo, metaConfig, MetaError, type MetaConfig } from "@/lib/metaAds/graph";
+import { configEnPalabras } from "@/lib/metaAds/configEnPalabras";
+import { estable as sinVolatiles, registrarHistorial, type CampanaHistorial } from "@/lib/adsHistorial";
 
 // Sincronización Meta Ads → Supabase (2026-11-02). Solo lee de Meta.
 // Trae cuenta, configuración completa de campañas / conjuntos / anuncios,
@@ -165,6 +167,32 @@ export async function leerMeta(cfg: MetaConfig, dias: number): Promise<Resultado
   };
 }
 
+// Histórico de configuración (ads_config_historial): una entrada por campaña
+// con ella, sus conjuntos y sus anuncios. A diferencia de la huella de
+// arriba, el estado configurado (activa / pausada) SÍ cuenta como cambio.
+const FUERA_HISTORIAL = new Set([...VOLATILES].filter((k) => k !== "status"));
+export type ObjetoMeta = { id: unknown; nivel: string; campana_id: unknown; nombre: unknown; estado: unknown; config: Fila; utm_campaign?: string | null };
+export function historialMeta(objetos: ObjetoMeta[], moneda: string): CampanaHistorial[] {
+  const porId = (a: ObjetoMeta, b: ObjetoMeta) => String(a.id).localeCompare(String(b.id));
+  return objetos.filter((o) => o.nivel === "campana").map((c) => {
+    const de = (nivel: string) => objetos.filter((o) => o.nivel === nivel && String(o.campana_id) === String(c.id)).sort(porId);
+    const conjuntos = de("conjunto"), anuncios = de("anuncio");
+    const enClaro = (o: ObjetoMeta) => ({ id: o.id, nombre: o.nombre, estado: o.estado, detalle: Object.fromEntries(configEnPalabras(o.nivel, o.config, moneda)) });
+    return {
+      campana_id: String(c.id), nombre: (c.nombre as string) ?? null, utm_campaign: c.utm_campaign ?? null, estado: (c.estado as string) ?? null,
+      config: {
+        campana: sinVolatiles(c.config, FUERA_HISTORIAL) as Fila,
+        conjuntos: conjuntos.map((o) => sinVolatiles(o.config, FUERA_HISTORIAL)),
+        anuncios: anuncios.map((o) => sinVolatiles(o.config, FUERA_HISTORIAL)),
+      },
+      resumen: { campana: enClaro(c), conjuntos: conjuntos.map(enClaro), anuncios: anuncios.map(enClaro) },
+      diagnostico: { campana: c.config.issues_info ?? null, conjuntos: conjuntos.map((o) => ({ id: o.id, estado_efectivo: o.config.effective_status, aprendizaje: o.config.learning_stage_info ?? null, avisos: o.config.issues_info ?? null })),
+        anuncios: anuncios.map((o) => ({ id: o.id, estado_efectivo: o.config.effective_status, revision: o.config.ad_review_feedback ?? null, avisos: o.config.issues_info ?? null })) },
+      desde: (c.config.start_time as string) ?? (c.config.created_time as string) ?? null,
+    };
+  });
+}
+
 // ── Guardado (REST de Supabase con la clave de servicio) ────────────────────
 type Rest = (q: string, init?: RequestInit) => Promise<unknown>;
 
@@ -187,8 +215,11 @@ export async function sincronizar(rest: Rest, opciones: { dias: number; origen: 
   try {
     const { payload, resumen } = await leerMeta(cfg, opciones.dias);
     const guardado = await rest("rpc/meta_ads_guardar", { method: "POST", body: JSON.stringify({ p: payload }) });
-    await cerrar({ ok: true, desde: resumen.desde, hasta: resumen.hasta, conteos: { ...resumen, guardado } });
-    return { ok: true as const, resumen, guardado };
+    // El histórico no frena la sincronización: si falla, queda anotado.
+    const historial = await registrarHistorial(rest as Parameters<typeof registrarHistorial>[0], "meta", historialMeta(payload.objetos as ObjetoMeta[], resumen.moneda))
+      .catch((e) => ({ error: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
+    await cerrar({ ok: true, desde: resumen.desde, hasta: resumen.hasta, conteos: { ...resumen, guardado, historial } });
+    return { ok: true as const, resumen, guardado, historial };
   } catch (e) {
     let motivo = e instanceof Error ? e.message : String(e);
     // Sin permiso sobre la cuenta: se informa qué cuentas SÍ ve la clave, para
