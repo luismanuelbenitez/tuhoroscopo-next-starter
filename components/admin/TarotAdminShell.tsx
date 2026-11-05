@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, ChevronDown, BarChart3, ListTodo, Search,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, Compass, ChevronDown, BarChart3, ListTodo, Search,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -91,6 +91,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/campanas-ads",    icon: Target,    label: "Campañas Ads" },
       { href: "/admin/tarot/meta-ads",        icon: BarChart3, label: "Meta Ads" },
       { href: "/admin/tarot/google-ads",      icon: Search,    label: "Google Ads" },
+      { href: "/admin/tarot/estratega",       icon: Compass,   label: "Estratega de anuncios" },
       { href: "/admin/tarot/product-intelligence", icon: Sparkles, label: "Product Intelligence" },
     ],
   },
@@ -108,16 +109,17 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
 // favoritos; grupos abiertos y favoritos se recuerdan en este navegador.
 const FAVORITOS_INICIALES = [
   "/admin/tarot/pendientes", "/admin/tarot/asistente", "/admin/tarot/analista", "/admin/tarot/visitantes", "/admin/tarot/meta-ads",
-  "/admin/tarot/google-ads", "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
+  "/admin/tarot/google-ads", "/admin/tarot/estratega", "/admin/tarot/campanas-ads", "/admin/tarot/ordenes", "/admin/tarot/ingresos", "/admin/tarot/whatsapp",
 ];
 const TODOS_LOS_ITEMS = GRUPOS.flatMap((g) => g.items);
 const CLAVE_GRUPOS_ABIERTOS = "tarot_menu_grupos_abiertos";
 const CLAVE_FAVORITOS = "tarot_menu_favoritos";
 // Ítems nuevos que se suman una sola vez a favoritos ya guardados, debajo de
-// otro (2026-11-04: Google Ads debajo de Meta Ads). Si después se lo quita
+// otro (2026-11-04: Google Ads debajo de Meta Ads; Estratega debajo de Google Ads). Si después se lo quita
 // con la estrella, no vuelve a aparecer.
 const NUEVOS_FAVORITOS: { href: string; despuesDe: string; clave: string }[] = [
   { href: "/admin/tarot/google-ads", despuesDe: "/admin/tarot/meta-ads", clave: "tarot_menu_fav_google_ads" },
+  { href: "/admin/tarot/estratega", despuesDe: "/admin/tarot/google-ads", clave: "tarot_menu_fav_estratega" },
 ];
 function sumarNuevosFavoritos(lista: string[]): string[] {
   let n = lista;
@@ -141,6 +143,8 @@ export function TarotAdminShell({ children }: { children: React.ReactNode }) {
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const [favoritos, setFavoritos] = useState<string[]>(FAVORITOS_INICIALES);
   useEffect(() => {
+    // Celular (2026-11-04): el menú arranca plegado (solo íconos) para que la página entre en 360–390 px.
+    if (window.innerWidth < 768) setCollapsed(true);
     try {
       const a = localStorage.getItem(CLAVE_GRUPOS_ABIERTOS);
       if (a) setAbiertos(new Set(JSON.parse(a) as string[]));
