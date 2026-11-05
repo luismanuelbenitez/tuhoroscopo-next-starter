@@ -22,6 +22,16 @@ interface Datos {
   terminos: (Fila & { termino: string })[];
   visitas: { inicio: string; dispositivo: string | null; ciudad: string | null; landing: string | null; termino: string | null; paginas: number; etapa: string }[];
   fuentes: (Fila & { fuente: string })[];
+  cuenta: Cuenta;
+}
+interface CampanaG { id: string; nombre: string; estado: string; estado_principal: string; motivos: string[]; puja: string; presupuesto_diario: number | null; presupuesto_total: number | null; limitada_por_presupuesto: boolean }
+interface DiaG { fecha: string; impresiones: number; clics: number; costo: number; conversiones: number; cuota_impresiones: number | null; perdida_por_presupuesto: number | null; perdida_por_ranking: number | null }
+interface PalabraG { palabra: string; concordancia: string; negativa: boolean; estado: string; impresiones: number; clics: number; costo: number }
+interface TerminoG { termino: string; impresiones: number; clics: number; costo: number }
+interface Cuenta {
+  conectada: boolean; ultima_lectura: { iniciado_at: string; terminado_at: string | null; ok: boolean | null; error: string | null } | null;
+  tipo_cambio?: number; campanas?: CampanaG[]; por_dia?: DiaG[];
+  palabras?: { desde: string; hasta: string; filas: PalabraG[] } | null; terminos?: { desde: string; hasta: string; filas: TerminoG[] } | null;
 }
 
 const entero = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("es-UY"));
@@ -102,6 +112,140 @@ function Medicion({ d }: { d: Datos }) {
   );
 }
 
+// Cuenta de Google Ads (2026-11-05): lo que la API leyó de la cuenta (solo
+// lectura, REGLA MÁXIMA). Gasto en USD (la moneda de la cuenta) y en pesos.
+const ESTADO_CAMPANA: Record<string, string> = { ELIGIBLE: "Activa", LEARNING: "Aprendiendo", LIMITED: "Limitada", PAUSED: "Pausada", NOT_ELIGIBLE: "No se muestra", PENDING: "Pendiente", ENDED: "Terminada", MISCONFIGURED: "Mal configurada" };
+const PUJA: Record<string, string> = { TARGET_SPEND: "Maximizar clics", MAXIMIZE_CONVERSIONS: "Maximizar conversiones", MAXIMIZE_CONVERSION_VALUE: "Maximizar valor", MANUAL_CPC: "CPC manual", TARGET_CPA: "CPA objetivo", TARGET_ROAS: "ROAS objetivo", TARGET_IMPRESSION_SHARE: "Cuota de impresiones" };
+const CONCORDANCIA: Record<string, string> = { BROAD: "amplia", PHRASE: "frase", EXACT: "exacta" };
+const usd = (n: number) => `US$ ${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const hace = (s: string) => { const m = Math.round((Date.now() - new Date(s).getTime()) / 60_000); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+const promedio = (v: (number | null)[]) => { const x = v.filter((n): n is number => n != null); return x.length ? x.reduce((a, b) => a + b, 0) / x.length : null; };
+
+function Etiqueta({ texto, tono = "rojo" }: { texto: string; tono?: "rojo" | "gris" }) {
+  return <span className={`rounded-full border px-1.5 text-[10px] ${tono === "rojo" ? "border-red-900/70 bg-red-950/40 text-red-300" : "border-gray-700 bg-gray-900 text-gray-400"}`}>{texto}</span>;
+}
+
+function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
+  const c = d.cuenta;
+  const [leyendo, setLeyendo] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const leer = async () => {
+    setLeyendo(true); setAviso(null);
+    try {
+      const r = await fetch("/api/admin/tarot/google-ads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accion: "sincronizar", dias: 30 }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.detalle ?? j.motivo ?? "error");
+      alLeer();
+    } catch (e) { setAviso(e instanceof Error ? e.message : "error"); } finally { setLeyendo(false); }
+  };
+  const boton = (
+    <button onClick={leer} disabled={leyendo} className="inline-flex items-center gap-1.5 rounded border border-gray-700 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50">
+      <RefreshCw size={12} className={leyendo ? "animate-spin" : ""} /> Leer ahora
+    </button>
+  );
+  if (!c?.conectada) {
+    return (
+      <Tarjeta titulo="Tu cuenta de Google Ads" extra={boton}>
+        <p className="text-xs text-gray-400">Todavía no se leyó la cuenta. {c?.ultima_lectura?.error ? `Último error: ${c.ultima_lectura.error}` : "Se lee sola cada hora."}</p>
+        {aviso && <p className="mt-2 text-xs text-red-300">{aviso}</p>}
+      </Tarjeta>
+    );
+  }
+  const dias = c.por_dia ?? [];
+  const tot = dias.reduce((a, x) => ({ imp: a.imp + x.impresiones, clics: a.clics + x.clics, costo: a.costo + Number(x.costo) }), { imp: 0, clics: 0, costo: 0 });
+  const tc = c.tipo_cambio ?? 40;
+  const ventas = d.resumen.ventas;
+  const cuota = promedio(dias.map((x) => x.cuota_impresiones));
+  const pierdeRanking = promedio(dias.map((x) => x.perdida_por_ranking));
+  const pierdePresupuesto = promedio(dias.map((x) => x.perdida_por_presupuesto));
+  const terminos = c.terminos?.filas ?? [];
+  const gratis = terminos.filter((t) => esGratis(t.termino));
+  const clicsGratis = gratis.reduce((a, t) => a + t.clics, 0), clicsTerm = terminos.reduce((a, t) => a + t.clics, 0);
+  const costoGratis = gratis.reduce((a, t) => a + Number(t.costo), 0);
+  const palabrasGratis = (c.palabras?.filas ?? []).filter((p) => !p.negativa && esGratis(p.palabra));
+  const kpis: [string, string, string?][] = [
+    ["Gasto", usd(tot.costo), `≈ $ ${entero(tot.costo * tc)}`],
+    ["Clics", entero(tot.clics), `${entero(tot.imp)} impresiones`],
+    ["Clics / impresiones", pct(tot.clics, tot.imp), "CTR"],
+    ["Costo por clic", tot.clics ? usd(tot.costo / tot.clics) : "—", tot.clics ? `≈ $ ${entero((tot.costo / tot.clics) * tc)}` : undefined],
+    ["Costo por venta", ventas ? `$ ${entero((tot.costo * tc) / ventas)}` : "—", `${ventas} ${ventas === 1 ? "venta" : "ventas"} medidas en la web`],
+    ["Cuota de impresiones", cuota != null ? `${Math.round(cuota * 100)}%` : "—", "de las búsquedas posibles"],
+  ];
+  return (
+    <div className="space-y-4 rounded-xl border border-sky-900/50 bg-sky-950/10 p-4 md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-white">Tu cuenta de Google Ads</p>
+          <p className="text-[11px] text-gray-400">
+            Leída por la API {c.ultima_lectura?.terminado_at ? hace(c.ultima_lectura.terminado_at) : "—"} · se lee sola cada hora · solo lectura (no puede cambiar nada)
+            {c.ultima_lectura?.ok === false && <span className="text-red-300"> · última lectura con error: {c.ultima_lectura.error}</span>}
+          </p>
+        </div>
+        {boton}
+      </div>
+      {aviso && <p className="text-xs text-red-300">{aviso}</p>}
+
+      {(c.campanas ?? []).map((k) => (
+        <div key={k.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs">
+          <span className="font-semibold text-white">{k.nombre}</span>
+          <span className="text-gray-300">{ESTADO_CAMPANA[k.estado_principal] ?? k.estado_principal}</span>
+          <span className="text-gray-500">Puja: {PUJA[k.puja] ?? k.puja}</span>
+          <span className="text-gray-500">Presupuesto: {k.presupuesto_diario != null ? `${usd(k.presupuesto_diario)} por día` : k.presupuesto_total != null ? `${usd(k.presupuesto_total)} en total` : "—"}</span>
+          {k.limitada_por_presupuesto && <Etiqueta texto="limitada por presupuesto" />}
+        </div>
+      ))}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+        {kpis.map(([t, v, s]) => (
+          <div key={t} className="rounded-xl border border-gray-800 bg-gray-900/60 p-3.5">
+            <p className="text-[11px] text-gray-500">{t}</p>
+            <p className="mt-1 text-xl font-bold text-white tabular-nums">{v}</p>
+            {s && <p className="text-[11px] text-gray-500">{s}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-gray-500">Últimos {d.dias} días según Google. El costo por venta usa el dólar a {tc} y las ventas que midió la web desde anuncios de Google.</p>
+
+      {(palabrasGratis.length > 0 || clicsGratis > 0) && (
+        <p className="flex items-start gap-2 rounded-xl border border-red-900/70 bg-red-950/30 p-3 text-xs text-red-200">
+          <AlertTriangle size={14} className="mt-px shrink-0" />
+          <span>
+            {clicsGratis > 0 && <>En 30 días, {clicsGratis} de {clicsTerm} clics fueron de búsquedas con &quot;gratis&quot; ({usd(costoGratis)}). </>}
+            {palabrasGratis.length > 0 && <>Tus palabras clave {palabrasGratis.map((p) => `«${p.palabra}»`).join(" y ")} llevan &quot;gratis&quot;: conviene pausarlas y agregar &quot;gratis&quot; como negativa (lo hacés vos en Google Ads).</>}
+          </span>
+        </p>
+      )}
+      {pierdeRanking != null && pierdeRanking > 0.5 && (
+        <p className="flex items-start gap-2 rounded-xl border border-amber-900/60 bg-amber-950/20 p-3 text-xs text-amber-200">
+          <Info size={14} className="mt-px shrink-0" />
+          El anuncio aparece en {cuota != null ? Math.round(cuota * 100) : "—"}% de las búsquedas posibles: pierde {Math.round(pierdeRanking * 100)}% por ranking (puja y calidad) y {Math.round((pierdePresupuesto ?? 0) * 100)}% por presupuesto. Más presupuesto solo no trae más visitas.
+        </p>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Tarjeta titulo="Palabras clave" extra={<span className="text-[11px] text-gray-500">últimos 30 días</span>}>
+          <Tabla cabeza={["Palabra", "Impr.", "Clics", "Gasto"]} filas={(c.palabras?.filas ?? []).filter((p) => !p.negativa && (p.impresiones > 0 || p.costo > 0)).slice(0, 20).map((p) => [
+            <span key="p" className="inline-flex flex-wrap items-center gap-1.5">{p.palabra}<Etiqueta texto={CONCORDANCIA[p.concordancia] ?? p.concordancia} tono="gris" />{esGratis(p.palabra) && <Etiqueta texto="gratis" />}</span>,
+            entero(p.impresiones), entero(p.clics), usd(Number(p.costo)),
+          ])} />
+        </Tarjeta>
+        <Tarjeta titulo="Qué buscó la gente (según Google)" extra={<span className="text-[11px] text-gray-500">con clics · 30 días</span>}>
+          <Tabla cabeza={["Búsqueda", "Impr.", "Clics", "Gasto"]} filas={terminos.filter((t) => t.clics > 0).slice(0, 25).map((t) => [
+            <span key="t" className="inline-flex items-center gap-1.5">{t.termino}{esGratis(t.termino) && <Etiqueta texto="gratis" />}</span>,
+            entero(t.impresiones), entero(t.clics), usd(Number(t.costo)),
+          ])} />
+        </Tarjeta>
+      </div>
+
+      <Tarjeta titulo="Por día (Google)">
+        <Tabla cabeza={["Día", "Impr.", "Clics", "Gasto", "Cuota"]} filas={[...dias].reverse().map((x) => [
+          diaCorto(x.fecha), entero(x.impresiones), entero(x.clics), usd(Number(x.costo)), x.cuota_impresiones != null ? `${Math.round(x.cuota_impresiones * 100)}%` : "—",
+        ])} />
+      </Tarjeta>
+    </div>
+  );
+}
+
 // Avisos en palabras a partir de los datos (sin inventar lo que no se mide).
 function avisos(d: Datos): { tono: "rojo" | "amarillo" | "info"; texto: string }[] {
   const r = d.resumen; const out: { tono: "rojo" | "amarillo" | "info"; texto: string }[] = [];
@@ -145,7 +289,7 @@ export default function GoogleAdsPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-white">Google Ads</h1>
-            <p className="mt-1 max-w-2xl text-xs text-gray-400">Lo que la web mide de las visitas que llegan desde anuncios de Google. Sin conexión a la cuenta: el gasto, las impresiones y los clics se ven en Google Ads.</p>
+            <p className="mt-1 max-w-2xl text-xs text-gray-400">Arriba, lo que Google dice de tu cuenta (gasto, clics, palabras y búsquedas). Abajo, lo que la web mide de esas visitas (checkout y ventas).</p>
           </div>
           <div className="flex items-center gap-2">
             <select value={dias} onChange={(e) => setDias(Number(e.target.value))} className="rounded border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white">
@@ -170,6 +314,8 @@ export default function GoogleAdsPage() {
 
         {d && r && (
           <>
+            <CuentaGoogle d={d} alLeer={cargar} />
+            <p className="pt-1 text-sm font-semibold text-white">Lo que mide la web</p>
             <Medicion d={d} />
 
             {avisos(d).map((a) => (
