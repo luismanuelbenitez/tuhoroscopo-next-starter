@@ -200,9 +200,7 @@ function ResumenEjemplo() {
 const CARTAS_A = LECTURA_EJEMPLO.cartas.slice(0, 5).map((c, i) => ({ ...POSICIONES[i], nombre: c.nombre_carta, src: c.imagen_url ?? "" }));
 // En la landing no se muestra "DERECHA" (auditoría 2026-11-04: no le dice
 // nada a quien compra); orientación vacía = CartaPorCarta no dibuja la etiqueta.
-// Las cartas se piden optimizadas: el original (767×1151, ~110 KB) se pinta a
-// lo sumo a ~190 px de ancho (Lighthouse 2026-11-05: 479 KB de más).
-const CARTAS_DEMO = LECTURA_EJEMPLO.cartas.map((c) => ({ ...c, orientacion: "", imagen_url: c.imagen_url ? urlOptimizada(c.imagen_url, 384) : c.imagen_url }));
+const CARTAS_DEMO = LECTURA_EJEMPLO.cartas.map((c) => ({ ...c, orientacion: "" }));
 
 // Gancho del bloque A (idea de Manuel 2026-11-03): "¿Tenés una pregunta que
 // te da vueltas?" y los temas que se turnan. Los botones llevan al checkout

@@ -27,7 +27,7 @@ function ImagenConFallback({ src, fallback, size }: { src: string; fallback: Rea
   }, [src]);
   if (falló) return <>{fallback}</>;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={ref} src={urlOptimizada(src, 256)} alt="" aria-hidden="true" width={size} height={size} style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} onError={() => setFalló(true)} />;
+  return <img ref={ref} src={urlOptimizada(src, 256)} alt="" aria-hidden="true" width={size} height={size} fetchPriority="low" style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} onError={() => setFalló(true)} />;
 }
 
 // Exportadas (2026-11-03) para el bloque 2 de /tarot, que muestra la lectura

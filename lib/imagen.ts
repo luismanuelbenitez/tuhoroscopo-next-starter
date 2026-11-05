@@ -49,6 +49,8 @@ export function urlOptimizada(src: string, ancho: 96 | 128 | 256 | 384 | 640 | 7
 // Si la URL es de ese bucket se pide optimizada (ver remotePatterns en
 // next.config); cualquier otra se devuelve tal cual.
 const CARTAS_FIRMADAS = "https://bckbpixlaxfxafhvlpbt.supabase.co/storage/v1/object/sign/tarot-assets/";
+// También las del sitio (/img/…: lectura de ejemplo de /tarot y /tarot/ejemplo),
+// que antes bajaban el original de 767 px aun en miniaturas de 36 px.
 export function urlCarta(src: string, ancho: 96 | 256 | 384) {
-  return src.startsWith(CARTAS_FIRMADAS) ? urlOptimizada(src, ancho) : src;
+  return src.startsWith(CARTAS_FIRMADAS) || src.startsWith("/img/") ? urlOptimizada(src, ancho) : src;
 }

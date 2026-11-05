@@ -16,7 +16,13 @@ const POSTER_MOVIL = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 384);
 const POSTER_ESCRITORIO = urlOptimizada(`${DIR}/tarot-demo-poster.webp`, 640);
 
 export function VideoDemoTarot({ className = "", movil = false }: { className?: string; movil?: boolean }) {
-  const poster = movil ? POSTER_MOVIL : POSTER_ESCRITORIO;
+  // La de escritorio va oculta en el celular, pero un <video> oculto baja
+  // igual su poster (34 KB compitiendo con la portada): se le pone recién al
+  // montar y solo si la pantalla es de escritorio.
+  const [poster, setPoster] = useState<string | undefined>(movil ? POSTER_MOVIL : undefined);
+  useEffect(() => {
+    if (!movil && window.matchMedia("(min-width: 768px)").matches) setPoster(POSTER_ESCRITORIO);
+  }, [movil]);
   // La imagen fija es el elemento más grande de la primera pantalla del
   // celular (LCP). Como poster de <video> el navegador la pedía tarde y con
   // prioridad baja: 8,1 s en Lighthouse móvil (2026-11-05, Google Ads la
