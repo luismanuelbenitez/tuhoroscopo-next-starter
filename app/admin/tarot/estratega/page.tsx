@@ -14,12 +14,13 @@ import { MarkdownSimple } from "@/components/admin/MarkdownSimple";
 interface Documento { clave: string; titulo: string; descripcion: string | null; contenido: string; updated_at: string; updated_por: string }
 interface Conversacion { id: string; titulo: string | null; updated_at: string }
 interface Consulta { herramienta: string; entrada: unknown; error: boolean; caracteres: number }
-interface Mensaje { id: string; rol: "user" | "assistant"; texto: string; estado: "generando" | "listo" | "error"; consultas: Consulta[]; costo_usd: number | null; duracion_ms: number | null; error: string | null; created_at: string }
+interface Mensaje { id: string; rol: "user" | "assistant"; texto: string; modelo: string | null; estado: "generando" | "listo" | "error"; consultas: Consulta[]; costo_usd: number | null; duracion_ms: number | null; error: string | null; created_at: string }
 interface Propuesta { id: string; mensaje_id: string | null; informe_id: string | null; titulo: string; detalle: string; prioridad: string; estado: "propuesta" | "aceptada" | "descartada"; created_at: string }
 interface InformeFila { id: string; semana: string; origen: string; estado: string; costo_usd: number | null; error: string | null; created_at: string }
 interface Informe extends InformeFila { texto: string | null; consultas: Consulta[] }
 interface Herramienta { name: string; titulo: string; description: string; vista_previa: boolean }
-interface Datos { ok: boolean; motivo?: string; configurado: boolean; modelo: string; documentos: Documento[]; conversaciones: Conversacion[]; informes: InformeFila[]; propuestas: Propuesta[]; herramientas: Herramienta[] }
+interface ModeloOpcion { id: string; nombre: string; calidad: string; usd_pregunta: number; uyu_pregunta: number; usd_informe: number; uyu_informe: number }
+interface Datos { ok: boolean; motivo?: string; configurado: boolean; modelo: string; modelos: ModeloOpcion[]; documentos: Documento[]; conversaciones: Conversacion[]; informes: InformeFila[]; propuestas: Propuesta[]; herramientas: Herramienta[] }
 
 type Pestana = "chat" | "informe" | "sabe" | "datos";
 const PESTANAS: { id: Pestana; label: string; icon: typeof MessageSquare }[] = [
@@ -52,6 +53,25 @@ async function api<T>(init?: RequestInit, query = ""): Promise<T> {
   return j as T;
 }
 const post = <T,>(body: Record<string, unknown>) => api<T>({ method: "POST", body: JSON.stringify(body) });
+
+// Modelo (2026-11-05): se elige antes de preguntar, con el costo estimado; queda recordado en este navegador.
+const CLAVE_MODELO = "estratega_modelo";
+const pesosCortos = (n: number) => (n < 1 ? "menos de $1" : `≈ $ ${Math.round(n).toLocaleString("es-UY")}`);
+function SelectorModelo({ d, valor, cambiar, para }: { d: Datos; valor: string; cambiar: (m: string) => void; para: "pregunta" | "informe" }) {
+  return (
+    <label className="flex w-full min-w-0 items-center gap-2 text-xs text-gray-400 sm:w-auto">
+      <span className="shrink-0">Modelo:</span>
+      <select value={valor} onChange={(e) => cambiar(e.target.value)} className="w-0 min-w-0 flex-1 rounded-md border border-gray-800 bg-gray-900 px-2 py-1.5 text-xs text-gray-200 sm:w-auto sm:flex-none">
+        {d.modelos.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.nombre.replace("Claude ", "")} ({m.calidad.replace(" (recomendado)", "").toLowerCase()}) · {pesosCortos(para === "pregunta" ? m.uyu_pregunta : m.uyu_informe)} por {para}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+const nombreModelo = (d: Datos, id: string | null) => d.modelos.find((m) => m.id === id)?.nombre ?? id ?? "";
 
 function Consultas({ consultas }: { consultas: Consulta[] }) {
   const [abierto, setAbierto] = useState(false);
@@ -111,7 +131,7 @@ function TarjetaPropuesta({ p, alCambiar }: { p: Propuesta; alCambiar: () => voi
   );
 }
 
-function Burbuja({ m, propuestas, alCambiar }: { m: Mensaje; propuestas: Propuesta[]; alCambiar: () => void }) {
+function Burbuja({ m, propuestas, alCambiar, modeloNombre }: { m: Mensaje; propuestas: Propuesta[]; alCambiar: () => void; modeloNombre: string }) {
   if (m.rol === "user") {
     return <div className="ml-auto max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet-700/80 px-3.5 py-2.5 text-sm text-white">{m.texto}</div>;
   }
@@ -128,14 +148,14 @@ function Burbuja({ m, propuestas, alCambiar }: { m: Mensaje; propuestas: Propues
       {m.estado === "listo" && (
         <>
           <Consultas consultas={m.consultas ?? []} />
-          <p className="mt-1 text-[10px] text-gray-600">{[usd(m.costo_usd), segundos(m.duracion_ms)].filter(Boolean).join(" · ")}</p>
+          <p className="mt-1 text-[10px] text-gray-600">{[modeloNombre, usd(m.costo_usd), segundos(m.duracion_ms)].filter(Boolean).join(" · ")}</p>
         </>
       )}
     </div>
   );
 }
 
-function Chat({ d, recargar }: { d: Datos; recargar: () => void }) {
+function Chat({ d, recargar, modelo, setModelo }: { d: Datos; recargar: () => void; modelo: string; setModelo: (m: string) => void }) {
   const [convId, setConvId] = useState<string | null>(null);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [propuestas, setPropuestas] = useState<Propuesta[]>([]);
@@ -163,7 +183,7 @@ function Chat({ d, recargar }: { d: Datos; recargar: () => void }) {
     if (!q || enviando) return;
     setEnviando(true); setError(null);
     try {
-      const r = await post<{ conversacion_id: string; pregunta: Mensaje; respuesta: Mensaje }>({ accion: "preguntar", texto: q, conversacion_id: convId });
+      const r = await post<{ conversacion_id: string; pregunta: Mensaje; respuesta: Mensaje }>({ accion: "preguntar", texto: q, conversacion_id: convId, modelo });
       setTexto("");
       if (r.conversacion_id !== convId) { setConvId(r.conversacion_id); recargar(); }
       else setMensajes((ms) => [...ms, r.pregunta, r.respuesta]);
@@ -204,17 +224,18 @@ function Chat({ d, recargar }: { d: Datos; recargar: () => void }) {
           {!mensajes.length && (
             <div className="py-6 text-center">
               <p className="text-sm text-gray-300">Preguntale sobre tus anuncios, ventas o costos.</p>
-              <p className="mt-1 text-xs text-gray-500">Antes de responder lee &quot;Qué sabe&quot; y consulta los datos de la base. Cada respuesta cuesta entre US$ 0,10 y US$ 0,50.</p>
+              <p className="mt-1 text-xs text-gray-500">Antes de responder lee &quot;Qué sabe&quot; y consulta los datos de la base. El costo de cada respuesta depende del modelo que elijas abajo.</p>
               <div className="mx-auto mt-4 grid max-w-xl gap-2 sm:grid-cols-2">
                 {SUGERENCIAS.map((s) => <button key={s} onClick={() => enviar(s)} disabled={enviando || !d.configurado} className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-left text-[13px] text-gray-300 hover:border-violet-800 hover:text-white disabled:opacity-50">{s}</button>)}
               </div>
             </div>
           )}
-          {mensajes.map((m) => <Burbuja key={m.id} m={m} propuestas={propuestas.filter((p) => p.mensaje_id === m.id)} alCambiar={() => convId && cargar(convId)} />)}
+          {mensajes.map((m) => <Burbuja key={m.id} m={m} modeloNombre={nombreModelo(d, m.modelo)} propuestas={propuestas.filter((p) => p.mensaje_id === m.id)} alCambiar={() => convId && cargar(convId)} />)}
           <div ref={fin} />
         </div>
         <div className="border-t border-gray-800 p-2.5 sm:p-3">
           {error && <p className="mb-2 text-xs text-red-300">{error}</p>}
+          <div className="mb-2"><SelectorModelo d={d} valor={modelo} cambiar={setModelo} para="pregunta" /></div>
           <div className="flex items-end gap-2">
             <textarea
               value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} maxLength={4000}
@@ -233,7 +254,7 @@ function Chat({ d, recargar }: { d: Datos; recargar: () => void }) {
   );
 }
 
-function InformeSemanal({ d, recargar }: { d: Datos; recargar: () => void }) {
+function InformeSemanal({ d, recargar, modelo, setModelo }: { d: Datos; recargar: () => void; modelo: string; setModelo: (m: string) => void }) {
   const [elegido, setElegido] = useState<string | null>(d.informes[0]?.id ?? null);
   const [inf, setInf] = useState<Informe | null>(null);
   const [props, setProps] = useState<Propuesta[]>([]);
@@ -252,7 +273,7 @@ function InformeSemanal({ d, recargar }: { d: Datos; recargar: () => void }) {
 
   const generar = async () => {
     setError(null);
-    try { const r = await post<{ informe: InformeFila }>({ accion: "generar_informe" }); setElegido(r.informe.id); recargar(); }
+    try { const r = await post<{ informe: InformeFila }>({ accion: "generar_informe", modelo }); setElegido(r.informe.id); recargar(); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -265,10 +286,11 @@ function InformeSemanal({ d, recargar }: { d: Datos; recargar: () => void }) {
             {d.informes.map((i) => <option key={i.id} value={i.id}>{fechaHora(i.created_at)} · {i.origen === "cron" ? "automático" : "a pedido"}{i.estado !== "listo" ? ` · ${i.estado}` : ""}</option>)}
           </select>
         )}
-        <p className="w-full text-xs text-gray-500 sm:w-auto">Se arma solo los lunes a las 9:00. Queda acá, no se manda por mail.</p>
+        <div className="w-full sm:w-auto"><SelectorModelo d={d} valor={modelo} cambiar={setModelo} para="informe" /></div>
+        <p className="w-full text-xs text-gray-500">Solo se arma cuando tocás &quot;Generar ahora&quot; (no hay informes automáticos: cada uno cuesta). Queda acá, no se manda por mail.</p>
       </div>
       {error && <p className="text-sm text-red-300">{error}</p>}
-      {!d.informes.length && !inf && <p className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 text-sm text-gray-400">Todavía no hay informes. El primero sale el lunes, o tocá &quot;Generar ahora&quot; (cuesta unos US$ 0,50).</p>}
+      {!d.informes.length && !inf && <p className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 text-sm text-gray-400">Todavía no hay informes. Elegí el modelo y tocá &quot;Generar ahora&quot;.</p>}
       {inf && (
         <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5">
           {inf.estado === "generando" ? (
@@ -371,6 +393,10 @@ export default function EstrategaPage() {
   const [d, setD] = useState<Datos | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pestana, setPestana] = useState<Pestana>("chat");
+  const [modelo, setModeloEstado] = useState<string>("");
+  useEffect(() => { try { const m = localStorage.getItem(CLAVE_MODELO); if (m) setModeloEstado(m); } catch { /* sin storage */ } }, []);
+  const setModelo = (m: string) => { setModeloEstado(m); try { localStorage.setItem(CLAVE_MODELO, m); } catch { /* sin storage */ } };
+  const modeloActual = d && d.modelos.some((x) => x.id === modelo) ? modelo : (d?.modelo ?? "");
   const cargar = useCallback(() => { api<Datos>().then(setD).catch((e) => setError(e instanceof Error ? e.message : String(e))); }, []);
   useEffect(() => { cargar(); }, [cargar]);
   const abiertas = d?.propuestas.length ?? 0;
@@ -397,9 +423,9 @@ export default function EstrategaPage() {
         {!d ? (
           <p className="flex items-center gap-2 text-sm text-gray-400"><Loader2 size={14} className="animate-spin" /> Cargando…</p>
         ) : pestana === "chat" ? (
-          <Chat d={d} recargar={cargar} />
+          <Chat d={d} recargar={cargar} modelo={modeloActual} setModelo={setModelo} />
         ) : pestana === "informe" ? (
-          <InformeSemanal d={d} recargar={cargar} />
+          <InformeSemanal d={d} recargar={cargar} modelo={modeloActual} setModelo={setModelo} />
         ) : pestana === "sabe" ? (
           <div className="space-y-3">
             <p className="text-sm text-gray-400">Lo que la IA lee antes de cada respuesta. Corregí lo que esté mal o sumá lo que sepas: lo tiene en cuenta desde la próxima pregunta.</p>

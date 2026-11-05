@@ -5,11 +5,15 @@
 // fila queda en "generando" y la pantalla la consulta hasta que esté lista.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { NOMBRE_CLAVE, claveAnalista, costoReal } from "@/lib/analista/informe";
+import { MODELOS, NOMBRE_CLAVE, claveAnalista, costoReal, type Modelo } from "@/lib/analista/informe";
 import { REGLA_MAXIMA } from "@/lib/reglaMaxima";
 import { correrHerramienta, definicionesHerramientas, type Contexto, type Rest } from "@/lib/estratega/herramientas";
 
-export const MODELO_ESTRATEGA = "claude-opus-5-5";
+// Modelo por defecto (Manuel 2026-11-05: Opus salía ~$16 por pregunta). Se elige en la pantalla.
+export const MODELO_ESTRATEGA: Modelo = "claude-sonnet-5-5";
+export const modeloValido = (m: unknown): Modelo => (typeof m === "string" && m in MODELOS ? (m as Modelo) : MODELO_ESTRATEGA);
+// Consumo típico de una respuesta (datos leídos y texto escrito), para estimar el costo antes de preguntar.
+export const CONSUMO_TIPICO = { chat: { entrada: 75_000, salida: 4_500 }, informe: { entrada: 140_000, salida: 7_000 } };
 const MAX_RONDAS = 12;
 const HISTORIAL = 20;
 
@@ -58,7 +62,7 @@ function sistema(docs: Documento[]): Anthropic.TextBlockParam[] {
 }
 
 /** Corre la conversación con herramientas hasta la respuesta final. */
-async function conversar(rest: Rest, mensajes: Anthropic.MessageParam[], ctx: Contexto, esfuerzo: "medium" | "high") {
+async function conversar(rest: Rest, mensajes: Anthropic.MessageParam[], ctx: Contexto, esfuerzo: "medium" | "high", modelo: Modelo) {
   const apiKey = claveAnalista();
   if (!apiKey) throw new Error(`Falta ${NOMBRE_CLAVE} en las variables de entorno de Vercel.`);
   const client = new Anthropic({ apiKey });
@@ -70,7 +74,7 @@ async function conversar(rest: Rest, mensajes: Anthropic.MessageParam[], ctx: Co
 
   for (let ronda = 0; ronda < MAX_RONDAS; ronda++) {
     const msg = await client.messages
-      .stream({ model: MODELO_ESTRATEGA, max_tokens: 16_000, system, tools, thinking: { type: "adaptive" }, output_config: { effort: esfuerzo }, messages: conv })
+      .stream({ model: modelo, max_tokens: 16_000, system, tools, thinking: { type: "adaptive" }, output_config: { effort: esfuerzo }, messages: conv })
       .finalMessage();
     entrada += msg.usage.input_tokens + (msg.usage.cache_read_input_tokens ?? 0) + (msg.usage.cache_creation_input_tokens ?? 0);
     salida += msg.usage.output_tokens;
@@ -101,7 +105,7 @@ const patch = (rest: Rest, tabla: string, id: string, campos: Record<string, unk
   rest(`${tabla}?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(campos) });
 
 /** Responde el mensaje del asistente `mensajeId` (ya creado en "generando"). */
-export async function responderChat(rest: Rest, conversacionId: string, mensajeId: string) {
+export async function responderChat(rest: Rest, conversacionId: string, mensajeId: string, modelo: Modelo = MODELO_ESTRATEGA) {
   const t0 = Date.now();
   try {
     const previos = (await rest(
@@ -116,10 +120,10 @@ export async function responderChat(rest: Rest, conversacionId: string, mensajeI
       else mensajes.push({ role: m.rol, content: m.texto });
     }
     if (!mensajes.length || mensajes[0].role !== "user") throw new Error("No hay pregunta para responder.");
-    const r = await conversar(rest, mensajes, { mensajeId }, "medium");
+    const r = await conversar(rest, mensajes, { mensajeId }, "medium", modelo);
     await patch(rest, "estratega_mensajes", mensajeId, {
-      estado: "listo", texto: r.texto, consultas: r.consultas, modelo: MODELO_ESTRATEGA,
-      tokens_entrada: r.entrada, tokens_salida: r.salida, costo_usd: Math.round(costoReal(MODELO_ESTRATEGA, r.entrada, r.salida) * 10000) / 10000,
+      estado: "listo", texto: r.texto, consultas: r.consultas, modelo,
+      tokens_entrada: r.entrada, tokens_salida: r.salida, costo_usd: Math.round(costoReal(modelo, r.entrada, r.salida) * 10000) / 10000,
       duracion_ms: Date.now() - t0,
     });
   } catch (e: unknown) {
@@ -128,13 +132,13 @@ export async function responderChat(rest: Rest, conversacionId: string, mensajeI
 }
 
 /** Arma el informe semanal `informeId` (ya creado en "generando"). */
-export async function generarInformeSemanal(rest: Rest, informeId: string) {
+export async function generarInformeSemanal(rest: Rest, informeId: string, modelo: Modelo = MODELO_ESTRATEGA) {
   const t0 = Date.now();
   try {
-    const r = await conversar(rest, [{ role: "user", content: PEDIDO_INFORME }], { informeId }, "high");
+    const r = await conversar(rest, [{ role: "user", content: PEDIDO_INFORME }], { informeId }, "high", modelo);
     await patch(rest, "estratega_informes", informeId, {
-      estado: "listo", texto: r.texto, consultas: r.consultas, modelo: MODELO_ESTRATEGA,
-      tokens_entrada: r.entrada, tokens_salida: r.salida, costo_usd: Math.round(costoReal(MODELO_ESTRATEGA, r.entrada, r.salida) * 10000) / 10000,
+      estado: "listo", texto: r.texto, consultas: r.consultas, modelo,
+      tokens_entrada: r.entrada, tokens_salida: r.salida, costo_usd: Math.round(costoReal(modelo, r.entrada, r.salida) * 10000) / 10000,
       duracion_ms: Date.now() - t0,
     });
   } catch (e: unknown) {

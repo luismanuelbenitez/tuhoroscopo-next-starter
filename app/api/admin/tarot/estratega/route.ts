@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
-import { claveAnalista } from "@/lib/analista/informe";
+import { MODELOS, claveAnalista, costoReal, type Modelo } from "@/lib/analista/informe";
 import { HERRAMIENTAS, correrHerramienta } from "@/lib/estratega/herramientas";
-import { MODELO_ESTRATEGA, generarInformeSemanal, lunesDeLaSemana, responderChat } from "@/lib/estratega/motor";
+import { CONSUMO_TIPICO, MODELO_ESTRATEGA, generarInformeSemanal, lunesDeLaSemana, modeloValido, responderChat } from "@/lib/estratega/motor";
 
 // Estratega de anuncios (2026-11-04). GET: todo lo de la página (documentos,
 // conversaciones, informes, propuestas y la lista de consultas); con
@@ -54,14 +54,27 @@ export async function GET(req: NextRequest) {
       const r = await correrHerramienta(rest, h.name, h.ejemplo, {});
       return NextResponse.json({ ok: !r.error, entrada: h.ejemplo, resultado: r.texto });
     }
-    const [documentos, conversaciones, informes, propuestas] = await Promise.all([
+    const [documentos, conversaciones, informes, propuestas, tc, previos] = await Promise.all([
       rest("estratega_documentos?select=*&order=orden.asc"),
       rest("estratega_conversaciones?select=id,titulo,created_at,updated_at&order=updated_at.desc&limit=30"),
       rest("estratega_informes?select=id,semana,origen,estado,costo_usd,error,created_at&order=created_at.desc&limit=12"),
       rest("estratega_propuestas?estado=eq.propuesta&select=*&order=created_at.desc&limit=30"),
+      rest("tarot_configuracion?clave=eq.tipo_cambio_usd_uyu&select=valor"),
+      rest("estratega_mensajes?rol=eq.assistant&estado=eq.listo&tokens_entrada=not.is.null&select=tokens_entrada,tokens_salida&order=created_at.desc&limit=20"),
     ]);
+    // Costo estimado por pregunta e informe: consumo promedio de las respuestas reales (o el típico) × precio del modelo.
+    const dolar = Number(tc?.[0]?.valor) || 40;
+    const reales = previos as { tokens_entrada: number; tokens_salida: number }[];
+    const chat = reales.length
+      ? { entrada: reales.reduce((a, x) => a + x.tokens_entrada, 0) / reales.length, salida: reales.reduce((a, x) => a + x.tokens_salida, 0) / reales.length }
+      : CONSUMO_TIPICO.chat;
+    const modelos = (Object.keys(MODELOS) as Modelo[]).map((id) => {
+      const usdChat = costoReal(id, chat.entrada, chat.salida);
+      const usdInforme = costoReal(id, CONSUMO_TIPICO.informe.entrada, CONSUMO_TIPICO.informe.salida);
+      return { id, nombre: MODELOS[id].nombre, calidad: MODELOS[id].calidad, usd_pregunta: usdChat, uyu_pregunta: usdChat * dolar, usd_informe: usdInforme, uyu_informe: usdInforme * dolar };
+    });
     return NextResponse.json({
-      ok: true, configurado: !!claveAnalista(), modelo: MODELO_ESTRATEGA,
+      ok: true, configurado: !!claveAnalista(), modelo: MODELO_ESTRATEGA, modelos,
       documentos, conversaciones, informes, propuestas,
       herramientas: HERRAMIENTAS.map(({ name, titulo, description, ejemplo }) => ({ name, titulo, description, vista_previa: !!ejemplo })),
     });
@@ -93,7 +106,7 @@ export async function POST(req: NextRequest) {
         }
         const [pregunta] = await rest("estratega_mensajes", { method: "POST", headers: rep, body: JSON.stringify({ conversacion_id: conversacionId, rol: "user", texto }) });
         const [respuesta] = await rest("estratega_mensajes", { method: "POST", headers: rep, body: JSON.stringify({ conversacion_id: conversacionId, rol: "assistant", estado: "generando" }) });
-        waitUntil(responderChat(rest, conversacionId!, respuesta.id));
+        waitUntil(responderChat(rest, conversacionId!, respuesta.id, modeloValido(b.modelo)));
         return NextResponse.json({ ok: true, conversacion_id: conversacionId, pregunta, respuesta });
       }
       case "generar_informe": {
@@ -101,7 +114,7 @@ export async function POST(req: NextRequest) {
         const enCurso = await rest(`estratega_informes?estado=eq.generando&created_at=gte.${new Date(Date.now() - 10 * 60_000).toISOString()}&select=id`);
         if ((enCurso as unknown[]).length) return mal("Ya hay un informe generándose.");
         const [fila] = await rest("estratega_informes", { method: "POST", headers: rep, body: JSON.stringify({ semana: lunesDeLaSemana(), origen: "manual" }) });
-        waitUntil(generarInformeSemanal(rest, fila.id));
+        waitUntil(generarInformeSemanal(rest, fila.id, modeloValido(b.modelo)));
         return NextResponse.json({ ok: true, informe: fila });
       }
       case "guardar_documento": {
