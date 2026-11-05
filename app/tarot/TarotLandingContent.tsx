@@ -7,6 +7,7 @@ import { HeroTarot } from "@/components/tarot/HeroTarot";
 import { HeroTarotAnterior } from "@/components/tarot/HeroTarotAnterior";
 import { QueIncluyeTarot, type VarianteQueIncluye } from "@/components/tarot/QueIncluyeTarot";
 import { AsiSeViveTarot } from "@/components/tarot/AsiSeViveTarot";
+import { AsiSeViveSoloEscritorio } from "@/components/tarot/SoloEscritorio";
 import { ComoFuncionaTarot } from "@/components/tarot/ComoFuncionaTarot";
 import { TestimoniosTarot } from "@/components/tarot/TestimoniosTarot";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
@@ -66,7 +67,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
             {/* Móvil (auditoría 2026-11-04): "Así vivís la experiencia" repetía
                 lo que el bloque 2 ya muestra en vivo (lectura online, audio,
                 PDF); queda solo en escritorio, donde el bloque 2 es otro. */}
-            <Seccion id="asi_se_vive"><div className={respaldo ? "contents" : "hidden md:contents"}><AsiSeViveTarot /></div></Seccion>
+            <Seccion id="asi_se_vive">{respaldo ? <AsiSeViveTarot /> : <AsiSeViveSoloEscritorio />}</Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
             <Seccion id="por_tema"><LecturasPorTema /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>

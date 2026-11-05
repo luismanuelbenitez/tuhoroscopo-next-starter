@@ -5,6 +5,7 @@ import { Carousel } from "@/components/home/Carousel";
 import { SERIF } from "@/components/home/theme";
 import { fijo, fluido } from "@/lib/imagen";
 import { VarianteA, VarianteB, VarianteC } from "@/components/tarot/QueIncluyeVariantes";
+import { useEsEscritorio } from "@/components/tarot/SoloEscritorio";
 
 const BASE = "/img/tarot/contenedores/que-incluye";
 
@@ -191,12 +192,17 @@ const VARIANTES = { a: VarianteA, b: VarianteB, c: VarianteC };
 
 export function QueIncluyeTarot({ variante }: { variante?: VarianteQueIncluye } = {}) {
   const Variante = variante ? VARIANTES[variante] : null;
+  // Escritorio y móvil viejo ya no se arman si no se ven (2026-11-05, ver
+  // SoloEscritorio). Hasta saber el ancho, el lugar del pergamino de
+  // escritorio queda reservado (cuadrado, como la imagen) para que nada salte.
+  const esEscritorio = useEsEscritorio();
   return (
     <section className="relative max-w-[960px] mx-auto">
+      {!esEscritorio && <div aria-hidden="true" className="hidden md:block" style={{ aspectRatio: "1 / 1" }} />}
       {/* ── Desktop ── grid-cols-1 = repeat(1, minmax(0,1fr)): la columna
           respeta el ancho real del contenedor en vez de inflarse con el
           contenido más ancho. */}
-      <div className="hidden md:grid grid-cols-1 text-center" style={{ containerType: "inline-size" }}>
+      {esEscritorio && <div className="hidden md:grid grid-cols-1 text-center" style={{ containerType: "inline-size" }}>
         <FondoConFallback src={PERGAMINO_DESKTOP} carga={fluido(PERGAMINO_DESKTOP, 1254, 1254, "(max-width: 960px) 100vw, 960px")} />
 
         <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(190)} ${u(120)} 0` }}>
@@ -233,11 +239,11 @@ export function QueIncluyeTarot({ variante }: { variante?: VarianteQueIncluye } 
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Mobile ── (pendiente de rediseño: todavía sin pergamino propio) */}
       {Variante && <div className="md:hidden"><Variante /></div>}
-      <div className={Variante ? "hidden" : "md:hidden grid grid-cols-1 text-center"}>
+      {!Variante && <div className="md:hidden grid grid-cols-1 text-center">
 
         <div className="px-6 py-12" style={{ gridArea: "1 / 1", alignSelf: "start" }}>
           <p className="text-[11px] font-bold uppercase mb-4" style={{ color: MOVIL_ACENTO, letterSpacing: "0.18em" }}>
@@ -272,7 +278,7 @@ export function QueIncluyeTarot({ variante }: { variante?: VarianteQueIncluye } 
             ))}
           </div>
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
