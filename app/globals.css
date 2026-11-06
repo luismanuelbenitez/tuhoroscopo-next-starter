@@ -98,6 +98,17 @@ body::before{
   .animate-float{ animation: none; }
 }
 
+/* Botón de pago del checkout (2026-11-06): cada texto de "Preparando tu
+   orden…" entra subiendo suave; y un brillo que recorre el botón mientras
+   espera, para que se sienta en marcha y no trabado. */
+@keyframes fase-entra{ from{ opacity:0; transform:translateY(6px) } to{ opacity:1; transform:none } }
+.fase-entra{ animation: fase-entra .32s ease-out both; }
+@keyframes boton-brillo{ from{ transform:translateX(-100%) } to{ transform:translateX(100%) } }
+.boton-brillo{ animation: boton-brillo 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){
+  .fase-entra, .boton-brillo{ animation: none; }
+}
+
 /* Footer realmente transparente */
 footer{ background:transparent !important; border-color:transparent !important; backdrop-filter:none !important; z-index:1; }
 

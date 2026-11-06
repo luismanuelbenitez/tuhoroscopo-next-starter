@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import ReactCountryFlag from 'react-country-flag';
 import {
   ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, PenLine, Zap, Sparkles,
+  ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2,
 } from 'lucide-react';
+import { cargarDiferidosYa, esperarTerceros } from '@/lib/cargaDiferida';
 import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
@@ -107,6 +107,20 @@ const MENSAJES_CAMPO: Record<string, string> = {
 };
 const RING_ERROR = '!ring-red-400/60';
 
+// Botón de pago por etapas (2026-11-06, Manuel): en vez de un "Procesando..."
+// fijo, cuenta lo que pasa. "orden" rota sus textos mientras el servidor crea
+// la orden; "pago" mientras se conecta con Mercado Pago; "listo" justo antes
+// de salir. El ancho es la barrita de progreso del borde inferior.
+type Fase = 'orden' | 'pago' | 'listo';
+const TEXTOS_ORDEN = ['Preparando tu orden…', 'Guardando tu consulta…', 'Casi listo…'];
+const TEXTOS_ORDEN_CORTESIA = ['Preparando tu lectura…', 'Guardando tu consulta…', 'Casi listo…'];
+const PROGRESO: Record<Fase, { ancho: string; ms: number }> = {
+  orden: { ancho: '55%', ms: 4500 },
+  pago:  { ancho: '88%', ms: 900 },
+  listo: { ancho: '100%', ms: 300 },
+};
+const esperar = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
 function ErrorCampo({ texto }: { texto?: string }) {
   if (!texto) return null;
   return (
@@ -182,6 +196,26 @@ export default function TarotCheckoutContent({
   // Bloqueo síncrono de doble envío: dos clics en el mismo tick llegan antes
   // de que isLoading deshabilite el botón (detectado en QA 2026-10-18).
   const enviandoRef = useRef(false);
+  const [fase, setFase]                     = useState<Fase | null>(null);
+  const [pasoOrden, setPasoOrden]           = useState(0);
+  useEffect(() => {
+    if (fase !== 'orden') return;
+    setPasoOrden(0);
+    const id = setInterval(() => setPasoOrden(n => Math.min(n + 1, TEXTOS_ORDEN.length - 1)), 1800);
+    return () => clearInterval(id);
+  }, [fase]);
+  // Volver desde Mercado Pago con "atrás": el navegador puede restaurar la
+  // página congelada con el botón en "Abriendo el pago…". Se reinicia.
+  useEffect(() => {
+    const alVolver = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      enviandoRef.current = false;
+      setIsLoading(false);
+      setFase(null);
+    };
+    window.addEventListener('pageshow', alVolver);
+    return () => window.removeEventListener('pageshow', alVolver);
+  }, []);
   const [error, setError]                   = useState<string | null>(null);
   // En el celular el aviso puede quedar fuera de la vista: se lleva la
   // pantalla hasta él (auditoría UX 2026-10-30, C6).
@@ -237,6 +271,16 @@ export default function TarotCheckoutContent({
   // ningún comportamiento del checkout.
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => (formRef.current ? medirFormulario(formRef.current) : undefined), []);
+
+  // Tema tocado antes de que la página termine de cargar (2026-11-06): el
+  // botón se marca solo con CSS (radio nativo), y acá se pasa al estado para
+  // que no haya que tocarlo de nuevo.
+  useEffect(() => {
+    const marcado = formRef.current?.querySelector<HTMLInputElement>('input[name="tema"]:checked');
+    if (marcado && TEMAS.some(t => t.value === marcado.value)) {
+      setForm(prev => (prev.tema ? prev : { ...prev, tema: marcado.value }));
+    }
+  }, []);
 
   // La pregunta crece con lo escrito, hasta ~12 líneas (2026-11-01).
   const preguntaRef = useRef<HTMLTextAreaElement>(null);
@@ -371,6 +415,20 @@ export default function TarotCheckoutContent({
     enviandoRef.current = true;
     setError(null);
     setIsLoading(true);
+    setFase('orden');
+
+    // Solo en local (npm run dev) con ?simular_pago: recorre las etapas del
+    // botón sin crear orden ni ir a Mercado Pago. En producción no existe.
+    if (process.env.NODE_ENV === 'development' && new URLSearchParams(window.location.search).has('simular_pago')) {
+      await esperar(3800);
+      if (!esCortesia) { setFase('pago'); await esperar(900); }
+      setFase('listo');
+      await esperar(1600);
+      enviandoRef.current = false;
+      setIsLoading(false);
+      setFase(null);
+      return;
+    }
 
     // Normalizar teléfono al formato internacional para WhatsApp
     const phone = telefonoE164(form.telefono, pais);
@@ -433,6 +491,8 @@ export default function TarotCheckoutContent({
         } catch { /* non-blocking */ }
         trackCheckoutPaso('mp_redirect', 'cortesia', 0);
         enviarEventosAhora();
+        setFase('listo');
+        await esperar(500);
         window.location.href = data.redirect_url;
         return;
       }
@@ -451,6 +511,14 @@ export default function TarotCheckoutContent({
         metaInitiateCheckout(precioFinal ?? 0);
         trackCheckoutPaso('mp_redirect', descuento ? 'con_codigo' : 'sin_codigo', precioFinal ?? undefined);
         enviarEventosAhora();
+        // Los SDKs de Meta y Google bajan diferidos (lib/cargaDiferida.ts):
+        // si todavía no llegaron, se piden ya y se los espera (máx. 1,5 s) para
+        // que InitiateCheckout salga antes de irse. El botón muestra la etapa.
+        setFase('pago');
+        cargarDiferidosYa();
+        await Promise.all([esperar(600), esperarTerceros(1500)]);
+        setFase('listo');
+        await esperar(400);
         window.location.href = data.init_point;
       } else {
         motivoError = 'sin_link_pago';
@@ -460,6 +528,7 @@ export default function TarotCheckoutContent({
       trackCheckoutPaso('form_error', motivoError);
       setError(err instanceof Error ? err.message : 'Error inesperado. Intentá de nuevo.');
       setIsLoading(false);
+      setFase(null);
       enviandoRef.current = false;
     }
   }
@@ -539,15 +608,16 @@ export default function TarotCheckoutContent({
                     Tema de la consulta <span className="text-[12px] font-normal text-white/45">(requerido)</span>
                   </legend>
                   <div className="grid grid-cols-2 gap-2">
+                    {/* El "elegido" se pinta con CSS (has-[:checked]) y no con el
+                        estado de React (2026-11-06): así el botón responde al
+                        toque aunque la página todavía no terminó de cargar (en 4G
+                        lento eran ~4,5 s sin respuesta visible). */}
                     {TEMAS.map(t => {
                       const elegido = form.tema === t.value;
                       return (
                         <label
                           key={t.value}
-                          className={`relative flex items-center gap-2 rounded-xl px-3 min-h-[50px] text-[14.5px] leading-tight cursor-pointer transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#F0C55A]/60 ${elegido ? 'font-semibold' : 'text-white/85'} ${erroresCampo.tema ? RING_ERROR + ' ring-1' : ''}`}
-                          style={elegido
-                            ? { background: 'linear-gradient(180deg, #f6d77e, #e9b94a)', color: '#180e00', border: '1px solid #fbe39a', boxShadow: '0 0 14px rgba(240,197,90,0.35)' }
-                            : { ...inputBg, border: '1px solid rgba(255,255,255,0.15)' }}
+                          className={`relative flex items-center gap-2 rounded-xl px-3 min-h-[50px] text-[14.5px] leading-tight cursor-pointer transition-all border text-white/85 border-white/15 bg-white/[0.045] has-[:checked]:font-semibold has-[:checked]:text-[#180e00] has-[:checked]:border-[#fbe39a] has-[:checked]:bg-[linear-gradient(180deg,#f6d77e,#e9b94a)] has-[:checked]:shadow-[0_0_14px_rgba(240,197,90,0.35)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#F0C55A]/60 ${erroresCampo.tema ? RING_ERROR + ' ring-1' : ''}`}
                         >
                           <input
                             type="radio"
@@ -901,20 +971,58 @@ export default function TarotCheckoutContent({
                   <button
                     type="submit"
                     disabled={isLoading || precioNoDisponible}
-                    className="w-full rounded-xl py-4 text-[17px] font-bold flex items-center justify-center gap-2.5 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
-                    style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: '0 6px 24px rgba(240,197,90,0.32)' }}
+                    aria-busy={!!fase}
+                    className={`relative overflow-hidden w-full rounded-xl py-4 min-h-[60px] text-[17px] font-bold flex items-center justify-center gap-2.5 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed ${precioNoDisponible ? 'opacity-60' : ''}`}
+                    style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: fase ? '0 6px 30px rgba(240,197,90,0.55)' : '0 6px 24px rgba(240,197,90,0.32)' }}
                   >
-                    {!isLoading && !precioNoDisponible && (esCortesia
-                      ? <Sparkles size={18} className="shrink-0" />
-                      : <Lock size={18} className="shrink-0" />)}
-                    {isLoading
-                      ? 'Procesando...'
-                      : precioNoDisponible
-                        ? 'Precio no disponible'
-                        : esCortesia
-                          ? 'Obtener mi lectura →'
-                          : `Pagar $U ${precioFinal} →`}
+                    {fase ? (
+                      <>
+                        {fase !== 'listo' && (
+                          <span aria-hidden="true" className="boton-brillo pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%)' }} />
+                        )}
+                        <span
+                          key={fase === 'orden' ? `orden-${pasoOrden}` : fase}
+                          className="fase-entra relative flex items-center gap-2 whitespace-nowrap text-[15px] min-[400px]:text-[16.5px]"
+                        >
+                          {fase === 'listo'
+                            ? <CheckCircle size={20} className="shrink-0" strokeWidth={2.5} />
+                            : <Loader2 size={19} className="shrink-0 animate-spin" strokeWidth={2.5} />}
+                          {fase === 'orden'
+                            ? (esCortesia ? TEXTOS_ORDEN_CORTESIA : TEXTOS_ORDEN)[pasoOrden]
+                            : fase === 'pago'
+                              ? 'Conectando con Mercado Pago…'
+                              : esCortesia ? '¡Listo! Tu lectura va en camino' : '¡Listo! Abriendo el pago'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {!precioNoDisponible && (esCortesia
+                          ? <Sparkles size={18} className="shrink-0" />
+                          : <Lock size={18} className="shrink-0" />)}
+                        {precioNoDisponible
+                          ? 'Precio no disponible'
+                          : esCortesia
+                            ? 'Obtener mi lectura →'
+                            : `Pagar $U ${precioFinal} →`}
+                      </>
+                    )}
+                    {/* Barrita de progreso: siempre montada para que el ancho
+                        se anime desde 0 al empezar cada etapa. */}
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-0 bottom-0 h-[3px] rounded-r-full"
+                      style={{
+                        width: fase ? PROGRESO[fase].ancho : '0%',
+                        opacity: fase ? 1 : 0,
+                        transition: `width ${fase ? PROGRESO[fase].ms : 0}ms ease-out`,
+                        background: 'rgba(24,14,0,0.45)',
+                      }}
+                    />
                   </button>
+                  {/* Para lectores de pantalla: anuncia cada etapa. */}
+                  <p className="sr-only" aria-live="polite">
+                    {fase === 'orden' ? TEXTOS_ORDEN[pasoOrden] : fase === 'pago' ? 'Conectando con Mercado Pago' : fase === 'listo' ? 'Listo, abriendo el pago' : ''}
+                  </p>
 
                   {esCortesia ? (
                     <p className="mt-3 text-center text-[12.5px] text-white/55">
