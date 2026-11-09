@@ -14,7 +14,7 @@ const BENEFICIOS = [
   { img: "pago-seguro.webp", aro: 338, label: "Pago seguro" },
   { img: "whatsapp.webp", aro: 349, label: "WhatsApp y/o mail" },
   { img: "pdf.webp", aro: 318, label: "PDF descargable" },
-  { img: "resumen-voz.webp", aro: 374, label: "Resumen con voz IA y música" },
+  { img: "resumen-voz.webp", aro: 374, label: "Resumen en audio y ambientación" },
   { img: "lectura-online.webp", aro: 438, label: "Lectura online" },
 ];
 

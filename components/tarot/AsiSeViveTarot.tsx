@@ -198,7 +198,7 @@ const BLOQUES: Bloque[] = [
     aro: 397,
     Icon: Headphones,
     t: "Resumen en audio",
-    sub: "con voz de IA",
+    sub: "y ambientación",
     d: "Escuchá el resumen de tu lectura cuando quieras y, si lo deseás, activá la música ambiental para vivir una experiencia más inmersiva.",
     destacado: true,
     // La imagen de Manuel ya trae el reproductor completo: el hecho con
