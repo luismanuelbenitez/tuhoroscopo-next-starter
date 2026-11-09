@@ -10,6 +10,14 @@ import { jsCargarScript } from "@/lib/cargaDiferida";
 // 2026-11-05: gtag.js baja después de que la página se ve (fuera del embudo
 // de pago, ver lib/cargaDiferida.ts). window.gtag y dataLayer se crean al
 // instante y encolan config y eventos hasta que carga.
+//
+// 2026-11-09 (Nivel de Calidad de Google Ads): GA4 y Ads bajaban cada uno su
+// propio gtag.js (~170 KB cada uno) y Ads además el contenedor de GA: 3
+// descargas. Una sola biblioteca atiende los dos `config` (la de la otra
+// cuenta baja como contenedor liviano), así que las dos etiquetas piden la
+// misma dirección y el registro de cargaDiferida la descarga una vez.
+const GTAG_SRC = `https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`;
+
 export function GoogleAdsTag() {
   if (!GOOGLE_ADS_ID) return null;
   return (
@@ -17,7 +25,7 @@ export function GoogleAdsTag() {
       id="google-ads-config"
       strategy="afterInteractive"
       dangerouslySetInnerHTML={{
-        __html: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');${jsCargarScript(`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`)}`,
+        __html: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','${GOOGLE_ADS_ID}');${jsCargarScript(GTAG_SRC)}`,
       }}
     />
   );
@@ -32,7 +40,7 @@ export function GoogleAnalyticsTag({ gaId }: { gaId: string }) {
       id="google-analytics-config"
       strategy="afterInteractive"
       dangerouslySetInnerHTML={{
-        __html: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','${gaId}');${jsCargarScript(`https://www.googletagmanager.com/gtag/js?id=${gaId}`)}`,
+        __html: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','${gaId}');${jsCargarScript(GTAG_SRC)}`,
       }}
     />
   );
