@@ -26,7 +26,22 @@ async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   }
 }
 
+// 2026-11-09 (Nivel de Calidad de Google Ads): el middleware corre en CADA
+// visita, también en páginas ya cacheadas, y el `revalidate: 30` del fetch no
+// se respeta acá: cada visita esperaba la consulta a Supabase (+0,15–1,2 s
+// medidos en /robots.txt). Se recuerda el valor 30 s en la memoria de la
+// instancia; activar el mantenimiento tarda como mucho eso en aplicarse.
+let mantenimientoCache: { valor: boolean; hasta: number } | null = null;
+
 async function isMaintenanceModeOn(): Promise<boolean> {
+  const ahora = Date.now();
+  if (mantenimientoCache && mantenimientoCache.hasta > ahora) return mantenimientoCache.valor;
+  const valor = await leerModoMantenimiento();
+  mantenimientoCache = { valor, hasta: ahora + 30_000 };
+  return valor;
+}
+
+async function leerModoMantenimiento(): Promise<boolean> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SECRET_KEY;

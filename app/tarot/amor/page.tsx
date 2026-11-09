@@ -1,9 +1,13 @@
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
 import {
   HeroSeo, Seccion, Lista, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema, AsiTeLlega, CtaIntermedio,
 } from "@/components/seo/BloquesSeo";
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Intención: una duda sobre un vínculo (pareja, ex, alguien que empieza).
 // Lo propio de esta página: cómo leen las 5 posiciones una consulta de amor,
@@ -15,7 +19,7 @@ export const metadata = metadataSeo("amor");
 const CTA = checkoutConTema("amor");
 
 export default async function TarotAmor() {
-  const precioUYU = await getPrecioTarot();
+  const precioUYU = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
 
   return (
     <PaginaSeo clave="amor" ctaHref={CTA} precioUYU={precioUYU}>

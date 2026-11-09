@@ -1,9 +1,13 @@
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
 import {
   HeroSeo, Seccion, Lista, Destacado, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema, AsiTeLlega,
 } from "@/components/seo/BloquesSeo";
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Intención: alguien que tiene que elegir entre caminos (incluye a quien
 // busca "tarot sí o no"). Lo propio: por qué una lectura aporta más que un sí
@@ -15,7 +19,7 @@ export const metadata = metadataSeo("decisiones");
 const CTA = checkoutConTema("decision");
 
 export default async function TarotDecisiones() {
-  const precioUYU = await getPrecioTarot();
+  const precioUYU = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
 
   return (
     <PaginaSeo clave="decisiones" ctaHref={CTA} precioUYU={precioUYU}>

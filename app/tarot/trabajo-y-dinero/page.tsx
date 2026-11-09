@@ -1,9 +1,13 @@
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
 import {
   HeroSeo, Seccion, Lista, Destacado, PosicionesTarot, FaqSeo, CierreSeo, NotaTransparencia, CtaSeo, checkoutConTema, AsiTeLlega,
 } from "@/components/seo/BloquesSeo";
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Intención: dudas de trabajo, proyectos o dinero. El checkout tiene "trabajo"
 // y "dinero" como temas separados: cada CTA preselecciona el que corresponde a
@@ -16,7 +20,7 @@ const CTA_TRABAJO = checkoutConTema("trabajo");
 const CTA_DINERO = checkoutConTema("dinero");
 
 export default async function TarotTrabajoYDinero() {
-  const precioUYU = await getPrecioTarot();
+  const precioUYU = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
 
   return (
     <PaginaSeo clave="trabajo" ctaHref={CTA_TRABAJO} precioUYU={precioUYU}>

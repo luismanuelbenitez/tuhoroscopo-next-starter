@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { fetchSupabase } from "@/lib/fetchSupabase";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
 
 /**
@@ -8,14 +9,14 @@ import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
  * "no utilizar feedback no autorizado"). No modifica getTestimoniosTarot.
  * Ante cualquier problema devuelve [] y la página oculta la sección.
  */
-export async function getTestimoniosAutorizados(max = 3): Promise<TestimonioTarot[]> {
+export async function getTestimoniosAutorizados(max = 3, opciones?: { revalidar?: number }): Promise<TestimonioTarot[]> {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SECRET_KEY ?? "";
   if (!url || !key) return [];
   try {
     const supabase = createClient(url, key, {
       auth: { persistSession: false },
-      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+      global: { fetch: fetchSupabase(opciones?.revalidar) },
     });
     const { data, error } = await supabase
       .from("tarot_testimonios")

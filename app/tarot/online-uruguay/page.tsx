@@ -1,4 +1,5 @@
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { getTestimoniosAutorizados } from "@/lib/seo/testimoniosAutorizados";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
@@ -7,6 +8,9 @@ import {
   CtaSeo, CHECKOUT, precioTexto,
 } from "@/components/seo/BloquesSeo";
 
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
+
 // Intención: alguien en Uruguay que busca tarot online y está comparando
 // opciones. Prioriza lo práctico y local: cómo funciona a distancia, pago en
 // pesos, entrega, privacidad, qué esperar.
@@ -14,7 +18,7 @@ import {
 export const metadata = metadataSeo("uruguay");
 
 export default async function TarotOnlineUruguay() {
-  const [precioUYU, testimonios] = await Promise.all([getPrecioTarot(), getTestimoniosAutorizados()]);
+  const [precioUYU, testimonios] = await Promise.all([getPrecioTarot({ revalidar: REVALIDAR_MARKETING }), getTestimoniosAutorizados(3, { revalidar: REVALIDAR_MARKETING })]);
   const precio = precioTexto(precioUYU);
 
   return (

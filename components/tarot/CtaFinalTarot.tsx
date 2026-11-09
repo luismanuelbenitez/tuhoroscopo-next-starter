@@ -42,7 +42,7 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
         Mirá tu momento desde otra perspectiva.
       </h2>
       <p className="text-white/60 text-[14px] md:text-[15px] leading-relaxed mb-8 max-w-md mx-auto">
-        Hacé tu consulta y recibí tu lectura personalizada de 5 cartas en minutos.
+        Hacé tu consulta de tarot y recibí tu lectura de cartas personalizada en minutos.
       </p>
 
       <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">

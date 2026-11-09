@@ -1,4 +1,5 @@
 ﻿import { createClient } from "@supabase/supabase-js";
+import { fetchSupabase } from "@/lib/fetchSupabase";
 
 /**
  * Lee el precio base UYU del producto Tarot desde la fuente canónica
@@ -11,7 +12,7 @@
  * caller decide cómo degradar la UI (ver docs/product/DECISIONS.md,
  * "Fuente única de precio de Tu Tirada").
  */
-export async function getPrecioTarot(): Promise<number | null> {
+export async function getPrecioTarot(opciones?: { revalidar?: number }): Promise<number | null> {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SECRET_KEY ?? "";
   if (!url || !key) {
@@ -22,7 +23,9 @@ export async function getPrecioTarot(): Promise<number | null> {
   try {
     const supabase = createClient(url, key, {
       auth: { persistSession: false },
-      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+      // Sin opciones: siempre fresco (checkout y cobro). Las páginas de
+      // marketing pasan revalidar y quedan pregeneradas (lib/fetchSupabase).
+      global: { fetch: fetchSupabase(opciones?.revalidar) },
     });
     const { data, error } = await supabase
       .from("tarot_configuracion")

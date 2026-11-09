@@ -51,7 +51,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
             <span style={{ color: GOLD }}>interpretada para tu pregunta.</span>
           </p>
           <p className="text-white/90 md:text-white/80 text-[14.5px] md:text-[16px] leading-snug mb-4 md:mb-6" style={{ textShadow: TEXT_SHADOW }}>
-            En minutos te llega por WhatsApp, explicada carta por carta.
+            Tu lectura de cartas llega por WhatsApp en minutos, explicada carta por carta.
           </p>
 
           {/* Celular: video y beneficios lado a lado, así todo entra en la primera pantalla. */}

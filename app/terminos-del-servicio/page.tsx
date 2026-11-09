@@ -3,7 +3,11 @@ import Link from 'next/link';
 import { PaginaInstitucional, EncabezadoInstitucional, PanelInstitucional, PANEL_INSTITUCIONAL, IndiceLegal, anclaSeccion } from '@/components/marca/PaginaInstitucional';
 import { GOLD } from '@/components/home/theme';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { metadataPagina } from '@/lib/seo/metadataPagina';
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
 export const metadata = metadataPagina(
@@ -13,7 +17,7 @@ export const metadata = metadataPagina(
 );
 
 export default async function TerminosServicio() {
-  const precioTarot = await getPrecioTarot();
+  const precioTarot = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
   const precioTarotTexto = precioTarot !== null ? `$U ${precioTarot}` : 'el precio que ves en el checkout';
 
   // Revisión legal (2026-11-02): entrega por todos los canales, arrepentimiento

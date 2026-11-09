@@ -1,10 +1,14 @@
 import { ChevronDown, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { PaginaInstitucional, EncabezadoInstitucional, PANEL_INSTITUCIONAL as PANEL } from '@/components/marca/PaginaInstitucional';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
 import { htmlJsonLd } from '@/lib/seo/jsonLd';
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Metadata propia (Paquete SEO 1, 2026-10-21): título, descripción, canonical y OG.
 export const metadata = metadataPagina(
@@ -16,7 +20,7 @@ export const metadata = metadataPagina(
 // Estética de marca (2026-10-19): envoltorio común PaginaInstitucional.
 
 export default async function FAQ() {
-  const precio = await getPrecioTarot();
+  const precio = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
   const precioTexto = precio !== null ? `$U ${precio}` : 'el precio que ves en el checkout';
 
   // Ordenadas por momento (auditoría UX 2026-10-30, F2): primero lo que se

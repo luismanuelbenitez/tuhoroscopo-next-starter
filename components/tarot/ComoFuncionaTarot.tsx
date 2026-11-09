@@ -58,11 +58,14 @@ function ComoFuncionaDesktop() {
         style={{ gridArea: "1 / 1", alignSelf: "start", width: "100%", height: "auto" }}
       />
       <div style={{ gridArea: "1 / 1", alignSelf: "start", padding: `${u(60)} ${u(60)} 0` }}>
-        <h2 className="uppercase" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: u(30), lineHeight: 1.1, letterSpacing: "0.06em", color: COLOR_TITULO }}>
+        {/* 2026-11-09: el H2 "¿Cómo funciona?" del celular ya está en el HTML;
+            este (escritorio) era un título repetido para Google. Sigue siendo
+            encabezado para lectores de pantalla. */}
+        <p role="heading" aria-level={2} className="uppercase" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: u(30), lineHeight: 1.1, letterSpacing: "0.06em", color: COLOR_TITULO }}>
           ¿Cómo funciona?
-        </h2>
+        </p>
         <p style={{ fontFamily: SERIF, fontWeight: 600, fontSize: u(18), color: COLOR_TITULO, marginTop: u(2), marginBottom: u(8) }}>
-          En pocos pasos, tu lectura personalizada.
+          En pocos pasos, tu tirada de cartas personalizada.
         </p>
 
         <div className="flex items-start justify-center">

@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { headers } from "next/headers";
-import { GoogleAdsTag, GoogleAnalyticsTag } from "@/components/GoogleAdsTag";
+import { MarcoSitio, TercerosSitio } from "@/components/MarcoSitio";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
-import { MetaPixel } from "@/components/MetaPixel";
 import { StyledJsxRegistry } from "@/components/StyledJsxRegistry";
 import { VercelInsights } from "@/components/VercelInsights";
 
@@ -56,27 +52,21 @@ const cormorant = Cormorant_Garamond({
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const isAdmin = headers().get("x-is-admin") === "1";
-  const hideChrome = isAdmin || headers().get("x-hide-chrome") === "1";
-
+  // 2026-11-09: sin headers() acá. Leerlos volvía dinámico todo el sitio
+  // (Nivel de Calidad de Google Ads); header/footer y terceros se deciden por
+  // ruta en components/MarcoSitio.
   return (
     <html lang="es" className={cormorant.variable}>
       <body className="bg-cosmic min-h-screen flex flex-col">
         <StyledJsxRegistry>
           <AnalyticsProvider />
-          {!hideChrome && <Header />}
-          <main className="flex-1">{children}</main>
-          {!hideChrome && <Footer />}
+          <MarcoSitio>{children}</MarcoSitio>
         </StyledJsxRegistry>
-        {/* Admin (2026-11-04): sin Google Analytics, Google Ads ni píxel de Meta:
-            las visitas al panel inflaban GA (tiempo, páginas) y las audiencias de Meta. */}
-        {!isAdmin && process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-          <GoogleAnalyticsTag gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-        )}
-        {!isAdmin && <GoogleAdsTag />}
-        {!isAdmin && process.env.NEXT_PUBLIC_META_PIXEL_ID && (
-          <MetaPixel pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID} />
-        )}
+        {/* Admin (2026-11-04): sin Google Analytics, Google Ads ni píxel de Meta. */}
+        <TercerosSitio
+          gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}
+          metaPixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}
+        />
         {/* Vercel Web Analytics + Speed Insights (2026-10-22): tráfico agregado
             y experiencia real. Diferidos, sin cookies; ver components/VercelInsights. */}
         <VercelInsights />

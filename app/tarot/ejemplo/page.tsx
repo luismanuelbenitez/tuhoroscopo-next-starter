@@ -6,7 +6,11 @@ import { LecturaVista } from "@/components/lectura/vista/LecturaVista";
 import { GOLD, SERIF, CREMA } from "@/components/lectura/vista/Base";
 import { LECTURA_EJEMPLO, AUDIO_EJEMPLO } from "@/lib/tarot/lecturaEjemplo";
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { CTA_GRADIENT } from "@/components/home/theme";
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Lectura de ejemplo (2026-11-03): la misma vista que recibe un cliente en
 // /lectura/[token], con la lectura de "Paula". A pedido de Manuel, tiene que
@@ -86,7 +90,7 @@ function Cierre({ precioUYU }: { precioUYU: number | null }) {
 }
 
 export default async function LecturaEjemplo() {
-  const precioUYU = await getPrecioTarot();
+  const precioUYU = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
   return (
     <LecturaVista
       lectura={LECTURA_EJEMPLO}

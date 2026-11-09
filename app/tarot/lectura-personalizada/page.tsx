@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
+import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { getTestimoniosAutorizados } from "@/lib/seo/testimoniosAutorizados";
 import { metadataSeo } from "@/lib/seo/paginasSeo";
 import { PaginaSeo } from "@/components/seo/PaginaSeo";
@@ -7,6 +8,9 @@ import {
   HeroSeo, Seccion, Lista, Destacado, PosicionesTarot, FaqSeo, CierreSeo, TestimoniosSeo, NotaTransparencia,
   CtaSeo, CHECKOUT,
 } from "@/components/seo/BloquesSeo";
+
+// Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
+export const revalidate = 60;
 
 // Intención (re-enfocada 2026-10-21, Paquete SEO 1): entender QUÉ incluye una
 // lectura personalizada y en qué se diferencia de una tirada gratis. La
@@ -16,7 +20,7 @@ import {
 export const metadata = metadataSeo("personalizada");
 
 export default async function LecturaPersonalizada() {
-  const [precioUYU, testimonios] = await Promise.all([getPrecioTarot(), getTestimoniosAutorizados()]);
+  const [precioUYU, testimonios] = await Promise.all([getPrecioTarot({ revalidar: REVALIDAR_MARKETING }), getTestimoniosAutorizados(3, { revalidar: REVALIDAR_MARKETING })]);
 
   return (
     <PaginaSeo clave="personalizada" ctaHref={CHECKOUT} precioUYU={precioUYU}>

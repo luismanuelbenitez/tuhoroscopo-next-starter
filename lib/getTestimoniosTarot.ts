@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { fetchSupabase } from "@/lib/fetchSupabase";
 
 export interface TestimonioTarot {
   id: string;
@@ -20,7 +21,7 @@ const MAX_PUBLICADOS = 3;
  * se muestran testimonios de relleno (ver docs/product/DECISIONS.md,
  * "No usar testimonios inventados").
  */
-export async function getTestimoniosTarot(): Promise<TestimonioTarot[]> {
+export async function getTestimoniosTarot(opciones?: { revalidar?: number }): Promise<TestimonioTarot[]> {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SECRET_KEY ?? "";
   if (!url || !key) return [];
@@ -28,7 +29,7 @@ export async function getTestimoniosTarot(): Promise<TestimonioTarot[]> {
   try {
     const supabase = createClient(url, key, {
       auth: { persistSession: false },
-      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+      global: { fetch: fetchSupabase(opciones?.revalidar) },
     });
     const { data, error } = await supabase
       .from("tarot_testimonios")
