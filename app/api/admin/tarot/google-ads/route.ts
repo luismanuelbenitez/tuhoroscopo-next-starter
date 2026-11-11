@@ -30,6 +30,13 @@ export async function GET(req: NextRequest) {
       rest("ads_config_historial?plataforma=eq.google&vigente_hasta=is.null&select=version,vigente_desde,diagnostico&limit=1").catch(() => []),
     ]);
     const foto = Object.fromEntries((datos as { clave: string; datos: unknown }[]).map((x) => [x.clave, x.datos]));
+    // Ranking de Google (2026-11-10): para el ritmo de gasto hace falta lo
+    // gastado desde que arrancó cada campaña, no solo en el período elegido.
+    const ranking = (foto.ranking ?? null) as { campanas?: { id: string; inicio: string | null }[] } | null;
+    const inicio = (ranking?.campanas ?? []).map((c) => c.inicio?.slice(0, 10)).filter(Boolean).sort()[0];
+    const gastoTotal = inicio
+      ? ((await rest(`google_ads_rendimiento?fecha=gte.${inicio}&select=fecha,campana_id,costo,clics&order=fecha.asc`).catch(() => [])) as { fecha: string; campana_id: string; costo: number; clics: number }[])
+      : [];
     const cuenta = foto.cuenta
       ? {
           conectada: true, ultima_lectura: sync?.[0] ?? null, tipo_cambio: Number(tc?.[0]?.valor) || 40, campanas: foto.campanas ?? [], por_dia: porDia,
@@ -42,6 +49,7 @@ export async function GET(req: NextRequest) {
             paginas: foto.paginas_destino_30d ?? null, velocidad: foto.velocidad_pagina ?? null,
             clave_pagespeed: !!process.env.PAGESPEED_API_KEY?.trim(),
           },
+          ranking: ranking ? { ...ranking, gasto_dias: gastoTotal } : null,
         }
       : { conectada: false, ultima_lectura: sync?.[0] ?? null };
     const medicion = { etiqueta: !!GOOGLE_ADS_ID, compra: COMPRA_ACTIVA };

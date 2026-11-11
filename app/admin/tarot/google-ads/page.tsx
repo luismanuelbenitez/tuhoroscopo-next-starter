@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, Info, RefreshCw, Search } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { PaginaDestino, type Destino } from "@/components/admin/googleAds/PaginaDestino";
+import { RankingGoogle, type Ranking } from "@/components/admin/googleAds/RankingGoogle";
 
 // Google Ads (2026-11-04). Panel de SOLO LECTURA: arriba, cómo califica Google
 // la página de destino (2026-11-05); después lo que la API lee de la cuenta
@@ -33,6 +34,7 @@ interface Cuenta {
   tipo_cambio?: number; campanas?: CampanaG[]; por_dia?: DiaG[];
   palabras?: { desde: string; hasta: string; filas: PalabraG[] } | null; terminos?: { desde: string; hasta: string; filas: TerminoG[] } | null;
   destino?: Destino;
+  ranking?: Ranking | null;
 }
 
 const entero = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("es-UY"));
@@ -333,6 +335,16 @@ export default function GoogleAdsPage() {
 
         {d && r && (
           <>
+            {d.cuenta?.conectada && (
+              <RankingGoogle
+                ranking={d.cuenta.ranking}
+                presupuestos={d.cuenta.campanas ?? []}
+                terminos={d.cuenta.terminos?.filas ?? []}
+                lcpMovilMs={d.cuenta.destino?.velocidad?.movil?.lcp_ms ?? null}
+                mideCompras={d.medicion.compra}
+                ventas={r.ventas}
+              />
+            )}
             <PaginaDestino destino={d.cuenta?.destino} alMedir={cargar} />
             <CuentaGoogle d={d} alLeer={cargar} />
             <div className="pt-2">

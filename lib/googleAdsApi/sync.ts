@@ -103,6 +103,82 @@ function historialGoogle(f: Awaited<ReturnType<typeof leerConfiguracion>>, clien
   });
 }
 
+// ── "Ranking de Google" (2026-11-10, pedido de Manuel) ─────────────────────
+// Todo lo que Google informa de forma oficial sobre cómo califica la cuenta:
+// Nivel de Calidad por día (historical_*), posición en la subasta por campaña
+// y palabra, estado de anuncios y recursos (aprobación, fuerza, rendimiento
+// de cada título), puntuación de optimización, recomendaciones y negativas.
+// Se guarda en google_ads_datos ("ranking"). Solo SELECT.
+async function leerRanking(q: (gaql: string) => Promise<Fila[]>, desde: string, hasta: string) {
+  const D = `segments.date BETWEEN '${desde}' AND '${hasta}'`;
+  const [calidad, subasta, subastaDia, kwSubasta, estructura, anuncios, recursos, recCuenta, recomendaciones, campanas, negCampana, negLista] = await Promise.all([
+    q(`SELECT segments.date, ad_group.name, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, metrics.historical_quality_score, metrics.historical_creative_quality_score, metrics.historical_landing_page_quality_score, metrics.historical_search_predicted_ctr FROM keyword_view WHERE ${D}`),
+    q(`SELECT campaign.id, metrics.search_impression_share, metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share, metrics.top_impression_percentage, metrics.absolute_top_impression_percentage, metrics.average_cpc, metrics.cost_micros, metrics.clicks, metrics.impressions FROM campaign WHERE ${D}`),
+    q(`SELECT segments.date, campaign.id, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share, metrics.average_cpc FROM campaign WHERE ${D}`),
+    q(`SELECT ad_group.id, ad_group_criterion.criterion_id, metrics.impressions, metrics.clicks, metrics.search_impression_share, metrics.search_rank_lost_impression_share, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share, metrics.average_cpc FROM keyword_view WHERE ${D}`),
+    q(`SELECT campaign.id, ad_group.id, ad_group.name, ad_group.status, ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.status, ad_group_criterion.final_urls, ad_group_criterion.quality_info.quality_score, ad_group_criterion.quality_info.creative_quality_score, ad_group_criterion.quality_info.post_click_quality_score, ad_group_criterion.quality_info.search_predicted_ctr, ad_group_criterion.approval_status, ad_group_criterion.system_serving_status FROM ad_group_criterion WHERE campaign.status != 'REMOVED' AND ad_group.status != 'REMOVED' AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = FALSE AND ad_group_criterion.status != 'REMOVED'`),
+    q(`SELECT campaign.id, ad_group.name, ad_group.status, ad_group_ad.status, ad_group_ad.ad.id, ad_group_ad.ad.final_urls, ad_group_ad.ad_strength, ad_group_ad.action_items, ad_group_ad.policy_summary.approval_status, ad_group_ad.policy_summary.review_status, ad_group_ad.policy_summary.policy_topic_entries, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED' AND campaign.status != 'REMOVED'`),
+    q(`SELECT campaign.id, campaign.status, campaign_asset.field_type, campaign_asset.status, campaign_asset.primary_status, campaign_asset.primary_status_reasons, asset.id, asset.type, asset.sitelink_asset.link_text, asset.callout_asset.callout_text, asset.structured_snippet_asset.header, asset.text_asset.text, asset.policy_summary.approval_status FROM campaign_asset WHERE campaign_asset.status != 'REMOVED' AND campaign.status != 'REMOVED'`),
+    q(`SELECT customer_asset.field_type, customer_asset.status, customer_asset.primary_status, customer_asset.primary_status_reasons, asset.id, asset.type, asset.text_asset.text, asset.policy_summary.approval_status FROM customer_asset WHERE customer_asset.status != 'REMOVED'`),
+    q("SELECT recommendation.type, recommendation.campaign, recommendation.dismissed FROM recommendation"),
+    q("SELECT campaign.id, campaign.optimization_score, campaign.start_date_time, campaign.end_date_time, campaign.target_spend.cpc_bid_ceiling_micros FROM campaign WHERE campaign.status != 'REMOVED'"),
+    q("SELECT campaign.id, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion WHERE campaign.status != 'REMOVED' AND campaign_criterion.type = 'KEYWORD' AND campaign_criterion.negative = TRUE"),
+    q("SELECT shared_set.name, shared_criterion.keyword.text, shared_criterion.keyword.match_type FROM shared_criterion WHERE shared_set.status = 'ENABLED' AND shared_set.type = 'NEGATIVE_KEYWORDS'"),
+  ]);
+  const sub = new Map(kwSubasta.map((r) => [`${r.adGroup?.id}~${r.adGroupCriterion?.criterionId}`, r.metrics ?? {}]));
+  const deCampana = new Map(subasta.map((r) => [String(r.campaign?.id), r.metrics ?? {}]));
+  const textoRecurso = (a: Fila) => a?.sitelinkAsset?.linkText ?? a?.calloutAsset?.calloutText ?? a?.structuredSnippetAsset?.header ?? a?.textAsset?.text ?? null;
+  const pieza = (x: Fila) => ({ texto: x.text, rendimiento: x.assetPerformanceLabel ?? null, aprobacion: x.policySummaryInfo?.approvalStatus ?? null, fijado: x.pinnedField ?? null });
+  return {
+    desde, hasta,
+    campanas: campanas.map((r) => {
+      const c = r.campaign ?? {}; const m = deCampana.get(String(c.id)) ?? {};
+      return {
+        id: String(c.id), optimizacion: c.optimizationScore ?? null, inicio: c.startDateTime ?? null, fin: c.endDateTime ?? null,
+        tope_cpc: c.targetSpend?.cpcBidCeilingMicros != null ? plata(c.targetSpend.cpcBidCeilingMicros) : null,
+        cuota: cuota(m.searchImpressionShare), perdida_ranking: cuota(m.searchRankLostImpressionShare), perdida_presupuesto: cuota(m.searchBudgetLostImpressionShare),
+        cuota_arriba: cuota(m.searchTopImpressionShare), cuota_primera: cuota(m.searchAbsoluteTopImpressionShare),
+        pct_arriba: cuota(m.topImpressionPercentage), pct_primera: cuota(m.absoluteTopImpressionPercentage),
+        cpc_medio: m.averageCpc != null ? plata(m.averageCpc) : null, costo: plata(m.costMicros), clics: n(m.clicks), impresiones: n(m.impressions),
+      };
+    }),
+    subasta_dias: subastaDia.map((r) => ({ fecha: r.segments?.date, campana_id: String(r.campaign?.id), cuota_arriba: cuota(r.metrics?.searchTopImpressionShare), cuota_primera: cuota(r.metrics?.searchAbsoluteTopImpressionShare), cpc_medio: r.metrics?.averageCpc != null ? plata(r.metrics.averageCpc) : null })),
+    calidad_dias: calidad.map((r) => ({
+      fecha: r.segments?.date, grupo: r.adGroup?.name, palabra: r.adGroupCriterion?.keyword?.text, concordancia: r.adGroupCriterion?.keyword?.matchType,
+      nivel: r.metrics?.historicalQualityScore != null ? n(r.metrics.historicalQualityScore) : null,
+      ctr: r.metrics?.historicalSearchPredictedCtr ?? null, anuncio: r.metrics?.historicalCreativeQualityScore ?? null, pagina: r.metrics?.historicalLandingPageQualityScore ?? null,
+    })).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))),
+    palabras: estructura.map((r) => {
+      const k = r.adGroupCriterion ?? {}; const qi = k.qualityInfo ?? {}; const id = `${r.adGroup?.id}~${k.criterionId}`; const m = sub.get(id) ?? {};
+      return {
+        id, campana_id: String(r.campaign?.id), grupo: r.adGroup?.name, grupo_estado: r.adGroup?.status, palabra: k.keyword?.text, concordancia: k.keyword?.matchType, estado: k.status,
+        nivel: qi.qualityScore ?? null, ctr: qi.searchPredictedCtr ?? null, anuncio: qi.creativeQualityScore ?? null, pagina: qi.postClickQualityScore ?? null,
+        aprobacion: k.approvalStatus ?? null, sirve: k.systemServingStatus ?? null, urls: k.finalUrls ?? null,
+        impresiones: n(m.impressions), clics: n(m.clicks), cuota: cuota(m.searchImpressionShare), perdida_ranking: cuota(m.searchRankLostImpressionShare),
+        cuota_arriba: cuota(m.searchTopImpressionShare), cuota_primera: cuota(m.searchAbsoluteTopImpressionShare), cpc_medio: m.averageCpc != null ? plata(m.averageCpc) : null,
+      };
+    }),
+    anuncios: anuncios.map((r) => {
+      const x = r.adGroupAd ?? {}; const a = x.ad ?? {}; const p = x.policySummary ?? {};
+      return {
+        id: String(a.id), campana_id: String(r.campaign?.id), grupo: r.adGroup?.name, grupo_estado: r.adGroup?.status, estado: x.status, url: a.finalUrls?.[0] ?? null,
+        fuerza: x.adStrength ?? null, acciones: x.actionItems ?? [], aprobacion: p.approvalStatus ?? null, revision: p.reviewStatus ?? null,
+        motivos: (p.policyTopicEntries ?? []).map((t: Fila) => `${t.topic}${t.type ? ` (${t.type})` : ""}`),
+        titulos: (a.responsiveSearchAd?.headlines ?? []).map(pieza), descripciones: (a.responsiveSearchAd?.descriptions ?? []).map(pieza),
+      };
+    }),
+    recursos: [
+      ...recursos.map((r) => ({ nivel: "campaña", tipo: r.campaignAsset?.fieldType, texto: textoRecurso(r.asset), estado: r.campaignAsset?.status, estado_principal: r.campaignAsset?.primaryStatus ?? null, motivos: r.campaignAsset?.primaryStatusReasons ?? [], aprobacion: r.asset?.policySummary?.approvalStatus ?? null })),
+      ...recCuenta.map((r) => ({ nivel: "cuenta", tipo: r.customerAsset?.fieldType, texto: textoRecurso(r.asset), estado: r.customerAsset?.status, estado_principal: r.customerAsset?.primaryStatus ?? null, motivos: r.customerAsset?.primaryStatusReasons ?? [], aprobacion: r.asset?.policySummary?.approvalStatus ?? null })),
+    ],
+    recomendaciones: recomendaciones.map((r) => ({ tipo: r.recommendation?.type, campana_id: String(r.recommendation?.campaign ?? "").split("/").pop() ?? null, descartada: !!r.recommendation?.dismissed })),
+    negativas: [
+      ...negCampana.map((r) => ({ texto: r.campaignCriterion?.keyword?.text, concordancia: r.campaignCriterion?.keyword?.matchType, origen: "campaña" })),
+      ...negLista.map((r) => ({ texto: r.sharedCriterion?.keyword?.text, concordancia: r.sharedCriterion?.keyword?.matchType, origen: `lista ${r.sharedSet?.name}` })),
+    ],
+  };
+}
+
 const DIA = 86_400_000;
 const fechaUy = (t: number) => new Date(t - 3 * 3600_000).toISOString().slice(0, 10);
 const plata = (micros: unknown) => Math.round((Number(micros ?? 0) / 1_000_000) * 10000) / 10000;
@@ -132,6 +208,8 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
     // Páginas de destino según Google (clics y, si Google lo calcula, su
     // puntaje de velocidad móvil 1–10). No frena la sincronización si falla.
     const paginas = await q(`SELECT landing_page_view.unexpanded_final_url, metrics.impressions, metrics.clicks, metrics.speed_score, metrics.mobile_friendly_clicks_percentage FROM landing_page_view WHERE segments.date BETWEEN '${desde30}' AND '${hasta}'`).catch(() => [] as Fila[]);
+    // "Ranking de Google": tampoco frena la sincronización si falla.
+    const ranking = await leerRanking(q, desde30, hasta).catch((e) => ({ error: e instanceof Error ? e.message.slice(0, 300) : String(e) }));
 
     const presupuestoDe = new Map(presupuestos.map((p) => [p.campaignBudget?.resourceName, p.campaignBudget]));
     const fotoCampanas = campanas.map((c) => {
@@ -183,6 +261,7 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
         { clave: "palabras_30d", datos: { desde: desde30, hasta, filas: fotoPalabras }, synced_at: ahora },
         { clave: "terminos_30d", datos: { desde: desde30, hasta, filas: fotoTerminos }, synced_at: ahora },
         { clave: "paginas_destino_30d", datos: { desde: desde30, hasta, filas: fotoPaginas }, synced_at: ahora },
+        ...("error" in ranking ? [] : [{ clave: "ranking", datos: ranking, synced_at: ahora }]),
       ]),
     });
     // Velocidad de la página de destino: una medición por día (PageSpeed).
@@ -190,7 +269,7 @@ export async function sincronizarGoogleAds(rest: Rest, opciones: { dias?: number
     // Histórico de configuración: no frena la sincronización si falla.
     const historial = await registrarHistorial(rest, "google", historialGoogle(fondo, cuenta[0]?.customer ?? {}, presupuestoDe))
       .catch((e) => ({ error: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
-    await rest(`google_ads_sync?id=eq.${log.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ok: true, terminado_at: ahora, consultas, ...("error" in historial ? { error: `historial: ${historial.error}` } : {}) }) });
+    await rest(`google_ads_sync?id=eq.${log.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ok: true, terminado_at: ahora, consultas, ...(("error" in historial || "error" in ranking) ? { error: [("error" in historial) && `historial: ${historial.error}`, ("error" in ranking) && `ranking: ${ranking.error}`].filter(Boolean).join(" · ") } : {}) }) });
     return { ok: true as const, dias, campanas: fotoCampanas.length, filas_dia: filasDia.length, palabras: fotoPalabras.length, terminos: fotoTerminos.length, historial, velocidad: velocidad ? "medida" : "al día" };
   } catch (e: unknown) {
     const mensaje = (e instanceof GoogleAdsError || e instanceof Error ? e.message : String(e)).slice(0, 500);

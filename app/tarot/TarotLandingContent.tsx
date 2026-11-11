@@ -15,6 +15,7 @@ import { CtaFinalTarot } from "@/components/tarot/CtaFinalTarot";
 import { StickyCtaTarot } from "@/components/tarot/StickyCtaTarot";
 import { PieMarca } from "@/components/marca/PieMarca";
 import { LecturasPorTema } from "@/components/tarot/LecturasPorTema";
+import { ConsultaTarotUruguay } from "@/components/tarot/ConsultaTarotUruguay";
 import { DudasTarot } from "@/components/tarot/DudasTarot";
 
 // Mismo criterio arquitectónico que la Home (app/page.tsx): se oculta el
@@ -69,7 +70,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
                 PDF); queda solo en escritorio, donde el bloque 2 es otro. */}
             <Seccion id="asi_se_vive">{respaldo ? <AsiSeViveTarot /> : <AsiSeViveSoloEscritorio />}</Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
-            <Seccion id="por_tema"><LecturasPorTema /></Seccion>
+            <Seccion id="por_tema">{!respaldo && <ConsultaTarotUruguay precioUYU={precioUYU} />}<LecturasPorTema /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
             <Seccion id="dudas"><DudasTarot waNumero={waNumero} /></Seccion>
             <Seccion id="cta_final"><CtaFinalTarot precioUYU={precioUYU} /></Seccion>
