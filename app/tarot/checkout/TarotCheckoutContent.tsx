@@ -11,7 +11,7 @@ import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheck
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
-import { ResumenCompra } from '@/components/tarot/checkout/ResumenCompra';
+import { ResumenCompacto } from '@/components/tarot/checkout/ResumenCompra';
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
 import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
@@ -30,7 +30,7 @@ const TEXT_SHADOW = '0 2px 14px rgba(0,0,0,0.65)';
 
 const PAISES = [
   { codigo: 'UY', bandera: '🇺🇾', prefijo: '+598', placeholder: '091234567',
-    hint: 'Acá recibís la lectura. Ej: 091234567', maxDigits: 9 },
+    hint: 'Ahí te enviamos el acceso a tu lectura.', maxDigits: 9 },
 ];
 
 const TEMAS = [
@@ -576,7 +576,7 @@ export default function TarotCheckoutContent({
                   Una respuesta para eso que hoy querés entender
                 </h1>
                 <p className="text-white/90 md:text-white/75 text-[15px] leading-relaxed mt-2 max-w-[480px]">
-                  Elegí tu tema, contanos qué querés saber y recibí tu lectura personalizada en minutos.
+                  Elegí tu tema y recibí una lectura personalizada para tu momento, en minutos.
                 </p>
               </div>
 
@@ -754,7 +754,9 @@ export default function TarotCheckoutContent({
                     </p>
                   ) : erroresCampo.telefono ? (
                     <ErrorCampo texto={erroresCampo.telefono} />
-                  ) : null /* Sin línea de ayuda fija (Manuel, 2026-11-11): solo validación. */}
+                  ) : (
+                    <p className="mt-1.5 text-xs text-white/55">{paisInfo.hint}</p>
+                  )}
                 </div>
 
                 {/* Email opcional: si se completa, la lectura llega también por email */}
@@ -777,7 +779,9 @@ export default function TarotCheckoutContent({
                       disabled={isLoading}
                     />
                   </ConIcono>
-                  {erroresCampo.email && <ErrorCampo texto={erroresCampo.email} />}
+                  {erroresCampo.email
+                    ? <ErrorCampo texto={erroresCampo.email} />
+                    : <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te enviamos la lectura por email.</p>}
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
@@ -793,7 +797,7 @@ export default function TarotCheckoutContent({
                 </div>
                 </div>
 
-                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Confirmá tu compra'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Revisá los detalles y realizá el pago.'} separado />
+                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Pago único. Tu lectura estará pronta en minutos.'} separado />
 
                 {/* Antes de pagar (2026-11-11, diseño de Manuel): entrega y
                     garantías en una sola caja, como lista. "Si no te llega…"
@@ -805,11 +809,11 @@ export default function TarotCheckoutContent({
                   <Zap size={22} className="shrink-0 mt-0.5" style={{ color: GOLD }} fill={GOLD} />
                   <div>
                     <p className="text-[15.5px] font-semibold leading-snug text-white">
-                      Tu lectura llega por WhatsApp{' '}
+                      Tu lectura estará lista{' '}
                       <span style={{ color: GOLD }}>en menos de 15 minutos.</span>
                     </p>
                     <ul className="mt-2 space-y-1">
-                      {[esCortesia ? 'Sin cargo' : 'Pago único (sin suscripción)', 'También la recibís por email', 'Si no te llega, escribinos y te la reenviamos.'].map((t) => (
+                      {[esCortesia ? 'Al confirmar, vas directo a Tu Oráculo.' : 'Después de pagar volvés automáticamente a Tu Oráculo.', 'Podés seguir el proceso hasta que se abra tu lectura.', 'También te enviamos el acceso por WhatsApp.'].map((t) => (
                         <li key={t} className="flex items-start gap-2 text-[13.5px] text-white/80">
                           <Check size={15} strokeWidth={2.5} className="shrink-0 mt-0.5" style={{ color: GOLD }} />
                           {t}
@@ -1032,6 +1036,8 @@ export default function TarotCheckoutContent({
                     </span>
                     <span className="text-white/25">·</span>
                     <span>Pago único</span>
+                    <span className="text-white/25">·</span>
+                    <span>Sin suscripción</span>
                   </div>
                   )}
 
@@ -1060,11 +1066,11 @@ export default function TarotCheckoutContent({
             </div>
 
             {/* ── Columna lateral ────────────────────────────────── */}
-            {/* Desktop: card completa + pasos. Mobile: solo los pasos, al final
-                (el resumen compacto ya está arriba del formulario). */}
+            {/* Desktop (2026-11-11, Manuel): tarjeta chica + pasos (sin el bloque grande). Mobile: solo los pasos, al final
+                (sin tarjeta resumen arriba del formulario). */}
             <aside className="w-full space-y-5">
               <div className="hidden md:block">
-              <ResumenCompra
+              <ResumenCompacto
                 nombre={form.nombre}
                 precioBase={PRECIO_BASE}
                 precioFinal={precioNoDisponible ? null : precioFinal}

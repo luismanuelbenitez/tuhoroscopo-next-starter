@@ -7,9 +7,9 @@ import { GOLD, SERIF, CTA_GRADIENT } from "@/components/home/theme";
 // solo a /tarot/gracias, ahí se ve en vivo cómo se arma la lectura y, al
 // terminar, la página lleva a la lectura online. WhatsApp es el respaldo.
 const PASOS = [
-  { t: "Pagás en Mercado Pago", d: "Pago seguro con tu tarjeta. Al terminar, te envía a nuestra página." },
-  { t: "Comienza tu experiencia", d: "En nuestra página seguís el avance mientras se realiza la tirada e interpretación de tus 5 cartas." },
-  { t: "Se abre tu lectura", d: "Cuando esté lista, la página te lleva directo a tu lectura online. Buscá un lugar cómodo y, si tenés auriculares, ponételos. El acceso también te llega por WhatsApp." },
+  { t: "Pagás en Mercado Pago", d: "Completás el pago de forma segura y volvés automáticamente a Tu Oráculo." },
+  { t: "Comienza tu experiencia", d: "De vuelta en Tu Oráculo, seguís el proceso mientras preparamos e interpretamos tus 5 cartas." },
+  { t: "Se abre tu lectura", d: "Cuando esté lista, te llevamos directo a tu lectura. Buscá un lugar cómodo y, si tenés auriculares, ponételos. También te enviamos el acceso por WhatsApp." },
 ];
 
 const SELLOS = [

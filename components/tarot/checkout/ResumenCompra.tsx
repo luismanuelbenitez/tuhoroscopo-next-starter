@@ -120,7 +120,7 @@ export function ResumenCompacto({ nombre, precioBase, precioFinal, descuentoApli
         <p className="line-clamp-2 break-words" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 18, lineHeight: 1.12, color: CREMA }}>
           {primerNombre ? `Lectura para ${primerNombre}` : "Lectura de Tarot"}
         </p>
-        <p className="mt-0.5 text-[12px] leading-snug text-white/65">5 cartas · Lectura online · Audio · PDF</p>
+        <p className="mt-0.5 text-[12px] leading-snug text-white/65">5 cartas · Lectura personalizada · Audio · PDF</p>
       </div>
       <div className="shrink-0 text-right">
         {precioFinal === null ? (
