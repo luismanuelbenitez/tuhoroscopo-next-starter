@@ -810,7 +810,7 @@ export default function TarotCheckoutContent({
                   <div>
                     <p className="text-[15.5px] font-semibold leading-snug text-white">
                       Tu lectura estará lista{' '}
-                      <span style={{ color: GOLD }}>en menos de 15 minutos.</span>
+                      <span style={{ color: GOLD }}>en minutos.</span>
                     </p>
                     <ul className="mt-2 space-y-1">
                       {[esCortesia ? 'Al confirmar, vas directo a Tu Oráculo.' : 'Después de pagar volvés automáticamente a Tu Oráculo.', 'Podés seguir el proceso hasta que se abra tu lectura.', 'También te enviamos el acceso por WhatsApp.'].map((t) => (
