@@ -6,7 +6,7 @@ import { GOLD, SERIF, CTA_GRADIENT } from "@/components/home/theme";
 const PASOS = [
   { t: "Confirmás el pago", d: "Completás tu compra de forma segura en Mercado Pago." },
   // 2026-11-09 (Manuel): menos literal que "La IA genera tu lectura".
-  { t: "Tus cartas cobran sentido", d: "Nuestra plataforma tira tus 5 cartas y las interpreta una por una, para tu pregunta." },
+  { t: "Tus cartas cobran sentido", d: "Elegimos tus 5 cartas y construimos una lectura personalizada a partir de tu consulta." },
   { t: "La recibís por WhatsApp", d: "En menos de 15 minutos la tenés en tu teléfono. También podés recibirla por email." },
 ];
 
