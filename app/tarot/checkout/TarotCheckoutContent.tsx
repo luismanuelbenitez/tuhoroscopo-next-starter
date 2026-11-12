@@ -797,7 +797,7 @@ export default function TarotCheckoutContent({
                 </div>
                 </div>
 
-                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Pago único. Tu lectura estará pronta en minutos.'} separado />
+                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Pago único.'} separado />
 
                 {/* Antes de pagar (2026-11-11, diseño de Manuel): entrega y
                     garantías en una sola caja, como lista. "Si no te llega…"
