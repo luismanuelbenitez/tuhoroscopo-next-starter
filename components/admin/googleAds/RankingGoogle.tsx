@@ -212,7 +212,14 @@ export function RankingGoogle({ ranking: r, presupuestos, terminos, lcpMovilMs, 
   const proyeccion = ritmoReal != null && diasRestan != null ? gastado + ritmoReal * diasRestan : null;
 
   // Términos clasificados
-  const clasif = terminos.map((t) => {
+  // El mismo término llega una vez por grupo: se suman (2026-11-12).
+  const unidos = Object.values(terminos.reduce<Record<string, { termino: string; impresiones: number; clics: number; costo: number }>>((acc, t) => {
+    const k = sinTilde(t.termino);
+    const a = (acc[k] ??= { termino: t.termino, impresiones: 0, clics: 0, costo: 0 });
+    a.impresiones += t.impresiones; a.clics += t.clics; a.costo += Number(t.costo);
+    return acc;
+  }, {}));
+  const clasif = unidos.map((t) => {
     const neg = bloqueadoPor(t.termino, r.negativas);
     const clase = neg ? "excluido" : t.clics > 0 ? "sirve" : t.impresiones >= 10 ? "vigilar" : "poco dato";
     return { ...t, clase, neg };

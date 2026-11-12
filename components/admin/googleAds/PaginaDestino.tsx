@@ -91,7 +91,13 @@ export function PaginaDestino({ destino, alMedir }: { destino: Destino | undefin
   const cuenta = (campo: "experiencia_pagina" | "relevancia_anuncio" | "ctr_esperado", val: string) => conDatos.filter((k) => k[campo] === val).length;
   const debajo = cuenta("experiencia_pagina", "BELOW_AVERAGE");
   const filas = [...conDatos].sort((a, b) => (COMPONENTE[a.experiencia_pagina ?? ""]?.peso ?? 9) - (COMPONENTE[b.experiencia_pagina ?? ""]?.peso ?? 9) || (a.nivel_calidad ?? 0) - (b.nivel_calidad ?? 0));
-  const paginas = (destino.paginas?.filas ?? []).filter((p) => p.impresiones > 0 || p.clics > 0);
+  // La misma URL puede venir en varias filas (con y sin parámetros): se suman.
+  const paginas = Object.values((destino.paginas?.filas ?? []).reduce<Record<string, { url: string; impresiones: number; clics: number; velocidad_google: number | null }>>((acc, p) => {
+    const url = p.url.replace(/\/$/, "");
+    const a = (acc[url] ??= { url, impresiones: 0, clics: 0, velocidad_google: null });
+    a.impresiones += p.impresiones; a.clics += p.clics; a.velocidad_google = a.velocidad_google ?? p.velocidad_google;
+    return acc;
+  }, {})).filter((p) => p.impresiones > 0 || p.clics > 0).sort((a, b) => b.clics - a.clics || b.impresiones - a.impresiones);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-violet-900/50 bg-gradient-to-b from-violet-950/30 via-gray-900/40 to-gray-950/40 shadow-[0_10px_40px_-20px_rgba(139,92,246,0.45)]">

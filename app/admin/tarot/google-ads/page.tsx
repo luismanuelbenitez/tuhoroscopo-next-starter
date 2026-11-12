@@ -119,6 +119,22 @@ function Medicion({ d }: { d: Datos }) {
 
 // Cuenta de Google Ads (2026-11-05): lo que la API leyó de la cuenta (solo
 // lectura, REGLA MÁXIMA). Gasto en USD (la moneda de la cuenta) y en pesos.
+// "Lo que opina Google, por palabra" (2026-11-12): solo palabras activas de
+// grupos activos. El diagnóstico trae también las de grupos pausados (salían
+// repetidas y contradecían al semáforo del Ranking).
+function destinoActivo(destino: Destino | undefined, ranking: Ranking | null | undefined): Destino | undefined {
+  if (!destino || !ranking?.palabras?.length) return destino;
+  const activas = new Set(ranking.palabras.filter((p) => p.estado === "ENABLED" && p.grupo_estado === "ENABLED").map((p) => `${p.palabra}|${p.concordancia}`));
+  const vistas = new Set<string>();
+  const calidad = destino.calidad.filter((k) => {
+    const clave = `${k.texto}|${k.concordancia}`;
+    if (!activas.has(clave) || vistas.has(clave)) return false;
+    vistas.add(clave);
+    return true;
+  });
+  return { ...destino, calidad };
+}
+
 const ESTADO_CAMPANA: Record<string, string> = { ELIGIBLE: "Activa", LEARNING: "Aprendiendo", LIMITED: "Limitada", PAUSED: "Pausada", NOT_ELIGIBLE: "No se muestra", PENDING: "Pendiente", ENDED: "Terminada", MISCONFIGURED: "Mal configurada" };
 const PUJA: Record<string, string> = { TARGET_SPEND: "Maximizar clics", MAXIMIZE_CONVERSIONS: "Maximizar conversiones", MAXIMIZE_CONVERSION_VALUE: "Maximizar valor", MANUAL_CPC: "CPC manual", TARGET_CPA: "CPA objetivo", TARGET_ROAS: "ROAS objetivo", TARGET_IMPRESSION_SHARE: "Cuota de impresiones" };
 const CONCORDANCIA: Record<string, string> = { BROAD: "amplia", PHRASE: "frase", EXACT: "exacta" };
@@ -167,7 +183,8 @@ function CuentaGoogle({ d, alLeer }: { d: Datos; alLeer: () => void }) {
   const gratis = terminos.filter((t) => esGratis(t.termino));
   const clicsGratis = gratis.reduce((a, t) => a + t.clics, 0), clicsTerm = terminos.reduce((a, t) => a + t.clics, 0);
   const costoGratis = gratis.reduce((a, t) => a + Number(t.costo), 0);
-  const palabrasGratis = (c.palabras?.filas ?? []).filter((p) => !p.negativa && esGratis(p.palabra));
+  // Solo las que siguen activas (2026-11-12): la lista de 30 días trae también pausadas y borradas.
+  const palabrasGratis = (c.palabras?.filas ?? []).filter((p) => !p.negativa && p.estado === "ENABLED" && esGratis(p.palabra));
   const kpis: [string, string, string?][] = [
     ["Gasto", usd(tot.costo), `≈ $ ${entero(tot.costo * tc)}`],
     ["Clics", entero(tot.clics), `${entero(tot.imp)} impresiones`],
@@ -348,7 +365,7 @@ export default function GoogleAdsPage() {
               />
             )}
             <EmbudoCheckout datos={d.embudo_checkout} />
-            <PaginaDestino destino={d.cuenta?.destino} alMedir={cargar} />
+            <PaginaDestino destino={destinoActivo(d.cuenta?.destino, d.cuenta?.ranking)} alMedir={cargar} />
             <CuentaGoogle d={d} alLeer={cargar} />
             <div className="pt-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Web</p>
