@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, Info, RefreshC
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { PaginaDestino, type Destino } from "@/components/admin/googleAds/PaginaDestino";
 import { RankingGoogle, type Ranking } from "@/components/admin/googleAds/RankingGoogle";
+import { EmbudoCheckout, type EmbudoCheckoutDatos } from "@/components/admin/googleAds/EmbudoCheckout";
 
 // Google Ads (2026-11-04). Panel de SOLO LECTURA: arriba, cómo califica Google
 // la página de destino (2026-11-05); después lo que la API lee de la cuenta
@@ -24,6 +25,7 @@ interface Datos {
   visitas: { inicio: string; dispositivo: string | null; ciudad: string | null; landing: string | null; termino: string | null; paginas: number; etapa: string }[];
   fuentes: (Fila & { fuente: string })[];
   cuenta: Cuenta;
+  embudo_checkout?: EmbudoCheckoutDatos | null;
 }
 interface CampanaG { id: string; nombre: string; estado: string; estado_principal: string; motivos: string[]; puja: string; presupuesto_diario: number | null; presupuesto_total: number | null; limitada_por_presupuesto: boolean }
 interface DiaG { fecha: string; impresiones: number; clics: number; costo: number; conversiones: number; cuota_impresiones: number | null; perdida_por_presupuesto: number | null; perdida_por_ranking: number | null }
@@ -345,6 +347,7 @@ export default function GoogleAdsPage() {
                 ventas={r.ventas}
               />
             )}
+            <EmbudoCheckout datos={d.embudo_checkout} />
             <PaginaDestino destino={d.cuenta?.destino} alMedir={cargar} />
             <CuentaGoogle d={d} alLeer={cargar} />
             <div className="pt-2">

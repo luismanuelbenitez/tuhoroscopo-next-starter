@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     const dias = Math.min(Math.max(Number(req.nextUrl.searchParams.get("dias")) || 14, 1), 90);
     const desde = new Date(Date.now() - 3 * 3600_000 - (dias - 1) * 86_400_000).toISOString().slice(0, 10);
-    const [panel, pasos, datos, porDia, sync, tc, version] = await Promise.all([
+    const [panel, pasos, datos, porDia, sync, tc, version, embudoCheckout] = await Promise.all([
       rest("rpc/google_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: dias }) }),
       rest("admin_pendientes?origen_ref=like.gads_*&select=id,titulo,estado,enlace,origen_ref&order=titulo.asc"),
       rest("google_ads_datos?select=clave,datos,synced_at"),
@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
       rest("tarot_configuracion?clave=eq.tipo_cambio_usd_uyu&select=valor"),
       // Calidad por palabra que informa Google (versión vigente del histórico).
       rest("ads_config_historial?plataforma=eq.google&vigente_hasta=is.null&select=version,vigente_desde,diagnostico&limit=1").catch(() => []),
+      // Embudo del checkout paso a paso (2026-11-12): tema → nombre → WhatsApp → Mercado Pago → compra.
+      rest("rpc/google_ads_embudo_checkout", { method: "POST", body: JSON.stringify({ p_dias: dias }) }).catch(() => null),
     ]);
     const foto = Object.fromEntries((datos as { clave: string; datos: unknown }[]).map((x) => [x.clave, x.datos]));
     // Ranking de Google (2026-11-10): para el ritmo de gasto hace falta lo
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest) {
     // Pasos "n/6" en orden; los sueltos (ej. la palabra negativa) al final.
     const orden = (t: string) => Number(/(\d+)\/\d+/.exec(t)?.[1] ?? 99);
     const pasosOrdenados = (pasos as { titulo: string }[]).sort((a, b) => orden(a.titulo) - orden(b.titulo));
-    return NextResponse.json({ ok: true, medicion, pasos: pasosOrdenados, cuenta, ...(panel as Record<string, unknown>) });
+    return NextResponse.json({ ok: true, medicion, pasos: pasosOrdenados, cuenta, embudo_checkout: embudoCheckout, ...(panel as Record<string, unknown>) });
   } catch (e) {
     return NextResponse.json({ ok: false, motivo: "error", detalle: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
