@@ -573,10 +573,10 @@ export default function TarotCheckoutContent({
                   <span aria-hidden="true" className="h-px w-10 md:w-16" style={{ background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
                 </p>
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
-                  Una respuesta para eso que hoy querés entender
+                  Tu lectura empieza acá
                 </h1>
                 <p className="text-white/90 md:text-white/75 text-[15px] leading-relaxed mt-2 max-w-[480px]">
-                  Elegí tu tema y recibí una lectura personalizada para tu momento, en minutos.
+                  Elegí el tema, hacé tu consulta si querés y accedé a tu lectura en minutos.
                 </p>
               </div>
 
