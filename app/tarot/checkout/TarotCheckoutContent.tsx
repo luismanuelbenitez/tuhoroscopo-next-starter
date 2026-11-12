@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  ChevronDown, Lock, Tag, X, CheckCircle, AlertCircle, MessageCircle,
+  ChevronDown, Lock, Tag, X, Check, CheckCircle, AlertCircle, MessageCircle,
   ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2,
 } from 'lucide-react';
 import { cargarDiferidosYa, esperarTerceros } from '@/lib/cargaDiferida';
@@ -17,6 +17,7 @@ import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/t
 import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
 import { FechaNacimiento } from '@/components/tarot/checkout/FechaNacimiento';
 import { PieMarca } from '@/components/marca/PieMarca';
+import { LogoMercadoPago } from '@/components/tarot/LogoMercadoPago';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 import { googleAdsInicioCheckout } from '@/lib/googleAds';
 import { linkWhatsApp } from '@/lib/contacto';
@@ -24,7 +25,6 @@ import { linkWhatsApp } from '@/lib/contacto';
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
 // 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
 
-const MP_LOGO = '/img/tarot/generales/MP_RGB_HANDSHAKE_pluma_horizontal.png';
 const TEXT_SHADOW = '0 2px 14px rgba(0,0,0,0.65)';
 // PRECIO_BASE is now passed as prop from the server page
 
@@ -566,8 +566,11 @@ export default function TarotCheckoutContent({
                   className="absolute -inset-x-8 -inset-y-6 -z-10 pointer-events-none"
                   style={{ background: 'radial-gradient(ellipse 75% 85% at 35% 50%, rgba(6,4,14,0.72), transparent 75%)' }}
                 />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: GOLD }}>
+                {/* Antetítulo centrado entre dos filetes dorados (Manuel, 2026-11-11). */}
+                <p className="flex items-center justify-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: GOLD }}>
+                  <span aria-hidden="true" className="h-px w-10 md:w-16" style={{ background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
                   Tarot personalizado
+                  <span aria-hidden="true" className="h-px w-10 md:w-16" style={{ background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
                 </p>
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
                   Una respuesta para eso que hoy querés entender
@@ -656,7 +659,7 @@ export default function TarotCheckoutContent({
                   <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
                 </div>
 
-                <Paso n={2} titulo="¿A quién se la enviamos?" bajada="Tus datos y tu consulta son privados." separado />
+                <Paso n={2} titulo="Tus datos" bajada="Tu lectura es privada y se envía solo a vos." separado />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
 
                 {/* Nombre */}
@@ -751,9 +754,7 @@ export default function TarotCheckoutContent({
                     </p>
                   ) : erroresCampo.telefono ? (
                     <ErrorCampo texto={erroresCampo.telefono} />
-                  ) : (
-                    <p className="mt-1.5 text-xs text-white/55">{paisInfo.hint}</p>
-                  )}
+                  ) : null /* Sin línea de ayuda fija (Manuel, 2026-11-11): solo validación. */}
                 </div>
 
                 {/* Email opcional: si se completa, la lectura llega también por email */}
@@ -776,9 +777,7 @@ export default function TarotCheckoutContent({
                       disabled={isLoading}
                     />
                   </ConIcono>
-                  {erroresCampo.email
-                    ? <ErrorCampo texto={erroresCampo.email} />
-                    : <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te la mandamos por email.</p>}
+                  {erroresCampo.email && <ErrorCampo texto={erroresCampo.email} />}
                 </div>
 
                 {/* Fecha de nacimiento (opcional) */}
@@ -794,7 +793,31 @@ export default function TarotCheckoutContent({
                 </div>
                 </div>
 
-                <Paso n={3} titulo="Tu compra" bajada={esCortesia ? 'Revisá y confirmá tu lectura.' : 'Revisá y confirmá tu pago.'} separado />
+                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Confirmá tu compra'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Revisá los detalles y realizá el pago.'} separado />
+
+                {/* Antes de pagar (2026-11-11, diseño de Manuel): entrega y
+                    garantías en una sola caja, como lista. "Si no te llega…"
+                    es lo mismo que dicen los Términos (punto 5). */}
+                <div
+                  className="rounded-xl px-4 py-4 flex items-start gap-3"
+                  style={{ background: 'rgba(240,197,90,0.06)', border: '1px solid rgba(240,197,90,0.45)' }}
+                >
+                  <Zap size={22} className="shrink-0 mt-0.5" style={{ color: GOLD }} fill={GOLD} />
+                  <div>
+                    <p className="text-[15.5px] font-semibold leading-snug text-white">
+                      Tu lectura llega por WhatsApp{' '}
+                      <span style={{ color: GOLD }}>en menos de 15 minutos.</span>
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {[esCortesia ? 'Sin cargo' : 'Pago único (sin suscripción)', 'También la recibís por email', 'Si no te llega, escribinos y te la reenviamos.'].map((t) => (
+                        <li key={t} className="flex items-start gap-2 text-[13.5px] text-white/80">
+                          <Check size={15} strokeWidth={2.5} className="shrink-0 mt-0.5" style={{ color: GOLD }} />
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
 
                 {/* ── Código de descuento ──────────────────────────── */}
                 {!descuento && !cuponAbierto ? (
@@ -925,27 +948,6 @@ export default function TarotCheckoutContent({
                 </label>
                 {erroresCampo.acepta_terminos && <div className="!-mt-3"><ErrorCampo texto={erroresCampo.acepta_terminos} /></div>}
 
-                {/* Reassurance pre-pago */}
-                <div
-                  className="rounded-xl px-4 py-3.5 flex items-start gap-3"
-                  style={{ background: 'rgba(240,197,90,0.06)', border: '1px solid rgba(240,197,90,0.40)' }}
-                >
-                  <Zap size={20} className="shrink-0 mt-0.5" style={{ color: GOLD }} fill={GOLD} />
-                  <div>
-                    <p className="text-[14px] font-semibold text-white/90">
-                      Tu lectura llega por WhatsApp <span style={{ color: GOLD }}>en menos de 15 minutos</span>.
-                    </p>
-                    <p className="text-[12.5px] text-white/60 mt-0.5">
-                      <span style={{ color: GOLD }}>✦</span> {esCortesia ? 'Sin cargo' : 'Pago único · Sin suscripción'} · Podés recibirla también por email.
-                    </p>
-                    {/* Garantía de entrega (2026-11-01): lo mismo que dicen los
-                        Términos (punto 5), dicho donde se decide el pago. */}
-                    <p className="text-[12.5px] text-white/60 mt-0.5">
-                      <span style={{ color: GOLD }}>✦</span> Si no te llega, escribinos y te la reenviamos.
-                    </p>
-                  </div>
-                </div>
-
                 {/* Error */}
                 {error && (
                   <div ref={errorRef} role="alert" className="rounded-xl px-4 py-3 text-sm text-red-300 bg-red-900/20 border border-red-500/25">
@@ -1026,12 +1028,10 @@ export default function TarotCheckoutContent({
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[12.5px] text-white/55">
                     <span className="flex items-center gap-1.5">
                       Procesado por
-                      <img src={MP_LOGO} alt="Mercado Pago" style={{ height: 30, width: 'auto' }} />
+                      <LogoMercadoPago alto={18} />
                     </span>
                     <span className="text-white/25">·</span>
                     <span>Pago único</span>
-                    <span className="text-white/25">·</span>
-                    <span>Sin suscripción</span>
                   </div>
                   )}
 

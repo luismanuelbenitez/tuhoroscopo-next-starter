@@ -3,11 +3,13 @@
 import { ShieldCheck, Receipt, LockKeyhole, Gift } from "lucide-react";
 import { GOLD, SERIF, CTA_GRADIENT } from "@/components/home/theme";
 
+// 2026-11-11 (Manuel): que cuente el recorrido real. Mercado Pago vuelve
+// solo a /tarot/gracias, ahí se ve en vivo cómo se arma la lectura y, al
+// terminar, la página lleva a la lectura online. WhatsApp es el respaldo.
 const PASOS = [
-  { t: "Confirmás el pago", d: "Completás tu compra de forma segura en Mercado Pago." },
-  // 2026-11-09 (Manuel): menos literal que "La IA genera tu lectura".
-  { t: "Tus cartas cobran sentido", d: "Elegimos tus 5 cartas y construimos una lectura personalizada a partir de tu consulta." },
-  { t: "La recibís por WhatsApp", d: "En menos de 15 minutos la tenés en tu teléfono. También podés recibirla por email." },
+  { t: "Pagás en Mercado Pago", d: "Pago seguro con tu tarjeta. Al terminar, te envía a nuestra página." },
+  { t: "Comienza tu experiencia", d: "En nuestra página seguís el avance mientras se realiza la tirada e interpretación de tus 5 cartas." },
+  { t: "Se abre tu lectura", d: "Cuando esté lista, la página te lleva directo a tu lectura online. Buscá un lugar cómodo y, si tenés auriculares, ponételos. El acceso también te llega por WhatsApp." },
 ];
 
 const SELLOS = [

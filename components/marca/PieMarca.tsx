@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { EnlacesTarotPie } from "@/components/marca/EnlacesTarotPie";
+import { GOLD } from "@/components/home/theme";
 
 // Pie único de las páginas de marca (auditoría UX 2026-10-30, T5): antes
 // cada página cerraba distinto (/tarot y las SEO sin Privacidad, Términos ni
@@ -17,6 +18,7 @@ const INSTITUCIONALES = [
   { href: "/contacto", label: "Contacto" },
 ];
 const MINIMOS = ["/politica-de-privacidad", "/terminos-del-servicio", "/contacto"];
+
 const SOMBRA = "0 1px 6px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)";
 
 export function PieMarca({ minimo = false, className = "" }: { minimo?: boolean; className?: string }) {
@@ -28,17 +30,21 @@ export function PieMarca({ minimo = false, className = "" }: { minimo?: boolean;
           acá; mismo recurso que el pie de /lectura. */}
       <div aria-hidden="true" className="absolute inset-x-0 top-0 bottom-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 55%, rgba(8,4,16,0.72), rgba(8,4,16,0.4) 60%, transparent 90%)" }} />
       {!minimo && <EnlacesTarotPie className="pb-3" />}
-      <nav aria-label="Enlaces del sitio" className="relative px-5 mx-auto max-w-[760px]">
-        <ul className="flex flex-wrap justify-center gap-x-5 text-[13px] text-white/70" style={{ textShadow: SOMBRA }}>
+      <nav aria-label="Enlaces del sitio" className={`relative mx-auto max-w-[760px] ${minimo ? "px-3" : "px-5"}`}>
+        <ul className={`flex flex-wrap justify-center ${minimo ? "gap-x-4 md:gap-x-7 text-[13px] md:text-[14px] whitespace-nowrap" : "gap-x-5 text-[13px] text-white/70"}`} style={{ textShadow: SOMBRA, ...(minimo ? { color: GOLD } : {}) }}>
           {links.map((l) => (
             <li key={l.href}>
-              <Link href={l.href as Route} className="inline-block py-2 hover:text-white transition-colors">{l.label}</Link>
+              <Link href={l.href as Route} className={`inline-block py-2 transition-colors ${minimo ? "underline underline-offset-4 decoration-1 hover:text-white" : "hover:text-white"}`}>{l.label}</Link>
             </li>
           ))}
         </ul>
       </nav>
-      <p className="relative mt-2 px-5 mx-auto max-w-[560px] text-center text-[11.5px] leading-relaxed text-white/60" style={{ textShadow: SOMBRA }}>
-        © {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.
+      {/* Mínimo (checkout y opinión, 2026-11-11, Manuel): solo marca y país;
+          el operador y el RUT están en Términos y Privacidad. */}
+      <p className={`relative mt-2 px-5 mx-auto max-w-[560px] text-center leading-relaxed ${minimo ? "text-[13px] text-white/75" : "text-[11.5px] text-white/60"}`} style={{ textShadow: SOMBRA }}>
+        {minimo
+          ? <>© {new Date().getFullYear()} Tu Oráculo · Uruguay</>
+          : <>© {new Date().getFullYear()} Tu Oráculo · Operado por Luis Manuel Benítez Rodríguez · RUT 214998320016 · Uruguay. Todos los derechos reservados.</>}
       </p>
     </footer>
   );

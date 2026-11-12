@@ -4,10 +4,10 @@ import { GOLD } from "@/components/home/theme";
 import { CtaButton } from "@/components/home/CtaButton";
 import { fijo } from "@/lib/imagen";
 import { VideoDemoTarot } from "@/components/tarot/VideoDemoTarot";
+import { LogoMercadoPago } from "@/components/tarot/LogoMercadoPago";
 
 const CREMA = "#F5EFE0";
 const TEXT_SHADOW = "0 2px 14px rgba(0,0,0,0.65)";
-const MP_LOGO = "/img/tarot/generales/MP_RGB_HANDSHAKE_pluma_horizontal.png";
 
 const BENEFICIOS = [
   { Icon: Zap, label: "Entrega en minutos" },
@@ -85,8 +85,7 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
               <p className="text-[12.5px] text-white/65" style={{ textShadow: TEXT_SHADOW }}>
                 {precioTexto ? <><span className="font-semibold text-white/90">{precioTexto}</span> · </> : null}Pago único con
               </p>
-              {/* Paquete SEO 2: PNG 1049×426 → se pinta a 59×24 */}
-              <img {...fijo(MP_LOGO, 60, 24)} alt="Mercado Pago" style={{ height: 24, width: "auto", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
+              <LogoMercadoPago alto={16} />
             </div>
             <div className="hidden md:block mt-5">{ejemplo}</div>
           </div>
