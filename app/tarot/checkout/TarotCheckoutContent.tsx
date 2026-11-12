@@ -11,7 +11,7 @@ import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheck
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
-import { ResumenCompra, ResumenCompacto } from '@/components/tarot/checkout/ResumenCompra';
+import { ResumenCompra } from '@/components/tarot/checkout/ResumenCompra';
 import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
 import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
@@ -570,22 +570,16 @@ export default function TarotCheckoutContent({
                   Tarot personalizado
                 </p>
                 <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
-                  Tu lectura, en un minuto
+                  Una respuesta para eso que hoy querés entender
                 </h1>
                 <p className="text-white/90 md:text-white/75 text-[15px] leading-relaxed mt-2 max-w-[480px]">
-                  Elegí tu tema, dejá tu WhatsApp y pagá. En minutos te llega tu lectura.
+                  Elegí tu tema, contanos qué querés saber y recibí tu lectura personalizada en minutos.
                 </p>
               </div>
 
-              {/* Mobile: qué se compra y cuánto cuesta, antes del formulario. */}
-              <div className="md:hidden mb-4">
-                <ResumenCompacto
-                  nombre={form.nombre}
-                  precioBase={PRECIO_BASE}
-                  precioFinal={precioNoDisponible ? null : precioFinal}
-                  descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
-                />
-              </div>
+              {/* Móvil (2026-11-11, Manuel): sin la tarjeta resumen del producto
+                  arriba del formulario; ya decidió la compra. El precio se ve
+                  en el botón de pago. */}
 
               <form
                 ref={formRef}
