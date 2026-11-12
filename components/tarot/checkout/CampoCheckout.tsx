@@ -43,9 +43,9 @@ export function ConIcono({ Icon, arriba, iconoClase = "", children }: { Icon: Lu
 
 // Encabezado de cada paso del formulario (1 Tus datos · 2 Tu consulta ·
 // 3 Tu compra): número dorado + título serif + bajada.
-export function Paso({ n, titulo, bajada, separado = false }: { n: number; titulo: string; bajada: string; separado?: boolean }) {
+export function Paso({ n, titulo, bajada, separado = false }: { n: number; titulo: string; bajada?: string; separado?: boolean }) {
   return (
-    <div className={`flex items-start gap-3 ${separado ? "pt-5 border-t border-white/10" : ""}`}>
+    <div className={`flex ${bajada ? "items-start" : "items-center"} gap-3 ${separado ? "pt-5 border-t border-white/10" : ""}`}>
       <span
         className="shrink-0 flex items-center justify-center rounded-full text-[15px] font-bold"
         style={{ width: 32, height: 32, color: "#180e00", background: "linear-gradient(135deg, #c8980e 0%, #FFCE4D 60%, #e8bc3a 100%)", boxShadow: "0 0 12px rgba(240,197,90,0.30)", fontVariantNumeric: "lining-nums" }}
@@ -54,7 +54,7 @@ export function Paso({ n, titulo, bajada, separado = false }: { n: number; titul
       </span>
       <div>
         <p className="text-[21px] leading-tight" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, color: "#F5EFE0" }}>{titulo}</p>
-        <p className="text-[12.5px] text-white/55 mt-0.5">{bajada}</p>
+        {bajada && <p className="text-[12.5px] text-white/55 mt-0.5">{bajada}</p>}
       </div>
     </div>
   );

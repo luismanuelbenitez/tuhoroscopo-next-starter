@@ -2,6 +2,7 @@
 
 import { Layers, BookOpen, Volume2, FileText, MessageCircle, Mail, Tag } from "lucide-react";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
+import { fijo } from "@/lib/imagen";
 
 // Cabecera de la card completa (desktop): captura real de /lectura.
 const CABECERA = "/img/tarot/contenedores/checkout/cabecera-card-tarot.webp";
@@ -109,8 +110,12 @@ export function ResumenCompacto({ nombre, precioBase, precioFinal, descuentoApli
       className="flex items-center gap-3.5 rounded-2xl p-3 pr-4"
       style={{ background: CARD_BG, border: "1px solid rgba(240,197,90,0.45)", boxShadow: "0 12px 32px rgba(0,0,0,0.4)" }}
     >
+      {/* Optimizada y diferida (2026-11-11): en celular la tarjeta está
+          oculta y antes igual se bajaban 98 KB. */}
       <img
-        src={CABECERA}
+        {...fijo(CABECERA, 64, 64)}
+        width={64}
+        height={64}
         alt=""
         aria-hidden="true"
         className="shrink-0 rounded-xl"

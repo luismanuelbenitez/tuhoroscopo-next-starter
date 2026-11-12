@@ -13,7 +13,9 @@ import { inputCheckout, inputBg } from "./CampoCheckout";
 // Abreviados: en 360 px de ancho "Septiembre" no entra en la lista.
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const ANIO_ACTUAL = new Date().getFullYear();
-const ANIOS = Array.from({ length: ANIO_ACTUAL - 1920 + 1 }, (_, i) => ANIO_ACTUAL - i);
+// Hay que ser mayor de 18 para comprar (2026-11-11): la lista arranca ahí.
+const ANIO_MAXIMO = ANIO_ACTUAL - 18;
+const ANIOS = Array.from({ length: ANIO_MAXIMO - 1920 + 1 }, (_, i) => ANIO_MAXIMO - i);
 const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 const dos = (n: number) => String(n).padStart(2, "0");

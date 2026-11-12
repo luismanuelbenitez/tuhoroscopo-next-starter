@@ -17,6 +17,14 @@
 // cargarDiferidosYa() y espera a los SDKs (esperarTerceros) antes de salir.
 export const RUTAS_SIN_DIFERIR = ["/tarot/estado", "/tarot/gracias"];
 
+// 2026-11-11 (auditoría, Manuel: "la velocidad nos está matando"): en el
+// checkout, Google y Meta bloqueaban el hilo principal ~1 s justo mientras la
+// persona elige el tema (Lighthouse móvil 70, interactiva a los 9 s). Ahí se
+// espera a la primera interacción (toque, tecla) o a 10 s, lo que pase
+// antes. No aplica a /tarot: ahí gtag guarda el gclid del anuncio al entrar.
+export const RUTAS_ESPERAN_INTERACCION = ["/tarot/checkout"];
+const ESPERA_MAX_MS = 10_000;
+
 // Registro compartido (window.__thcDiferidos): src → función que lo carga
 // una sola vez. Lo usan tanto los <Script> inline como cargarScript().
 type Registro = Record<string, () => void>;
@@ -27,7 +35,7 @@ const registro = (): Registro => {
 
 // Misma lógica como texto, para los <Script> inline del layout.
 export function jsCargarScript(src: string): string {
-  return `(function(){var s=${JSON.stringify(src)},w=window,R=w.__thcDiferidos=w.__thcDiferidos||{};if(R[s])return;var h=false;function c(){if(h)return;h=true;var t=document.createElement('script');t.async=true;t.src=s;document.head.appendChild(t);}R[s]=c;var p=location.pathname,r=${JSON.stringify(RUTAS_SIN_DIFERIR)};if(r.some(function(x){return p===x||p.indexOf(x+'/')===0;})){c();return;}function l(){if('requestIdleCallback' in window)requestIdleCallback(c,{timeout:3000});else setTimeout(c,1500);}if(document.readyState==='complete')l();else addEventListener('load',l,{once:true});})();`;
+  return `(function(){var s=${JSON.stringify(src)},w=window,R=w.__thcDiferidos=w.__thcDiferidos||{};if(R[s])return;var h=false;function c(){if(h)return;h=true;var t=document.createElement('script');t.async=true;t.src=s;document.head.appendChild(t);}R[s]=c;var p=location.pathname,r=${JSON.stringify(RUTAS_SIN_DIFERIR)};if(r.some(function(x){return p===x||p.indexOf(x+'/')===0;})){c();return;}var q=${JSON.stringify(RUTAS_ESPERAN_INTERACCION)};if(q.some(function(x){return p===x||p.indexOf(x+'/')===0;})){var ev=['pointerdown','keydown','touchstart'],z=function(){ev.forEach(function(e){removeEventListener(e,z,true)});if('requestIdleCallback' in window)requestIdleCallback(c,{timeout:1500});else setTimeout(c,300);};ev.forEach(function(e){addEventListener(e,z,{capture:true,passive:true,once:true})});setTimeout(c,${ESPERA_MAX_MS});return;}function l(){if('requestIdleCallback' in window)requestIdleCallback(c,{timeout:3000});else setTimeout(c,1500);}if(document.readyState==='complete')l();else addEventListener('load',l,{once:true});})();`;
 }
 
 export function cargarScript(src: string): void {
@@ -46,6 +54,17 @@ export function cargarScript(src: string): void {
   R[src] = cargar;
   const p = location.pathname;
   if (RUTAS_SIN_DIFERIR.some((x) => p === x || p.startsWith(x + "/"))) return cargar();
+  if (RUTAS_ESPERAN_INTERACCION.some((x) => p === x || p.startsWith(x + "/"))) {
+    const eventos = ["pointerdown", "keydown", "touchstart"] as const;
+    const alInteractuar = () => {
+      eventos.forEach((e) => window.removeEventListener(e, alInteractuar, true));
+      if ("requestIdleCallback" in window) window.requestIdleCallback(cargar, { timeout: 1500 });
+      else setTimeout(cargar, 300);
+    };
+    eventos.forEach((e) => window.addEventListener(e, alInteractuar, { capture: true, passive: true, once: true }));
+    setTimeout(cargar, ESPERA_MAX_MS);
+    return;
+  }
   const alCargar = () => {
     if ("requestIdleCallback" in window) window.requestIdleCallback(cargar, { timeout: 3000 });
     else setTimeout(cargar, 1500);

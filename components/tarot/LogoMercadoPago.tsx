@@ -11,7 +11,7 @@ export function LogoMercadoPago({ alto = 18 }: { alto?: number }) {
   return (
     <span className="inline-flex items-center rounded-md bg-white px-1.5 py-1 shadow-[0_1px_6px_rgba(0,0,0,0.45)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img {...fijo(SRC, ancho, alto)} alt="Mercado Pago" style={{ height: alto, width: "auto" }} />
+      <img {...fijo(SRC, ancho, alto)} width={ancho} height={alto} alt="Mercado Pago" style={{ height: alto, width: "auto" }} />
     </span>
   );
 }

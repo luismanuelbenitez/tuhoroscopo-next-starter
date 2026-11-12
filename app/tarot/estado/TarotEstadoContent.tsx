@@ -67,6 +67,12 @@ export default function TarotEstadoContent({ waNumero = "" }: { waNumero?: strin
   const mpStatus = (sp.get("status") ?? sp.get("collection_status") ?? "").toLowerCase().trim();
 
   const [uiStatus, setUiStatus] = useState<"idle" | "ok" | "warn" | "error">("idle");
+  // Pago confirmado: se borra el formulario que guardó el checkout para
+  // volver desde Mercado Pago (2026-11-11). Si el pago falló, queda.
+  useEffect(() => {
+    if (uiStatus !== "ok") return;
+    try { sessionStorage.removeItem("tarotCheckoutForm"); } catch { /* best-effort */ }
+  }, [uiStatus]);
   const [nombre, setNombre]     = useState<string | null>(null);
   // Cortesía (2026-10-18): orden gratuita — no hubo pago, la UI no lo dice.
   const [esCortesia, setEsCortesia] = useState(false);

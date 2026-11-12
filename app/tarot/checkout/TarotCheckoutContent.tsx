@@ -89,6 +89,8 @@ interface DescuentoAplicado {
   orden_gratuita: boolean;
 }
 
+const CLAVE_FORM_GUARDADO = 'tarotCheckoutForm';
+
 const EMPTY: FormState = {
   nombre: '',
   telefono: '',
@@ -190,6 +192,36 @@ export default function TarotCheckoutContent({
   const nacimientoUrl = /^\d{4}-\d{2}-\d{2}$/.test(nacimientoInicial ?? '') ? nacimientoInicial! : '';
   const [form, setForm]           = useState<FormState>({ ...EMPTY, tema: temaValido, nombre: nombreUrl, fecha_nacimiento: nacimientoUrl });
   const [pais, setPais]           = useState('UY');
+  // Volver desde Mercado Pago (auditoría 2026-11-11): el checkout se sirve
+  // con no-store y Chrome no lo guarda en memoria al ir y volver, así que el
+  // formulario aparecía vacío. Se guarda en la pestaña (sessionStorage) por
+  // 2 h; no pisa lo que llega por la URL y la casilla de Términos no se
+  // guarda (se vuelve a marcar). /tarot/estado lo borra al confirmar el pago.
+  const [formRestaurado, setFormRestaurado] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CLAVE_FORM_GUARDADO);
+      const g = raw ? (JSON.parse(raw) as { t?: number; f?: Partial<Record<keyof FormState, unknown>> }) : null;
+      if (g?.f && typeof g.t === 'number' && Date.now() - g.t < 2 * 3600_000) {
+        const f = g.f;
+        setForm(prev => {
+          const n = { ...prev };
+          (Object.keys(EMPTY) as (keyof FormState)[]).forEach((k) => {
+            const v = f[k];
+            if (!n[k] && typeof v === 'string' && v) n[k] = v.slice(0, 500);
+          });
+          return n;
+        });
+      } else if (raw) sessionStorage.removeItem(CLAVE_FORM_GUARDADO);
+    } catch { /* sin almacenamiento: sigue igual */ }
+    setFormRestaurado(true);
+  }, []);
+  useEffect(() => {
+    if (!formRestaurado) return;
+    try {
+      if (Object.values(form).some(Boolean)) sessionStorage.setItem(CLAVE_FORM_GUARDADO, JSON.stringify({ t: Date.now(), f: form }));
+    } catch { /* best-effort */ }
+  }, [form, formRestaurado]);
   const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [isLoading, setIsLoading]           = useState(false);
@@ -797,7 +829,7 @@ export default function TarotCheckoutContent({
                 </div>
                 </div>
 
-                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : 'Pago único.'} separado />
+                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : undefined} separado />
 
                 {/* Antes de pagar (2026-11-11, diseño de Manuel): entrega y
                     garantías en una sola caja, como lista. "Si no te llega…"
