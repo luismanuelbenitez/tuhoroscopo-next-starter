@@ -1034,10 +1034,6 @@ export default function TarotCheckoutContent({
                       Procesado por
                       <LogoMercadoPago alto={18} />
                     </span>
-                    <span className="text-white/25">·</span>
-                    <span>Pago único</span>
-                    <span className="text-white/25">·</span>
-                    <span>Sin suscripción</span>
                   </div>
                   )}
 
