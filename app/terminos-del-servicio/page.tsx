@@ -70,7 +70,7 @@ export default async function TerminosServicio() {
     },
     {
       title: '12. Ley aplicable y reclamos',
-      content: 'Estos Términos se rigen por las leyes de Uruguay. Si tenés un problema, escribinos primero: lo resolvemos rápido. También podés acudir al Área de Defensa del Consumidor del Ministerio de Economía y Finanzas.',
+      content: 'Estos Términos se rigen por las leyes de Uruguay. Si tenés un problema, escribinos primero: lo resolvemos rápido.',
     },
   ];
 
