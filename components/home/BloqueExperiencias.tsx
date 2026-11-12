@@ -142,7 +142,7 @@ const PROXIMAMENTE = [
 export function BloqueExperiencias({ conTarot = true }: { conTarot?: boolean }) {
   if (!conTarot) {
     return (
-      <section className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
+      <section data-nosnippet className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
         <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
           Un universo en expansión
         </p>
@@ -163,7 +163,7 @@ export function BloqueExperiencias({ conTarot = true }: { conTarot?: boolean }) 
   }
 
   return (
-    <section className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
+    <section data-nosnippet className="relative px-5 md:px-8 py-4 md:py-6 max-w-[960px] mx-auto text-center">
       <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>
         Un universo en expansión
       </p>

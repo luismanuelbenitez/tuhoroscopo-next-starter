@@ -17,7 +17,7 @@ export function metadataPagina(ruta: string, titulo: string, descripcion: string
     title: { absolute: titulo },
     description: descripcion,
     alternates: { canonical: url },
-    robots: { index: true, follow: true },
+    robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: {
       title: titulo,
       description: descripcion,

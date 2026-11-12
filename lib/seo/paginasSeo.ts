@@ -69,7 +69,7 @@ export function metadataSeo(clave: ClavePaginaSeo): Metadata {
     title: { absolute: p.titulo },
     description: p.descripcion,
     alternates: { canonical: url },
-    robots: { index: true, follow: true },
+    robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: {
       title: p.titulo,
       description: p.descripcion,

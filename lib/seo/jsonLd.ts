@@ -19,6 +19,9 @@ export function jsonLdHome() {
       name: "Tu Oráculo",
       url: `${SITIO}/`,
       logo: `${SITIO}/img/logo/logo-isotipo.png`,
+      // Imagen de la marca (2026-11-11): para que Google y Gemini tengan una
+      // miniatura en lugar del ícono genérico.
+      image: `${SITIO}/img/whatsapp/og.jpg`,
       email: "hola@tuoraculo.uy",
       areaServed: "UY",
     },
@@ -28,6 +31,7 @@ export function jsonLdHome() {
       name: "Tu Oráculo",
       url: `${SITIO}/`,
       inLanguage: "es-UY",
+      image: `${SITIO}/img/whatsapp/og.jpg`,
       publisher: { "@id": ORG_ID },
     },
   ];
