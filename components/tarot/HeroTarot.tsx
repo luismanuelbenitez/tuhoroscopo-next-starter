@@ -5,6 +5,7 @@ import { CtaButton } from "@/components/home/CtaButton";
 import { fijo } from "@/lib/imagen";
 import { VideoDemoTarot } from "@/components/tarot/VideoDemoTarot";
 import { LogoMercadoPago } from "@/components/tarot/LogoMercadoPago";
+import { textoCtaTarot } from "@/lib/ctaTarot";
 
 const CREMA = "#F5EFE0";
 const TEXT_SHADOW = "0 2px 14px rgba(0,0,0,0.65)";
@@ -20,9 +21,9 @@ const BENEFICIOS = [
 // iban sin pasar de acá). Antes era un párrafo de 5 líneas y lo que muestra
 // el producto quedaba 3 pantallas más abajo. Ahora: promesa corta + video de
 // 14 s con lo que se recibe + ejemplo de lectura, todo en la primera
-// pantalla del celular. El precio pasa a la línea de abajo del botón.
+// pantalla del celular. Desde 2026-11-14 el precio va en el botón (Manuel:
+// el mismo texto en todos los botones de /tarot, lib/ctaTarot.ts).
 export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
-  const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
 
   const ejemplo = (
     <Link href="/tarot/ejemplo" className="inline-flex items-center gap-1.5 py-2.5 -my-2.5 text-[14px] font-semibold underline underline-offset-4 decoration-1" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
@@ -79,11 +80,12 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
 
           <div>
             <CtaButton href="/tarot/checkout" className="block md:inline-block w-full md:w-auto px-7 py-3.5 text-[16px]">
-              Quiero mi lectura →
+              {textoCtaTarot(precioUYU)}
             </CtaButton>
+            {/* El precio va en el botón (2026-11-14): abajo queda solo cómo se paga. */}
             <div className="mt-2.5 flex items-center justify-center md:justify-start gap-2 flex-wrap">
               <p className="text-[12.5px] text-white/65" style={{ textShadow: TEXT_SHADOW }}>
-                {precioTexto ? <><span className="font-semibold text-white/90">{precioTexto}</span> · </> : null}Pago único con
+                Pago único con
               </p>
               <LogoMercadoPago alto={16} />
             </div>

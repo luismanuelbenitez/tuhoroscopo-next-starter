@@ -62,15 +62,15 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
       >
         <div className="max-w-[960px] mx-auto">
           <TarotBackgroundStage>
-            <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} /></Seccion>
+            <Seccion id="header"><HeaderTarot mostrarTestimonios={testimonios.length > 0} precioUYU={precioUYU} /></Seccion>
             <Seccion id="hero">{respaldo ? <HeroTarotAnterior precioUYU={precioUYU} /> : <HeroTarot precioUYU={precioUYU} />}</Seccion>
-            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" />{/* Móvil: variante A elegida por Manuel (2026-11-03). /tarot-anterior conserva el bloque viejo; en /pruebas/tarot se elige. */}<QueIncluyeTarot variante={prueba ? variante : respaldo ? undefined : "a"} /></Seccion>
+            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" />{/* Móvil: variante A elegida por Manuel (2026-11-03). /tarot-anterior conserva el bloque viejo; en /pruebas/tarot se elige. */}<QueIncluyeTarot variante={prueba ? variante : respaldo ? undefined : "a"} precioUYU={precioUYU} /></Seccion>
             {/* Móvil (auditoría 2026-11-04): "Así vivís la experiencia" repetía
                 lo que el bloque 2 ya muestra en vivo (lectura online, audio,
                 PDF); queda solo en escritorio, donde el bloque 2 es otro. */}
             <Seccion id="asi_se_vive">{respaldo ? <AsiSeViveTarot /> : <AsiSeViveSoloEscritorio />}</Seccion>
             <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
-            <Seccion id="por_tema">{!respaldo && <ConsultaTarotUruguay precioUYU={precioUYU} />}<LecturasPorTema /></Seccion>
+            <Seccion id="por_tema">{!respaldo && <ConsultaTarotUruguay precioUYU={precioUYU} />}<LecturasPorTema precioUYU={precioUYU} /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
             <Seccion id="dudas"><DudasTarot waNumero={waNumero} /></Seccion>
             <Seccion id="cta_final"><CtaFinalTarot precioUYU={precioUYU} /></Seccion>
@@ -81,7 +81,7 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
         </div>
       </div>
 
-      <Seccion id="sticky"><StickyCtaTarot precioUYU={precioUYU} /></Seccion>
+      <Seccion id="sticky"><StickyCtaTarot precioUYU={precioUYU} precioEnBoton /></Seccion>
     </>
   );
 }

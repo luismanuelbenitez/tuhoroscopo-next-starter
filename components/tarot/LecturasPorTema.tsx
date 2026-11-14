@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Heart, Briefcase, Compass } from "lucide-react";
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
+import { textoCtaTarot } from "@/lib/ctaTarot";
 
 // Enlazado interno de /tarot hacia las páginas por intención (2026-10-21,
 // Paquete SEO 1). /tarot es la página dueña de "tarot online personalizado"
@@ -39,7 +40,7 @@ function EnlacesMovil() {
   );
 }
 
-export function LecturasPorTema() {
+export function LecturasPorTema({ precioUYU = null }: { precioUYU?: number | null } = {}) {
   return (
     <>
     <EnlacesMovil />
@@ -59,7 +60,7 @@ export function LecturasPorTema() {
         {TEMAS.map(({ href, tema, Icon, t, d }) => (
           <div
             key={href}
-            className="rounded-2xl px-5 py-5 text-left flex flex-col"
+            className="rounded-2xl px-4 py-5 text-left flex flex-col"
             style={{ background: "rgba(12,7,24,0.72)", border: "1px solid rgba(240,197,90,0.32)" }}
           >
             <span className="flex items-center gap-2.5 mb-1.5">
@@ -70,10 +71,10 @@ export function LecturasPorTema() {
             <span className="mt-auto pt-3.5 flex items-center justify-between gap-3 flex-wrap">
               <Link
                 href={`/tarot/checkout?tema=${tema}` as Route<string>}
-                className="inline-flex items-center rounded-full px-4 min-h-[40px] text-[13.5px] font-semibold transition hover:bg-[#F0C55A]/15"
+                className="w-full inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 min-h-[40px] text-[13px] font-semibold transition hover:bg-[#F0C55A]/15"
                 style={{ color: GOLD, border: "1px solid rgba(240,197,90,0.55)" }}
               >
-                Quiero esta lectura →
+                {textoCtaTarot(precioUYU)}
               </Link>
               <Link
                 href={href as Route<string>}

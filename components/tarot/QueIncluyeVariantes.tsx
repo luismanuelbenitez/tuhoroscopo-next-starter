@@ -10,6 +10,7 @@ import { trackDemo } from "@/lib/analytics";
 import { LECTURA_EJEMPLO, AUDIO_EJEMPLO } from "@/lib/tarot/lecturaEjemplo";
 import { SERIF } from "@/components/home/theme";
 import { fijo, fluido, urlOptimizada } from "@/lib/imagen";
+import { textoCtaTarot } from "@/lib/ctaTarot";
 
 // Variantes móviles del bloque 2 de /tarot (2026-11-03, a revisar en
 // /pruebas/tarot). Manuel: "¿Qué incluye tu Tarot?" describe mal la
@@ -341,7 +342,7 @@ function PdfEjemplo() {
   );
 }
 
-export function VarianteA() {
+export function VarianteA({ precioUYU = null }: { precioUYU?: number | null } = {}) {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
   useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
   return (
@@ -400,7 +401,7 @@ export function VarianteA() {
           className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-2xl min-h-[56px] px-6 text-[18px] font-bold"
           style={{ background: "linear-gradient(135deg, #d4a017 0%, #f0c55a 45%, #ffd860 100%)", color: "#180e00", boxShadow: "0 6px 24px rgba(240,197,90,0.32)" }}
         >
-          Quiero mi lectura <ArrowRight size={19} />
+          {textoCtaTarot(precioUYU, false)} <ArrowRight size={19} />
         </Link>
         <Link href="/tarot/ejemplo" onClick={() => trackDemo("ver_ejemplo")} className="mt-2 inline-flex items-center gap-1.5 py-3 text-[15px] font-semibold underline underline-offset-4" style={{ color: DORADO, textShadow: SOMBRA }}>
           Ver la lectura completa de ejemplo <ArrowRight size={15} />

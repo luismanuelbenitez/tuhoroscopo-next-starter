@@ -1,5 +1,6 @@
 import { CtaButton } from "@/components/home/CtaButton";
 import { fijo } from "@/lib/imagen";
+import { textoCtaTarot } from "@/lib/ctaTarot";
 
 const PIE = "/img/tarot/contenedores/pie";
 
@@ -31,7 +32,6 @@ function IconoBeneficio({ img, aro }: { img: string; aro: number }) {
 }
 
 export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
-  const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
 
   return (
     <section className="relative px-5 md:px-8 pt-10 pb-12 md:pt-8 md:pb-14 max-w-[760px] mx-auto text-center">
@@ -46,7 +46,7 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
       </p>
 
       <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">
-        {precioTexto ? `Quiero mi lectura por ${precioTexto} →` : "Quiero mi lectura →"}
+        {textoCtaTarot(precioUYU)}
       </CtaButton>
 
       {/* Mobile: velo oscuro detrás de los íconos, que caen sobre las velas
