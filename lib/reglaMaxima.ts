@@ -13,6 +13,13 @@
 // No agregar excepciones ni "modos" para saltear este guardia: si algún día
 // Manuel decide automatizar algo con costo, lo decide él, por escrito, y se
 // hace en otro módulo revisado aparte.
+//
+// 2026-11-14 — Manuel, por escrito: el módulo de gobernanza de Google Ads
+// puede tener botones de "Aplicar", SALVO aumentar el presupuesto (y nada que
+// suba el gasto: campañas nuevas, reactivar campañas, redes, pujas). Esa
+// escritura vive SOLO en lib/googleAdsApi/escritura.ts, con su propio guardia
+// (asegurarMutacionPermitida). Este guardia de solo lectura no cambia y sigue
+// protegiendo el sync, el Estratega y Meta.
 // ════════════════════════════════════════════════════════════════════════════
 
 export const REGLA_MAXIMA =

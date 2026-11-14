@@ -15,7 +15,7 @@
 import { asegurarConsultaGaql, asegurarSoloLectura } from "@/lib/reglaMaxima";
 
 const VERSION = process.env.GOOGLE_ADS_API_VERSION || "v26";
-const BASE = `https://googleads.googleapis.com/${VERSION}`;
+export const BASE = `https://googleads.googleapis.com/${VERSION}`;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 export interface GoogleAdsConfig { clientId: string; clientSecret: string; refreshToken: string; mcc: string; cuenta: string }
@@ -38,8 +38,10 @@ export class GoogleAdsError extends Error {
 }
 
 // El acceso dura ~1 h: se guarda en memoria de la instancia y se renueva antes de vencer.
+// Exportado (2026-11-14) solo para lib/googleAdsApi/escritura.ts, el único
+// módulo autorizado a escribir (REGLA MÁXIMA modificada por Manuel ese día).
 let acceso: { token: string; vence: number } | null = null;
-async function tokenDeAcceso(cfg: GoogleAdsConfig): Promise<string> {
+export async function tokenDeAcceso(cfg: GoogleAdsConfig): Promise<string> {
   if (acceso && acceso.vence > Date.now() + 60_000) return acceso.token;
   asegurarSoloLectura("google", "POST", TOKEN_URL);
   const r = await fetch(TOKEN_URL, {
@@ -57,7 +59,7 @@ async function tokenDeAcceso(cfg: GoogleAdsConfig): Promise<string> {
   return acceso.token;
 }
 
-function mensajeError(cuerpo: unknown, status: number): string {
+export function mensajeError(cuerpo: unknown, status: number): string {
   const e = (cuerpo as { error?: { message?: string; details?: { errors?: { message?: string; errorCode?: Record<string, string> }[] }[] } })?.error;
   const det = e?.details?.flatMap((d) => d.errors ?? []).map((x) => `${Object.values(x.errorCode ?? {}).join("/")}: ${x.message}`).filter(Boolean).join(" · ");
   return det || e?.message || `HTTP ${status}`;
