@@ -41,6 +41,10 @@ export interface CampanaResumen {
   pausada_at: string | null;
   ultima_ejecucion_at: string | null;
   ultima_ejecucion_resumen: Record<string, unknown> | null;
+  seleccion?: "automatica" | "manual";
+  codigo_descuento_id?: string | null;
+  disparada_at?: string | null;
+  finalizada_at?: string | null;
   metricas: MetricasCampanaUI;
   elegibles: { total: number; vencidos: number; encolados: number };
   costos: CostosUI;
@@ -55,6 +59,7 @@ export const ESTADO_CAMPANA_UI: Record<string, { label: string; cls: string }> =
 
 export const TIPO_CAMPANA_UI: Record<string, string> = {
   feedback_experiencia: "Feedback de experiencia",
+  cupon_descuento: "Cupón de descuento",
   reactivacion: "Reactivación",
   abandono: "Abandono",
   lanzamiento: "Lanzamiento",

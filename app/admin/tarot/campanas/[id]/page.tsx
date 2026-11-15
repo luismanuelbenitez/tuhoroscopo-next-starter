@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { AlertCircle, ArrowLeft, Loader2, Pause, Play, Square, Zap, Star, Save } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { ESTADO_CAMPANA_UI, TIPO_CAMPANA_UI, fmtFecha, fmtMoneda, fmtPct, type CampanaResumen } from "@/components/admin/campanas/ui";
+import { CampanaManual, type DetalleManual } from "@/components/admin/campanas/CampanaManual";
 
 // ============================================================================
 // Detalle de campaña (2026-10-19): métricas, configuración, envíos y
@@ -27,6 +28,7 @@ interface Respuesta {
 interface Detalle {
   campana: CampanaResumen; metricas: CampanaResumen["metricas"]; elegibles: CampanaResumen["elegibles"];
   costos: CampanaResumen["costos"]; envios: Envio[]; respuestas: Respuesta[];
+  manual: DetalleManual["manual"] | null;
 }
 
 const inputCls = "w-full border border-gray-700 rounded-lg bg-gray-900 text-sm text-white px-3 py-2 focus:outline-none focus:border-amber-500";
@@ -159,6 +161,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   }
   if (!d || !cfg) {
     return <TarotAdminShell><main className="px-6 py-10 text-red-300">{msg?.texto ?? "No encontrada"}</main></TarotAdminShell>;
+  }
+
+  // Campañas elegidas a mano (2026-11-14): su propia pantalla.
+  if (d.campana.seleccion === "manual" && d.manual) {
+    return <TarotAdminShell><CampanaManual detalle={{ campana: d.campana, costos: d.costos, manual: d.manual }} recargar={cargar} /></TarotAdminShell>;
   }
 
   const { campana: c, metricas: m, costos, elegibles } = d;

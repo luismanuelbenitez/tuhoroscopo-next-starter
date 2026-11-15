@@ -23,6 +23,19 @@
 //
 // Autoaislada a propósito (no importa _shared/*): esos módulos tienen
 // divergencias repo/producción documentadas.
+//
+// 2026-11-14 — Campañas MANUALES (seleccion = 'manual'): Manuel elige a quién
+// y dispara desde el admin. El motor no busca candidatos: solo manda los
+// envíos 'pendiente' (en orden, en horario, con el tope diario) y, cuando no
+// queda nada por mandar, marca la campaña como finalizada. Tipos:
+//   feedback_experiencia → plantilla con {{1}} nombre + botón /opinion/<token>
+//   cupon_descuento      → plantilla con {{1}} nombre, {{2}} descuento,
+//                          {{3}} código, {{4}} vence + botón /beneficio/<token>
+// Acciones extra (body.accion), siempre por pedido del admin:
+//   'prueba'          → manda la plantilla SOLO al número de prueba
+//                        (tarot_configuracion.campanas_telefono_prueba)
+//   'plantilla'       → estado de la plantilla en Meta
+//   'plantilla_crear' → la manda a aprobación de Meta (no envía mensajes)
 // ============================================================
 
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
@@ -58,6 +71,47 @@ interface Campana {
   max_intentos: number;
   costo_estimado_por_envio: number | null;
   costo_moneda: string;
+  seleccion?: "automatica" | "manual";
+  codigo_descuento_id?: string | null;
+}
+
+// ── Plantillas de Meta por tipo (categoría MARKETING: Meta no nos permite
+// UTILITY). El texto vive en Meta una vez aprobada; acá queda el que se manda
+// a aprobación y el que se usa para la vista previa y la bandeja.
+const PLANTILLAS: Record<string, { nombre: string; cuerpo: string; boton: string; url: string; ejemplo: string[] }> = {
+  feedback_experiencia: {
+    nombre: "tu_oraculo_feedback_v1",
+    cuerpo: "Hola, {{1}} 🌙\n\nGracias por confiar en Tu Oráculo para tu lectura. ¿Nos contás cómo te fue? Te lleva menos de un minuto y nos ayuda mucho a mejorar.",
+    boton: "Dejar mi opinión",
+    url: "https://tuoraculo.uy/opinion/",
+    ejemplo: ["Paula"],
+  },
+  cupon_descuento: {
+    nombre: "tu_oraculo_cupon_v1",
+    cuerpo: "Hola, {{1}} ✨\n\nGracias por tu lectura con Tu Oráculo. Te regalamos {{2}} de descuento en tu próxima tirada con el código {{3}}.\n\nVale hasta el {{4}}.",
+    boton: "Usar mi descuento",
+    url: "https://tuoraculo.uy/beneficio/",
+    ejemplo: ["Paula", "20 %", "GRACIAS20", "31/12"],
+  },
+};
+
+interface DatosCupon { codigo: string; descuento: string; vence: string }
+
+async function datosCupon(c: Campana): Promise<DatosCupon | null> {
+  if (!c.codigo_descuento_id) return null;
+  const { data: d } = await supabase.from("tarot_codigos_descuento")
+    .select("codigo, tipo_descuento, valor_descuento, fecha_fin, activo").eq("id", c.codigo_descuento_id).maybeSingle();
+  if (!d || !d.activo) return null;
+  const v = Number(d.valor_descuento);
+  const descuento = d.tipo_descuento === "porcentaje" ? `${v} %` : `$${v.toLocaleString("es-UY")}`;
+  const vence = d.fecha_fin
+    ? new Intl.DateTimeFormat("es-UY", { day: "2-digit", month: "2-digit", timeZone: "America/Montevideo" }).format(new Date(d.fecha_fin))
+    : "31/12"; // el admin exige fecha de vencimiento al crear el cupón
+  return { codigo: d.codigo, descuento, vence };
+}
+
+function rellenar(cuerpo: string, valores: string[]): string {
+  return cuerpo.replace(/\{\{(\d)\}\}/g, (_, n) => valores[Number(n) - 1] ?? "");
 }
 
 interface Candidato {
@@ -179,10 +233,24 @@ async function registrarEnBandeja(telefono: string, clienteId: string | null, or
   }
 }
 
-async function enviarTemplate(c: Campana, telefono: string, nombre: string, token: string) {
-  const plantilla = String(c.mensaje.template_nombre ?? "");
+// Valores de las variables del cuerpo según el tipo de campaña.
+function variablesCuerpo(c: Campana, nombre: string, cupon: DatosCupon | null): string[] {
+  const n = nombre || "👋";
+  if (c.tipo === "cupon_descuento" && cupon) return [n, cupon.descuento, cupon.codigo, cupon.vence];
+  return [n];
+}
+
+function textoPreviewDe(c: Campana, nombre: string, cupon: DatosCupon | null): string {
+  const p = PLANTILLAS[c.tipo];
+  if (!p) return `Hola${nombre ? `, ${nombre}` : ""}.`;
+  return `${rellenar(p.cuerpo, variablesCuerpo(c, nombre, cupon))}\n[${p.boton}]`;
+}
+
+async function enviarTemplate(c: Campana, telefono: string, nombre: string, token: string, cupon: DatosCupon | null) {
+  const plantilla = String(c.mensaje.template_nombre ?? PLANTILLAS[c.tipo]?.nombre ?? "");
   const idioma = String(c.mensaje.template_idioma ?? "es");
   if (!plantilla) return { ok: false, error: "mensaje.template_nombre no configurado" };
+  if (c.tipo === "cupon_descuento" && !cupon) return { ok: false, error: "la campaña no tiene un cupón activo" };
   if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_TAROT_TOKEN_PROD) return { ok: false, error: "credenciales de WhatsApp no configuradas" };
   const body = {
     messaging_product: "whatsapp",
@@ -192,7 +260,7 @@ async function enviarTemplate(c: Campana, telefono: string, nombre: string, toke
       name: plantilla,
       language: { code: idioma },
       components: [
-        { type: "body", parameters: [{ type: "text", text: nombre || "👋" }] },
+        { type: "body", parameters: variablesCuerpo(c, nombre, cupon).map((text) => ({ type: "text", text })) },
         { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: token }] },
       ],
     },
@@ -215,24 +283,50 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
   const resumen: Record<string, unknown> = { campana: c.slug, encolados: 0, enviados: 0, simulados: 0, errores: 0, descartados: 0 };
   const tokensQA: { orden_id: string; token: string }[] = [];
 
-  // 1. Encolar candidatos vencidos
-  const { data: cands, error: errCand } = await supabase.rpc("tarot_campana_feedback_candidatos", { p_campana_id: c.id });
-  if (errCand) {
-    await log("campana_candidatos_error", "error", `Error calculando candidatos de ${c.slug}`, { error: errCand.message });
-    return { ...resumen, error: errCand.message };
-  }
-  for (const k of (cands ?? []) as Candidato[]) {
-    if (!k.vencido) continue;
-    const { data: ins } = await supabase.from("tarot_campana_envios").upsert({
-      campana_id: c.id, orden_id: k.orden_id, cliente_id: k.cliente_id, estado: "pendiente",
-      motivo_disparo: k.motivo, entregada_at: k.entregada_at, abierta_at: k.abierta_at,
-      programado_para: k.programado_para,
-    }, { onConflict: "campana_id,orden_id", ignoreDuplicates: true }).select("id");
-    if (ins && ins.length > 0) {
-      resumen.encolados = (resumen.encolados as number) + 1;
-      await funnel(k.orden_id, "campaign_eligible", { campana_id: c.id, motivo: k.motivo });
+  const manual = c.seleccion === "manual";
+
+  // 1. Encolar candidatos vencidos (solo campañas automáticas: en las
+  //    manuales la cola la arma el admin al disparar).
+  if (!manual) {
+    const { data: cands, error: errCand } = await supabase.rpc("tarot_campana_feedback_candidatos", { p_campana_id: c.id });
+    if (errCand) {
+      await log("campana_candidatos_error", "error", `Error calculando candidatos de ${c.slug}`, { error: errCand.message });
+      return { ...resumen, error: errCand.message };
+    }
+    for (const k of (cands ?? []) as Candidato[]) {
+      if (!k.vencido) continue;
+      const { data: ins } = await supabase.from("tarot_campana_envios").upsert({
+        campana_id: c.id, orden_id: k.orden_id, cliente_id: k.cliente_id, estado: "pendiente",
+        motivo_disparo: k.motivo, entregada_at: k.entregada_at, abierta_at: k.abierta_at,
+        programado_para: k.programado_para, es_prueba: false, telefono: k.telefono,
+      }, { onConflict: "campana_id,orden_id,es_prueba", ignoreDuplicates: true }).select("id");
+      if (ins && ins.length > 0) {
+        resumen.encolados = (resumen.encolados as number) + 1;
+        await funnel(k.orden_id, "campaign_eligible", { campana_id: c.id, motivo: k.motivo });
+      }
     }
   }
+
+  const resultado = await enviarCola(c, resumen, opts, tokensQA);
+  if (manual) await cerrarSiTermino(c);
+  return resultado;
+}
+
+// Campaña manual: cuando no queda nada por mandar (ni pendientes ni errores
+// con reintentos disponibles), queda finalizada.
+async function cerrarSiTermino(c: Campana) {
+  const { count } = await supabase.from("tarot_campana_envios")
+    .select("id", { count: "exact", head: true })
+    .eq("campana_id", c.id).eq("es_prueba", false)
+    .or(`estado.in.(pendiente,enviando),and(estado.eq.error,intentos.lt.${c.max_intentos})`);
+  if ((count ?? 0) === 0) {
+    await supabase.from("tarot_campanas").update({ estado: "finalizada", finalizada_at: new Date().toISOString(), actualizado_por: FN })
+      .eq("id", c.id).eq("estado", "activa");
+    await log("campana_finalizada", "info", `Campaña ${c.slug}: terminó de enviar`, { campana_id: c.id });
+  }
+}
+
+async function enviarCola(c: Campana, resumen: Record<string, unknown>, opts: { devolverTokensSimulados: boolean }, tokensQA: { orden_id: string; token: string }[]) {
 
   // 2. Ventana horaria
   const zona = c.ventana_horaria?.zona ?? "America/Montevideo";
@@ -246,7 +340,7 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
   // 3. Límite diario
   const { count: enviadosHoy } = await supabase.from("tarot_campana_envios")
     .select("id", { count: "exact", head: true })
-    .eq("campana_id", c.id).eq("estado", "enviado").gte("enviado_at", inicioDiaISO(zona));
+    .eq("campana_id", c.id).eq("es_prueba", false).eq("estado", "enviado").gte("enviado_at", inicioDiaISO(zona));
   const cupo = Math.min(MAX_ENVIOS_POR_CORRIDA, c.limite_diario - (enviadosHoy ?? 0));
   if (cupo <= 0) return { ...resumen, limite_diario_alcanzado: true };
 
@@ -254,14 +348,18 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
   const corte = new Date(Date.now() - BACKOFF_REINTENTO_MIN * 60000).toISOString();
   const { data: cola } = await supabase.from("tarot_campana_envios")
     .select("id, orden_id, cliente_id, estado, intentos")
-    .eq("campana_id", c.id)
+    .eq("campana_id", c.id).eq("es_prueba", false)
     .or(`estado.eq.pendiente,and(estado.eq.error,intentos.lt.${c.max_intentos},ultimo_intento_at.lt.${corte})`)
     .order("programado_para", { ascending: true })
     .limit(cupo);
 
   const wa = await configWA();
   const diasLink = Number(c.disparador.dias_validez_link ?? 30);
-  const urlBase = String(c.mensaje.url_base ?? "https://tuoraculo.uy/opinion/");
+  const cupon = c.tipo === "cupon_descuento" ? await datosCupon(c) : null;
+  if (c.tipo === "cupon_descuento" && !cupon) {
+    await log("campana_sin_cupon", "error", `Campaña ${c.slug}: el cupón no existe o está inactivo; no se envía nada`, { campana_id: c.id });
+    return { ...resumen, error: "cupon_inactivo" };
+  }
 
   for (const item of cola ?? []) {
     // Reclamo atómico: solo una corrida procesa cada envío.
@@ -283,7 +381,7 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
     const tokenHash = await sha256Hex(token);
     const expira = new Date(Date.now() + diasLink * 86400000).toISOString();
     const nombre = nombrePila(orden.nombre_snapshot);
-    const textoPreview = `Hola${nombre ? `, ${nombre}` : ""}. ¿Cómo fue tu experiencia con tu lectura? → ${urlBase}…`;
+    const textoPreview = textoPreviewDe(c, nombre, cupon);
     const telDigits = orden.telefono_snapshot.replace(/\D/g, "");
 
     const simulado = c.modo_envio !== "real" || wa.modo !== "production";
@@ -299,7 +397,7 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
     if (simulado) {
       wamid = `sandbox_${crypto.randomUUID()}`;
     } else {
-      const r = await enviarTemplate(c, orden.telefono_snapshot, nombre, token);
+      const r = await enviarTemplate(c, orden.telefono_snapshot, nombre, token, cupon);
       if (!r.ok) {
         await supabase.from("tarot_campana_envios").update({ estado: "error", ultimo_error: r.error }).eq("id", item.id);
         await log("campana_envio_error", "error", `Error enviando campaña ${c.slug}`, { error: r.error, intento: (item.intentos ?? 0) + 1 }, item.orden_id);
@@ -329,12 +427,140 @@ async function procesarCampana(c: Campana, opts: { devolverTokensSimulados: bool
   return opts.devolverTokensSimulados ? { ...resumen, tokens_simulados: tokensQA } : resumen;
 }
 
+// ── Plantillas en Meta ──────────────────────────────────────────────────────
+async function wabaId(): Promise<string | null> {
+  const { data } = await supabase.from("tarot_configuracion").select("valor").eq("clave", "whatsapp_waba_id").maybeSingle();
+  return data?.valor ? String(data.valor) : null;
+}
+
+async function estadoPlantilla(c: Campana) {
+  const p = PLANTILLAS[c.tipo];
+  if (!p) return { ok: false, motivo: "tipo_sin_plantilla" };
+  const nombre = String(c.mensaje.template_nombre ?? p.nombre);
+  const idioma = String(c.mensaje.template_idioma ?? "es");
+  const base = { nombre, idioma, cuerpo: p.cuerpo, boton: p.boton, ejemplo: rellenar(p.cuerpo, p.ejemplo) };
+  const waba = await wabaId();
+  if (!waba || !WHATSAPP_TAROT_TOKEN_PROD) return { ok: false, ...base, estado: "error", detalle: "falta whatsapp_waba_id o token" };
+  try {
+    const res = await fetch(`${GRAPH_BASE}/${waba}/message_templates?name=${encodeURIComponent(nombre)}&fields=name,status,category,language,rejected_reason`, {
+      headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}` },
+    });
+    const data = await res.json().catch(() => ({})) as { data?: Array<Record<string, unknown>>; error?: { message?: string } };
+    if (!res.ok) return { ok: false, ...base, estado: "error", detalle: data.error?.message ?? `HTTP ${res.status}` };
+    const t = (data.data ?? []).find((x) => x.name === nombre && x.language === idioma);
+    if (!t) return { ok: true, ...base, estado: "NO_CREADA" };
+    return { ok: true, ...base, estado: String(t.status ?? "DESCONOCIDO"), categoria: t.category ?? null, motivo_rechazo: t.rejected_reason ?? null };
+  } catch (e) {
+    return { ok: false, ...base, estado: "error", detalle: String(e).slice(0, 200) };
+  }
+}
+
+// Manda la plantilla a aprobación de Meta. No envía ningún mensaje.
+async function crearPlantilla(c: Campana) {
+  const p = PLANTILLAS[c.tipo];
+  if (!p) return { ok: false, motivo: "tipo_sin_plantilla" };
+  const nombre = String(c.mensaje.template_nombre ?? p.nombre);
+  const idioma = String(c.mensaje.template_idioma ?? "es");
+  const actual = await estadoPlantilla(c) as Record<string, unknown>;
+  if (actual.estado !== "NO_CREADA") return { ...actual, motivo: actual.ok ? "ya_existe" : "error_consulta" };
+  const waba = await wabaId();
+  const res = await fetch(`${GRAPH_BASE}/${waba}/message_templates`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${WHATSAPP_TAROT_TOKEN_PROD}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: nombre, language: idioma, category: "MARKETING",
+      components: [
+        { type: "BODY", text: p.cuerpo, example: { body_text: [p.ejemplo] } },
+        { type: "BUTTONS", buttons: [{ type: "URL", text: p.boton, url: `${p.url}{{1}}`, example: [`${p.url}ejemplo123`] }] },
+      ],
+    }),
+  });
+  const data = await res.json().catch(() => ({})) as { id?: string; status?: string; error?: { message?: string; error_user_msg?: string } };
+  await log(res.ok ? "campana_plantilla_solicitada" : "campana_plantilla_error", res.ok ? "info" : "error",
+    res.ok ? `Plantilla ${nombre} enviada a revisión de Meta` : `Meta rechazó crear la plantilla ${nombre}`,
+    { campana_id: c.id, http_status: res.status, estado: data.status ?? null, error: data.error?.message ?? null });
+  if (!res.ok) return { ok: false, motivo: "meta_error", detalle: data.error?.error_user_msg ?? data.error?.message ?? `HTTP ${res.status}` };
+  return { ...(await estadoPlantilla(c)), ok: true };
+}
+
+// ── Prueba: la plantilla real, SOLO al número de prueba ─────────────────────
+async function enviarPrueba(c: Campana) {
+  if (!PLANTILLAS[c.tipo]) return { ok: false, motivo: "tipo_sin_plantilla" };
+  const { data: cfgTel } = await supabase.from("tarot_configuracion").select("valor").eq("clave", "campanas_telefono_prueba").maybeSingle();
+  const dig = String(cfgTel?.valor ?? "").replace(/\D/g, "");
+  if (!dig) return { ok: false, motivo: "sin_telefono_prueba" };
+  const wa = await configWA();
+  if (wa.modo !== "production") return { ok: false, motivo: "whatsapp_sandbox", detalle: "WhatsApp está en modo sandbox: no se puede mandar la prueba." };
+
+  // La prueba se asocia a la última orden de ese mismo número (las de Manuel).
+  const { data: orden } = await supabase.from("tarot_ordenes")
+    .select("id, cliente_id, nombre_snapshot, telefono_snapshot")
+    .in("telefono_snapshot", [`+${dig}`, dig])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!orden) return { ok: false, motivo: "sin_orden_de_prueba", detalle: "El número de prueba no tiene ninguna orden." };
+  if (orden.telefono_snapshot.replace(/\D/g, "") !== dig) return { ok: false, motivo: "telefono_no_coincide" };
+
+  const cupon = c.tipo === "cupon_descuento" ? await datosCupon(c) : null;
+  if (c.tipo === "cupon_descuento" && !cupon) return { ok: false, motivo: "cupon_inactivo", detalle: "La campaña no tiene un cupón activo." };
+
+  const token = generarToken();
+  const tokenHash = await sha256Hex(token);
+  const diasLink = Number(c.disparador?.dias_validez_link ?? 30);
+  const expira = new Date(Date.now() + diasLink * 86400000).toISOString();
+  const nombre = nombrePila(orden.nombre_snapshot);
+
+  // Una sola fila de prueba por campaña: si ya había, se reutiliza (y se borra
+  // la opinión de prueba anterior, para poder volver a responder).
+  const { data: previa } = await supabase.from("tarot_campana_envios").select("id")
+    .eq("campana_id", c.id).eq("es_prueba", true).maybeSingle();
+  if (previa) {
+    const { data: resp } = await supabase.from("tarot_feedback_respuestas").select("id").eq("envio_id", previa.id).maybeSingle();
+    if (resp) {
+      await supabase.from("tarot_feedback_respuestas").update({ testimonio_id: null }).eq("id", resp.id);
+      await supabase.from("tarot_testimonios").delete().eq("feedback_respuesta_id", resp.id).eq("publicado", false);
+      await supabase.from("tarot_feedback_respuestas").delete().eq("id", resp.id);
+    }
+  }
+  const fila = {
+    campana_id: c.id, orden_id: orden.id, cliente_id: orden.cliente_id, es_prueba: true, motivo_disparo: "prueba",
+    estado: "enviando", telefono: `+${dig}`, nombre: orden.nombre_snapshot, intentos: 1, ultimo_intento_at: new Date().toISOString(),
+    token_hash: tokenHash, token_expira_at: expira, primera_visita_at: null, visitas: 0, respondido_at: null, ultimo_error: null,
+  };
+  const { data: envio, error: errEnvio } = previa
+    ? await supabase.from("tarot_campana_envios").update(fila).eq("id", previa.id).select("id").single()
+    : await supabase.from("tarot_campana_envios").insert(fila).select("id").single();
+  if (errEnvio || !envio) return { ok: false, motivo: "db_error", detalle: errEnvio?.message };
+
+  const r = await enviarTemplate(c, orden.telefono_snapshot, nombre, token, cupon);
+  if (!r.ok) {
+    await supabase.from("tarot_campana_envios").update({ estado: "error", ultimo_error: r.error }).eq("id", envio.id);
+    await log("campana_prueba_error", "error", `Prueba de campaña ${c.slug} falló`, { error: r.error, campana_id: c.id });
+    return { ok: false, motivo: "meta_error", detalle: r.error };
+  }
+  const mensajeId = await registrarEnBandeja(orden.telefono_snapshot, orden.cliente_id, orden.id, textoPreviewDe(c, nombre, cupon), r.wamid!);
+  await supabase.from("tarot_campana_envios").update({
+    estado: "enviado", enviado_at: new Date().toISOString(), simulado: false, wa_message_id: r.wamid, whatsapp_mensaje_id: mensajeId,
+    costo_estimado: c.costo_estimado_por_envio, costo_moneda: c.costo_moneda,
+  }).eq("id", envio.id);
+  await log("campana_prueba_enviada", "info", `Prueba de campaña ${c.slug} enviada al número de prueba`, { campana_id: c.id });
+  return { ok: true, enviado_a: `+${dig.slice(0, 3)}…${dig.slice(-3)}` };
+}
+
 serve(async (req) => {
   if (req.headers.get("x-internal-key") !== TAROT_INTERNAL_KEY || !TAROT_INTERNAL_KEY) {
     return json({ ok: false, motivo: "unauthorized" }, 401);
   }
   if (req.method !== "POST") return json({ ok: false, motivo: "metodo_no_permitido" }, 405);
-  const body = await req.json().catch(() => ({})) as { campana_id?: string; devolver_tokens_simulados?: boolean };
+  const body = await req.json().catch(() => ({})) as { campana_id?: string; devolver_tokens_simulados?: boolean; accion?: string };
+
+  if (body.accion === "prueba" || body.accion === "plantilla" || body.accion === "plantilla_crear") {
+    if (!body.campana_id) return json({ ok: false, motivo: "falta_campana" }, 400);
+    const { data: c } = await supabase.from("tarot_campanas").select("*").eq("id", body.campana_id).maybeSingle();
+    if (!c) return json({ ok: false, motivo: "no_encontrada" }, 404);
+    if (body.accion === "prueba") return json(await enviarPrueba(c as Campana));
+    if (body.accion === "plantilla") return json(await estadoPlantilla(c as Campana));
+    return json(await crearPlantilla(c as Campana));
+  }
 
   let q = supabase.from("tarot_campanas").select("*").eq("estado", "activa");
   if (body.campana_id) q = q.eq("id", body.campana_id);
@@ -343,7 +569,9 @@ serve(async (req) => {
 
   const resultados = [];
   for (const c of (campanas ?? []) as Campana[]) {
-    if (c.tipo !== "feedback_experiencia" || c.canal !== "whatsapp") continue; // único tipo implementado
+    if (!PLANTILLAS[c.tipo] || c.canal !== "whatsapp") continue; // tipos implementados: feedback y cupón
+    // El cupón solo existe como campaña manual.
+    if (c.tipo === "cupon_descuento" && c.seleccion !== "manual") continue;
     // Tokens crudos solo para campañas SIMULADAS y solo si se piden (QA).
     const devolver = body.devolver_tokens_simulados === true && c.modo_envio === "simulado";
     const r = await procesarCampana(c, { devolverTokensSimulados: devolver });
