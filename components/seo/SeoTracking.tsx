@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, medirSecciones } from "@/lib/analytics";
 
 // Medición mínima de las páginas SEO (2026-10-20), con el trackEvent
 // existente (no se toca lib/analytics): una vista por página y un evento por
@@ -18,5 +18,9 @@ export function SeoTracking({ pagina }: { pagina: string }) {
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
   }, [pagina]);
+  // 2026-11-15 (piloto Tarot del amor): además, los eventos internos de /tarot
+  // (section_view, cta_click con el bloque, faq_open), para seguir el recorrido
+  // anuncio → página → checkout en Admin → Google Ads → Recorridos.
+  useEffect(() => medirSecciones(document.body), []);
   return null;
 }

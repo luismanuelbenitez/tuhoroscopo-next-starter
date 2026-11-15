@@ -17,6 +17,8 @@ const PESTANAS = [
   { href: `${BASE}/cambios`, label: "Cambios" },
   { href: `${BASE}/palabras`, label: "Palabras y búsquedas" },
   { href: `${BASE}/ranking`, label: "Ranking y calidad" },
+  { href: `${BASE}/mercado`, label: "Palabras del mercado" },
+  { href: `${BASE}/recorridos`, label: "Recorridos" },
   { href: `${BASE}/embudo`, label: "Página y embudo" },
   { href: `${BASE}/historial`, label: "Historial" },
   { href: `${BASE}/ajustes`, label: "Ajustes" },

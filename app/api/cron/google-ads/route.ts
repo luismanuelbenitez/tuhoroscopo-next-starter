@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { restSupabase } from "@/lib/asistenteParte";
 import { sincronizarGoogleAds } from "@/lib/googleAdsApi/sync";
+import { consultarMercado } from "@/lib/googleAdsApi/mercado";
 
 // Sincronización Google Ads (2026-11-04), cada hora por Vercel Cron (ver
 // vercel.json). SOLO LEE de Google (REGLA MÁXIMA, lib/reglaMaxima.ts). Cada
@@ -18,6 +19,14 @@ export async function GET(req: NextRequest) {
   }
   const rest = restSupabase();
   if (!rest) return NextResponse.json({ ok: false, motivo: "config_error" }, { status: 500 });
-  const r = await sincronizarGoogleAds(rest, { dias: new Date().getUTCHours() === 9 ? 30 : 3, origen: "cron" });
+  const ahora = new Date();
+  const r = await sincronizarGoogleAds(rest, { dias: ahora.getUTCHours() === 9 ? 30 : 3, origen: "cron" });
+  // Palabras del mercado (2026-11-15): los lunes a las 7:15 de Uruguay se
+  // actualiza cuánta gente busca cada frase (Planificador, solo lectura).
+  // Sin acceso Basic, Google lo rechaza y queda anotado en el panel.
+  if (ahora.getUTCDay() === 1 && ahora.getUTCHours() === 10) {
+    await consultarMercado(rest, "uy").catch(() => null);
+    await consultarMercado(rest, "us").catch(() => null);
+  }
   return NextResponse.json(r, { status: r.ok || r.motivo === "sin_configurar" ? 200 : 502 });
 }

@@ -17,6 +17,13 @@ import { pesosUY } from "@/lib/ctaTarot";
 export const CHECKOUT = "/tarot/checkout";
 export const checkoutConTema = (tema?: string) => (tema ? `${CHECKOUT}?tema=${tema}` : CHECKOUT);
 
+// Medición (2026-11-15, piloto Tarot del amor): cada bloque lleva
+// data-seccion para que medirSecciones (lib/analytics) registre qué se vio
+// (section_view) y desde qué bloque se tocó el botón (cta_click), igual que
+// en /tarot. "Cómo se lee una consulta de amor" → "como_se_lee_una_consulta_de_amor".
+const idSeccion = (t: string) =>
+  t.normalize("NFD").replace(/[^a-zA-Z0-9 ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
+
 export function precioTexto(precioUYU: number | null) {
   return precioUYU !== null ? pesosUY(precioUYU) : null;
 }
@@ -47,7 +54,7 @@ export function HeroSeo({ eyebrow, titulo, children, cta, precioUYU = null }: { 
   return (
     // <div> y no <header>: PaginaMarca oculta todo <header> (el global del
     // layout) con CSS — un <header> acá desaparecería (pasó en /opinion).
-    <div className="text-center mb-10 md:mb-12">
+    <div data-seccion="hero" className="text-center mb-10 md:mb-12">
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: GOLD, textShadow: SOMBRA_HERO }}>{eyebrow}</p>
       <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(34px, 6.4vw, 50px)", lineHeight: 1.08, color: CREMA, textShadow: SOMBRA_HERO }}>{titulo}</h1>
       <div
@@ -70,7 +77,7 @@ export function HeroSeo({ eyebrow, titulo, children, cta, precioUYU = null }: { 
 
 export function Seccion({ titulo, children, id }: { titulo: string; children: ReactNode; id?: string }) {
   return (
-    <section id={id} className="rounded-2xl px-5 md:px-7 py-6 md:py-7 mt-5" style={PANEL}>
+    <section id={id} data-seccion={idSeccion(titulo)} className="rounded-2xl px-5 md:px-7 py-6 md:py-7 mt-5" style={PANEL}>
       <h2 className="mb-3" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(22px, 3.6vw, 27px)", lineHeight: 1.2, color: CREMA }}>{titulo}</h2>
       <div className="text-white/75 text-[15.5px] leading-relaxed space-y-3">{children}</div>
     </section>
@@ -138,7 +145,7 @@ export function AsiTeLlega({ imagen = "/img/tarot/contenedores/asi-se-vive/panta
 }) {
   const precio = precioTexto(precioUYU);
   return (
-    <section className="rounded-2xl px-5 md:px-7 py-6 md:py-7 mt-5" style={{ ...PANEL, border: "1px solid rgba(240,197,90,0.45)" }}>
+    <section data-seccion="asi_te_llega" className="rounded-2xl px-5 md:px-7 py-6 md:py-7 mt-5" style={{ ...PANEL, border: "1px solid rgba(240,197,90,0.45)" }}>
       <h2 className="mb-4 text-center" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(23px, 3.8vw, 28px)", lineHeight: 1.2, color: CREMA }}>Así te llega tu lectura</h2>
       <div className="grid grid-cols-[42%_1fr] md:grid-cols-[220px_1fr] gap-4 md:gap-7 items-center">
         <figure>
@@ -166,7 +173,7 @@ export function AsiTeLlega({ imagen = "/img/tarot/contenedores/asi-se-vive/panta
 /** Botón de compra entre secciones (para que nadie tenga que volver arriba). */
 export function CtaIntermedio({ href, tema, children }: { href: string; tema?: string; children: ReactNode }) {
   return (
-    <div className="mt-6 text-center">
+    <div data-seccion="medio" className="mt-6 text-center">
       <CtaSeo href={href} ubicacion="medio" tema={tema}>{children}</CtaSeo>
     </div>
   );
@@ -175,7 +182,7 @@ export function CtaIntermedio({ href, tema, children }: { href: string; tema?: s
 /** Preguntas frecuentes de la página (contenido visible; sin schema FAQPage). */
 export function FaqSeo({ titulo = "Preguntas frecuentes", items }: { titulo?: string; items: { q: string; a: ReactNode }[] }) {
   return (
-    <section className="mt-10">
+    <section data-seccion="faq" className="mt-10">
       <h2 className="text-center mb-4" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(24px, 4vw, 30px)", color: CREMA }}>{titulo}</h2>
       <div className="space-y-2.5">
         {items.map((f) => (
@@ -197,7 +204,7 @@ export function FaqSeo({ titulo = "Preguntas frecuentes", items }: { titulo?: st
 export function TestimoniosSeo({ testimonios }: { testimonios: TestimonioTarot[] }) {
   if (testimonios.length === 0) return null;
   return (
-    <section className="mt-10" aria-labelledby="testimonios-seo">
+    <section data-seccion="testimonios" className="mt-10" aria-labelledby="testimonios-seo">
       <h2 id="testimonios-seo" className="text-center mb-5" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(24px, 4vw, 30px)", color: CREMA }}>
         Lo que cuentan quienes ya hicieron su lectura
       </h2>
@@ -216,7 +223,7 @@ export function CierreSeo({ titulo, children, precioUYU, href, tema }: {
 }) {
   const precio = precioTexto(precioUYU);
   return (
-    <section className="mt-12 rounded-2xl px-6 py-8 md:py-10 text-center" style={{ ...PANEL, border: "1px solid rgba(240,197,90,0.45)" }}>
+    <section data-seccion="cierre" className="mt-12 rounded-2xl px-6 py-8 md:py-10 text-center" style={{ ...PANEL, border: "1px solid rgba(240,197,90,0.45)" }}>
       <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(26px, 4.6vw, 34px)", lineHeight: 1.15, color: CREMA }}>{titulo}</h2>
       <div className="mt-3 mx-auto max-w-[520px] text-white/75 text-[15.5px] leading-relaxed">{children}</div>
       {precio && (

@@ -37,6 +37,9 @@ export class ViolacionReglaMaxima extends Error {
 const GOOGLE_LECTURA = [
   /^\/v\d+(\.\d+)?\/customers\/\d+\/googleAds:search(Stream)?$/,
   /^\/v\d+(\.\d+)?\/customers:listAccessibleCustomers$/,
+  // Planificador de palabras clave (2026-11-15): cuánta gente busca cada
+  // frase. Lee datos públicos de Google; no crea ni cambia nada en la cuenta.
+  /^\/v\d+(\.\d+)?\/customers\/\d+:generateKeyword(Ideas|HistoricalMetrics)$/,
 ];
 const OAUTH_TOKEN = "https://oauth2.googleapis.com/token";
 

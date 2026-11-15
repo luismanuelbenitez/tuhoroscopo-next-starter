@@ -36,9 +36,11 @@ export const PAGINAS_SEO = {
   },
   amor: {
     slug: "/tarot/amor",
-    titulo: "Tarot del amor: una lectura para tu vínculo | Tu Oráculo",
+    // 2026-11-15 (piloto Google Ads "Tarot del amor"): título y descripción
+    // con las búsquedas del grupo de amor (tarot amor, pareja, tirada de cartas).
+    titulo: "Tarot del amor y la pareja: tu tirada de cartas | Tu Oráculo",
     descripcion:
-      "Tarot del amor para mirar tu vínculo con más claridad: cómo leen las 5 cartas una consulta de pareja, qué preguntas funcionan y qué esperar de la lectura.",
+      "Tarot del amor para tu relación de pareja: una tirada de 5 cartas sobre tu vínculo, qué preguntas funcionan y qué esperar. Te llega por WhatsApp en minutos.",
     migaja: "Tarot del amor",
   },
   trabajo: {

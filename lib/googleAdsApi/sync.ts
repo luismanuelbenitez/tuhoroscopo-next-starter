@@ -111,7 +111,7 @@ function historialGoogle(f: Awaited<ReturnType<typeof leerConfiguracion>>, clien
 // Se guarda en google_ads_datos ("ranking"). Solo SELECT.
 async function leerRanking(q: (gaql: string) => Promise<Fila[]>, desde: string, hasta: string) {
   const D = `segments.date BETWEEN '${desde}' AND '${hasta}'`;
-  const [calidad, subasta, subastaDia, kwSubasta, estructura, anuncios, recursos, recCuenta, recomendaciones, campanas, negCampana, negLista] = await Promise.all([
+  const [calidad, subasta, subastaDia, kwSubasta, estructura, anuncios, recursos, recCuenta, recomendaciones, campanas, negCampana, negLista, negGrupo] = await Promise.all([
     q(`SELECT segments.date, ad_group.name, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, metrics.historical_quality_score, metrics.historical_creative_quality_score, metrics.historical_landing_page_quality_score, metrics.historical_search_predicted_ctr FROM keyword_view WHERE ${D}`),
     q(`SELECT campaign.id, metrics.search_impression_share, metrics.search_rank_lost_impression_share, metrics.search_budget_lost_impression_share, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share, metrics.top_impression_percentage, metrics.absolute_top_impression_percentage, metrics.average_cpc, metrics.cost_micros, metrics.clicks, metrics.impressions FROM campaign WHERE ${D}`),
     q(`SELECT segments.date, campaign.id, metrics.search_top_impression_share, metrics.search_absolute_top_impression_share, metrics.average_cpc FROM campaign WHERE ${D}`),
@@ -124,6 +124,9 @@ async function leerRanking(q: (gaql: string) => Promise<Fila[]>, desde: string, 
     q("SELECT campaign.id, campaign.optimization_score, campaign.start_date_time, campaign.end_date_time, campaign.target_spend.cpc_bid_ceiling_micros FROM campaign WHERE campaign.status != 'REMOVED'"),
     q("SELECT campaign.id, campaign_criterion.keyword.text, campaign_criterion.keyword.match_type FROM campaign_criterion WHERE campaign.status != 'REMOVED' AND campaign_criterion.type = 'KEYWORD' AND campaign_criterion.negative = TRUE"),
     q("SELECT shared_set.name, shared_criterion.keyword.text, shared_criterion.keyword.match_type FROM shared_criterion WHERE shared_set.status = 'ENABLED' AND shared_set.type = 'NEGATIVE_KEYWORDS'"),
+    // Negativas de cada grupo (2026-11-15, Recorridos): que el grupo general
+    // no compita con los grupos por tema (ej. "amor" negativa en "Tarot online").
+    q("SELECT campaign.id, ad_group.name, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type FROM ad_group_criterion WHERE campaign.status != 'REMOVED' AND ad_group.status != 'REMOVED' AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.negative = TRUE AND ad_group_criterion.status != 'REMOVED'"),
   ]);
   const sub = new Map(kwSubasta.map((r) => [`${r.adGroup?.id}~${r.adGroupCriterion?.criterionId}`, r.metrics ?? {}]));
   const deCampana = new Map(subasta.map((r) => [String(r.campaign?.id), r.metrics ?? {}]));
@@ -176,6 +179,9 @@ async function leerRanking(q: (gaql: string) => Promise<Fila[]>, desde: string, 
       ...negCampana.map((r) => ({ texto: r.campaignCriterion?.keyword?.text, concordancia: r.campaignCriterion?.keyword?.matchType, origen: "campaña" })),
       ...negLista.map((r) => ({ texto: r.sharedCriterion?.keyword?.text, concordancia: r.sharedCriterion?.keyword?.matchType, origen: `lista ${r.sharedSet?.name}` })),
     ],
+    // Aparte de "negativas" (que el resto lee como de toda la campaña): una
+    // negativa de grupo solo frena a ese grupo.
+    negativas_grupo: negGrupo.map((r) => ({ texto: r.adGroupCriterion?.keyword?.text, concordancia: r.adGroupCriterion?.keyword?.matchType, grupo: r.adGroup?.name ?? null })),
   };
 }
 

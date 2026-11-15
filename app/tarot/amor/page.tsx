@@ -30,8 +30,9 @@ export default async function TarotAmor() {
         cta={<CtaSeo href={CTA} ubicacion="hero" tema="amor">Quiero mi lectura de amor →</CtaSeo>}
       >
         <p>
-          Cuando una relación te tiene dando vueltas, una lectura de tarot puede ayudarte a ordenar lo que sentís y a
-          mirar el vínculo desde otro lugar. No para que alguien decida por vos, sino para ver con más claridad.
+          Cuando tu relación de pareja te tiene dando vueltas, una tirada de cartas de amor puede ayudarte a ordenar lo
+          que sentís y a mirar el vínculo desde otro lugar. No para que alguien decida por vos, sino para ver con más
+          claridad.
         </p>
       </HeroSeo>
 
@@ -39,7 +40,7 @@ export default async function TarotAmor() {
       <AsiTeLlega pie="Ejemplo de una lectura de amor" precioUYU={precioUYU} />
 
       <Seccion titulo="Cómo se lee una consulta de amor">
-        <p>Tus 5 cartas recorren el vínculo en cinco momentos:</p>
+        <p>En tu lectura de cartas de amor, las 5 cartas recorren el vínculo en cinco momentos:</p>
         <PosicionesTarot
           lecturas={[
             "Cómo está hoy la relación, o tu manera de vivir el amor en este momento.",
@@ -87,8 +88,8 @@ export default async function TarotAmor() {
             a: "Sí. Elegís el tema «Amor y vínculos» y, si querés, escribís tu pregunta sobre ese vínculo. La lectura se enfoca en tu momento y en lo que está empezando.",
           },
           {
-            q: "¿Y si la relación ya terminó?",
-            a: "También. Una lectura puede ayudarte a entender qué dejó ese vínculo, qué te cuesta soltar y qué necesitás para seguir.",
+            q: "¿Y si la relación ya terminó o pienso en mi ex?",
+            a: "También. Una lectura puede ayudarte a entender qué dejó ese vínculo, qué te cuesta soltar y qué necesitás para seguir. Si te preguntás si tu ex va a volver, las cartas no deciden por la otra persona: te muestran la dinámica y lo que está en juego para vos.",
           },
           {
             q: "¿La otra persona se entera?",

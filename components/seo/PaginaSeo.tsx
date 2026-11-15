@@ -88,11 +88,12 @@ export function PaginaSeo({
   // background CSS, el navegador lo descubre tarde. Precarga solo en mobile.
   preload(FONDO_CHECKOUT_MOBILE, { as: "image", media: "(max-width: 767px)", fetchPriority: "high" });
   return (
-    <PaginaMarca fondo={<FondoCheckout angosto />} fuera={<StickyCtaTarot precioUYU={precioUYU} href={ctaHref} etiqueta="Quiero mi lectura →" />}>
+    <PaginaMarca fondo={<FondoCheckout angosto />} fuera={<div data-seccion="sticky" style={{ display: "contents" }}><StickyCtaTarot precioUYU={precioUYU} href={ctaHref} etiqueta="Quiero mi lectura →" /></div>}>
       <style dangerouslySetInnerHTML={{ __html: "details summary { list-style: none; } details summary::-webkit-details-marker { display: none; }" }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <SeoTracking pagina={clave} />
-      <HeaderMarca variante="completo" links={NAV} cta={{ href: ctaHref, label: "Quiero mi lectura →" }} />
+      {/* data-seccion: medición de bloques y botones, como en /tarot (2026-11-15). */}
+      <div data-seccion="header" style={{ display: "contents" }}><HeaderMarca variante="completo" links={NAV} cta={{ href: ctaHref, label: "Quiero mi lectura →" }} /></div>
       <article className="relative px-5 pt-8 md:pt-12 pb-14 mx-auto w-full max-w-[760px]" style={{ fontVariantNumeric: "lining-nums" }}>
         <Migas clave={clave} />
         {children}
