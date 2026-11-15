@@ -18,6 +18,8 @@ import { LogoMercadoPago } from '@/components/tarot/LogoMercadoPago';
 import { metaInitiateCheckout } from '@/lib/metaPixel';
 import { googleAdsInicioCheckout } from '@/lib/googleAds';
 import { linkWhatsApp } from '@/lib/contacto';
+import { pesosUY } from '@/lib/ctaTarot';
+import { HojaLegal, type DocLegal } from '@/components/tarot/checkout/HojaLegal';
 // Meta InitiateCheckout se dispara recién cuando existe una orden real creada
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
 // 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
@@ -222,6 +224,16 @@ export default function TarotCheckoutContent({
   }, [form, formRestaurado]);
   const paisInfo = PAISES.find(p => p.codigo === pais) ?? PAISES[0];
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  // Términos / Privacidad en una hoja encima del checkout (2026-11-15): no se sale del pago.
+  const [docLegal, setDocLegal] = useState<DocLegal | null>(null);
+  const abrirLegal = (doc: DocLegal) => (e: React.MouseEvent) => {
+    // Ctrl/Cmd+clic o clic del medio: que abra la página en otra pestaña, como siempre.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDocLegal(doc);
+    trackCheckoutPaso('legal_open', doc);
+  };
   const [isLoading, setIsLoading]           = useState(false);
   // Bloqueo síncrono de doble envío: dos clics en el mismo tick llegan antes
   // de que isLoading deshabilite el botón (detectado en QA 2026-10-18).
@@ -1057,9 +1069,9 @@ export default function TarotCheckoutContent({
                     />
                     <span>
                       Soy mayor de 18 y acepto los{' '}
-                      <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A]">Términos</a>{' '}
+                      <a href="/terminos-del-servicio" onClick={abrirLegal('terminos')} className="underline underline-offset-2 hover:text-[#F0C55A]">Términos</a>{' '}
                       y la{' '}
-                      <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A]">Privacidad</a>.
+                      <a href="/politica-de-privacidad" onClick={abrirLegal('privacidad')} className="underline underline-offset-2 hover:text-[#F0C55A]">Privacidad</a>.
                     </span>
                   </label>
                   <ErrorCampo texto={erroresCampo.acepta_terminos} />
@@ -1173,6 +1185,12 @@ export default function TarotCheckoutContent({
 
         <PieMarca minimo />
       </div>
+
+      <HojaLegal
+        doc={docLegal}
+        precioTexto={PRECIO_BASE !== null ? pesosUY(PRECIO_BASE) : 'el precio que ves en el checkout'}
+        onCerrar={() => setDocLegal(null)}
+      />
     </PaginaMarca>
   );
 }

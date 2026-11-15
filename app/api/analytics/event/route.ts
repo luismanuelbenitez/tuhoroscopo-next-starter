@@ -30,6 +30,11 @@ const EVENTOS_PERMITIDOS = new Set([
   'form_started', 'form_field_done', 'form_invalid', 'form_submit', 'form_error',
   'coupon_opened', 'coupon_result', 'mp_redirect', 'checkout_back', 'help_click',
   'section_view', 'cta_click', 'faq_open',
+  // Hoja de Términos / Privacidad en el checkout (2026-11-15).
+  'legal_open',
+  // Opcionales del checkout: fecha, email, pregunta (2026-11-15: el checkout
+  // ya los mandaba, pero no estaban permitidos y se descartaban).
+  'opcional_abierto',
   // Bloque 2 de /tarot (2026-11-03): cartas reveladas, resumen, audio, ambiente, ejemplo.
   'demo_interaccion',
 ]);
