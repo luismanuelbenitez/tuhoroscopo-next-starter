@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { textoCtaTarot } from "@/lib/ctaTarot";
+import { textoCtaTarot, pesosUY } from "@/lib/ctaTarot";
 
 // Solo mobile (md:hidden), aparece recién después de scrollear un poco
 // (pasado el Hero, que ya tiene su propio CTA) y es compacto a propósito:
@@ -10,7 +10,7 @@ import { textoCtaTarot } from "@/lib/ctaTarot";
 // `href`/`etiqueta`: las páginas SEO la usan con el tema ya elegido y el
 // mismo texto de su header (auditoría UX 2026-10-30, S5).
 // precioEnBoton (2026-11-14, /tarot): el botón dice "Quiero mi lectura por
-// $U 690 →" y la línea de la izquierda deja de repetir el precio.
+// $690 →" y la línea de la izquierda deja de repetir el precio.
 export function StickyCtaTarot({ precioUYU, href = "/tarot/checkout", etiqueta = "Quiero mi lectura →", precioEnBoton = false }: { precioUYU: number | null; href?: string; etiqueta?: string; precioEnBoton?: boolean }) {
   const [visible, setVisible] = useState(false);
 
@@ -22,7 +22,7 @@ export function StickyCtaTarot({ precioUYU, href = "/tarot/checkout", etiqueta =
 
   if (!visible) return null;
 
-  const precioTexto = precioUYU !== null ? `$U ${precioUYU}` : null;
+  const precioTexto = precioUYU !== null ? pesosUY(precioUYU) : null;
 
   return (
     <div

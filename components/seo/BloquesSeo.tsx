@@ -7,6 +7,7 @@ import { GOLD, SERIF, CREMA, CTA_GRADIENT } from "@/components/home/theme";
 import { PANEL_INSTITUCIONAL as PANEL } from "@/components/marca/PaginaInstitucional";
 import { CardTestimonio } from "@/components/tarot/TestimoniosTarot";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
+import { pesosUY } from "@/lib/ctaTarot";
 
 // Bloques de las páginas SEO de intención (2026-10-20). Piezas chicas y
 // neutras: el CONTENIDO de cada página vive en su propio page.tsx (cada una
@@ -17,7 +18,7 @@ export const CHECKOUT = "/tarot/checkout";
 export const checkoutConTema = (tema?: string) => (tema ? `${CHECKOUT}?tema=${tema}` : CHECKOUT);
 
 export function precioTexto(precioUYU: number | null) {
-  return precioUYU !== null ? `$U ${precioUYU.toLocaleString("es-UY")}` : null;
+  return precioUYU !== null ? pesosUY(precioUYU) : null;
 }
 
 /** Botón dorado de compra. `ubicacion` y `tema` alimentan seo_cta_click. */

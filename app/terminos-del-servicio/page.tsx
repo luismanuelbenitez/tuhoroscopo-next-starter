@@ -5,6 +5,7 @@ import { GOLD } from '@/components/home/theme';
 import { getPrecioTarot } from '@/lib/getPrecioTarot';
 import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { metadataPagina } from '@/lib/seo/metadataPagina';
+import { pesosUY } from '@/lib/ctaTarot';
 
 // Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
 export const revalidate = 60;
@@ -18,7 +19,7 @@ export const metadata = metadataPagina(
 
 export default async function TerminosServicio() {
   const precioTarot = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
-  const precioTarotTexto = precioTarot !== null ? `$U ${precioTarot}` : 'el precio que ves en el checkout';
+  const precioTarotTexto = precioTarot !== null ? pesosUY(precioTarot) : 'el precio que ves en el checkout';
 
   // Revisión legal (2026-11-02): entrega por todos los canales, arrepentimiento
   // y devoluciones (Ley 17.250 art. 16), responsabilidad sin cláusula de tope

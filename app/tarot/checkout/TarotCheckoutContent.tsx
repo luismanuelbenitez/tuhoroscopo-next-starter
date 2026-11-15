@@ -4,17 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown, Lock, Tag, X, Check, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2,
+  ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2, Plus, ShieldCheck, Receipt, Headphones, FileText, Layers,
 } from 'lucide-react';
 import { cargarDiferidosYa, esperarTerceros } from '@/lib/cargaDiferida';
 import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { PaginaMarca } from '@/components/marca/PaginaMarca';
 import { HeaderMarca } from '@/components/marca/HeaderMarca';
-import { ResumenCompacto } from '@/components/tarot/checkout/ResumenCompra';
-import { QuePasaDespues } from '@/components/tarot/checkout/QuePasaDespues';
-import { Etiqueta, ConIcono, Paso, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
-import { FondoCheckout } from '@/components/tarot/checkout/FondoCheckout';
+import { ConIcono, inputCheckout, inputBg } from '@/components/tarot/checkout/CampoCheckout';
 import { FechaNacimiento } from '@/components/tarot/checkout/FechaNacimiento';
 import { PieMarca } from '@/components/marca/PieMarca';
 import { LogoMercadoPago } from '@/components/tarot/LogoMercadoPago';
@@ -25,12 +22,13 @@ import { linkWhatsApp } from '@/lib/contacto';
 // (ver handleSubmit) — NO al montar la página. Ver docs/product/DECISIONS.md
 // 2026-08-22 ("Meta funnel V1 — InitiateCheckout en el pago, no en la visita").
 
-const TEXT_SHADOW = '0 2px 14px rgba(0,0,0,0.65)';
 // PRECIO_BASE is now passed as prop from the server page
 
 const PAISES = [
   { codigo: 'UY', bandera: '🇺🇾', prefijo: '+598', placeholder: '091234567',
-    hint: 'Ahí te enviamos el acceso a tu lectura.', maxDigits: 9 },
+    // 2026-11-14: "No compartimos tu número" (verdad). NO decir "solo lo
+    // usamos para…": hay mensajes de feedback por WhatsApp planificados.
+    hint: 'Ahí te llega tu lectura. No compartimos tu número.', maxDigits: 9 },
 ];
 
 const TEMAS = [
@@ -49,7 +47,7 @@ const EJEMPLOS_POR_TEMA: Record<string, string> = {
   trabajo:   '¿Debo aceptar esta propuesta? · ¿Qué me frena en mi carrera?',
   dinero:    '¿Qué bloquea mi prosperidad? · ¿Es buen momento para esta inversión?',
   salud:     '¿Qué necesita mi cuerpo o mi mente en este momento? · ¿Cómo recupero el equilibrio?',
-  decision:  '¿Cuál es el camino correcto para mí ahora? · ¿Estoy listo para este cambio?',
+  decision:  '¿Cuál es el camino correcto para mí ahora? · ¿Es momento de hacer este cambio?',
 };
 
 // Valor por tema que se envía como pregunta_usuario cuando el cliente NO
@@ -126,8 +124,8 @@ const esperar = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 function ErrorCampo({ texto }: { texto?: string }) {
   if (!texto) return null;
   return (
-    <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs text-red-300">
-      <AlertCircle size={12} className="shrink-0" />
+    <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-[13.5px] text-red-300">
+      <AlertCircle size={14} className="shrink-0" />
       {texto}
     </p>
   );
@@ -313,6 +311,39 @@ export default function TarotCheckoutContent({
       setForm(prev => (prev.tema ? prev : { ...prev, tema: marcado.value }));
     }
   }, []);
+
+  // Opcionales plegados (2026-11-14): se abren con un toque o solos si ya
+  // tienen algo (por ejemplo, al volver de Mercado Pago).
+  const [preguntaAbierta, setPreguntaAbierta] = useState(false);
+  const [fechaAbierta, setFechaAbierta] = useState(false);
+  const verPregunta = preguntaAbierta || !!form.pregunta;
+  const verFecha = fechaAbierta || !!form.fecha_nacimiento;
+  const [emailAbierto, setEmailAbierto] = useState(false);
+  const verEmail = emailAbierto || !!form.email;
+
+  // Después de elegir el tema por primera vez (2026-11-14, datos de 30 días:
+  // 26 eligieron tema y solo 10 llegaron al nombre), la pantalla baja sola
+  // hasta "Tus datos", sin abrir el teclado. Si el tema vino elegido desde
+  // /tarot, no se mueve nada.
+  const datosRef = useRef<HTMLElement>(null);
+  const temasRef = useRef<HTMLFieldSetElement>(null);
+  const yaGuioRef = useRef(false);
+  function guiarADatos() {
+    if (yaGuioRef.current) return;
+    yaGuioRef.current = true;
+    const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => {
+      const nombre = document.getElementById('nombre');
+      const temas = temasRef.current;
+      if (!nombre || !temas) return;
+      // Solo si el nombre no se ve. Baja lo justo: los temas (con el elegido)
+      // quedan arriba y el nombre a la vista.
+      if (nombre.getBoundingClientRect().bottom > window.innerHeight * 0.92) {
+        const destino = temas.getBoundingClientRect().top - 12;
+        window.scrollBy({ top: Math.max(0, destino), behavior: quieto ? 'auto' : 'smooth' });
+      }
+    }, 220);
+  }
 
   // La pregunta crece con lo escrito, hasta ~12 líneas (2026-11-01).
   const preguntaRef = useRef<HTMLTextAreaElement>(null);
@@ -565,457 +596,498 @@ export default function TarotCheckoutContent({
     }
   }
 
-  // Mismo esquema que Home y /tarot (PaginaMarca → escenario → header →
-  // contenido). Solo presentación: todos los handlers y estados de arriba
-  // son los mismos de antes del rediseño.
+
+  // ── Presentación (checkout nuevo, 2026-11-14) ─────────────────────────
+  // Criterios: los temas en la primera pantalla del celular; el precio a la
+  // vista desde el principio y escrito igual en todos lados ("$690", como en
+  // Mercado Pago); opcionales plegados; fondo solo con CSS (sin imágenes: la
+  // escena era lo más pesado de la página en el celular). Toda la lógica de
+  // arriba es la del checkout vigente.
+  const pesos = (n: number) => `$${n.toLocaleString('es-UY')}`;
+  const precioTxt = precioFinal === null ? '' : pesos(precioFinal);
+  const serifCrema = { fontFamily: SERIF, fontWeight: 700, color: CREMA } as const;
+  const tituloSeccion = 'text-[21px] leading-tight';
+  const enlaceOpcional = 'inline-flex items-start gap-2 min-h-[44px] py-2.5 text-[15px] font-medium text-left transition-colors hover:text-white';
+  const etiquetaCampo = 'block mb-1.5 text-[15px] font-medium text-white/90';
+
+  const INCLUYE = [
+    { Icon: Layers, t: '5 cartas para tu consulta', c: '5 cartas' },
+    { Icon: Sparkles, t: 'Interpretación de cada una', c: 'Interpretación' },
+    { Icon: Headphones, t: 'Resumen en audio', c: 'Resumen en audio' },
+    { Icon: FileText, t: 'PDF para guardar', c: 'PDF para guardar' },
+  ];
+
+  const tachado = descuento && PRECIO_BASE !== null
+    ? <span className="text-[14px] font-normal text-white/45 line-through mr-1.5">{pesos(PRECIO_BASE)}</span>
+    : null;
+
+  // Escritorio: tarjeta del producto al costado, fija mientras se completa.
+  const resumenEscritorio = (
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(24,14,46,0.92)', border: '1px solid rgba(240,197,90,0.30)', boxShadow: '0 12px 34px rgba(0,0,0,0.38)' }}>
+      <p className="text-[12px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Tu compra</p>
+      <p className="mt-2 text-[19px] leading-snug" style={serifCrema}>Lectura de tarot personalizada</p>
+      <ul className="mt-3 space-y-2 text-[14px] text-white/80">
+        {INCLUYE.map(({ Icon, t }) => (
+          <li key={t} className="flex items-center gap-2"><Icon size={15} className="shrink-0" style={{ color: GOLD }} />{t}</li>
+        ))}
+        <li className="flex items-center gap-2"><Zap size={15} className="shrink-0" style={{ color: GOLD }} />Lista en minutos</li>
+      </ul>
+      {!precioNoDisponible && (
+        <div className="mt-4 pt-4 border-t border-white/10 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[14.5px] font-semibold text-white">Total</p>
+            <p className="text-[12.5px] text-white/60">{esCortesia ? 'Lectura de cortesía' : 'Pesos uruguayos · pago único'}</p>
+          </div>
+          <p className="text-[26px] font-bold leading-none whitespace-nowrap" style={{ color: GOLD }}>
+            {tachado}{esCortesia ? 'Sin cargo' : precioTxt}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const despues = (
+    <div className="rounded-2xl px-4 py-4 md:px-5" style={{ background: 'rgba(16,10,32,0.85)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <p className="text-[12px] font-bold uppercase tracking-[0.16em] mb-3" style={{ color: GOLD }}>Qué pasa después</p>
+      <ol className="space-y-3 text-[14.5px] text-white/85 leading-snug">
+        {[
+          esCortesia ? 'Confirmás tu lectura. No pasás por Mercado Pago.' : 'Pagás de forma segura en Mercado Pago.',
+          'Volvés a Tu Oráculo y ves cómo se preparan tus cartas.',
+          'Se abre tu lectura. El acceso también te llega por WhatsApp.',
+        ].map((t, i) => (
+          <li key={t} className="flex gap-3">
+            <span className="shrink-0 flex items-center justify-center rounded-full text-[12.5px] font-bold" style={{ width: 24, height: 24, color: '#180e00', background: CTA_GRADIENT }}>{i + 1}</span>
+            <span className="pt-0.5">{t}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+
   return (
-    <PaginaMarca fondo={<FondoCheckout angosto />}>
+    <PaginaMarca
+      fondo={
+        // Fondo místico liviano: halos violeta y dorado + polvo de estrellas,
+        // todo CSS. Queda detrás, sin competir con el formulario.
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 90% 38% at 50% 0%, rgba(118,64,200,0.30), transparent 72%), radial-gradient(ellipse 60% 30% at 85% 60%, rgba(240,197,90,0.05), transparent 70%), radial-gradient(ellipse 70% 30% at 10% 85%, rgba(118,64,200,0.12), transparent 70%)' }} />
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: 0.8,
+              backgroundImage: 'radial-gradient(1px 1px at 20px 30px, rgba(255,240,200,0.55), transparent 60%), radial-gradient(1px 1px at 140px 90px, rgba(255,255,255,0.40), transparent 60%), radial-gradient(1.5px 1.5px at 90px 160px, rgba(240,197,90,0.55), transparent 60%), radial-gradient(1px 1px at 190px 210px, rgba(255,255,255,0.35), transparent 60%)',
+              backgroundSize: '230px 240px',
+              maskImage: 'linear-gradient(180deg, #000 0, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.6) 100%)',
+              WebkitMaskImage: 'linear-gradient(180deg, #000 0, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.6) 100%)',
+            }}
+          />
+        </div>
+      }
+    >
       <div className="relative">
         <HeaderMarca variante="minimo" />
 
-        <div className="relative px-5 md:px-8 pt-6 pb-10 md:pb-14">
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_330px] gap-8 md:gap-7 md:items-start">
+        <div className="relative px-4 md:px-8 pt-1 md:pt-6 pb-10 md:pb-14">
+          <div className="mx-auto max-w-[520px] md:max-w-none grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] gap-5 md:gap-8 md:items-start">
 
-            {/* ── Columna formulario ─────────────────────────────── */}
             <div className="min-w-0">
               <Link
                 href={'/tarot' as never}
                 onClick={() => trackCheckoutPaso('checkout_back', 'volver_tarot')}
-                // Celular: píldora oscura, el link caía sobre el sol del fondo (2026-11-01).
-                className="inline-flex items-center gap-1.5 py-2 -my-2 text-[13.5px] text-white/80 hover:text-white transition-colors mb-4 max-md:rounded-full max-md:px-3 max-md:-mx-1 max-md:bg-black/45 max-md:text-white/90 max-md:backdrop-blur-sm"
-                style={{ textShadow: TEXT_SHADOW }}
+                className="inline-flex items-center gap-1.5 min-h-[40px] text-[14px] text-white/60 hover:text-white transition-colors"
               >
                 <ArrowLeft size={15} />
-                Volver a Tarot
+                Volver
               </Link>
 
-              {/* Velo oscuro detrás del título: el fondo tiene adornos (luna,
-                  hojas) justo en esta zona — mismo recurso de legibilidad
-                  que HeroTarot (text-shadow) más un degradé radial suave. */}
-              <div className="relative isolate mb-5" style={{ textShadow: TEXT_SHADOW }}>
-                <div
-                  aria-hidden="true"
-                  className="absolute -inset-x-8 -inset-y-6 -z-10 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse 75% 85% at 35% 50%, rgba(6,4,14,0.72), transparent 75%)' }}
-                />
-                {/* Antetítulo centrado entre dos filetes dorados (Manuel, 2026-11-11). */}
-                <p className="flex items-center justify-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: GOLD }}>
-                  <span aria-hidden="true" className="h-px w-10 md:w-16" style={{ background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
-                  Tarot personalizado
-                  <span aria-hidden="true" className="h-px w-10 md:w-16" style={{ background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
-                </p>
-                <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(2rem, 4.2vw, 2.85rem)', lineHeight: 1.08, color: CREMA }}>
-                  Tu lectura empieza acá
-                </h1>
-                <p className="text-white/90 md:text-white/75 text-[15px] leading-relaxed mt-2 max-w-[480px]">
-                  Elegí el tema, hacé tu consulta si querés y accedé a tu lectura en minutos.
-                </p>
-              </div>
+              <h1 style={{ ...serifCrema, fontSize: 'clamp(2.05rem, 4.2vw, 2.7rem)', lineHeight: 1.06 }}>
+                Tu lectura empieza acá
+              </h1>
+              <p className="mt-2 text-[16px] leading-snug text-white/80">
+                Elegí tu tema y en minutos tenés tu lectura.
+              </p>
 
-              {/* Móvil (2026-11-11, Manuel): sin la tarjeta resumen del producto
-                  arriba del formulario; ya decidió la compra. El precio se ve
-                  en el botón de pago. */}
+              {/* Celular: el producto y el precio en una franja, sin empujar
+                  los temas fuera de la primera pantalla. */}
+              {!precioNoDisponible && (
+                <div
+                  className="md:hidden mt-4 flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                  style={{ background: 'rgba(24,14,46,0.92)', border: '1px solid rgba(240,197,90,0.30)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold leading-tight text-white">Lectura de 5 cartas</p>
+                    <p className="mt-0.5 text-[13px] text-white/65">Interpretación, audio y PDF</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[22px] font-bold leading-none whitespace-nowrap" style={{ color: GOLD }}>{tachado}{esCortesia ? 'Sin cargo' : precioTxt}</p>
+                    {!esCortesia && <p className="mt-1 text-[12.5px] text-white/65">pago único</p>}
+                  </div>
+                </div>
+              )}
 
               <form
                 ref={formRef}
                 onSubmit={handleSubmit}
                 noValidate
-                className="rounded-2xl p-5 md:p-6 space-y-5"
-                style={{ background: 'rgba(12,7,24,0.78)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(6px)', boxShadow: '0 18px 48px rgba(0,0,0,0.40)' }}
+                className="mt-4 md:mt-6 rounded-2xl px-4 pt-5 pb-5 md:p-7 space-y-8"
+                style={{ background: 'rgba(16,10,32,0.94)', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 18px 48px rgba(0,0,0,0.45)' }}
               >
-
-                <Paso n={1} titulo="Tu consulta" bajada="Elegí un tema. La pregunta es opcional." />
-
-                {/* Tema en botones (auditoría 2026-11-04): 28 visitas llegaron al
-                    checkout en 21 días y 26 se fueron sin escribir nada; las 2
-                    que empezaron pagaron. Se arranca por lo fácil y propio de la
-                    consulta (un toque) en vez de pedir nombre y teléfono primero.
-                    Mismo campo "tema" (radio requerido): validación y medición
-                    iguales que con el selector. */}
-                <fieldset>
-                  <legend className="mb-2 text-[14px] font-medium text-white/90">
-                    Tema de la consulta <span className="text-[12px] font-normal text-white/45">(requerido)</span>
-                  </legend>
+                {/* ── 1. Tema ── */}
+                <fieldset ref={temasRef}>
+                  <legend className={`${tituloSeccion} mb-3`} style={serifCrema}>¿Sobre qué querés preguntar?</legend>
                   <div className="grid grid-cols-2 gap-2">
-                    {/* El "elegido" se pinta con CSS (has-[:checked]) y no con el
-                        estado de React (2026-11-06): así el botón responde al
-                        toque aunque la página todavía no terminó de cargar (en 4G
-                        lento eran ~4,5 s sin respuesta visible). */}
                     {TEMAS.map(t => {
                       const elegido = form.tema === t.value;
                       return (
                         <label
                           key={t.value}
-                          className={`relative flex items-center gap-2 rounded-xl px-3 min-h-[50px] text-[14.5px] leading-tight cursor-pointer transition-all border text-white/85 border-white/15 bg-white/[0.045] has-[:checked]:font-semibold has-[:checked]:text-[#180e00] has-[:checked]:border-[#fbe39a] has-[:checked]:bg-[linear-gradient(180deg,#f6d77e,#e9b94a)] has-[:checked]:shadow-[0_0_14px_rgba(240,197,90,0.35)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#F0C55A]/60 ${erroresCampo.tema ? RING_ERROR + ' ring-1' : ''}`}
+                          className={`relative flex items-center gap-1.5 min-[390px]:gap-2 rounded-xl px-2.5 min-[390px]:px-3 min-h-[52px] text-[15px] leading-tight cursor-pointer transition-all border text-white/90 border-white/15 bg-white/[0.05] hover:border-white/30 has-[:checked]:font-semibold has-[:checked]:text-[#180e00] has-[:checked]:border-[#fbe39a] has-[:checked]:bg-[linear-gradient(180deg,#f6d77e,#e9b94a)] has-[:checked]:shadow-[0_0_14px_rgba(240,197,90,0.35)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#F0C55A]/60 ${erroresCampo.tema ? RING_ERROR + ' ring-1' : ''}`}
                         >
                           <input
                             type="radio"
                             name="tema"
                             value={t.value}
                             checked={elegido}
-                            onChange={(e) => { handleChange(e); limpiarErrorCampo('tema'); }}
+                            onChange={(e) => { handleChange(e); limpiarErrorCampo('tema'); guiarADatos(); }}
                             disabled={isLoading}
                             required
                             className="sr-only"
                           />
-                          <span aria-hidden="true" className="text-[17px]">{t.emoji}</span>
+                          <span aria-hidden="true" className="text-[18px]">{t.emoji}</span>
                           {t.corto}
                         </label>
                       );
                     })}
                   </div>
                   <ErrorCampo texto={erroresCampo.tema} />
+
+                  <div className="mt-2">
+                    {!verPregunta ? (
+                      <button
+                        type="button"
+                        onClick={() => { setPreguntaAbierta(true); trackCheckoutPaso('opcional_abierto', 'pregunta'); setTimeout(() => preguntaRef.current?.focus(), 50); }}
+                        className={enlaceOpcional}
+                        style={{ color: GOLD }}
+                      >
+                        <Plus size={17} className="shrink-0 mt-[2px]" />
+                        <span>Escribir mi pregunta <span className="text-white/55 font-normal">(opcional)</span></span>
+                      </button>
+                    ) : (
+                      <div className="pt-2">
+                        <label htmlFor="pregunta" className={etiquetaCampo}>
+                          Tu pregunta <span className="text-[13px] font-normal text-white/55">(opcional)</span>
+                        </label>
+                        <ConIcono Icon={PenLine} arriba>
+                          <textarea
+                            id="pregunta"
+                            name="pregunta"
+                            ref={preguntaRef}
+                            rows={3}
+                            className={`${inputCheckout} !h-auto min-h-[5.5rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
+                            style={inputBg}
+                            placeholder={`Ej: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
+                            value={form.pregunta}
+                            onChange={handleChange}
+                            disabled={isLoading}
+                            maxLength={500}
+                          />
+                        </ConIcono>
+                        <p className="mt-1.5 text-[13px] text-white/55">
+                          Si no escribís nada, la lectura se enfoca en el tema que elegiste.
+                          {form.pregunta.length > 400 && <span className="float-right">{form.pregunta.length}/500</span>}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </fieldset>
 
-                {/* Pregunta (opcional) */}
-                <div>
-                  <Etiqueta htmlFor="pregunta" texto="Tu pregunta" nota="opcional" />
-                  <ConIcono Icon={PenLine} arriba>
-                    <textarea
-                      id="pregunta"
-                      name="pregunta"
-                      ref={preguntaRef}
-                      rows={3}
-                      // Mobile (2026-11-01): el ejemplo solo, sin la frase que ya
-                      // dice la bajada del paso 2; arranca en ~3 líneas y crece al
-                      // escribir (antes 14rem fijos empujaban el botón de pago).
-                      className={`${inputCheckout} !h-auto min-h-[5.5rem] sm:min-h-0 pl-11 resize-none leading-relaxed`}
-                      style={inputBg}
-                      placeholder={`Ej: ${EJEMPLOS_POR_TEMA[form.tema] ?? EJEMPLOS_POR_TEMA['']}`}
-                      value={form.pregunta}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                      maxLength={500}
-                    />
-                  </ConIcono>
-                  <p className="mt-1 text-xs text-white/45 text-right">{form.pregunta.length}/500</p>
-                </div>
-
-                <Paso n={2} titulo="Tus datos" bajada="Tu lectura es privada y se envía solo a vos." separado />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
-
-                {/* Nombre */}
-                <div>
-                  <Etiqueta htmlFor="nombre" texto="Tu nombre" nota="requerido" />
-                  <ConIcono Icon={User}>
-                    <input
-                      id="nombre"
-                      name="nombre"
-                      className={`${inputCheckout} pl-11 ${erroresCampo.nombre ? RING_ERROR : ''}`}
-                      style={inputBg}
-                      placeholder="¿Cómo te llamás?"
-                      autoComplete="given-name"
-                      autoCapitalize="words"
-                      enterKeyHint="next"
-                      value={form.nombre}
-                      onChange={(e) => { handleChange(e); limpiarErrorCampo('nombre'); }}
-                      disabled={isLoading}
-                      required
-                    />
-                  </ConIcono>
-                  <ErrorCampo texto={erroresCampo.nombre} />
-                </div>
-
-                {/* Teléfono */}
-                <div>
-                  <Etiqueta htmlFor="telefono" texto="Tu WhatsApp" nota="requerido" />
-                  <div className="flex gap-2.5 items-center">
-                    {/* Selector de país */}
-                    <div className="relative shrink-0">
-                      <select
-                        value={pais}
-                        onChange={e => {
-                          setPais(e.target.value);
-                          setForm(prev => ({ ...prev, telefono: '' }));
-                        }}
-                        disabled={isLoading}
-                        aria-label="País"
-                        className="appearance-none rounded-xl pl-4 pr-9 md:pl-3 md:pr-7 ring-1 ring-white/15 h-12 text-white/85 font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[16px] md:text-[14px]"
-                        style={inputBg}
-                      >
-                        {PAISES.map(p => (
-                          <option key={p.codigo} value={p.codigo} style={{ background: '#1a0a3a', color: 'white' }}>
-                            {p.codigo} {p.prefijo}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 md:right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <ConIcono Icon={MessageCircle} iconoClase="md:hidden">
+                {/* ── 2. Datos ── */}
+                <section ref={datosRef} aria-labelledby="titulo-datos">
+                  <h2 id="titulo-datos" className={`${tituloSeccion} mb-1`} style={serifCrema}>¿A dónde te la enviamos?</h2>
+                  <p className="mb-4 text-[14px] text-white/60">Tu lectura es privada: solo la recibís vos.</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="nombre" className={etiquetaCampo}>Tu nombre</label>
+                      <ConIcono Icon={User}>
                         <input
-                          id="telefono"
-                          name="telefono"
-                          className={`${inputCheckout} pl-11 md:pl-4 ${
-                            telefonoValido(form.telefono, pais)
-                              ? '!ring-emerald-500/55 focus:!ring-emerald-400/60'
-                              : erroresCampo.telefono ? RING_ERROR : ''
-                          }`}
+                          id="nombre"
+                          name="nombre"
+                          className={`${inputCheckout} pl-11 ${erroresCampo.nombre ? RING_ERROR : ''}`}
                           style={inputBg}
-                          placeholder={paisInfo.placeholder}
-                          type="tel"
-                          inputMode="numeric"
-                          autoComplete="tel-national"
+                          placeholder="¿Cómo te llamás?"
+                          autoComplete="given-name"
+                          autoCapitalize="words"
                           enterKeyHint="next"
-                          value={form.telefono}
-                          onChange={(e) => {
-                            const digits = normalizarTelefonoPegado(e.target.value, form.telefono, pais).slice(0, paisInfo.maxDigits);
-                            setForm(prev => ({ ...prev, telefono: digits }));
-                            limpiarErrorCampo('telefono');
-                          }}
+                          value={form.nombre}
+                          onChange={(e) => { handleChange(e); limpiarErrorCampo('nombre'); }}
                           disabled={isLoading}
                           required
+                          aria-invalid={!!erroresCampo.nombre}
                         />
                       </ConIcono>
+                      <ErrorCampo texto={erroresCampo.nombre} />
                     </div>
-                  </div>
-                  {telefonoValido(form.telefono, pais) ? (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
-                      <CheckCircle size={12} className="shrink-0" />
-                      <span>Número confirmado: <span className="font-semibold font-mono">{formatearTelefono(form.telefono, pais)}</span></span>
-                    </div>
-                  ) : form.telefono.length >= 3 ? (
-                    <p className="mt-1.5 text-xs text-amber-300/80">
-                      {pais === 'UY'
-                        ? (form.telefono.length < 9
-                            ? `Faltan ${9 - form.telefono.length} dígito${9 - form.telefono.length !== 1 ? 's' : ''}`
-                            : 'El número debe comenzar con 09')
-                        : (form.telefono.length < 10
-                            ? `Faltan ${10 - form.telefono.length} dígito${10 - form.telefono.length !== 1 ? 's' : ''}`
-                            : 'Ingresá el número sin el 0 inicial ni el 15')}
-                    </p>
-                  ) : erroresCampo.telefono ? (
-                    <ErrorCampo texto={erroresCampo.telefono} />
-                  ) : (
-                    <p className="mt-1.5 text-xs text-white/55">{paisInfo.hint}</p>
-                  )}
-                </div>
 
-                {/* Email opcional: si se completa, la lectura llega también por email */}
-                <div>
-                  <Etiqueta htmlFor="email" texto="Email" nota="opcional" />
-                  <ConIcono Icon={Mail}>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      className={`${inputCheckout} pl-11 ${erroresCampo.email ? RING_ERROR : ''}`}
-                      style={inputBg}
-                      placeholder="tu@email.com"
-                      autoComplete="email"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      enterKeyHint="next"
-                      value={form.email}
-                      onChange={(e) => { handleChange(e); limpiarErrorCampo('email'); }}
-                      disabled={isLoading}
-                    />
-                  </ConIcono>
-                  {erroresCampo.email
-                    ? <ErrorCampo texto={erroresCampo.email} />
-                    : <p className="mt-1.5 text-xs text-white/55">Si lo completás, también te enviamos la lectura por email.</p>}
-                </div>
-
-                {/* Fecha de nacimiento (opcional) */}
-                <div>
-                  <Etiqueta htmlFor="fecha_nacimiento" texto="Fecha de nacimiento" nota="opcional" />
-                  <FechaNacimiento
-                    id="fecha_nacimiento"
-                    valor={form.fecha_nacimiento}
-                    onCambio={(v) => setForm(prev => ({ ...prev, fecha_nacimiento: v }))}
-                    disabled={isLoading}
-                  />
-                  <p className="mt-1.5 text-xs text-white/55">Para personalizar tu lectura.</p>
-                </div>
-                </div>
-
-                <Paso n={3} titulo={esCortesia ? 'Confirmá tu lectura' : 'Realizá tu pago'} bajada={esCortesia ? 'Revisá los detalles y confirmá tu lectura.' : undefined} separado />
-
-                {/* Antes de pagar (2026-11-11, diseño de Manuel): entrega y
-                    garantías en una sola caja, como lista. "Si no te llega…"
-                    es lo mismo que dicen los Términos (punto 5). */}
-                <div
-                  className="rounded-xl px-4 py-4 flex items-start gap-3"
-                  style={{ background: 'rgba(240,197,90,0.06)', border: '1px solid rgba(240,197,90,0.45)' }}
-                >
-                  <Zap size={22} className="shrink-0 mt-0.5" style={{ color: GOLD }} fill={GOLD} />
-                  <div>
-                    <p className="text-[15.5px] font-semibold leading-snug text-white">
-                      Tu lectura estará lista{' '}
-                      <span style={{ color: GOLD }}>en minutos.</span>
-                    </p>
-                    <ul className="mt-2 space-y-1">
-                      {[esCortesia ? 'Al confirmar, vas directo a Tu Oráculo.' : 'Después de pagar volvés automáticamente a Tu Oráculo.', 'Podés seguir el proceso hasta que se abra tu lectura.', 'También te enviamos el acceso por WhatsApp.'].map((t) => (
-                        <li key={t} className="flex items-start gap-2 text-[13.5px] text-white/80">
-                          <Check size={15} strokeWidth={2.5} className="shrink-0 mt-0.5" style={{ color: GOLD }} />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* ── Código de descuento ──────────────────────────── */}
-                {!descuento && !cuponAbierto ? (
-                  <button
-                    type="button"
-                    onClick={() => { setCuponAbierto(true); trackCheckoutPaso('coupon_opened'); }}
-                    className="self-start inline-flex items-center gap-1.5 py-2 text-[13.5px] text-white/65 hover:text-white transition-colors"
-                  >
-                    <Tag size={14} style={{ color: GOLD }} />
-                    <span className="underline underline-offset-4 decoration-white/30">¿Tenés un código de descuento?</span>
-                  </button>
-                ) : (
-                <div
-                  className="rounded-xl p-4"
-                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(240,197,90,0.20)' }}
-                >
-                  <p className="text-[13px] font-medium mb-3 flex items-center gap-1.5" style={{ color: GOLD }}>
-                    <Tag size={14} />
-                    Código de descuento
-                    <span className="text-white/45 text-[12px] font-normal">(opcional)</span>
-                  </p>
-
-                  {descuento ? (
-                    /* Código aplicado */
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-sm text-emerald-400">
-                        <CheckCircle size={16} className="shrink-0" />
-                        <span>
-                          <span className="font-semibold">{codigoCampo}</span>
-                          {' — '}
-                          <span>
-                            {descuento.tipo_descuento === 'porcentaje' && PRECIO_BASE !== null
-                              ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% de descuento`
-                              : `$U ${descuento.descuento_aplicado} de descuento`}
-                          </span>
-                          {esCortesia && (
-                            <span className="block text-[12px] text-white/60 mt-0.5">
-                              Lectura de cortesía: no necesitás pagar.
-                            </span>
-                          )}
-                        </span>
+                    <div>
+                      <label htmlFor="telefono" className={etiquetaCampo}>Tu WhatsApp</label>
+                      <div className="flex gap-2 items-center">
+                        <div className="relative shrink-0">
+                          <select
+                            value={pais}
+                            onChange={e => { setPais(e.target.value); setForm(prev => ({ ...prev, telefono: '' })); }}
+                            disabled={isLoading}
+                            aria-label="País"
+                            className="appearance-none rounded-xl pl-3 pr-8 ring-1 ring-white/15 h-12 text-white/85 font-medium focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 cursor-pointer text-[16px] md:text-[14.5px]"
+                            style={inputBg}
+                          >
+                            {PAISES.map(p => (
+                              <option key={p.codigo} value={p.codigo} style={{ background: '#1a0a3a', color: 'white' }}>
+                                {p.bandera} {p.prefijo}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50 pointer-events-none" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <ConIcono Icon={MessageCircle}>
+                            <input
+                              id="telefono"
+                              name="telefono"
+                              className={`${inputCheckout} pl-11 ${
+                                telefonoValido(form.telefono, pais)
+                                  ? '!ring-emerald-500/55 focus:!ring-emerald-400/60'
+                                  : erroresCampo.telefono ? RING_ERROR : ''
+                              }`}
+                              style={inputBg}
+                              placeholder={paisInfo.placeholder}
+                              type="tel"
+                              inputMode="numeric"
+                              autoComplete="tel-national"
+                              enterKeyHint="done"
+                              value={form.telefono}
+                              onChange={(e) => {
+                                const digits = normalizarTelefonoPegado(e.target.value, form.telefono, pais).slice(0, paisInfo.maxDigits);
+                                setForm(prev => ({ ...prev, telefono: digits }));
+                                limpiarErrorCampo('telefono');
+                              }}
+                              disabled={isLoading}
+                              required
+                              aria-invalid={!!erroresCampo.telefono}
+                              aria-describedby="ayuda-telefono"
+                            />
+                          </ConIcono>
+                        </div>
                       </div>
+                      <div id="ayuda-telefono" aria-live="polite">
+                        {telefonoValido(form.telefono, pais) ? (
+                          <p className="mt-1.5 flex items-center gap-1.5 text-[13.5px] text-emerald-400">
+                            <CheckCircle size={14} className="shrink-0" />
+                            Listo: {formatearTelefono(form.telefono, pais)}
+                          </p>
+                        ) : form.telefono.length >= 3 ? (
+                          <p className="mt-1.5 text-[13.5px] text-amber-300/90">
+                            {form.telefono.length < 9
+                              ? `Faltan ${9 - form.telefono.length} dígito${9 - form.telefono.length !== 1 ? 's' : ''}`
+                              : 'El número debe empezar con 09'}
+                          </p>
+                        ) : erroresCampo.telefono ? (
+                          <ErrorCampo texto={erroresCampo.telefono} />
+                        ) : (
+                          <p className="mt-1.5 text-[13.5px] text-white/60">Ahí te llega tu lectura. No compartimos tu número.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Opcionales: plegados, se abren solos si ya tienen algo. */}
+                    <div className="flex flex-col items-start">
+                      {!verFecha ? (
+                        <button type="button" onClick={() => { setFechaAbierta(true); trackCheckoutPaso('opcional_abierto', 'fecha'); }} className={enlaceOpcional} style={{ color: GOLD }}>
+                          <Plus size={17} className="shrink-0 mt-[2px]" />
+                          <span>Sumar mi fecha de nacimiento <span className="text-white/55 font-normal">(opcional)</span></span>
+                        </button>
+                      ) : (
+                        <div className="w-full pb-2">
+                          <label htmlFor="fecha_nacimiento" className={etiquetaCampo}>
+                            Fecha de nacimiento <span className="text-[13px] font-normal text-white/55">(opcional)</span>
+                          </label>
+                          <FechaNacimiento
+                            id="fecha_nacimiento"
+                            valor={form.fecha_nacimiento}
+                            onCambio={(v) => setForm(prev => ({ ...prev, fecha_nacimiento: v }))}
+                            disabled={isLoading}
+                          />
+                          <p className="mt-1.5 text-[13px] text-white/55">Le suma detalle a tu lectura.</p>
+                        </div>
+                      )}
+
+                      {!verEmail ? (
+                        <button type="button" onClick={() => { setEmailAbierto(true); trackCheckoutPaso('opcional_abierto', 'email'); }} className={enlaceOpcional} style={{ color: GOLD }}>
+                          <Plus size={17} className="shrink-0 mt-[2px]" />
+                          <span>Recibirla también por email <span className="text-white/55 font-normal">(opcional)</span></span>
+                        </button>
+                      ) : (
+                        <div className="w-full pt-2">
+                          <label htmlFor="email" className={etiquetaCampo}>
+                            Email <span className="text-[13px] font-normal text-white/55">(opcional)</span>
+                          </label>
+                          <ConIcono Icon={Mail}>
+                            <input
+                              id="email"
+                              name="email"
+                              type="email"
+                              className={`${inputCheckout} pl-11 ${erroresCampo.email ? RING_ERROR : ''}`}
+                              style={inputBg}
+                              placeholder="tu@email.com"
+                              autoComplete="email"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              value={form.email}
+                              onChange={(e) => { handleChange(e); limpiarErrorCampo('email'); }}
+                              disabled={isLoading}
+                              aria-invalid={!!erroresCampo.email}
+                            />
+                          </ConIcono>
+                          <ErrorCampo texto={erroresCampo.email} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {/* ── 3. Pago ── */}
+                <section aria-label="Pago" className="pt-6 border-t border-white/10">
+                  {/* Qué se lleva, recordado justo antes de pagar (celular; en
+                      escritorio está en la tarjeta del costado). */}
+                  <p className="md:hidden mb-2 text-[12px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Tu lectura incluye</p>
+                  <ul className="md:hidden grid grid-cols-2 gap-x-3 gap-y-2 mb-4 text-[14px] text-white/85">
+                    {INCLUYE.map(({ Icon, t, c }) => (
+                      <li key={t} className="flex items-center gap-1.5 whitespace-nowrap"><Icon size={15} className="shrink-0" style={{ color: GOLD }} />{c}</li>
+                    ))}
+                  </ul>
+
+                  {!precioNoDisponible && (
+                    <div
+                      className="flex items-center justify-between gap-3 rounded-xl px-4 py-3.5"
+                      style={{ background: 'rgba(240,197,90,0.08)', border: '1px solid rgba(240,197,90,0.38)' }}
+                    >
+                      <div>
+                        <p className="text-[16px] font-semibold text-white">Total a pagar</p>
+                        <p className="text-[13px] text-white/65">{esCortesia ? 'Lectura de cortesía' : 'Pesos uruguayos'}</p>
+                      </div>
+                      <p className="text-[26px] font-bold leading-none whitespace-nowrap" style={{ color: GOLD }}>
+                        {tachado}{esCortesia ? 'Sin cargo' : precioTxt}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Código: chico y al costado; un cupón a la vista hace que
+                      quien no tiene uno salga a buscarlo. */}
+                  <div className="mt-1">
+                    {!descuento && !cuponAbierto ? (
                       <button
                         type="button"
-                        onClick={handleQuitarCodigo}
-                        disabled={isLoading}
-                        className="text-white/50 hover:text-white/80 transition-colors shrink-0"
-                        aria-label="Quitar código"
+                        onClick={() => { setCuponAbierto(true); trackCheckoutPaso('coupon_opened'); }}
+                        className="inline-flex items-center gap-1.5 min-h-[40px] text-[13.5px] text-white/55 hover:text-white transition-colors"
                       >
-                        <X size={16} />
+                        <Tag size={13} />
+                        <span className="underline underline-offset-4 decoration-white/25">Tengo un código</span>
                       </button>
-                    </div>
-                  ) : (
-                    /* Input para ingresar código */
-                    <div className="flex gap-2.5">
-                      <input
-                        type="text"
-                        aria-label="Código de descuento"
-                        className="flex-1 min-w-0 rounded-xl px-4 h-11 ring-1 ring-white/15 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 text-[16px] md:text-sm uppercase tracking-widest"
-                        style={inputBg}
-                        placeholder="TU-CODIGO"
-                        value={codigoCampo}
-                        onChange={e => {
-                          setCodigoCampo(e.target.value.toUpperCase());
-                          setCodigoError(null);
-                        }}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleValidarCodigo())}
-                        disabled={isLoading || codigoValidando}
-                        maxLength={50}
-                        spellCheck={false}
-                        autoComplete="off"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleValidarCodigo}
-                        disabled={!codigoCampo.trim() || isLoading || codigoValidando}
-                        className="rounded-xl px-5 h-11 text-sm font-semibold transition-colors hover:bg-[#F0C55A]/15 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                        style={{ color: GOLD, border: '1px solid rgba(240,197,90,0.45)' }}
-                      >
-                        {codigoValidando ? '...' : 'Aplicar'}
-                      </button>
-                    </div>
-                  )}
-
-                  {codigoError && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
-                      <AlertCircle size={12} className="shrink-0" />
-                      {codigoError}
-                    </div>
-                  )}
-
-                  {codigoInicialValido && !descuento && !codigoError && (
-                    <p className="mt-2 text-xs" style={{ color: GOLD }}>
-                      {codigoValidando
-                        ? 'Aplicando tu código…'
-                        : 'Tu código se aplica automáticamente al ingresar tu WhatsApp.'}
-                    </p>
-                  )}
-                </div>
-                )}
-
-                {/* Checkbox */}
-                <label className="flex items-start gap-3 py-1 text-[13.5px] text-white/75 cursor-pointer leading-relaxed">
-                  <input
-                    type="checkbox"
-                    name="acepta_terminos"
-                    checked={aceptaTerminos}
-                    onChange={e => { setAceptaTerminos(e.target.checked); limpiarErrorCampo('acepta_terminos'); }}
-                    disabled={isLoading}
-                    required
-                    className="mt-0.5 h-[22px] w-[22px] shrink-0 cursor-pointer accent-[#F0C55A]"
-                  />
-                  {/* Texto legal (2026-11-02): mayoría de edad + aceptación. Entrega
-                      inmediata y arrepentimiento (Términos 6), proveedores en el
-                      exterior y datos sensibles (Privacidad 4 y 6) quedan en los
-                      textos aceptados: sin sumar lectura al checkout, a pedido. */}
-                  <span>
-                    Soy mayor de 18 y acepto los{' '}
-                    <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
-                      Términos
-                    </a>{' '}
-                    y la{' '}
-                    <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A] transition-colors">
-                      Privacidad
-                    </a>
-                    .
-                  </span>
-                </label>
-                {erroresCampo.acepta_terminos && <div className="!-mt-3"><ErrorCampo texto={erroresCampo.acepta_terminos} /></div>}
-
-                {/* Error */}
-                {error && (
-                  <div ref={errorRef} role="alert" className="rounded-xl px-4 py-3 text-sm text-red-300 bg-red-900/20 border border-red-500/25">
-                    {error}
+                    ) : descuento ? (
+                      <div className="flex items-center justify-between gap-3 min-h-[40px] text-[14px] text-emerald-400">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle size={15} className="shrink-0" />
+                          <span>
+                            <span className="font-semibold">{codigoCampo}</span>{' '}
+                            {esCortesia ? 'aplicado: no necesitás pagar' : `aplicado: ${descuento.tipo_descuento === 'porcentaje' && PRECIO_BASE !== null ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% menos` : `${pesos(descuento.descuento_aplicado)} menos`}`}
+                          </span>
+                        </span>
+                        <button type="button" onClick={handleQuitarCodigo} disabled={isLoading} className="p-2 -m-2 text-white/50 hover:text-white/80" aria-label="Quitar código">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            aria-label="Código de descuento"
+                            className="flex-1 min-w-0 rounded-xl px-4 h-11 ring-1 ring-white/15 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#F0C55A]/55 disabled:opacity-60 text-[16px] md:text-sm uppercase tracking-widest"
+                            style={inputBg}
+                            placeholder="TU-CODIGO"
+                            value={codigoCampo}
+                            onChange={e => { setCodigoCampo(e.target.value.toUpperCase()); setCodigoError(null); }}
+                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleValidarCodigo())}
+                            disabled={isLoading || codigoValidando}
+                            maxLength={50}
+                            spellCheck={false}
+                            autoComplete="off"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleValidarCodigo}
+                            disabled={!codigoCampo.trim() || isLoading || codigoValidando}
+                            className="rounded-xl px-4 h-11 text-sm font-semibold transition-colors hover:bg-[#F0C55A]/15 disabled:opacity-40 shrink-0"
+                            style={{ color: GOLD, border: '1px solid rgba(240,197,90,0.45)' }}
+                          >
+                            {codigoValidando ? '...' : 'Aplicar'}
+                          </button>
+                        </div>
+                        {codigoError && (
+                          <p role="alert" className="mt-2 flex items-center gap-1.5 text-[13px] text-red-300"><AlertCircle size={13} className="shrink-0" />{codigoError}</p>
+                        )}
+                        {codigoInicialValido && !codigoError && (
+                          <p className="mt-2 text-[13px]" style={{ color: GOLD }}>
+                            {codigoValidando ? 'Aplicando tu código…' : 'Tu código se aplica al ingresar tu WhatsApp.'}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {/* Precio no disponible */}
-                {precioNoDisponible && (
-                  <div className="rounded-xl px-4 py-3 text-sm text-amber-200 bg-amber-900/15 border border-amber-500/25">
-                    El precio no está disponible en este momento. Recargá la página en unos minutos para poder pagar.
-                  </div>
-                )}
+                  <label className="mt-2 flex items-start gap-3 py-1 text-[14.5px] text-white/80 cursor-pointer leading-relaxed">
+                    <input
+                      type="checkbox"
+                      name="acepta_terminos"
+                      checked={aceptaTerminos}
+                      onChange={e => { setAceptaTerminos(e.target.checked); limpiarErrorCampo('acepta_terminos'); }}
+                      disabled={isLoading}
+                      required
+                      aria-invalid={!!erroresCampo.acepta_terminos}
+                      className="mt-0.5 h-[22px] w-[22px] shrink-0 cursor-pointer accent-[#F0C55A]"
+                    />
+                    <span>
+                      Soy mayor de 18 y acepto los{' '}
+                      <a href="/terminos-del-servicio" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A]">Términos</a>{' '}
+                      y la{' '}
+                      <a href="/politica-de-privacidad" target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[#F0C55A]">Privacidad</a>.
+                    </span>
+                  </label>
+                  <ErrorCampo texto={erroresCampo.acepta_terminos} />
 
-                {/* Submit */}
-                <div>
+                  {error && (
+                    <div ref={errorRef} role="alert" className="mt-3 rounded-xl px-4 py-3 text-[14px] text-red-200 bg-red-900/25 border border-red-500/30">
+                      {error}
+                    </div>
+                  )}
+                  {precioNoDisponible && (
+                    <div className="mt-3 rounded-xl px-4 py-3 text-[14px] text-amber-200 bg-amber-900/15 border border-amber-500/25">
+                      El precio no está disponible en este momento. Recargá la página en unos minutos para poder pagar.
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={isLoading || precioNoDisponible}
                     aria-busy={!!fase}
-                    className={`relative overflow-hidden w-full rounded-xl py-4 min-h-[60px] text-[17px] font-bold flex items-center justify-center gap-2.5 transition-all hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed ${precioNoDisponible ? 'opacity-60' : ''}`}
-                    style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: fase ? '0 6px 30px rgba(240,197,90,0.55)' : '0 6px 24px rgba(240,197,90,0.32)' }}
+                    className={`mt-4 relative overflow-hidden w-full rounded-xl px-4 py-3.5 min-h-[62px] text-[17px] leading-tight font-bold flex items-center justify-center gap-2 transition-all hover:brightness-105 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#100a20] focus-visible:ring-[#F0C55A] disabled:cursor-not-allowed ${precioNoDisponible ? 'opacity-60' : ''}`}
+                    style={{ background: CTA_GRADIENT, color: '#180e00', boxShadow: fase ? '0 6px 30px rgba(240,197,90,0.55)' : '0 8px 28px rgba(240,197,90,0.38)' }}
                   >
                     {fase ? (
                       <>
                         {fase !== 'listo' && (
                           <span aria-hidden="true" className="boton-brillo pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%)' }} />
                         )}
-                        <span
-                          key={fase === 'orden' ? `orden-${pasoOrden}` : fase}
-                          className="fase-entra relative flex items-center gap-2 whitespace-nowrap text-[15px] min-[400px]:text-[16.5px]"
-                        >
+                        <span key={fase === 'orden' ? `orden-${pasoOrden}` : fase} className="fase-entra relative flex items-center gap-2 whitespace-nowrap text-[15.5px] min-[400px]:text-[16.5px]">
                           {fase === 'listo'
                             ? <CheckCircle size={20} className="shrink-0" strokeWidth={2.5} />
                             : <Loader2 size={19} className="shrink-0 animate-spin" strokeWidth={2.5} />}
@@ -1026,20 +1098,13 @@ export default function TarotCheckoutContent({
                               : esCortesia ? '¡Listo! Tu lectura va en camino' : '¡Listo! Abriendo el pago'}
                         </span>
                       </>
+                    ) : precioNoDisponible ? (
+                      'Precio no disponible'
+                    ) : esCortesia ? (
+                      <><Sparkles size={18} className="shrink-0" /> Recibir mi lectura →</>
                     ) : (
-                      <>
-                        {!precioNoDisponible && (esCortesia
-                          ? <Sparkles size={18} className="shrink-0" />
-                          : <Lock size={18} className="shrink-0" />)}
-                        {precioNoDisponible
-                          ? 'Precio no disponible'
-                          : esCortesia
-                            ? 'Obtener mi lectura →'
-                            : `Pagar $U ${precioFinal} →`}
-                      </>
+                      <span className="text-center [text-wrap:balance]">Pagar {precioTxt} y recibir mi&nbsp;lectura&nbsp;→</span>
                     )}
-                    {/* Barrita de progreso: siempre montada para que el ancho
-                        se anime desde 0 al empezar cada etapa. */}
                     <span
                       aria-hidden="true"
                       className="absolute left-0 bottom-0 h-[3px] rounded-r-full"
@@ -1051,67 +1116,61 @@ export default function TarotCheckoutContent({
                       }}
                     />
                   </button>
-                  {/* Para lectores de pantalla: anuncia cada etapa. */}
                   <p className="sr-only" aria-live="polite">
                     {fase === 'orden' ? TEXTOS_ORDEN[pasoOrden] : fase === 'pago' ? 'Conectando con Mercado Pago' : fase === 'listo' ? 'Listo, abriendo el pago' : ''}
                   </p>
 
+                  {/* Garantías pegadas al botón. */}
                   {esCortesia ? (
-                    <p className="mt-3 text-center text-[12.5px] text-white/55">
-                      Lectura de cortesía · Sin cargo · No se te pide ningún dato de pago
-                    </p>
+                    <p className="mt-3 text-center text-[13.5px] text-white/65">Sin cargo · No se te pide ningún dato de pago</p>
                   ) : (
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[12.5px] text-white/55">
-                    <span className="flex items-center gap-1.5">
-                      Procesado por
-                      <LogoMercadoPago alto={18} />
-                    </span>
-                  </div>
+                    <div className="mt-3.5 flex flex-col items-center gap-2 text-[14px] text-white/80">
+                      <p className="flex items-center gap-1.5">
+                        <Receipt size={15} className="shrink-0" style={{ color: GOLD }} />
+                        Pago único · Sin suscripción
+                      </p>
+                      <p className="flex items-center gap-1.5">
+                        <Lock size={14} className="shrink-0" style={{ color: GOLD }} />
+                        Pago seguro con
+                        <LogoMercadoPago alto={16} />
+                      </p>
+                    </div>
                   )}
 
-                  {/* Ayuda antes de pagar (2026-11-01): quien duda en el último
-                      paso puede preguntar en vez de irse. Abre en otra pestaña
-                      para no perder lo que ya completó. */}
+                  <div className="mt-4 rounded-xl px-3.5 py-3 flex items-start gap-2.5 text-[14px] leading-snug text-white/80" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <ShieldCheck size={17} className="shrink-0 mt-[1px]" style={{ color: GOLD }} />
+                    <span>Tu lectura llega en minutos. Si en 15 minutos no la recibiste, escribinos y te la reenviamos.</span>
+                  </div>
+
                   {waNumero && (
-                    <p className="mt-3 text-center text-[13px] text-white/60">
-                      ¿Dudas antes de pagar?{' '}
+                    <p className="mt-2 text-center text-[13.5px] text-white/60">
+                      ¿Alguna duda antes de pagar?{' '}
                       <a
                         href={linkWhatsApp(waNumero, 'Hola! Estoy por comprar una lectura de Tarot y tengo una duda.')}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => trackCheckoutPaso('help_click', 'whatsapp')}
-                        className="inline-flex items-center gap-1 py-2 underline underline-offset-2 hover:text-white/90"
+                        className="inline-flex items-center gap-1 min-h-[40px] underline underline-offset-2 hover:text-white/90"
                         style={{ color: GOLD }}
                       >
                         <MessageCircle size={13} className="shrink-0" />
-                        Escribinos por WhatsApp
+                        Escribinos
                       </a>
                     </p>
                   )}
-                </div>
-
+                </section>
               </form>
+
+              <div className="md:hidden mt-5">{despues}</div>
             </div>
 
-            {/* ── Columna lateral ────────────────────────────────── */}
-            {/* Desktop (2026-11-11, Manuel): tarjeta chica + pasos (sin el bloque grande). Mobile: solo los pasos, al final
-                (sin tarjeta resumen arriba del formulario). */}
-            <aside className="w-full space-y-5">
-              <div className="hidden md:block">
-              <ResumenCompacto
-                nombre={form.nombre}
-                precioBase={PRECIO_BASE}
-                precioFinal={precioNoDisponible ? null : precioFinal}
-                descuentoAplicado={descuento ? descuento.descuento_aplicado : null}
-              />
-              </div>
-              <QuePasaDespues cortesia={esCortesia} />
+            <aside className="hidden md:block md:sticky md:top-6 space-y-4 md:mt-[138px]">
+              {resumenEscritorio}
+              {despues}
             </aside>
-
           </div>
         </div>
 
-        {/* Pie mínimo: legales y Contacto, sin los enlaces de Tarot. */}
         <PieMarca minimo />
       </div>
     </PaginaMarca>

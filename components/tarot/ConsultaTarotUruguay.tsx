@@ -1,4 +1,5 @@
 import { GOLD, SERIF, CREMA } from "@/components/home/theme";
+import { pesosUY } from "@/lib/ctaTarot";
 
 // Coincidencia anuncio ↔ página (2026-11-10, auditoría de Google Ads): todos
 // los anuncios llevan a /tarot y prometen "tirada de tarot", "lectura de
@@ -19,7 +20,7 @@ export function ConsultaTarotUruguay({ precioUYU }: { precioUYU: number | null }
           La lectura de cartas es online: la pedís desde el celular y te llega por WhatsApp en minutos, con resumen en audio y PDF.
         </p>
         <p className="mt-3 text-[15.5px] md:text-[16px] font-semibold" style={{ color: CREMA }}>
-          {precioUYU !== null ? `$U ${precioUYU}, pago único` : "Pago único"} con Mercado Pago. Sin suscripción.
+          {precioUYU !== null ? `${pesosUY(precioUYU)}, pago único` : "Pago único"} con Mercado Pago. Sin suscripción.
         </p>
       </div>
     </section>

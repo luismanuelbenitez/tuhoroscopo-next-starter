@@ -8,6 +8,7 @@ import { LECTURA_EJEMPLO, AUDIO_EJEMPLO } from "@/lib/tarot/lecturaEjemplo";
 import { getPrecioTarot } from "@/lib/getPrecioTarot";
 import { REVALIDAR_MARKETING } from "@/lib/fetchSupabase";
 import { CTA_GRADIENT } from "@/components/home/theme";
+import { pesosUY } from '@/lib/ctaTarot';
 
 // Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
 export const revalidate = 60;
@@ -81,7 +82,7 @@ function Cierre({ precioUYU }: { precioUYU: number | null }) {
       <Link href="/tarot/checkout" className="mt-6 inline-flex items-center justify-center rounded-xl px-7 py-3.5 text-[16px] font-bold w-full sm:w-auto" style={BOTON}>
         Quiero mi lectura →
       </Link>
-      {precioUYU !== null && <p className="mt-2.5 text-[12.5px] text-white/60">$U {precioUYU} · Pago único con Mercado Pago</p>}
+      {precioUYU !== null && <p className="mt-2.5 text-[12.5px] text-white/60">{pesosUY(precioUYU)} · Pago único con Mercado Pago</p>}
       <p className="mt-5">
         <Link href="/tarot" className="text-[13px] underline underline-offset-4" style={{ color: GOLD }}>← Volver a Tarot</Link>
       </p>

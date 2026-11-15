@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ElementType } from "react";
 import { Moon, Heart } from "lucide-react";
 import { usePrecioTarot } from "@/lib/usePrecioTarot";
+import { pesosUY } from "@/lib/ctaTarot";
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
 import { Carousel } from "./Carousel";
@@ -39,7 +40,7 @@ function CardTarot() {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold" style={{ color: GOLD }}>
-            {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
+            {precioTarot !== null ? pesosUY(precioTarot) : "Ver precio"}
           </span>
           {/* Card de catálogo: lleva a conocer el producto (/tarot), no
               directo a pagar — misma idea que el "Más información" de Meta */}

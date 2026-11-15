@@ -6,6 +6,7 @@ import { PaginaInstitucional, EncabezadoInstitucional, PANEL_INSTITUCIONAL as PA
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { metadataPagina } from '@/lib/seo/metadataPagina';
 import { htmlJsonLd } from '@/lib/seo/jsonLd';
+import { pesosUY } from '@/lib/ctaTarot';
 
 // Pregenerada; precio y testimonios se releen cada 60 s (lib/fetchSupabase).
 export const revalidate = 60;
@@ -21,7 +22,7 @@ export const metadata = metadataPagina(
 
 export default async function FAQ() {
   const precio = await getPrecioTarot({ revalidar: REVALIDAR_MARKETING });
-  const precioTexto = precio !== null ? `$U ${precio}` : 'el precio que ves en el checkout';
+  const precioTexto = precio !== null ? pesosUY(precio) : 'el precio que ves en el checkout';
 
   // Ordenadas por momento (auditoría UX 2026-10-30, F2): primero lo que se
   // pregunta antes de comprar, después lo que importa una vez pagado.

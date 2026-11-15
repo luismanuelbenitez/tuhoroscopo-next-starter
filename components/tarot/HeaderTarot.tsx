@@ -7,6 +7,7 @@ import { LogoIcon } from "@/components/logo-icon";
 import { MenuMovil } from "@/components/marca/MenuMovil";
 import { NavLink, CtaButton } from "@/components/home/CtaButton";
 import { textoCtaTarot } from "@/lib/ctaTarot";
+import { pesosUY } from "@/lib/ctaTarot";
 
 // Mismo criterio que HeaderHome (components/home/): vive DENTRO del
 // escenario (TarotBackgroundStage), sticky, fondo translúcido + blur.
@@ -22,7 +23,7 @@ const WORDMARK_STYLE = {
 // logo y el menú: va la versión corta con precio.
 export function HeaderTarot({ mostrarTestimonios = false, precioUYU = null }: { mostrarTestimonios?: boolean; precioUYU?: number | null }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const corto = precioUYU !== null ? `Mi lectura · $U ${precioUYU} →` : "Mi lectura →";
+  const corto = precioUYU !== null ? `Mi lectura · ${pesosUY(precioUYU)} →` : "Mi lectura →";
 
   return (
     <div

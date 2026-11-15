@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Layers, Clock, Headphones, type LucideIcon } from "lucide-react";
 import { GOLD, CREMA } from "@/components/home/theme";
 import { CtaButton } from "@/components/home/CtaButton";
+import { pesosUY } from "@/lib/ctaTarot";
 
 // Beneficios concretos (qué recibís), no abstractos. Íconos Lucide en
 // dorado hasta tener los propios (ver prompts en la auditoría 2026-10-29).
@@ -36,7 +37,7 @@ export function HeroV2({ precioUYU }: { precioUYU: number | null }) {
         </p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-8">
           <CtaButton href="/tarot/checkout" className="px-6 py-3 text-[14px] whitespace-nowrap">
-            {precioUYU !== null ? `Quiero mi lectura · $U ${precioUYU} →` : "Quiero mi lectura →"}
+            {precioUYU !== null ? `Quiero mi lectura · ${pesosUY(precioUYU)} →` : "Quiero mi lectura →"}
           </CtaButton>
           <Link
             href="#como-funciona"

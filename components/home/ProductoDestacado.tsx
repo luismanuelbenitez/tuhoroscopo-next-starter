@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePrecioTarot } from "@/lib/usePrecioTarot";
+import { pesosUY } from "@/lib/ctaTarot";
 import { GOLD } from "./theme";
 import { CtaButton } from "./CtaButton";
 import { fijo, fluido } from "@/lib/imagen";
@@ -121,7 +122,7 @@ export function ProductoDestacado({ imagen = IMAGEN_DEFAULT, precioUYU }: { imag
           style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}
         >
           <p className="text-2xl font-bold mb-2" style={{ color: GOLD }}>
-            {precioTarot !== null ? `$U ${precioTarot}` : "Ver precio"}
+            {precioTarot !== null ? pesosUY(precioTarot) : "Ver precio"}
           </p>
           <p className="text-[11px] text-white/40 mb-8">pago único</p>
           <CtaButton href="/tarot/checkout" className="px-6 py-3 text-sm mb-3 w-full text-center md:w-auto whitespace-nowrap">

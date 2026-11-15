@@ -658,8 +658,11 @@ serve(async (req) => {
     items: [
       {
         id: "tarot-lectura-personalizada",
-        title: "Tarot — Lectura Personalizada",
-        description: "Lectura de tarot con IA. Recibirás tu PDF por WhatsApp al número que registraste.",
+        // v48 (2026-11-14, Manuel): nombre con el que Mercado Pago registra la
+        // compra. OJO: la v48 se desplegó desde la descarga de la v47 de
+        // producción, que difiere de este archivo en otras partes.
+        title: "Tu Oráculo · Tarot web",
+        description: "Lectura de 5 cartas con interpretación, audio y PDF. Acceso por WhatsApp.",
         quantity: 1,
         currency_id: monedaNorm,
         unit_price: precio,
