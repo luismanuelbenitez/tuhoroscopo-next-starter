@@ -16,7 +16,6 @@ export const SECCIONES: Seccion[] = [
     { href: "/admin/tarot", label: "Panel", icon: LayoutDashboard, exact: true },
     { href: "/admin/tarot/pendientes", label: "Pendientes", icon: ListTodo },
     { href: "/admin/tarot/asistente", label: "Asistente CEO", icon: BrainCircuit },
-    { href: "/admin/tarot/alertas", label: "Alertas", icon: Bell },
   ] },
   { clave: "ventas", label: "Ventas", icon: Wallet, solapas: [
     { href: "/admin/tarot/ordenes", label: "Órdenes", icon: ShoppingCart },
@@ -58,6 +57,9 @@ export const SECCIONES: Seccion[] = [
     { href: "/admin/tarot/normativa", label: "Normativa", icon: Scale },
   ] },
 ];
+
+// Alertas va sola, arriba de todo y apenas destacada (pedido de Manuel 2026-11-16).
+export const ALERTAS: Solapa = { href: "/admin/tarot/alertas", label: "Alertas", icon: Bell };
 
 export const TODAS_LAS_SOLAPAS: Solapa[] = SECCIONES.flatMap((s) => s.solapas);
 

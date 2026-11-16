@@ -11,6 +11,7 @@ import { MODELOS } from "@/lib/analista/informe";
 // GET  ?vista=casos&filtro=pendientes|humano|resueltos|todos
 // GET  ?vista=cerebro   → config actual, versiones, ejemplos, regla de descuento, modelos
 // GET  ?vista=numeros&dias=30
+// GET  ?vista=contador  → casos abiertos (para el número del menú)
 // POST {accion: aprobar|descartar|humano|procesar|simular|guardar_config|ejemplo, ...}
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,6 +27,13 @@ export async function GET(req: NextRequest) {
       const config = await leerConfig(rest);
       const [vs, ej, regla] = await Promise.all([versiones(rest), listarEjemplos(rest), config ? leerRegla(rest, config.politica.regla_descuento).catch(() => null) : null]);
       return NextResponse.json({ ok: true, config, versiones: vs, ejemplos: ej, regla, modelos: Object.entries(MODELOS).map(([id, m]) => ({ id, nombre: m.nombre, entrada: m.entrada, salida: m.salida })) });
+    }
+    if (vista === "contador") {
+      // Para el menú: casos que esperan a Manuel (para aprobar, para él o con
+      // error) de las últimas 24 h: después la ventana de WhatsApp ya cerró.
+      const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const r = (await rest(`soporte_casos?estado=in.(pendiente,humano,error)&resuelto_at=is.null&created_at=gte.${desde}&select=id&limit=200`)) as unknown[];
+      return NextResponse.json({ ok: true, abiertos: r?.length ?? 0 });
     }
     if (vista === "numeros") return NextResponse.json({ ok: true, ...(await metricas(rest, Math.max(1, Math.min(365, Number(q.get("dias") ?? 30))))) });
     const config = await leerConfig(rest);

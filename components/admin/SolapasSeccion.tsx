@@ -2,20 +2,16 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Star } from "lucide-react";
 import { seccionActual, solapaActual } from "@/components/admin/seccionesAdmin";
 
 // Solapas de la sección actual del Admin Tarot (2026-11-16). Van arriba de
 // cada página: TarotAdminShell las pone solas; los módulos con barra lateral
 // propia (Clientes, Product Intelligence) las agregan en su layout.
-export function SolapasSeccion({ badges = {}, favoritos, alternarFavorito }: {
-  badges?: Record<string, number>; favoritos?: string[]; alternarFavorito?: (href: string) => void;
-}) {
+export function SolapasSeccion({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname() ?? "";
   const seccion = seccionActual(pathname);
   const actual = solapaActual(pathname);
   if (!seccion) return null;
-  const esFav = actual && favoritos?.includes(actual.href);
   return (
     <div className="sticky top-0 z-20 border-b border-gray-800 bg-gray-950/95 backdrop-blur">
       <div className="flex items-center gap-1 overflow-x-auto px-3 sm:px-5 [scrollbar-width:none]">
@@ -31,12 +27,6 @@ export function SolapasSeccion({ badges = {}, favoritos, alternarFavorito }: {
             </Link>
           );
         })}
-        {actual && alternarFavorito && (
-          <button type="button" onClick={() => alternarFavorito(actual.href)} title={esFav ? "Quitar de Favoritos" : "Agregar a Favoritos"}
-            className={`ml-auto shrink-0 rounded p-2 ${esFav ? "text-amber-400" : "text-gray-600 hover:text-amber-300"}`}>
-            <Star size={15} className={esFav ? "fill-current" : ""} />
-          </button>
-        )}
       </div>
     </div>
   );
