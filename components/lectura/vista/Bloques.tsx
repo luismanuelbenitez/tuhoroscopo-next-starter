@@ -368,7 +368,8 @@ export function PdfBloque({ pdfHref, venceTexto }: { pdfHref: string; venceTexto
 }
 
 // "Hacer otra lectura" → checkout a precio normal, con nombre y fecha
-// precargados. Sin cupón: el 20% (VOLVE20) queda solo para la pantalla de
+// precargados. Sin cupón: el precio especial (regla comercial, código VIP;
+// antes VOLVE20) queda solo para la pantalla de
 // acceso vencido (decisión de Manuel 2026-10-18). WhatsApp/email no viajan
 // en la URL (datos personales).
 export function OtraLecturaBloque({ nombre, nacimiento }: { nombre: string | null; nacimiento: string | null }) {

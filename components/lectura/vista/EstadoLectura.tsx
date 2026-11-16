@@ -1,18 +1,31 @@
 import Link from "next/link";
 import { CTA_GRADIENT } from "@/components/home/theme";
 import { SERIF, CREMA, GOLD, FondoLectura, FONDO_PAGINA, Eyebrow, PanelOscuro, MarcaTuOraculo } from "./Base";
+import { restSupabase } from "@/lib/asistenteParte";
+import { leerRegla } from "@/lib/reglasComerciales";
 
 // Pantallas de estado de /lectura (expirado / no encontrado). Qué pantalla se
 // muestra lo sigue decidiendo app/lectura/[token]/page.tsx (lógica congelada).
 //
-// Expirado → oferta de reactivación (pedido de Manuel 2026-10-17): 20% en la
-// próxima lectura con el cupón VOLVE20 (tarot_codigos_descuento: 1 uso por
-// cliente, tope 200 usos, vence 2027-04-30, editable desde Admin → Cupones).
-// El checkout lo precarga desde ?codigo= y lo valida al ingresar el WhatsApp
-// (así se controla el límite por cliente). UTMs para medir la campaña.
-const CODIGO_REACTIVACION = "VOLVE20";
-const HREF_REACTIVACION =
-  `/tarot/checkout?codigo=${CODIGO_REACTIVACION}&utm_source=lectura&utm_medium=web&utm_campaign=reactivacion-lectura-expirada`;
+// Expirado → oferta de reactivación. Desde 2026-11-16 la manda la regla
+// comercial "reactivacion_lectura_vencida" (Admin → Ventas y cobros → Reglas
+// comerciales): código (VIP), textos y si está activa. La pantalla no muestra
+// el porcentaje (pedido de Manuel): la clienta ve el precio final en el
+// checkout, que precarga el código desde ?codigo=. Si la regla está apagada o
+// no se puede leer, no se muestra ninguna oferta (nunca una oferta vieja).
+const UTM_REACTIVACION = "utm_source=lectura&utm_medium=web&utm_campaign=reactivacion-lectura-expirada";
+
+async function ofertaReactivacion(): Promise<{ codigo: string; textos: Record<string, string> } | null> {
+  try {
+    const rest = restSupabase();
+    if (!rest) return null;
+    const r = await leerRegla(rest, "reactivacion_lectura_vencida");
+    if (!r || !r.activa || !r.codigo) return null;
+    return { codigo: r.codigo, textos: r.textos };
+  } catch {
+    return null;
+  }
+}
 
 function Contenedor({ fontClass, children }: { fontClass: string; children: React.ReactNode }) {
   return (
@@ -34,7 +47,9 @@ function Titulo({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Expirado({ fontClass }: { fontClass: string }) {
+async function Expirado({ fontClass }: { fontClass: string }) {
+  const oferta = await ofertaReactivacion();
+  const t = oferta?.textos ?? {};
   return (
     <Contenedor fontClass={fontClass}>
       <PanelOscuro className="px-6 py-7">
@@ -44,27 +59,38 @@ function Expirado({ fontClass }: { fontClass: string }) {
         </p>
       </PanelOscuro>
 
-      <div className="mt-5">
-        <PanelOscuro className="px-6 py-7" style={{ border: "1px solid rgba(231,184,71,0.8)" }}>
-          <Eyebrow className="mb-2">Un regalo para vos</Eyebrow>
-          <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, lineHeight: 1.15, color: CREMA }}>
-            20% de descuento en tu próxima lectura
-          </h2>
-          <p className="mt-3 mb-6 text-[15px] leading-relaxed" style={{ color: "#c9c4d6" }}>
-            Tu acceso online venció. Si querés hacer una nueva lectura, tenés 20% de descuento.
-          </p>
-          <a
-            href={HREF_REACTIVACION}
-            className="inline-flex items-center justify-center rounded-full px-8 min-h-[50px] text-[16px] font-bold transition hover:brightness-105"
-            style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 22px rgba(240,197,90,0.30)" }}
-          >
-            Quiero mi nueva lectura →
-          </a>
-          <p className="mt-4 text-[12.5px]" style={{ color: "#a79fbd" }}>
-            Código <span className="font-bold tracking-wider" style={{ color: GOLD }}>{CODIGO_REACTIVACION}</span> · se aplica automáticamente
-          </p>
-        </PanelOscuro>
-      </div>
+      {oferta && (
+        <div className="mt-5">
+          <PanelOscuro className="px-6 py-7" style={{ border: "1px solid rgba(231,184,71,0.8)" }}>
+            {t.eyebrow && <Eyebrow className="mb-2">{t.eyebrow}</Eyebrow>}
+            <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, lineHeight: 1.15, color: CREMA }}>
+              {t.titulo || "Un precio especial para tu próxima lectura"}
+            </h2>
+            {t.cuerpo && (
+              <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "#c9c4d6" }}>
+                {t.cuerpo}
+              </p>
+            )}
+            <a
+              href={`/tarot/checkout?codigo=${encodeURIComponent(oferta.codigo)}&${UTM_REACTIVACION}`}
+              className="mt-6 inline-flex items-center justify-center rounded-full px-8 min-h-[50px] text-[16px] font-bold transition hover:brightness-105"
+              style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 22px rgba(240,197,90,0.30)" }}
+            >
+              {t.boton || "Quiero mi nueva lectura →"}
+            </a>
+            {t.pie && (
+              <p className="mt-4 text-[12.5px]" style={{ color: "#a79fbd" }}>
+                {t.pie.split("{CODIGO}").map((parte, i, arr) => (
+                  <span key={i}>
+                    {parte}
+                    {i < arr.length - 1 && <span className="font-bold tracking-wider" style={{ color: GOLD }}>{oferta.codigo}</span>}
+                  </span>
+                ))}
+              </p>
+            )}
+          </PanelOscuro>
+        </div>
+      )}
     </Contenedor>
   );
 }

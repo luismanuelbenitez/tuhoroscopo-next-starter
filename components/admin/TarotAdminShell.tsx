@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, Compass, ChevronDown, BarChart3, ListTodo, Search,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, Compass, ChevronDown, BarChart3, ListTodo, Search, Handshake,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -79,6 +79,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: "/admin/tarot/pagos",       icon: CreditCard, label: "Pagos" },
       { href: "/admin/tarot/facturacion", icon: Receipt,    label: "Facturación" },
       { href: "/admin/tarot/codigos",     icon: Tag,        label: "Cupones" },
+      { href: "/admin/tarot/reglas-comerciales", icon: Handshake, label: "Reglas comerciales" },
     ],
   },
   {
