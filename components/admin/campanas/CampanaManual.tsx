@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { AlertCircle, ArrowLeft, Check, CheckCheck, Loader2, Pause, Play, RefreshCw, Send, Smartphone, Star } from "lucide-react";
-import { TIPO_CAMPANA_UI, fmtFecha, fmtMoneda, fmtPct, type CampanaResumen } from "@/components/admin/campanas/ui";
+import { PLANTILLAS_META_UI, TIPO_CAMPANA_UI, fmtFecha, fmtMoneda, fmtPct, type CampanaResumen } from "@/components/admin/campanas/ui";
 
 // ============================================================================
 // Campaña MANUAL (2026-11-14): 1) el mensaje (plantilla de Meta) · 2) a quién
@@ -280,6 +280,15 @@ export function CampanaManual({ detalle, recargar }: { detalle: DetalleManual; r
               <span className="text-xs text-gray-500 font-mono">{plantilla?.nombre ?? String(c.mensaje.template_nombre ?? "")}</span>
               <button onClick={cargarPlantilla} className="text-xs text-gray-400 underline">volver a consultar</button>
             </p>
+            {PLANTILLAS_META_UI[c.tipo] && (
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Link del botón (así se manda a Meta):{" "}
+                <span className="font-mono text-gray-200 break-all">{PLANTILLAS_META_UI[c.tipo].url}{"{{1}}"}</span>
+                <br />Ejemplo que pide Meta:{" "}
+                <span className="font-mono text-gray-300 break-all">{PLANTILLAS_META_UI[c.tipo].url}ejemplo123</span>
+                <br />El {"{{1}}"} lo completa el sistema con la clave personal de cada clienta: abre {PLANTILLAS_META_UI[c.tipo].destino}.
+              </p>
+            )}
             {plantilla?.estado === "NO_CREADA" && (
               <>
                 <p className="text-xs text-gray-400">WhatsApp solo deja escribirle primero a una persona con un mensaje aprobado por Meta. Mandalo a revisión una vez; después sirve para todas las campañas de este tipo.</p>

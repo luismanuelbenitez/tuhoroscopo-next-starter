@@ -7,6 +7,7 @@ import { AlertCircle, Info, Loader2, Megaphone, Plus } from "lucide-react";
 import { TarotAdminShell } from "@/components/admin/TarotAdminShell";
 import { ESTADO_CAMPANA_UI, TIPO_CAMPANA_UI, fmtFecha, fmtMoneda, fmtPct, type CampanaResumen } from "@/components/admin/campanas/ui";
 import { NuevaCampana, type CodigoDisponible } from "@/components/admin/campanas/NuevaCampana";
+import { GuiaCampanas } from "@/components/admin/campanas/GuiaCampanas";
 
 // ============================================================================
 // Campañas (2026-10-19). Módulo general; hoy implementado el tipo
@@ -70,6 +71,8 @@ export default function TarotCampanasPage() {
             <li><strong className="text-gray-100">Errores:</strong> reintenta hasta 3 veces, cada 30 minutos; el motivo queda visible en el detalle.</li>
           </ul>
         </div>
+
+        <GuiaCampanas />
 
         {errorMsg && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-800/50 bg-red-950/40 px-4 py-2.5 text-sm text-red-300">

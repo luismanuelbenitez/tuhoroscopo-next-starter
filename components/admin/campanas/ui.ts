@@ -57,6 +57,20 @@ export const ESTADO_CAMPANA_UI: Record<string, { label: string; cls: string }> =
   finalizada: { label: "Finalizada", cls: "bg-sky-900/50 text-sky-300" },
 };
 
+// Lo que se le manda a Meta por tipo de campaña. Espejo de PLANTILLAS en
+// backend/supabase/functions/ef_tarot_campanas_runner/index.ts: si cambia
+// allá, cambiar acá (la función está aislada a propósito y no se importa).
+export const PLANTILLAS_META_UI: Record<string, { nombre: string; boton: string; url: string; destino: string }> = {
+  feedback_experiencia: {
+    nombre: "tu_oraculo_feedback_v1", boton: "Dejar mi opinión", url: "https://tuoraculo.uy/opinion/",
+    destino: "la página de opinión personal de esa clienta",
+  },
+  cupon_descuento: {
+    nombre: "tu_oraculo_cupon_v1", boton: "Usar mi descuento", url: "https://tuoraculo.uy/beneficio/",
+    destino: "su beneficio, que la lleva al checkout con el código puesto",
+  },
+};
+
 export const TIPO_CAMPANA_UI: Record<string, string> = {
   feedback_experiencia: "Feedback de experiencia",
   cupon_descuento: "Cupón de descuento",
