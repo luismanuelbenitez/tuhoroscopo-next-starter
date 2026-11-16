@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/asistente-diario", "schedule": "0 11 * * *" },
     { "path": "/api/cron/meta-ads", "schedule": "5 * * * *" },
-    { "path": "/api/cron/google-ads", "schedule": "15 * * * *" }
+    { "path": "/api/cron/google-ads", "schedule": "15 * * * *" },
+    { "path": "/api/cron/soporte", "schedule": "*/5 * * * *" }
   ]
 }

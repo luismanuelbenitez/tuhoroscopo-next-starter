@@ -172,7 +172,7 @@ const TEMAS = new Set(["amor", "decisiones", "trabajo", "general"]);
 const fechaCorta = (d: Date) => d.toLocaleDateString("es-UY", { weekday: "long", day: "numeric", month: "numeric", timeZone: "America/Montevideo" });
 
 /** Crea el código personal de una regla (ej. CAMILAVIP) y arma el link y el mensaje para mandarle. */
-export async function crearCodigoPersonal(rest: Rest, clave: string, d: { nombre: string; tema?: string; nacimiento?: string }, por: string) {
+export async function crearCodigoPersonal(rest: Rest, clave: string, d: { nombre: string; tema?: string; nacimiento?: string; metadata?: Record<string, unknown> }, por: string) {
   const r = await leerRegla(rest, clave);
   if (!r || r.tipo !== "codigo_personal" || !r.formato_codigo) return { ok: false as const, motivo: "regla_invalida" };
   if (!r.activa) return { ok: false as const, motivo: "regla_inactiva", detalle: "La regla está desactivada." };
@@ -195,7 +195,7 @@ export async function crearCodigoPersonal(rest: Rest, clave: string, d: { nombre
       codigo, descripcion: `Regla comercial: ${r.nombre} · ${d.nombre.trim().slice(0, 60)}`, tipo_descuento: "porcentaje", valor_descuento: r.porcentaje,
       monedas_aplicables: ["UYU"], fecha_inicio: new Date().toISOString(), fecha_fin: vence.toISOString(),
       max_usos_total: null, max_usos_por_cliente: r.max_usos_por_cliente, campania: r.campania, canal: "whatsapp",
-      activo: true, creado_por: por, metadata: { regla: r.clave },
+      activo: true, creado_por: por, metadata: { ...(d.metadata ?? {}), regla: r.clave },
     }),
   });
 

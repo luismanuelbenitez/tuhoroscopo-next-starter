@@ -27,7 +27,7 @@ import {
   type LucideIcon,
   Megaphone,
   Target,
-  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, Compass, ChevronDown, BarChart3, ListTodo, Search, Handshake,
+  Radar, Scale, Workflow, Calculator, BrainCircuit, Telescope, Compass, ChevronDown, BarChart3, ListTodo, Search, Handshake, Bot,
 } from "lucide-react";
 import { AdminPanelSwitcher } from "@/components/admin/AdminPanelSwitcher";
 import { usePollingRefresh } from "@/lib/usePollingRefresh";
@@ -86,6 +86,7 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
     label: "Clientes y marketing",
     items: [
       { href: "/admin/tarot/clientes-unicos", icon: UserCheck, label: "Clientes" },
+      { href: "/admin/tarot/soporte",        icon: Bot,       label: "Soporte automatizado" },
       { href: "/admin/tarot/clientes",        icon: Users,     label: "Registros" },
       { href: "/admin/tarot/testimonios",     icon: Star,      label: "Testimonios" },
       { href: "/admin/tarot/campanas",        icon: Megaphone, label: "Campañas" },
