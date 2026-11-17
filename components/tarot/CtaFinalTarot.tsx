@@ -31,7 +31,13 @@ function IconoBeneficio({ img, aro }: { img: string; aro: number }) {
   );
 }
 
-export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
+// Textos opcionales (2026-11-17, G14): las páginas por frase cambian título y
+// bajada. Sin props, /tarot queda igual.
+export function CtaFinalTarot({
+  precioUYU,
+  titulo = "Mirá tu momento desde otra perspectiva.",
+  bajada = "Hacé tu consulta de tarot y recibí tu lectura de cartas personalizada en minutos.",
+}: { precioUYU: number | null; titulo?: string; bajada?: string }) {
 
   return (
     <section className="relative px-5 md:px-8 pt-10 pb-12 md:pt-8 md:pb-14 max-w-[760px] mx-auto text-center">
@@ -39,10 +45,10 @@ export function CtaFinalTarot({ precioUYU }: { precioUYU: number | null }) {
         className="mb-4"
         style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.7rem, 4vw, 2.5rem)", lineHeight: 1.2 }}
       >
-        Mirá tu momento desde otra perspectiva.
+        {titulo}
       </h2>
       <p className="text-white/60 text-[14px] md:text-[15px] leading-relaxed mb-8 max-w-md mx-auto">
-        Hacé tu consulta de tarot y recibí tu lectura de cartas personalizada en minutos.
+        {bajada}
       </p>
 
       <CtaButton href="/tarot/checkout" className="px-7 py-3.5 text-[15px] mb-14 md:mb-20">

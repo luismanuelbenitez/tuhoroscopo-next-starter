@@ -23,7 +23,24 @@ const BENEFICIOS = [
 // 14 s con lo que se recibe + ejemplo de lectura, todo en la primera
 // pantalla del celular. Desde 2026-11-14 el precio va en el botón (Manuel:
 // el mismo texto en todos los botones de /tarot, lib/ctaTarot.ts).
-export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
+//
+// Textos opcionales (2026-11-17, regla G14 "una página por búsqueda"): las
+// páginas por frase (ej. /tarot/tirada-de-tarot) cambian H1, título y bajada.
+// Sin props, /tarot queda exactamente igual.
+export interface TextosHeroTarot {
+  h1?: string;
+  titulo?: string;
+  tituloDorado?: string;
+  bajada?: string;
+}
+
+export function HeroTarot({ precioUYU, textos = {} }: { precioUYU: number | null; textos?: TextosHeroTarot }) {
+  const {
+    h1 = "Lectura de tarot online personalizada",
+    titulo = "Tu tirada de 5 cartas,",
+    tituloDorado = "interpretada para tu pregunta.",
+    bajada = "Tu lectura de cartas llega por WhatsApp en minutos, explicada carta por carta.",
+  } = textos;
 
   const ejemplo = (
     <Link href="/tarot/ejemplo" className="inline-flex items-center gap-1.5 py-2.5 -my-2.5 text-[14px] font-semibold underline underline-offset-4 decoration-1" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
@@ -45,14 +62,14 @@ export function HeroTarot({ precioUYU }: { precioUYU: number | null }) {
               que compra Google Ads ("lectura de tarot online"), que es lo
               que mide la relevancia de la página de destino. */}
           <h1 className="text-[12px] md:text-[11px] font-bold uppercase tracking-widest mb-2.5" style={{ color: GOLD, textShadow: TEXT_SHADOW }}>
-            Lectura de tarot online personalizada
+            {h1}
           </h1>
           <p className="mb-2" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: "clamp(1.9rem, 5.4vw, 3.1rem)", lineHeight: 1.05, color: CREMA, textShadow: TEXT_SHADOW }}>
-            Tu tirada de 5 cartas,{" "}
-            <span style={{ color: GOLD }}>interpretada para tu pregunta.</span>
+            {titulo}{" "}
+            <span style={{ color: GOLD }}>{tituloDorado}</span>
           </p>
           <p className="text-white/90 md:text-white/80 text-[14.5px] md:text-[16px] leading-snug mb-4 md:mb-6" style={{ textShadow: TEXT_SHADOW }}>
-            Tu lectura de cartas llega por WhatsApp en minutos, explicada carta por carta.
+            {bajada}
           </p>
 
           {/* Celular: video y beneficios lado a lado, así todo entra en la primera pantalla. */}

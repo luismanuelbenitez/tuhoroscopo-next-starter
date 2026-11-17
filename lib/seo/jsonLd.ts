@@ -37,15 +37,18 @@ export function jsonLdHome() {
   ];
 }
 
-export function jsonLdTarot(precioUYU: number | null) {
-  const url = `${SITIO}/tarot`;
+// `pagina` (2026-11-17, G14): páginas por frase dentro de /tarot (ej.
+// /tarot/tirada-de-tarot) suman su miga y su url. Sin argumento, igual que antes.
+export function jsonLdTarot(precioUYU: number | null, pagina?: { ruta: string; nombre: string }) {
+  const url = `${SITIO}${pagina?.ruta ?? "/tarot"}`;
   return [
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
         { "@type": "ListItem", position: 1, name: "Tu Oráculo", item: `${SITIO}/` },
-        { "@type": "ListItem", position: 2, name: "Tarot", item: url },
+        { "@type": "ListItem", position: 2, name: "Tarot", item: `${SITIO}/tarot` },
+        ...(pagina ? [{ "@type": "ListItem", position: 3, name: pagina.nombre, item: url }] : []),
       ],
     },
     {

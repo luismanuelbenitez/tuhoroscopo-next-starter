@@ -8,7 +8,9 @@ import { linkWhatsApp } from "@/lib/contacto";
 // Respuestas alineadas con /faq, Términos y Política de privacidad — sin
 // prometer nada que el producto no haga. <details> nativo: sin JS y con el
 // texto siempre en el HTML. Sin imágenes (cero peso extra).
-const DUDAS = [
+export interface DudaTarot { q: string; a: string; politica?: boolean; contacto?: boolean; soloEscritorio?: boolean }
+
+const DUDAS: DudaTarot[] = [
   {
     q: "¿La lectura la hace una IA o un tarotista?",
     a: "Las cartas se sortean para vos y la interpretación la genera inteligencia artificial, aplicando la simbología del tarot clásico a tu nombre, tu tema y tu pregunta. No hay un tarotista humano detrás, y no es un texto genérico: cada tirada de tarot se escribe para tu consulta.",
@@ -41,7 +43,10 @@ const DUDAS = [
   },
 ];
 
-export function DudasTarot({ waNumero = "" }: { waNumero?: string }) {
+// `primeras` (2026-11-17, G14): dudas propias de una página por frase, que van
+// antes de las de siempre. Sin props, /tarot queda igual.
+export function DudasTarot({ waNumero = "", primeras = [] }: { waNumero?: string; primeras?: DudaTarot[] }) {
+  const dudas = [...primeras, ...DUDAS];
   return (
     <section aria-labelledby="dudas-tarot" className="relative px-5 md:px-8 pt-10 pb-4 md:pt-12 max-w-[680px] mx-auto">
       <p className="text-[11px] font-bold uppercase tracking-widest mb-2 text-center" style={{ color: GOLD }}>Antes de pedir tu lectura</p>
@@ -53,7 +58,7 @@ export function DudasTarot({ waNumero = "" }: { waNumero?: string }) {
         Dudas frecuentes
       </h2>
       <div className="flex flex-col gap-2.5">
-        {DUDAS.map((d) => (
+        {dudas.map((d) => (
           <details
             key={d.q}
             className={`group rounded-2xl overflow-hidden ${d.soloEscritorio ? "hidden md:block" : ""}`}
