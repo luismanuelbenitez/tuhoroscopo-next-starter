@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Star, Check, Loader2, MessageCircle, Lock } from "lucide-react";
+import { Star, Check, Loader2, MessageCircle } from "lucide-react";
 import { CTA_GRADIENT, CREMA, GOLD, SERIF } from "@/components/home/theme";
 import { CardTestimonio } from "@/components/tarot/TestimoniosTarot";
 import type { ConsentimientoTexto } from "@/lib/feedbackPublico";
@@ -10,7 +10,8 @@ import type { ConsentimientoTexto } from "@/lib/feedbackPublico";
 //   1. Estrellas (lo único visible al entrar: una sola decisión, un toque).
 //   2. Al elegir la nota aparece el comentario con una pregunta que cambia
 //      según la nota, y el botón de enviar.
-//   3. Solo con 4 o 5 estrellas: vista previa del testimonio y permisos.
+//   3. Solo con 4 o 5 estrellas Y comentario: vista previa del testimonio y
+//      un único permiso (interruptor, arranca apagado).
 //      Con 1 a 3 no se pide permiso de publicar; se ofrece ayuda por WhatsApp.
 // Lo que se envía y cómo se guarda no cambió (mismo POST /api/opinion).
 
@@ -50,21 +51,39 @@ function Titulo({ children, id }: { children: React.ReactNode; id?: string }) {
   );
 }
 
-function Consentimiento({ id, checked, onChange, texto }: { id: string; checked: boolean; onChange: (v: boolean) => void; texto: string }) {
+// Un solo permiso (2026-11-16, pedido de Manuel: cero fricción). El texto es
+// el vigente de la base, tal cual: es lo que queda registrado como aceptado.
+// Arranca apagado: el permiso tiene que ser expreso.
+function Compartir({ checked, onChange, texto, identidad }: { checked: boolean; onChange: (v: boolean) => void; texto: string; identidad: string }) {
   return (
     <label
-      htmlFor={id}
-      className="flex items-start gap-3 cursor-pointer rounded-xl px-3.5 py-3.5 transition-colors"
-      style={{ border: `1px solid ${checked ? "rgba(240,197,90,0.55)" : "rgba(255,255,255,0.12)"}`, background: checked ? "rgba(240,197,90,0.07)" : "transparent" }}
+      htmlFor="compartir"
+      className="flex items-center gap-4 cursor-pointer rounded-xl px-4 py-3.5 transition-colors focus-within:ring-2 focus-within:ring-[#F0C55A]/70"
+      style={{ background: checked ? "rgba(240,197,90,0.09)" : "rgba(255,255,255,0.04)" }}
     >
+      <span className="flex-1">
+        <span className="block text-[15.5px] leading-snug text-white/95">{texto}</span>
+        <span className="mt-1 block text-[13.5px] text-white/60">Solo como {identidad}</span>
+      </span>
       <input
-        id={id}
+        id="compartir"
         type="checkbox"
+        role="switch"
+        aria-checked={checked}
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-[#F0C55A]"
+        className="sr-only"
       />
-      <span className="text-[15px] leading-snug text-white/90">{texto}</span>
+      <span
+        aria-hidden="true"
+        className="relative h-[30px] w-[52px] shrink-0 rounded-full transition-colors"
+        style={{ background: checked ? GOLD : "rgba(255,255,255,0.18)" }}
+      >
+        <span
+          className="absolute top-[3px] h-6 w-6 rounded-full bg-white shadow transition-transform"
+          style={{ left: 3, transform: checked ? "translateX(22px)" : "translateX(0)" }}
+        />
+      </span>
     </label>
   );
 }
@@ -104,14 +123,20 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comentario, setComentario] = useState("");
-  const [sitio, setSitio] = useState(false);
-  const [difusion, setDifusion] = useState(false);
+  const [compartir, setCompartir] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
   const enviandoRef = useRef(false);
 
   const positiva = rating >= 4;
+  // El bloque de compartir solo tiene sentido con nota alta y comentario.
+  const puedeCompartir = positiva && comentario.trim() !== "";
+  const autoriza = puedeCompartir && compartir;
+  // Si los dos textos vigentes son iguales (un solo permiso), se muestra uno.
+  const textoPermiso = consentimientos.sitio.texto === consentimientos.difusion.texto
+    ? consentimientos.sitio.texto
+    : `${consentimientos.sitio.texto} ${consentimientos.difusion.texto}`;
   const pregunta = PREGUNTA[rating];
   const mostrada = hover || rating;
 
@@ -119,8 +144,8 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
     const primera = rating === 0;
     setRating(n);
     setError(null);
-    // Con nota baja no se pide publicar: se limpian permisos marcados antes.
-    if (n < 4) { setSitio(false); setDifusion(false); }
+    // Con nota baja no se pide publicar: se limpia el permiso marcado antes.
+    if (n < 4) setCompartir(false);
     // La primera vez, llevar la vista al paso siguiente (sin robar el foco).
     if (primera) {
       window.setTimeout(() => {
@@ -146,8 +171,8 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
         body: JSON.stringify({
           rating,
           comentario: comentario.trim(),
-          autoriza_sitio: positiva && sitio,
-          autoriza_difusion: positiva && difusion,
+          autoriza_sitio: autoriza,
+          autoriza_difusion: autoriza,
           version_sitio: consentimientos.sitio.version,
           version_difusion: consentimientos.difusion.version,
         }),
@@ -167,7 +192,7 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
   }
 
   if (enviada) {
-    const autorizo = positiva && (sitio || difusion) && comentario.trim() !== "";
+    const autorizo = autoriza;
     return (
       <section className="mt-8 text-center rounded-2xl px-6 py-10" style={PANEL} aria-live="polite">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: "rgba(240,197,90,0.12)", border: `1px solid ${GOLD}` }}>
@@ -195,8 +220,6 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
       </section>
     );
   }
-
-  const previaTexto = comentario.trim() || "Acá va a aparecer tu opinión con tus palabras.";
 
   return (
     <form onSubmit={enviar} noValidate className="space-y-5">
@@ -287,31 +310,20 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
           </section>
 
           {positiva ? (
-            <>
-              {/* 4. Vista previa con la card REAL de /tarot + permisos */}
-              <section className="rounded-2xl px-4 py-5" style={PANEL} aria-labelledby="titulo-previa">
+            puedeCompartir && (
+              // 4. Solo con nota alta y comentario: la card REAL de /tarot y un único permiso.
+              <section className="rounded-2xl px-4 pt-5 pb-4" style={PANEL} aria-labelledby="titulo-previa">
                 <h2 id="titulo-previa" className="text-center" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 22, color: CREMA }}>
                   ¿Nos dejás compartirla?
                 </h2>
-                <p className="mt-1 text-center text-[15px] text-white/75">Así se vería en nuestro sitio:</p>
                 <div className="mx-auto mt-4 max-w-[330px]" aria-live="polite">
-                  <div style={{ opacity: comentario.trim() ? 1 : 0.6, transition: "opacity 200ms" }}>
-                    <CardTestimonio opinion={previaTexto} puntuacion={rating} nombre={identidadPublica} ciudad={null} />
-                  </div>
+                  <CardTestimonio opinion={comentario.trim()} puntuacion={rating} nombre={identidadPublica} ciudad={null} />
                 </div>
-                <div className="mt-5 space-y-2.5">
-                  <Consentimiento id="consentimiento-sitio" checked={sitio} onChange={setSitio} texto={consentimientos.sitio.texto} />
-                  <Consentimiento id="consentimiento-difusion" checked={difusion} onChange={setDifusion} texto={consentimientos.difusion.texto} />
+                <div className="mt-4">
+                  <Compartir checked={compartir} onChange={setCompartir} texto={textoPermiso} identidad={identidadPublica} />
                 </div>
-                <p className="mt-3 flex items-start gap-2 text-[14px] leading-snug text-white/70">
-                  <Lock size={15} className="mt-0.5 shrink-0" style={{ color: GOLD }} aria-hidden="true" />
-                  <span>
-                    Siempre aparece solo como <strong className="text-white/90">{identidadPublica}</strong>, nunca tu apellido ni otros datos. Es opcional: tu opinión nos llega igual sin marcar nada.
-                    {!comentario.trim() && " Para publicarse como testimonio necesita un comentario."}
-                  </span>
-                </p>
               </section>
-            </>
+            )
           ) : (
             <section className="rounded-2xl px-5 py-5 space-y-3" style={PANEL}>
               <p className="text-[15.5px] leading-relaxed text-white/85">
