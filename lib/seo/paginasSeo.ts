@@ -15,6 +15,8 @@ export type PaginaSeoDef = {
   titulo: string;        // <title> (la plantilla no agrega sufijo: va completo)
   descripcion: string;   // meta description (~150–160 caracteres)
   migaja: string;        // nombre corto para BreadcrumbList
+  // Imagen propia al compartir el link (Facebook, WhatsApp). Sin ella, la de la marca.
+  og?: { url: string; width: number; height: number; alt: string };
 };
 
 export const PAGINAS_SEO = {
@@ -42,6 +44,9 @@ export const PAGINAS_SEO = {
     descripcion:
       "Tarot del amor para tu relación de pareja: una tirada de 5 cartas sobre tu vínculo, qué preguntas funcionan y qué esperar. Te llega por WhatsApp en minutos.",
     migaja: "Tarot del amor",
+    // 2026-11-17 (Manuel, redes): al compartir el link se ve la escena de la
+    // lectura con Los Enamorados, en el estilo aprobado de las piezas.
+    og: { url: "/img/og/tarot-amor.jpg", width: 1200, height: 630, alt: "Tu tirada del amor — Tu Oráculo" },
   },
   trabajo: {
     slug: "/tarot/trabajo-y-dinero",
@@ -67,6 +72,7 @@ const OG_IMAGEN = { url: "/img/whatsapp/og.jpg", width: 1672, height: 941, alt: 
 export function metadataSeo(clave: ClavePaginaSeo): Metadata {
   const p = PAGINAS_SEO[clave];
   const url = `${SITIO}${p.slug}`;
+  const og = (p as PaginaSeoDef).og ?? OG_IMAGEN;
   return {
     title: { absolute: p.titulo },
     description: p.descripcion,
@@ -79,13 +85,13 @@ export function metadataSeo(clave: ClavePaginaSeo): Metadata {
       siteName: "Tu Oráculo",
       locale: "es_UY",
       type: "website",
-      images: [OG_IMAGEN],
+      images: [og],
     },
     twitter: {
       card: "summary_large_image",
       title: p.titulo,
       description: p.descripcion,
-      images: [OG_IMAGEN.url],
+      images: [og.url],
     },
   };
 }
