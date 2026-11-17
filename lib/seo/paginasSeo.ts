@@ -46,7 +46,10 @@ export const PAGINAS_SEO = {
     migaja: "Tarot del amor",
     // 2026-11-17 (Manuel, redes): al compartir el link se ve la escena de la
     // lectura con Los Enamorados, en el estilo aprobado de las piezas.
-    og: { url: "/img/og/tarot-amor.jpg", width: 1200, height: 630, alt: "Tu tirada del amor — Tu Oráculo" },
+    // 2026-11-17 (más tarde): "¿Qué dicen las cartas sobre tu corazón?" (antes
+    // "sobre tu amor", queda en tarot-amor.jpg). Archivo nuevo para que Facebook
+    // no reuse la vista previa guardada.
+    og: { url: "/img/og/tarot-amor-corazon.jpg", width: 1200, height: 630, alt: "Tu tirada del amor — Tu Oráculo" },
   },
   trabajo: {
     slug: "/tarot/trabajo-y-dinero",
