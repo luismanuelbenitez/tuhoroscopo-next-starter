@@ -85,6 +85,28 @@ function decodificar(v: string | null): string | undefined {
   try { return decodeURIComponent(v).slice(0, 80); } catch { return v.slice(0, 80); }
 }
 
+// Clic de Google Ads: el código del anuncio (gclid / gbraid / wbraid), que el
+// navegador guarda al llegar (lib/analytics.ts). Sesiones ya guardadas en esta
+// instancia no se vuelven a escribir en cada lote.
+const CLIC_VALIDO = /^[A-Za-z0-9_-]{8,300}$/;
+const clicesGuardados = new Set<string>();
+function clicGoogle(v: unknown, cookie: string): { gclid: string | null; gbraid: string | null; wbraid: string | null; clic_at: string | null } | null {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const val = (x: unknown) => (typeof x === 'string' && CLIC_VALIDO.test(x) ? x : null);
+  let gclid = val(o.gclid);
+  const gbraid = val(o.gbraid), wbraid = val(o.wbraid);
+  let t = typeof o.t === 'number' && Number.isFinite(o.t) ? o.t : null;
+  if (!gclid && !gbraid && !wbraid) {
+    // _gcl_aw = "GCL.<segundos>.<gclid>"
+    const m = cookie.match(/(?:^|;\s*)_gcl_aw=GCL\.(\d+)\.([A-Za-z0-9_-]{8,300})/);
+    if (m) { gclid = m[2]; t = Number(m[1]) * 1000; }
+  }
+  if (!gclid && !gbraid && !wbraid) return null;
+  const ahora = Date.now();
+  const clicAt = t && t > ahora - 91 * 86400_000 && t <= ahora + 3600_000 ? new Date(t).toISOString() : null;
+  return { gclid, gbraid, wbraid, clic_at: clicAt };
+}
+
 export async function POST(req: Request) {
   try {
     const largo = Number(req.headers.get('content-length') ?? 0);
@@ -185,6 +207,18 @@ export async function POST(req: Request) {
       { auth: { persistSession: false } },
     );
     await supabase.rpc('funnel_registrar_lote', { p_sesion: sesion, p_eventos: eventos });
+
+    // Clic de Google Ads (2026-11-17): se guarda por sesión para avisarle a
+    // Google la venta desde el servidor (lib/googleAdsApi/ventasServidor.ts).
+    // Respaldo: la cookie _gcl_aw que deja la etiqueta de Google en este sitio.
+    const clic = clicGoogle(sesionIn.clic_google, req.headers.get('cookie') ?? '');
+    if (clic && !esInterno && !clicesGuardados.has(sessionId)) {
+      const { error } = await supabase.from('google_ads_clics').upsert({ session_id: sessionId, ...clic, updated_at: new Date().toISOString() }, { onConflict: 'session_id' });
+      if (!error) {
+        if (clicesGuardados.size > 20000) clicesGuardados.clear();
+        clicesGuardados.add(sessionId);
+      }
+    }
     return vacio();
   } catch {
     return vacio();

@@ -67,6 +67,24 @@ export function asegurarSoloLectura(plataforma: "meta" | "google", metodo: strin
   if (ruta.endsWith("listAccessibleCustomers") ? m !== "GET" : m !== "POST") throw new ViolacionReglaMaxima(`Google ${m} ${ruta}`);
 }
 
+// 2026-11-17 — Manuel: "cuando MP confirma el pago, si viene de Google, hay que
+// avisarle". Avisar una venta no cambia campañas, pujas ni gasto: solo le dice
+// a Google qué clic terminó en compra. Único destino permitido: events:ingest
+// de la Data Manager API (lib/googleAdsApi/ventasServidor.ts). Ninguna otra
+// ruta de ese servidor (listas de clientes, públicos, etc.) pasa.
+const DATA_MANAGER_EVENTOS = "https://datamanager.googleapis.com/v1/events:ingest";
+
+/** Corta con error todo lo que no sea avisar ventas a Google (Data Manager API). */
+export function asegurarAvisoDeVentas(metodo: string, url: string, cuerpo: unknown): void {
+  if (metodo.toUpperCase() !== "POST" || url.split("?")[0] !== DATA_MANAGER_EVENTOS) {
+    throw new ViolacionReglaMaxima(`Data Manager: solo se avisan ventas (${metodo} ${url})`);
+  }
+  const c = cuerpo as { destinations?: { productDestinationId?: string }[]; events?: unknown[] } | null;
+  if (!c || !Array.isArray(c.destinations) || !Array.isArray(c.events) || c.destinations.some((d) => !/^\d{1,20}$/.test(String(d.productDestinationId ?? "")))) {
+    throw new ViolacionReglaMaxima("Data Manager: pedido que no es un aviso de ventas");
+  }
+}
+
 /** Las consultas a Google son GAQL: solo SELECT. */
 export function asegurarConsultaGaql(q: string): void {
   if (!/^\s*SELECT\s/i.test(q)) throw new ViolacionReglaMaxima("Google: la consulta no es un SELECT");

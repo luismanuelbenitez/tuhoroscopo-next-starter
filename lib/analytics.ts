@@ -56,6 +56,7 @@ export interface Attribution {
  */
 export function storeAttributionFromUrl(): void {
   if (typeof window === 'undefined') return;
+  guardarClicGoogle();
   try {
     const url    = new URL(window.location.href);
     const hasUtm = UTM_FIELDS.some(k => url.searchParams.has(k));
@@ -86,6 +87,46 @@ export function getStoredAttribution(): Attribution | null {
       return null;
     }
     return attr;
+  } catch {
+    return null;
+  }
+}
+
+// ── Clic de Google Ads (2026-11-17) ────────────────────────────────────────
+// El código que Google pone en la URL del anuncio (gclid; en iPhone gbraid o
+// wbraid). Se guarda 90 días (la ventana de la conversión) y viaja con los
+// eventos de cada sesión: así el servidor le avisa a Google la venta cuando
+// Mercado Pago confirma el pago, aunque la compradora no vuelva a la web.
+// No es un dato personal; nunca se mezcla con nombre, teléfono ni email.
+
+const CLIC_GOOGLE_LS_KEY = 'tuo_gclk';
+const CLIC_GOOGLE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const CLIC_VALIDO = /^[A-Za-z0-9_-]{8,300}$/;
+
+interface ClicGoogle { gclid?: string; gbraid?: string; wbraid?: string; t: number }
+
+function guardarClicGoogle(): void {
+  try {
+    const url = new URL(window.location.href);
+    const clic: ClicGoogle = { t: Date.now() };
+    for (const k of ['gclid', 'gbraid', 'wbraid'] as const) {
+      const v = url.searchParams.get(k);
+      if (v && CLIC_VALIDO.test(v)) clic[k] = v;
+    }
+    if (clic.gclid || clic.gbraid || clic.wbraid) localStorage.setItem(CLIC_GOOGLE_LS_KEY, JSON.stringify(clic));
+  } catch { /* non-blocking */ }
+}
+
+function clicGoogleGuardado(): ClicGoogle | null {
+  try {
+    const raw = localStorage.getItem(CLIC_GOOGLE_LS_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as ClicGoogle;
+    if (!c || typeof c.t !== 'number' || Date.now() - c.t > CLIC_GOOGLE_TTL_MS) {
+      localStorage.removeItem(CLIC_GOOGLE_LS_KEY);
+      return null;
+    }
+    return c;
   } catch {
     return null;
   }
@@ -225,8 +266,9 @@ function enviarLote(): void {
     const sessionId = s?.id ?? getOrCreateSessionId();
     if (!sessionId) { cola = []; return; }
     const lote = cola.splice(0, MAX_LOTE);
+    const clic = clicGoogleGuardado();
     const body = JSON.stringify({
-      sesion: { session_id: sessionId, visitor_id: obtenerVisitante(), screen_bucket: rangoPantalla(), ...(s?.ctx ?? {}) },
+      sesion: { session_id: sessionId, visitor_id: obtenerVisitante(), screen_bucket: rangoPantalla(), ...(s?.ctx ?? {}), ...(clic ? { clic_google: clic } : {}) },
       eventos: lote,
       enviado: Date.now(),
     });

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { restSupabase } from "@/lib/asistenteParte";
 import { sincronizarGoogleAds } from "@/lib/googleAdsApi/sync";
 import { consultarMercado } from "@/lib/googleAdsApi/mercado";
+import { avisarVentasGoogle } from "@/lib/googleAdsApi/ventasServidor";
 
 // Sincronización Google Ads (2026-11-04), cada hora por Vercel Cron (ver
-// vercel.json). SOLO LEE de Google (REGLA MÁXIMA, lib/reglaMaxima.ts). Cada
+// vercel.json). SOLO LEE de Google Ads (REGLA MÁXIMA, lib/reglaMaxima.ts); lo
+// único que manda es el aviso de ventas (ventasServidor.ts, 2026-11-17). Cada
 // hora: últimos 3 días; a las 6:00 de Uruguay (9:00 UTC) los últimos 30,
 // porque Google ajusta conversiones con atraso.
 // Vercel manda "Authorization: Bearer <CRON_SECRET>".
@@ -28,5 +30,9 @@ export async function GET(req: NextRequest) {
     await consultarMercado(rest, "uy").catch(() => null);
     await consultarMercado(rest, "us").catch(() => null);
   }
-  return NextResponse.json(r, { status: r.ok || r.motivo === "sin_configurar" ? 200 : 502 });
+  // Ventas (2026-11-17): cada hora se le avisan a Google las compras aprobadas
+  // por MP que vinieron de un anuncio, aunque la compradora no haya vuelto a
+  // la web. Si falla, no corta la sincronización: se reintenta la hora siguiente.
+  const ventas = await avisarVentasGoogle(rest).catch((e: unknown) => ({ ok: false, motivo: e instanceof Error ? e.message.slice(0, 200) : "error", enviadas: 0, errores: 0 }));
+  return NextResponse.json({ ...r, ventas }, { status: r.ok || r.motivo === "sin_configurar" ? 200 : 502 });
 }
