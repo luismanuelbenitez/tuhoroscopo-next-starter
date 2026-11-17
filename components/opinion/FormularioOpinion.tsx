@@ -11,7 +11,7 @@ import type { ConsentimientoTexto } from "@/lib/feedbackPublico";
 //   2. Al elegir la nota aparece el comentario con una pregunta que cambia
 //      según la nota, y el botón de enviar.
 //   3. Solo con 4 o 5 estrellas Y comentario: vista previa del testimonio y
-//      un único permiso (interruptor, arranca apagado).
+//      un único permiso, solo web (interruptor, arranca apagado).
 //      Con 1 a 3 no se pide permiso de publicar; se ofrece ayuda por WhatsApp.
 // Lo que se envía y cómo se guarda no cambió (mismo POST /api/opinion).
 
@@ -133,10 +133,10 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
   // El bloque de compartir solo tiene sentido con nota alta y comentario.
   const puedeCompartir = positiva && comentario.trim() !== "";
   const autoriza = puedeCompartir && compartir;
-  // Si los dos textos vigentes son iguales (un solo permiso), se muestra uno.
-  const textoPermiso = consentimientos.sitio.texto === consentimientos.difusion.texto
-    ? consentimientos.sitio.texto
-    : `${consentimientos.sitio.texto} ${consentimientos.difusion.texto}`;
+  // Desde el 16/11 solo se pide el permiso de la web (texto vigente de "sitio").
+  // Difusión (redes, anuncios) no se pide: se envía siempre en false; la
+  // versión vigente igual se manda porque la API la exige.
+  const textoPermiso = consentimientos.sitio.texto;
   const pregunta = PREGUNTA[rating];
   const mostrada = hover || rating;
 
@@ -172,7 +172,7 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
           rating,
           comentario: comentario.trim(),
           autoriza_sitio: autoriza,
-          autoriza_difusion: autoriza,
+          autoriza_difusion: false,
           version_sitio: consentimientos.sitio.version,
           version_difusion: consentimientos.difusion.version,
         }),
