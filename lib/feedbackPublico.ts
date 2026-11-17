@@ -25,8 +25,15 @@ export interface FeedbackContexto {
   estado: EstadoFeedback;
   nombrePila?: string;
   identidadPublica?: string;
+  /** Tema de la lectura en palabras ("de amor", "sobre una decisión"); vacío = general. */
+  temaTexto?: string;
   consentimientos?: { sitio: ConsentimientoTexto; difusion: ConsentimientoTexto };
 }
+
+const TEMA_TEXTO: Record<string, string> = {
+  amor: "de amor", dinero: "de dinero", trabajo: "de trabajo", salud: "de salud",
+  decision: "sobre una decisión", decisiones: "sobre una decisión",
+};
 
 function db() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -74,13 +81,17 @@ export async function resolverFeedback(token: string): Promise<FeedbackContexto>
     if (error) return { estado: "error" };
     const r = data as { estado: EstadoFeedback; orden_id?: string };
     if (r.estado !== "ok" && r.estado !== "respondido") return { estado: r.estado };
-    const nombre = r.orden_id ? await nombreDeLaOrden(supabase, r.orden_id) : null;
+    const orden = r.orden_id
+      ? ((await supabase.from("tarot_ordenes").select("nombre_snapshot, tema").eq("id", r.orden_id).maybeSingle()).data as { nombre_snapshot: string | null; tema: string | null } | null)
+      : null;
+    const nombre = orden?.nombre_snapshot ?? null;
     const consentimientos = await textosVigentes(supabase);
     if (!consentimientos) return { estado: "error" };
     return {
       estado: r.estado,
       nombrePila: nombreDePila(nombre),
       identidadPublica: identidadPublica(nombre),
+      temaTexto: TEMA_TEXTO[String(orden?.tema ?? "").toLowerCase()] ?? "",
       consentimientos,
     };
   } catch {
