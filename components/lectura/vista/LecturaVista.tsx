@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { urlOptimizada } from "@/lib/imagen";
 import { DIR, SERIF, GOLD, FondoLectura, FONDO_PAGINA, EstilosCartaViva } from "./Base";
 import { HeroLectura } from "./HeroLectura";
-import { ResumenBloque, CartaPorCarta, MensajeBloque, ClavesBloque, PdfBloque, OtraLecturaBloque } from "./Bloques";
+import { ResumenBloque, CartaPorCarta, MensajeBloque, ClavesBloque, PdfBloque } from "./Bloques";
+import { OtraLectura } from "./OtraLectura";
 
 // Vista de /lectura/[token] — SOLO presentación (rediseño 2026-10-18, sobre el
 // mockup de Manuel). Recibe exactamente lo que la página ya resolvía
@@ -205,7 +206,7 @@ export function LecturaVista({
             {cierre ?? (
               <>
                 <PdfBloque pdfHref={pdfHref} venceTexto={fechaVencimiento(lectura.expira_at)} />
-                <OtraLecturaBloque nombre={lectura.nombre?.trim() || null} nacimiento={lectura.fecha_nacimiento ?? null} />
+                <OtraLectura nombre={lectura.nombre?.trim() || null} nacimiento={lectura.fecha_nacimiento ?? null} expiraAt={lectura.expira_at} />
               </>
             )}
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ArrowRight, BookOpen, Sparkles, Mail, KeyRound, FileText, Download, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CartaPublica } from "@/lib/tarotLecturaPublica";
+import type { OfertaOtraLectura } from "@/lib/reglasComerciales";
 import { AmbientAudioControls } from "@/components/lectura/AmbientAudio";
 import { ResumenAudioControls } from "@/components/lectura/ResumenAudioControls";
 import { DIR, SERIF, CREMA, GOLD, TINTA, TINTA_SUAVE, TINTA_TEXTO, PERGAMINO_TARJETA, PERGAMINO_CLASES, CartaConMarco } from "./Base";
@@ -372,14 +373,79 @@ export function PdfBloque({ pdfHref, venceTexto }: { pdfHref: string; venceTexto
 // antes VOLVE20) queda solo para la pantalla de
 // acceso vencido (decisión de Manuel 2026-10-18). WhatsApp/email no viajan
 // en la URL (datos personales).
-export function OtraLecturaBloque({ nombre, nacimiento }: { nombre: string | null; nacimiento: string | null }) {
+//
+// Precio especial (Manuel 2026-11-17): si la regla comercial "otra_lectura"
+// está activa y la lectura está dentro de su plazo, el botón ofrece la próxima
+// lectura a precio especial con el código ya cargado en el checkout. Sin
+// `oferta`, el bloque queda exactamente como antes.
+// La arma ofertaOtraLectura() (lib/reglasComerciales.ts) en el servidor.
+const DORSO = `${DIR}/contenedores/cabezal/dorso-carta.webp`;
+const pesos = (n: number) => `$${n.toLocaleString("es-UY")}`;
+
+export function OtraLecturaBloque({ nombre, nacimiento, oferta = null }: { nombre: string | null; nacimiento: string | null; oferta?: OfertaOtraLectura | null }) {
   const params = new URLSearchParams();
   if (nombre) params.set("nombre", nombre);
   if (nacimiento) params.set("nacimiento", nacimiento);
+  if (oferta) params.set("codigo", oferta.codigo);
   params.set("utm_source", "lectura");
   params.set("utm_medium", "web");
   params.set("utm_campaign", "otra-lectura");
+  if (oferta) params.set("utm_content", "precio-especial");
   const href = `/tarot/checkout?${params.toString()}`;
+
+  if (oferta) {
+    const t = oferta.textos;
+    return (
+      <section id="otra-lectura" className="scroll-mt-4">
+        <div style={PERGAMINO_TARJETA} className={`${PERGAMINO_CLASES} px-0 py-0 md:px-2`}>
+          <p className="text-center text-[11.5px] md:text-[12px] font-bold uppercase tracking-[0.2em] mb-3" style={{ color: "#7a5418" }}>
+            ✦ {t.eyebrow || "Algo especial para vos"} ✦
+          </p>
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="shrink-0 relative" style={{ width: 74, height: 111 }}>
+              <span aria-hidden="true" className="absolute -inset-3 rounded-full" style={{ background: "radial-gradient(circle, rgba(240,197,90,0.45), transparent 70%)" }} />
+              <img
+                src={urlOptimizada(DORSO, 256)}
+                alt=""
+                aria-hidden="true"
+                width={74}
+                height={111}
+                className="relative rounded-[9px]"
+                style={{ transform: "rotate(-6deg)", boxShadow: "0 8px 18px rgba(40,20,5,0.45), 0 0 18px rgba(240,197,90,0.45)" }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[22px] md:text-[27px]" style={{ fontFamily: SERIF, fontWeight: 700, lineHeight: 1.12, color: TINTA }}>
+                {t.titulo || "Tu próxima lectura, a precio especial"}
+              </h2>
+              <p className="mt-1 text-[13.5px] md:text-[14px] leading-snug" style={{ color: TINTA_SUAVE }}>
+                {t.cuerpo || "Cada pregunta abre una nueva mirada."}
+              </p>
+              <p className="mt-2 flex items-baseline flex-wrap gap-x-2">
+                {oferta.precioAntes !== null && oferta.precioAntes > oferta.precio && (
+                  <span className="text-[15px] line-through" style={{ color: "#8a7458" }}>{pesos(oferta.precioAntes)}</span>
+                )}
+                <span className="text-[26px] md:text-[28px] leading-none" style={{ fontFamily: SERIF, fontWeight: 700, color: "#6b3f08" }}>{pesos(oferta.precio)}</span>
+                <span className="text-[13px] font-semibold" style={{ color: "#7a5418" }}>hasta {oferta.venceTexto}</span>
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-col items-center text-center">
+            <a
+              href={href}
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full min-h-[48px] px-7 text-[15px] font-bold transition hover:brightness-105"
+              style={{ background: "linear-gradient(135deg, #c8980e 0%, #FFCE4D 60%, #e8bc3a 100%)", color: "#180e00", boxShadow: "0 4px 16px rgba(240,197,90,0.35)" }}
+            >
+              {t.boton || "Hacer mi próxima lectura"} <ArrowRight size={16} />
+            </a>
+            <p className="mt-2 text-[12.5px]" style={{ color: TINTA_SUAVE }}>
+              {t.pie || "Tu precio especial ya viene cargado al pagar."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <TarjetaPergamino

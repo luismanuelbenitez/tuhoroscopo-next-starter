@@ -178,8 +178,8 @@ function formatearTelefono(raw: string, pais: string): string {
 }
 
 export default function TarotCheckoutContent({
-  temaInicial, precioBase, codigoInicial, nombreInicial, nacimientoInicial, waNumero = '',
-}: { temaInicial?: string; precioBase: number | null; codigoInicial?: string; nombreInicial?: string; nacimientoInicial?: string; waNumero?: string }) {
+  temaInicial, precioBase, codigoInicial, precioEspecialInicial = null, nombreInicial, nacimientoInicial, waNumero = '',
+}: { temaInicial?: string; precioBase: number | null; codigoInicial?: string; precioEspecialInicial?: number | null; nombreInicial?: string; nacimientoInicial?: string; waNumero?: string }) {
   const PRECIO_BASE = precioBase;
   // El precio no pudo verificarse contra la fuente canónica (tarot_configuracion.precio_base_uyu)
   // — no se muestra ni se permite pagar un precio no verificado (ver docs/product/DECISIONS.md).
@@ -289,7 +289,15 @@ export default function TarotCheckoutContent({
   const [cuponAbierto, setCuponAbierto]       = useState(!!codigoInicialValido);
   const [descuento, setDescuento]             = useState<DescuentoAplicado | null>(null);
 
-  const precioFinal = descuento?.precio_aplicado ?? PRECIO_BASE;
+  // Precio especial a la vista (opción A de Manuel, 2026-11-17): si llegó con un
+  // código cuyo precio se pudo leer (page.tsx, sin validar), se muestra ya
+  // aplicado. La validación real (límite por clienta) corre al escribir el
+  // WhatsApp; si todavía no corrió, se hace antes de pagar (handleSubmit).
+  // Si falla, el precio vuelve al normal con el aviso: nunca se cobra distinto
+  // de lo que se ve.
+  const previo = !descuento && !codigoError && precioEspecialInicial !== null && PRECIO_BASE !== null
+    && !!codigoInicialValido && codigoCampo.trim().toUpperCase() === codigoInicialValido;
+  const precioFinal = descuento?.precio_aplicado ?? (previo ? precioEspecialInicial : PRECIO_BASE);
   // Lectura de cortesía: total $0 sin Mercado Pago. Solo cambia la UI; la
   // autorización se vuelve a verificar al crear la orden.
   const esCortesia = descuento?.orden_gratuita === true && precioFinal === 0;
@@ -384,12 +392,23 @@ export default function TarotCheckoutContent({
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handleValidarCodigo() {
+  // Cada validación reserva un uso del código (ef_tarot_validar_codigo): si ya
+  // hay una en curso (la automática al escribir el WhatsApp), se reusa en vez
+  // de lanzar otra (2026-11-17).
+  const validacionRef = useRef<Promise<DescuentoAplicado | null> | null>(null);
+  function handleValidarCodigo(): Promise<DescuentoAplicado | null> {
+    if (validacionRef.current) return validacionRef.current;
+    const p = validarCodigoAhora().finally(() => { validacionRef.current = null; });
+    validacionRef.current = p;
+    return p;
+  }
+
+  async function validarCodigoAhora(): Promise<DescuentoAplicado | null> {
     const codigo = codigoCampo.trim().toUpperCase();
-    if (!codigo) return;
+    if (!codigo) return null;
     if (PRECIO_BASE === null) {
       setCodigoError('El precio no está disponible ahora mismo. Volvé a intentar en unos minutos.');
-      return;
+      return null;
     }
 
     setCodigoValidando(true);
@@ -414,27 +433,30 @@ export default function TarotCheckoutContent({
       if (!res.ok || !data?.ok) {
         trackCheckoutPaso('coupon_result', 'error');
         setCodigoError(data?.error ?? 'Error al validar el código.');
-        return;
+        return null;
       }
 
       if (!data.valido) {
         trackCheckoutPaso('coupon_result', 'invalido');
         setCodigoError(data.error ?? 'Código inválido o expirado.');
-        return;
+        return null;
       }
 
       trackCheckoutPaso('coupon_result', data.orden_gratuita === true ? 'cortesia' : 'ok');
 
-      setDescuento({
+      const aplicado: DescuentoAplicado = {
         uso_id:             data.uso_id,
         precio_aplicado:    data.precio_aplicado,
         descuento_aplicado: data.descuento_aplicado,
         tipo_descuento:     data.tipo_descuento,
         orden_gratuita:     data.orden_gratuita === true,
-      });
+      };
+      setDescuento(aplicado);
+      return aplicado;
     } catch {
       trackCheckoutPaso('coupon_result', 'red');
       setCodigoError('No se pudo verificar el código. Intentá de nuevo.');
+      return null;
     } finally {
       setCodigoValidando(false);
     }
@@ -486,6 +508,25 @@ export default function TarotCheckoutContent({
       setError('Revisá tu email: no parece válido. Si no querés recibirla por email, dejalo vacío.');
       return;
     }
+    // Precio especial a la vista pero todavía sin validar (2026-11-17): se
+    // valida acá, antes de crear la orden. Si no se puede aplicar, se frena con
+    // el aviso y el precio vuelve al normal en pantalla: nunca se cobra un
+    // precio distinto del que la persona vio.
+    let aplicado = descuento;
+    if (!aplicado && previo) {
+      if (enviandoRef.current) return;
+      enviandoRef.current = true;
+      setIsLoading(true);
+      aplicado = await handleValidarCodigo();
+      enviandoRef.current = false;
+      setIsLoading(false);
+      if (!aplicado) {
+        trackCheckoutPaso('form_error', 'codigo');
+        setError('No pudimos aplicar tu precio especial (mirá el aviso junto al código). Si querés, podés seguir con el precio normal.');
+        return;
+      }
+    }
+    const precioCobrar = aplicado?.precio_aplicado ?? PRECIO_BASE;
     if (enviandoRef.current) return;
     enviandoRef.current = true;
     setError(null);
@@ -525,8 +566,8 @@ export default function TarotCheckoutContent({
       // lugar, sin haberlo mostrado nunca en pantalla.
       pregunta_usuario: form.pregunta.trim() || PREGUNTA_POR_TEMA[form.tema] || null,
       // Descuento (si se aplicó)
-      codigo_descuento_uso_id: descuento?.uso_id ?? null,
-      precio_final:            precioFinal,
+      codigo_descuento_uso_id: aplicado?.uso_id ?? null,
+      precio_final:            precioCobrar,
       moneda:                  'UYU',
       // Atribución — sin esto, tarot_ordenes.utm_* queda null y no hay forma
       // de medir CAC por campaña (ver docs/product/DECISIONS.md 2026-08-20).
@@ -583,8 +624,8 @@ export default function TarotCheckoutContent({
         // llegó a ser una orden válida (ver docs/product/DECISIONS.md
         // 2026-08-22). value = precioFinal (con descuento si se aplicó),
         // igual criterio que usa Purchase más adelante con precio_cobrado.
-        metaInitiateCheckout(precioFinal ?? 0);
-        trackCheckoutPaso('mp_redirect', descuento ? 'con_codigo' : 'sin_codigo', precioFinal ?? undefined);
+        metaInitiateCheckout(precioCobrar ?? 0);
+        trackCheckoutPaso('mp_redirect', aplicado ? 'con_codigo' : 'sin_codigo', precioCobrar ?? undefined);
         enviarEventosAhora();
         // Los SDKs de Meta y Google bajan diferidos (lib/cargaDiferida.ts):
         // si todavía no llegaron, se piden ya y se los espera (máx. 1,5 s) para
@@ -629,7 +670,7 @@ export default function TarotCheckoutContent({
     { Icon: FileText, t: 'PDF para guardar', c: 'PDF para guardar' },
   ];
 
-  const tachado = descuento && PRECIO_BASE !== null
+  const tachado = (descuento || previo) && PRECIO_BASE !== null
     ? <span className="text-[14px] font-normal text-white/45 line-through mr-1.5">{pesos(PRECIO_BASE)}</span>
     : null;
 
@@ -1010,8 +1051,19 @@ export default function TarotCheckoutContent({
                           <CheckCircle size={15} className="shrink-0" />
                           <span>
                             <span className="font-semibold">{codigoCampo}</span>{' '}
-                            {esCortesia ? 'aplicado: no necesitás pagar' : `aplicado: ${descuento.tipo_descuento === 'porcentaje' && PRECIO_BASE !== null ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% menos` : `${pesos(descuento.descuento_aplicado)} menos`}`}
+                            {esCortesia ? 'aplicado: no necesitás pagar' : descuento.tipo_descuento === 'precio_fijo' ? '· precio especial aplicado' : `aplicado: ${descuento.tipo_descuento === 'porcentaje' && PRECIO_BASE !== null ? `${Math.round((descuento.descuento_aplicado / PRECIO_BASE) * 100)}% menos` : `${pesos(descuento.descuento_aplicado)} menos`}`}
                           </span>
+                        </span>
+                        <button type="button" onClick={handleQuitarCodigo} disabled={isLoading} className="p-2 -m-2 text-white/50 hover:text-white/80" aria-label="Quitar código">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : previo ? (
+                      // Precio especial a la vista, todavía sin validar (2026-11-17).
+                      <div className="flex items-center justify-between gap-3 min-h-[40px] text-[14px] text-emerald-400">
+                        <span className="flex items-center gap-1.5">
+                          {codigoValidando ? <Loader2 size={15} className="shrink-0 animate-spin" /> : <CheckCircle size={15} className="shrink-0" />}
+                          <span><span className="font-semibold">{codigoCampo}</span> · precio especial aplicado</span>
                         </span>
                         <button type="button" onClick={handleQuitarCodigo} disabled={isLoading} className="p-2 -m-2 text-white/50 hover:text-white/80" aria-label="Quitar código">
                           <X size={16} />
