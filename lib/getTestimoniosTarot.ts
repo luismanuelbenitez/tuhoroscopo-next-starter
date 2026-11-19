@@ -7,9 +7,34 @@ export interface TestimonioTarot {
   puntuacion: number; // 0–5
   nombre: string | null;
   ciudad: string | null;
+  // "✓ Lectura verificada" (2026-11-19, pedido de Manuel): la opinión está
+  // atada a una orden que recibió su lectura. Sin tema ni fecha a la vista.
+  verificada?: boolean;
 }
 
 const MAX_PUBLICADOS = 3;
+
+// Columnas que se leen de tarot_testimonios, con el estado de su orden.
+export const SELECT_TESTIMONIO = "id, opinion, puntuacion, nombre, ciudad, tarot_ordenes!tarot_testimonios_orden_id_fkey(estado)";
+
+type FilaTestimonio = {
+  id: string; opinion: string | null; puntuacion: number | null; nombre: string | null; ciudad: string | null;
+  tarot_ordenes: { estado: string | null } | { estado: string | null }[] | null;
+};
+
+// Fila de la base → testimonio para mostrar. null si le falta opinión o nota.
+export function aTestimonio(t: FilaTestimonio): TestimonioTarot | null {
+  if (!t.opinion || t.puntuacion === null) return null;
+  const orden = Array.isArray(t.tarot_ordenes) ? t.tarot_ordenes[0] : t.tarot_ordenes;
+  return {
+    id: t.id,
+    opinion: t.opinion,
+    puntuacion: Math.max(0, Math.min(5, t.puntuacion)),
+    nombre: t.nombre,
+    ciudad: t.ciudad,
+    verificada: orden?.estado === "entregado",
+  };
+}
 
 /**
  * Testimonios publicados de Tu Tirada Tarot (tarot_testimonios con
@@ -33,7 +58,7 @@ export async function getTestimoniosTarot(opciones?: { revalidar?: number }): Pr
     });
     const { data, error } = await supabase
       .from("tarot_testimonios")
-      .select("id, opinion, puntuacion, nombre, ciudad")
+      .select(SELECT_TESTIMONIO)
       .eq("publicado", true)
       .order("orden_visual", { ascending: true })
       .order("publicado_at", { ascending: false })
@@ -44,15 +69,7 @@ export async function getTestimoniosTarot(opciones?: { revalidar?: number }): Pr
       return [];
     }
 
-    return (data ?? [])
-      .filter((t) => t.opinion && t.puntuacion !== null)
-      .map((t) => ({
-        id: t.id,
-        opinion: t.opinion,
-        puntuacion: Math.max(0, Math.min(5, t.puntuacion)),
-        nombre: t.nombre,
-        ciudad: t.ciudad,
-      }));
+    return ((data ?? []) as FilaTestimonio[]).map(aTestimonio).filter((t): t is TestimonioTarot => t !== null);
   } catch (err) {
     console.error("[getTestimoniosTarot] excepción:", err);
     return [];

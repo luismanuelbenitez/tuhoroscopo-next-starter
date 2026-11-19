@@ -434,7 +434,7 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
                   ¿Nos dejás compartirla?
                 </h2>
                 <div className="mx-auto mt-4 max-w-[330px]" aria-live="polite">
-                  <CardTestimonio opinion={comentario.trim()} puntuacion={rating} nombre={identidadPublica} ciudad={null} />
+                  <CardTestimonio opinion={comentario.trim()} puntuacion={rating} nombre={identidadPublica} ciudad={null} verificada />
                 </div>
                 <div className="mt-4">
                   <Compartir checked={compartir} onChange={setCompartir} texto={textoPermiso} identidad={identidadPublica} />

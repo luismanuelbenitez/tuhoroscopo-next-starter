@@ -210,7 +210,7 @@ export function TestimoniosSeo({ testimonios }: { testimonios: TestimonioTarot[]
       </h2>
       <div className="grid gap-4 md:grid-cols-3">
         {testimonios.map((t) => (
-          <div key={t.id} className="min-h-[220px]"><CardTestimonio opinion={t.opinion} puntuacion={t.puntuacion} nombre={t.nombre} ciudad={t.ciudad} /></div>
+          <div key={t.id} className="min-h-[220px]"><CardTestimonio opinion={t.opinion} puntuacion={t.puntuacion} nombre={t.nombre} ciudad={t.ciudad} verificada={t.verificada} /></div>
         ))}
       </div>
     </section>

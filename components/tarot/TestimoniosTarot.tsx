@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { BadgeCheck, Star } from "lucide-react";
 import { GOLD, SERIF } from "@/components/home/theme";
 import type { TestimonioTarot } from "@/lib/getTestimoniosTarot";
 
@@ -12,6 +12,8 @@ const PERGAMINO = "/img/tarot/contenedores/experiencias/pergamino-testimonio.web
 
 const COLOR_TEXTO = "#2a1a12";
 const COLOR_NOMBRE = "#5A4632";
+// Verde oliva oscuro: se lee sobre el pergamino (contraste AA) y no compite con el dorado.
+const COLOR_VERIFICADA = "#3F5A2A";
 
 function Estrellas({ n }: { n: number }) {
   return (
@@ -30,7 +32,7 @@ function Estrellas({ n }: { n: number }) {
 
 // Exportada: la mini web de feedback (/opinion) la usa como vista previa
 // REAL de cómo se vería la opinión publicada (2026-10-19).
-export function CardTestimonio({ opinion, puntuacion, nombre, ciudad }: Pick<TestimonioTarot, "opinion" | "puntuacion" | "nombre" | "ciudad">) {
+export function CardTestimonio({ opinion, puntuacion, nombre, ciudad, verificada }: Pick<TestimonioTarot, "opinion" | "puntuacion" | "nombre" | "ciudad" | "verificada">) {
   const firma = [nombre, ciudad].filter(Boolean).join(", ");
   return (
     <figure
@@ -54,6 +56,12 @@ export function CardTestimonio({ opinion, puntuacion, nombre, ciudad }: Pick<Tes
         <figcaption className="mt-3 text-[14px]" style={{ color: COLOR_NOMBRE }}>
           {firma}
         </figcaption>
+      )}
+      {verificada && (
+        <p className="mt-1 flex items-center justify-center gap-1 text-[12.5px] font-semibold" style={{ color: COLOR_VERIFICADA }}>
+          <BadgeCheck size={15} aria-hidden="true" />
+          Lectura verificada
+        </p>
       )}
     </figure>
   );
