@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Star, Check, Loader2, MessageCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Star, Check, Loader2, MessageCircle, Heart, X } from "lucide-react";
 import { CTA_GRADIENT, CREMA, GOLD, SERIF } from "@/components/home/theme";
 import { CardTestimonio } from "@/components/tarot/TestimoniosTarot";
 import type { ConsentimientoTexto } from "@/lib/feedbackPublico";
@@ -88,6 +88,101 @@ function Compartir({ checked, onChange, texto, identidad }: { checked: boolean; 
   );
 }
 
+// Pregunta al enviar (2026-11-19, idea de Manuel, como la hoja legal del
+// checkout): si dejó 4-5 estrellas y comentario pero no activó el permiso,
+// antes de mandar sube esta hoja. "Sí, compartir" activa el permiso y envía;
+// "Enviar sin compartir" envía igual sin permiso (el permiso tiene que ser
+// libre: siempre hay salida). Cerrar (✕, afuera, Escape) vuelve al formulario
+// sin enviar. El texto aceptado es el mismo del interruptor (el de la base).
+function PreguntaCompartir({ abierta, texto, identidad, onSi, onNo, onCerrar }: {
+  abierta: boolean; texto: string; identidad: string;
+  onSi: () => void; onNo: () => void; onCerrar: () => void;
+}) {
+  const siRef = useRef<HTMLButtonElement>(null);
+  const onCerrarRef = useRef(onCerrar);
+  onCerrarRef.current = onCerrar;
+
+  useEffect(() => {
+    if (!abierta) return;
+    const anterior = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const alTeclear = (e: KeyboardEvent) => { if (e.key === "Escape") onCerrarRef.current(); };
+    window.addEventListener("keydown", alTeclear);
+    siRef.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("keydown", alTeclear);
+      document.body.style.overflow = overflow;
+      anterior?.focus?.({ preventScroll: true });
+    };
+  }, [abierta]);
+
+  if (!abierta) return null;
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center" role="presentation">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={onCerrar} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pregunta-compartir-titulo"
+        aria-describedby="pregunta-compartir-texto"
+        className="relative w-full md:max-w-[480px] rounded-t-3xl md:rounded-3xl px-5 pt-3"
+        style={{
+          background: "#0f0920",
+          border: "1px solid rgba(240,197,90,0.30)",
+          boxShadow: "0 -12px 48px rgba(0,0,0,0.6)",
+          animation: "preguntaCompartirSube 220ms ease-out",
+          paddingBottom: "max(18px, env(safe-area-inset-bottom))",
+        }}
+      >
+        <style dangerouslySetInnerHTML={{ __html: "@keyframes preguntaCompartirSube{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}@media (prefers-reduced-motion:reduce){[role=dialog]{animation:none!important}}" }} />
+        <div className="flex justify-end -mr-2">
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar y volver a mi opinión"
+            className="flex items-center justify-center w-11 h-11 rounded-full text-white/70 hover:text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C55A]"
+          >
+            <X size={22} />
+          </button>
+        </div>
+        <div className="text-center -mt-2">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "rgba(240,197,90,0.12)", border: `1px solid ${GOLD}` }}>
+            <Heart size={26} style={{ color: GOLD }} aria-hidden="true" />
+          </span>
+          <h2 id="pregunta-compartir-titulo" className="mt-4" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 25, lineHeight: 1.2, color: CREMA }}>
+            ¿Nos ayudás a que otras personas se animen?
+          </h2>
+          <p className="mt-2.5 text-[16px] leading-relaxed text-white/85">
+            Tu opinión puede ayudar a alguien que está dudando. Nos encantaría mostrarla en la web, solo como <strong className="text-white">{identidad}</strong>{identidad.endsWith(".") ? "" : "."}
+          </p>
+        </div>
+        <p id="pregunta-compartir-texto" className="mt-4 rounded-xl px-4 py-3 text-[14px] leading-snug text-white/70" style={{ background: "rgba(255,255,255,0.04)" }}>
+          Al tocar «Sí, compartir» aceptás: «{texto}»
+        </p>
+        <div className="mt-5 space-y-3">
+          <button
+            ref={siRef}
+            type="button"
+            onClick={onSi}
+            className="w-full rounded-xl py-4 min-h-[54px] text-[17px] font-bold active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0920] focus-visible:ring-[#F0C55A]"
+            style={{ background: CTA_GRADIENT, color: "#180e00", boxShadow: "0 6px 24px rgba(240,197,90,0.30)" }}
+          >
+            Sí, compartir
+          </button>
+          <button
+            type="button"
+            onClick={onNo}
+            className="w-full rounded-xl py-3.5 min-h-[50px] text-[16px] font-semibold text-white/80 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C55A]"
+          >
+            Enviar sin compartir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function linkWa(numero: string, texto: string) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
@@ -127,6 +222,7 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
+  const [preguntar, setPreguntar] = useState(false);
   const enviandoRef = useRef(false);
 
   const positiva = rating >= 4;
@@ -154,12 +250,33 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
     }
   }
 
-  async function enviar(e: React.FormEvent) {
+  function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (rating < 1) {
       setError("Elegí de 1 a 5 estrellas para enviar tu opinión.");
       return;
     }
+    if (enviandoRef.current) return;
+    // Nota alta + comentario sin permiso: antes de mandar, se pregunta una vez.
+    if (puedeCompartir && !compartir) {
+      setPreguntar(true);
+      return;
+    }
+    void mandar(autoriza);
+  }
+
+  function compartirYEnviar() {
+    setCompartir(true);
+    setPreguntar(false);
+    void mandar(true);
+  }
+
+  function enviarSinCompartir() {
+    setPreguntar(false);
+    void mandar(false);
+  }
+
+  async function mandar(autorizaSitio: boolean) {
     if (enviandoRef.current) return;
     enviandoRef.current = true;
     setEnviando(true);
@@ -171,7 +288,7 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
         body: JSON.stringify({
           rating,
           comentario: comentario.trim(),
-          autoriza_sitio: autoriza,
+          autoriza_sitio: autorizaSitio,
           autoriza_difusion: false,
           version_sitio: consentimientos.sitio.version,
           version_difusion: consentimientos.difusion.version,
@@ -348,6 +465,14 @@ export function FormularioOpinion({ token, nombrePila, temaTexto, identidadPubli
           </button>
         </>
       )}
+      <PreguntaCompartir
+        abierta={preguntar}
+        texto={textoPermiso}
+        identidad={identidadPublica}
+        onSi={compartirYEnviar}
+        onNo={enviarSinCompartir}
+        onCerrar={() => setPreguntar(false)}
+      />
     </form>
   );
 }
