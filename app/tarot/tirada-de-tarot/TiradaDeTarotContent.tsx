@@ -71,9 +71,10 @@ export default function TiradaDeTarotContent({ precioUYU, testimonios, waNumero 
                 }}
               />
             </Seccion>
-            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" /><QueIncluyeTarot variante="a" precioUYU={precioUYU} /></Seccion>
+            <Seccion id="que_incluye"><div id="bloque-2" className="scroll-mt-16" /><QueIncluyeTarot variante="a" precioUYU={precioUYU} bajadaRevela="Elegís tu tema y, si querés, sumás una pregunta. Tus 5 cartas se revelan una a una y cada una responde algo distinto de tu momento." /></Seccion>
             <Seccion id="asi_se_vive"><AsiSeViveSoloEscritorio /></Seccion>
-            <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
+            {/* Una sola versión del recorrido: los mismos 4 pasos en celular y escritorio (22/11). */}
+            <Seccion id="como_funciona"><ComoFuncionaTarot cuatroPasos /></Seccion>
             <Seccion id="por_tema"><BloqueTiradaDeTarot precioUYU={precioUYU} /><LecturasPorTema precioUYU={precioUYU} /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
             <Seccion id="dudas"><DudasTarot waNumero={waNumero} primeras={DUDAS_TIRADA} /></Seccion>

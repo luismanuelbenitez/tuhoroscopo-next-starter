@@ -342,7 +342,7 @@ function PdfEjemplo() {
   );
 }
 
-export function VarianteA({ precioUYU = null }: { precioUYU?: number | null } = {}) {
+export function VarianteA({ precioUYU = null, bajadaRevela }: { precioUYU?: number | null; bajadaRevela?: string } = {}) {
   const [filaRef, visto] = useEnVista<HTMLDivElement>(0.6);
   useEffect(() => { if (visto) trackDemo("cartas_reveladas"); }, [visto]);
   return (
@@ -351,7 +351,7 @@ export function VarianteA({ precioUYU = null }: { precioUYU?: number | null } = 
 
       <div className="mt-14" />
       <Encabezado eyebrow="Viví la experiencia" titulo={<>Así se revela<br />tu lectura</>}>
-        Hacés tu consulta y aparecen 5 cartas para vos. Cada una responde algo distinto de tu momento.
+        {bajadaRevela ?? "Hacés tu consulta y aparecen 5 cartas para vos. Cada una responde algo distinto de tu momento."}
       </Encabezado>
 
       <p className="mt-9 text-[13.5px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.16em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>

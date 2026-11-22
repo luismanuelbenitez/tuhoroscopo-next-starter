@@ -1,4 +1,4 @@
-import { Edit3, CreditCard, Sparkles } from "lucide-react";
+import { Edit3, CreditCard, MessageCircle, Sparkles } from "lucide-react";
 import { fijo, fluido } from "@/lib/imagen";
 import { GOLD, SERIF } from "@/components/home/theme";
 
@@ -46,7 +46,15 @@ function PasoDesktop({ icono, aro, t, d }: (typeof PASOS_DESKTOP)[number]) {
   );
 }
 
-function ComoFuncionaDesktop() {
+// cuatroPasos (2026-11-22, /tarot/tirada-de-tarot): una sola versión del
+// recorrido, los mismos 4 pasos en celular y escritorio, con el paso 4 que
+// cuenta la experiencia (cartas una a una, música, audio, PDF). Sin la prop,
+// /tarot queda igual.
+const PASO_4_EXPERIENCIA = "Tus cartas se revelan una a una, con música. Escuchás el resumen y guardás tu PDF.";
+const PASOS_CUATRO = PASOS_DESKTOP.map((p, i) => (i === 3 ? { ...p, d: PASO_4_EXPERIENCIA } : p));
+const ICONOS_CUATRO = [Edit3, CreditCard, MessageCircle, Sparkles];
+
+function ComoFuncionaDesktop({ pasos = PASOS_DESKTOP }: { pasos?: typeof PASOS_DESKTOP }) {
   return (
     <div className="hidden md:grid grid-cols-1 text-center" style={{ containerType: "inline-size" }}>
       <img
@@ -69,10 +77,10 @@ function ComoFuncionaDesktop() {
         </p>
 
         <div className="flex items-start justify-center">
-          {PASOS_DESKTOP.map((paso, i) => (
+          {pasos.map((paso, i) => (
             <div key={paso.t} className="flex items-start">
               <PasoDesktop {...paso} />
-              {i < PASOS_DESKTOP.length - 1 && (
+              {i < pasos.length - 1 && (
                 <img
                   {...fijo(`${DIR}/flecha.webp`, 60, 15)}
                   alt=""
@@ -112,12 +120,15 @@ const PASOS_MOVIL = [
   { n: "3", Icon: Sparkles, t: "Recibila en minutos", d: "En menos de 15 minutos te llega por WhatsApp (y por email, si lo dejaste)." },
 ];
 
-function ComoFuncionaMobile() {
+function ComoFuncionaMobile({ cuatroPasos = false }: { cuatroPasos?: boolean }) {
+  const pasos = cuatroPasos
+    ? PASOS_CUATRO.map((p, i) => ({ n: String(i + 1), Icon: ICONOS_CUATRO[i], t: p.t.replace(/^\d+\.\s*/, ""), d: p.d }))
+    : PASOS_MOVIL;
   return (
     <div className="relative md:hidden px-5 py-10 text-center">
       <h2 className="mb-5" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontWeight: 700, fontSize: 30, lineHeight: 1.1, color: "#F6EAD2" }}>¿Cómo funciona?</h2>
       <ol className="max-w-[440px] mx-auto text-left rounded-2xl px-4 py-2 divide-y divide-[rgba(240,197,90,0.16)]" style={{ background: "rgba(10,6,22,0.82)", border: "1px solid rgba(240,197,90,0.28)" }}>
-        {PASOS_MOVIL.map(({ n, Icon, t, d }) => (
+        {pasos.map(({ n, Icon, t, d }) => (
           <li key={n} className="flex items-center gap-3.5 py-3.5">
             <PasoIcono Icon={Icon} size={40} />
             <div className="min-w-0">
@@ -133,11 +144,11 @@ function ComoFuncionaMobile() {
 
 // Desktop: pergamino de ancho completo del escenario (960, sin gutter
 // lateral, igual que "¿Qué incluye tu Tarot?"). Mobile: versión anterior.
-export function ComoFuncionaTarot() {
+export function ComoFuncionaTarot({ cuatroPasos = false }: { cuatroPasos?: boolean } = {}) {
   return (
     <section id="como-funciona" className="relative max-w-[960px] mx-auto md:py-10 scroll-mt-16">
-      <ComoFuncionaDesktop />
-      <ComoFuncionaMobile />
+      <ComoFuncionaDesktop pasos={cuatroPasos ? PASOS_CUATRO : PASOS_DESKTOP} />
+      <ComoFuncionaMobile cuatroPasos={cuatroPasos} />
     </section>
   );
 }

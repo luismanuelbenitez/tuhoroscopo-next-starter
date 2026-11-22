@@ -191,7 +191,9 @@ export type VarianteQueIncluye = "a" | "b" | "c";
 const VARIANTES = { a: VarianteA, b: VarianteB, c: VarianteC };
 
 // precioUYU (2026-11-14): el botón "Ahora, la tuya" de la variante A lleva el precio.
-export function QueIncluyeTarot({ variante, precioUYU = null }: { variante?: VarianteQueIncluye; precioUYU?: number | null } = {}) {
+// bajadaRevela (2026-11-22): texto propio bajo "Así se revela tu lectura" en
+// las páginas por frase. Sin la prop, /tarot queda igual.
+export function QueIncluyeTarot({ variante, precioUYU = null, bajadaRevela }: { variante?: VarianteQueIncluye; precioUYU?: number | null; bajadaRevela?: string } = {}) {
   const Variante = variante ? VARIANTES[variante] : null;
   // Escritorio y móvil viejo ya no se arman si no se ven (2026-11-05, ver
   // SoloEscritorio). Hasta saber el ancho, el lugar del pergamino de
@@ -243,7 +245,7 @@ export function QueIncluyeTarot({ variante, precioUYU = null }: { variante?: Var
       </div>}
 
       {/* ── Mobile ── (pendiente de rediseño: todavía sin pergamino propio) */}
-      {Variante && <div className="md:hidden">{Variante === VarianteA ? <VarianteA precioUYU={precioUYU} /> : <Variante />}</div>}
+      {Variante && <div className="md:hidden">{Variante === VarianteA ? <VarianteA precioUYU={precioUYU} bajadaRevela={bajadaRevela} /> : <Variante />}</div>}
       {!Variante && <div className="md:hidden grid grid-cols-1 text-center">
 
         <div className="px-6 py-12" style={{ gridArea: "1 / 1", alignSelf: "start" }}>

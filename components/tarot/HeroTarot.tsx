@@ -30,7 +30,7 @@ const BENEFICIOS = [
 // Subtítulo de /tarot/tirada-de-tarot (texto de Manuel, 22/11). /tarot usa
 // el suyo propio, más abajo (el default de `bajada`).
 export const BAJADA_HERO_TAROT =
-  "Regalate un momento para conectar con eso que hoy te inquieta. Hacé tu pregunta y viví una experiencia de tarot personalizada, con 5 cartas que se revelan e interpretan para vos, música de ambientación y una lectura que podés volver a escuchar o guardar.";
+  "Viví tu propia tirada de tarot online: 5 cartas que se revelan una a una, con música envolvente e interpretaciones personalizadas. Elegí tu tema, hacé tu consulta si lo deseás y recibí tu acceso en minutos por WhatsApp.";
 
 export interface TextosHeroTarot {
   h1?: string;

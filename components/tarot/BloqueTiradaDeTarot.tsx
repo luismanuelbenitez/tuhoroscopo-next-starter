@@ -52,8 +52,8 @@ export function BloqueTiradaDeTarot({ precioUYU }: { precioUYU: number | null })
         <p className="mt-5 text-[15.5px] md:text-[16px] leading-relaxed text-white/90">
           Elegís el tema de tu tirada de tarot: amor y vínculos, trabajo, dinero, salud, una decisión o tu momento en general.
           Si querés, sumás una pregunta propia.
-          Es online: la pedís desde el celular, desde Montevideo o cualquier parte de Uruguay, y te llega por WhatsApp en minutos,
-          con resumen en audio y PDF para guardar.
+          Es online: la pedís desde el celular, desde Montevideo o cualquier parte de Uruguay, y en minutos te llega por WhatsApp tu acceso.
+          Ahí tus cartas se revelan una a una, con música envolvente, y te quedan el resumen en audio y el PDF para guardar.
         </p>
         <p className="mt-3 text-[15.5px] md:text-[16px] font-semibold" style={{ color: CREMA }}>
           {precioUYU !== null ? `${pesosUY(precioUYU)}, pago único` : "Pago único"} con Mercado Pago. Sin suscripción.
