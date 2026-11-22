@@ -3,7 +3,7 @@ import { MedicionLandingTarot } from "../MedicionLandingTarot";
 import { GlobalHomeStyles } from "@/components/home/GlobalHomeStyles";
 import { TarotBackgroundStage } from "@/components/tarot/TarotBackgroundStage";
 import { HeaderTarot } from "@/components/tarot/HeaderTarot";
-import { HeroTarot } from "@/components/tarot/HeroTarot";
+import { HeroTarot, BAJADA_HERO_TAROT } from "@/components/tarot/HeroTarot";
 import { QueIncluyeTarot } from "@/components/tarot/QueIncluyeTarot";
 import { AsiSeViveSoloEscritorio } from "@/components/tarot/SoloEscritorio";
 import { ComoFuncionaTarot } from "@/components/tarot/ComoFuncionaTarot";
@@ -67,7 +67,7 @@ export default function TiradaDeTarotContent({ precioUYU, testimonios, waNumero 
                   titulo: "Tu tirada de tarot,",
                   tituloDorado: "lista en minutos en tu WhatsApp.",
                   // Igual que el checkout: primero se elige el tema; la pregunta es opcional (Manuel, 22/11).
-                  bajada: "Elegís el tema y recibís tus 5 cartas interpretadas una por una, con resumen en audio y PDF.",
+                  bajada: BAJADA_HERO_TAROT,
                 }}
               />
             </Seccion>
