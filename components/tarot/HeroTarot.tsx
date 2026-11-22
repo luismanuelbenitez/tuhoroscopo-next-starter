@@ -27,7 +27,8 @@ const BENEFICIOS = [
 // Textos opcionales (2026-11-17, regla G14 "una página por búsqueda"): las
 // páginas por frase (ej. /tarot/tirada-de-tarot) cambian H1, título y bajada.
 // Sin props, /tarot queda exactamente igual.
-// Subtítulo de /tarot y /tarot/tirada-de-tarot (texto de Manuel, 22/11).
+// Subtítulo de /tarot/tirada-de-tarot (texto de Manuel, 22/11). /tarot usa
+// el suyo propio, más abajo (el default de `bajada`).
 export const BAJADA_HERO_TAROT =
   "Regalate un momento para conectar con eso que hoy te inquieta. Hacé tu pregunta y viví una experiencia de tarot personalizada, con 5 cartas que se revelan e interpretan para vos, música de ambientación y una lectura que podés volver a escuchar o guardar.";
 
@@ -45,7 +46,8 @@ export function HeroTarot({ precioUYU, textos = {} }: { precioUYU: number | null
     // "consulta" y no "pregunta": en el checkout primero se elige el tema y la
     // pregunta es opcional (Manuel, 22/11).
     tituloDorado = "interpretada para tu consulta.",
-    bajada = BAJADA_HERO_TAROT,
+    // Subtítulo de /tarot (texto de Manuel, 22/11).
+    bajada = "Viví una experiencia de tarot única, con 5 cartas que se revelan una a una, música envolvente e interpretaciones personalizadas. Elegí tu tema, hacé tu consulta si lo deseás y recibí tu acceso en minutos por WhatsApp.",
   } = textos;
 
   const ejemplo = (
