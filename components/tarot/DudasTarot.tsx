@@ -13,7 +13,7 @@ export interface DudaTarot { q: string; a: string; politica?: boolean; contacto?
 const DUDAS: DudaTarot[] = [
   {
     q: "¿La lectura la hace una IA o un tarotista?",
-    a: "Las cartas se sortean para vos y la interpretación la genera inteligencia artificial, aplicando la simbología del tarot clásico a tu nombre, tu tema y tu pregunta. No hay un tarotista humano detrás, y no es un texto genérico: cada tirada de tarot se escribe para tu consulta.",
+    a: "Las cartas se sortean para vos y la interpretación la genera inteligencia artificial, aplicando la simbología del tarot clásico a tu nombre, tu tema y, si la escribís, tu pregunta. No hay un tarotista humano detrás, y no es un texto genérico: cada tirada de tarot se escribe para tu consulta.",
   },
   {
     q: "¿Mi consulta es privada?",

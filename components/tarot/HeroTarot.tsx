@@ -38,7 +38,9 @@ export function HeroTarot({ precioUYU, textos = {} }: { precioUYU: number | null
   const {
     h1 = "Lectura de tarot online personalizada",
     titulo = "Tu tirada de 5 cartas,",
-    tituloDorado = "interpretada para tu pregunta.",
+    // "consulta" y no "pregunta": en el checkout primero se elige el tema y la
+    // pregunta es opcional (Manuel, 22/11).
+    tituloDorado = "interpretada para tu consulta.",
     bajada = "Tu lectura de cartas llega por WhatsApp en minutos, explicada carta por carta.",
   } = textos;
 

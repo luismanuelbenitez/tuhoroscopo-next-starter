@@ -16,7 +16,7 @@ export function ConsultaTarotUruguay({ precioUYU }: { precioUYU: number | null }
           Tu consulta de tarot, desde Montevideo o cualquier parte del país
         </h2>
         <p className="text-[15.5px] md:text-[16px] leading-relaxed text-white/90">
-          Es una tirada de tarot de 5 cartas para tu pregunta: tarot de amor y pareja, de trabajo y dinero o para una decisión.
+          Es una tirada de tarot de 5 cartas sobre el tema que elijas: amor y vínculos, trabajo, dinero, salud, una decisión o tu momento. Si querés, sumás una pregunta propia.
           La lectura de cartas es online: la pedís desde el celular y te llega por WhatsApp en minutos, con resumen en audio y PDF.
         </p>
         <p className="mt-3 text-[15.5px] md:text-[16px] font-semibold" style={{ color: CREMA }}>
