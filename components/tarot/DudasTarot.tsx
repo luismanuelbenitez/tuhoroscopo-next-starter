@@ -17,14 +17,14 @@ const DUDAS: DudaTarot[] = [
   },
   {
     q: "¿Mi consulta es privada?",
-    a: "Sí. Tu lectura te llega solo a vos, por WhatsApp y/o email. Tus datos se usan únicamente para generar y entregarte la lectura: no se publican, no se venden ni se comparten con fines publicitarios.",
+    a: "Sí. El acceso a tu lectura te llega solo a vos, por WhatsApp y/o email. Tus datos se usan únicamente para generar y entregarte la lectura: no se publican, no se venden ni se comparten con fines publicitarios.",
     politica: true,
   },
   {
     q: "¿Cuánto tarda en llegar?",
     // Celular (auditoría 2026-11-04): lo responden los pasos de "Cómo funciona".
     soloEscritorio: true,
-    a: "Menos de 15 minutos desde que se confirma tu pago. Te llega por WhatsApp y, si dejaste tu email, también por email.",
+    a: "Menos de 15 minutos desde que se confirma tu pago. El acceso te llega por WhatsApp y, si dejaste tu email, también por email.",
   },
   // 2026-11-01: las dos dudas de pago que faltaban antes de comprar.
   {

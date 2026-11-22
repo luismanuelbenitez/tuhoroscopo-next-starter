@@ -36,7 +36,7 @@ function IconoBeneficio({ img, aro }: { img: string; aro: number }) {
 export function CtaFinalTarot({
   precioUYU,
   titulo = "Mirá tu momento desde otra perspectiva.",
-  bajada = "Hacé tu consulta de tarot y recibí tu lectura de cartas personalizada en minutos.",
+  bajada = "Elegí tu tema, sumá tu pregunta si querés y viví tu lectura de cartas personalizada: tu acceso llega en minutos.",
 }: { precioUYU: number | null; titulo?: string; bajada?: string }) {
 
   return (

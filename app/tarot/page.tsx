@@ -11,7 +11,7 @@ import { numeroWhatsApp } from '@/lib/contacto';
 export const metadata = metadataPagina(
   '/tarot',
   'Lectura de tarot online personalizada: 5 cartas | Tu Oráculo',
-  'Lectura de tarot online personalizada: 5 cartas interpretadas para tu consulta, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único, sin suscripción.',
+  'Lectura de tarot online personalizada: 5 cartas que se revelan una a una, interpretadas para vos, con resumen en audio y PDF. Acceso por WhatsApp en minutos. Pago único.',
 );
 
 // Pregenerada y entregada ya armada desde el CDN (2026-11-09, Nivel de

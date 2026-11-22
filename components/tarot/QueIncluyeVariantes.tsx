@@ -351,7 +351,8 @@ export function VarianteA({ precioUYU = null, bajadaRevela }: { precioUYU?: numb
 
       <div className="mt-14" />
       <Encabezado eyebrow="Viví la experiencia" titulo={<>Así se revela<br />tu lectura</>}>
-        {bajadaRevela ?? "Hacés tu consulta y aparecen 5 cartas para vos. Cada una responde algo distinto de tu momento."}
+        {/* Tema primero, pregunta opcional (Manuel, 22/11). */}
+        {bajadaRevela ?? "Elegís tu tema y, si querés, escribís tu pregunta. Al abrir tu lectura, tus 5 cartas se revelan una a una, cada una con algo distinto para tu momento."}
       </Encabezado>
 
       <p className="mt-9 text-[13.5px] font-bold uppercase" style={{ color: DORADO, letterSpacing: "0.16em", textShadow: SOMBRA }}>Tu tarot, posición por posición</p>
@@ -394,7 +395,7 @@ export function VarianteA({ precioUYU = null, bajadaRevela }: { precioUYU?: numb
           Ahora, la tuya
         </p>
         <p className="mt-2 text-[15.5px] leading-snug font-medium" style={{ color: CREMA, textShadow: SOMBRA }}>
-          Tus 5 cartas, interpretadas para tu consulta. Te llega por WhatsApp en minutos.
+          Tus 5 cartas, interpretadas para vos. Recibís tu acceso por WhatsApp en minutos.
         </p>
         <Link
           href="/tarot/checkout"

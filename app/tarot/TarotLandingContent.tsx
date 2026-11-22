@@ -69,7 +69,8 @@ export default function TarotLandingContent({ precioUYU, testimonios, waNumero =
                 lo que el bloque 2 ya muestra en vivo (lectura online, audio,
                 PDF); queda solo en escritorio, donde el bloque 2 es otro. */}
             <Seccion id="asi_se_vive">{respaldo ? <AsiSeViveTarot /> : <AsiSeViveSoloEscritorio />}</Seccion>
-            <Seccion id="como_funciona"><ComoFuncionaTarot /></Seccion>
+            {/* Una sola versión del recorrido: los mismos 4 pasos en celular y escritorio (22/11). */}
+            <Seccion id="como_funciona"><ComoFuncionaTarot cuatroPasos /></Seccion>
             <Seccion id="por_tema">{!respaldo && <ConsultaTarotUruguay precioUYU={precioUYU} />}<LecturasPorTema precioUYU={precioUYU} /></Seccion>
             <Seccion id="testimonios"><TestimoniosTarot testimonios={testimonios} /></Seccion>
             <Seccion id="dudas"><DudasTarot waNumero={waNumero} /></Seccion>
