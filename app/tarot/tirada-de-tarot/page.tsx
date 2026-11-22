@@ -10,8 +10,8 @@ import { numeroWhatsApp } from '@/lib/contacto';
 // que más ventas trajo de Google Ads. Misma experiencia que /tarot.
 export const metadata = metadataPagina(
   '/tarot/tirada-de-tarot',
-  'Tirada de tarot online: 5 cartas para tu pregunta | Tu Oráculo',
-  'Hacé tu tirada de tarot online: 5 cartas interpretadas para tu pregunta, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único con Mercado Pago, sin suscripción.',
+  'Tirada de tarot online: 5 cartas en minutos | Tu Oráculo',
+  'Hacé tu tirada de tarot online: elegís el tema y recibís 5 cartas interpretadas, con resumen en audio y PDF. Te llega por WhatsApp en minutos. Pago único con Mercado Pago, sin suscripción.',
 );
 
 // Pregenerada, como /tarot: precio y testimonios se releen cada 60 s.

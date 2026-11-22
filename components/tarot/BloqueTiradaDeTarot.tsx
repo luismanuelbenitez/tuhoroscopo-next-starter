@@ -9,7 +9,7 @@ import { POSICIONES } from "@/components/seo/BloquesSeo";
 // conserva lo que promete el anuncio (Montevideo, Uruguay, precio, pago único).
 // Celular primero: texto ≥15 px sobre panel oscuro (regla de contraste).
 const QUE_MIRA = [
-  "Cómo estás hoy frente a tu pregunta.",
+  "Cómo estás hoy frente a lo que consultás.",
   "Lo que se interpone o te cuesta ahora.",
   "Lo que está en juego y no estás mirando.",
   "Un paso o una actitud concreta para tu momento.",
@@ -24,7 +24,7 @@ export function BloqueTiradaDeTarot({ precioUYU }: { precioUYU: number | null })
       <div className="rounded-2xl px-5 py-6 md:px-8 md:py-7" style={{ background: "rgba(12,7,24,0.82)", border: "1px solid rgba(240,197,90,0.32)" }}>
         <p className="text-[12px] font-bold uppercase tracking-widest mb-2" style={{ color: GOLD }}>Cómo es tu tirada de tarot</p>
         <h2 id="tirada-de-tarot-5-cartas" className="mb-3" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(1.6rem, 4vw, 2.1rem)", lineHeight: 1.15, color: CREMA }}>
-          Una tirada de tarot de 5 cartas, leída para tu pregunta
+          Una tirada de tarot de 5 cartas, leída para tu consulta
         </h2>
         <p className="text-[15.5px] md:text-[16px] leading-relaxed text-white/90">
           En tu tirada de tarot cada carta ocupa un lugar y responde a una parte de tu consulta.
@@ -50,7 +50,8 @@ export function BloqueTiradaDeTarot({ precioUYU }: { precioUYU: number | null })
         </ol>
 
         <p className="mt-5 text-[15.5px] md:text-[16px] leading-relaxed text-white/90">
-          Podés hacer tu tirada de tarot sobre amor y pareja, trabajo y dinero, una decisión o tu momento en general.
+          Elegís el tema de tu tirada de tarot: amor y vínculos, trabajo, dinero, salud, una decisión o tu momento en general.
+          Si querés, sumás una pregunta propia.
           Es online: la pedís desde el celular, desde Montevideo o cualquier parte de Uruguay, y te llega por WhatsApp en minutos,
           con resumen en audio y PDF para guardar.
         </p>

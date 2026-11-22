@@ -37,7 +37,7 @@ const ESTILOS_PAGINA = `
 const DUDAS_TIRADA: DudaTarot[] = [
   {
     q: "¿Qué es una tirada de tarot?",
-    a: "Es una forma de sacar y ordenar las cartas para responder una consulta: cada carta ocupa un lugar con un significado propio. Tu tirada de tarot es de 5 cartas (momento actual, desafío, lo que no ves, consejo y lo que viene) y se interpreta para tu nombre, tu tema y tu pregunta.",
+    a: "Es una forma de sacar y ordenar las cartas para responder una consulta: cada carta ocupa un lugar con un significado propio. Tu tirada de tarot es de 5 cartas (momento actual, desafío, lo que no ves, consejo y lo que viene) y se interpreta para tu nombre, tu tema y, si la escribís, tu pregunta.",
   },
   {
     q: "¿Cómo hago mi tirada de tarot online?",
@@ -66,7 +66,8 @@ export default function TiradaDeTarotContent({ precioUYU, testimonios, waNumero 
                   h1: "Tirada de tarot online",
                   titulo: "Tu tirada de tarot,",
                   tituloDorado: "lista en minutos en tu WhatsApp.",
-                  bajada: "Hacés tu pregunta y recibís tus 5 cartas interpretadas una por una, con resumen en audio y PDF.",
+                  // Igual que el checkout: primero se elige el tema; la pregunta es opcional (Manuel, 22/11).
+                  bajada: "Elegís el tema y recibís tus 5 cartas interpretadas una por una, con resumen en audio y PDF.",
                 }}
               />
             </Seccion>
@@ -80,7 +81,7 @@ export default function TiradaDeTarotContent({ precioUYU, testimonios, waNumero 
               <CtaFinalTarot
                 precioUYU={precioUYU}
                 titulo="Tu tirada de tarot te está esperando."
-                bajada="Elegí tu tema, hacé tu pregunta y recibí tu tirada de tarot personalizada en minutos."
+                bajada="Elegí tu tema, sumá una pregunta si querés y recibí tu tirada de tarot personalizada en minutos."
               />
             </Seccion>
             <PieMarca />
