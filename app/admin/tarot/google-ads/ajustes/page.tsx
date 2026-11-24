@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import { Save } from "lucide-react";
 import { MarcoGoogleAds } from "@/components/admin/googleAds/gobernanza/Marco";
 
@@ -37,7 +39,7 @@ function Campo({ titulo, ayuda, children }: { titulo: string; ayuda?: string; ch
 const input = "w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-[15px] text-white placeholder:text-gray-600 focus:border-sky-500 focus:outline-none";
 
 export default function GoogleAdsAjustes() {
-  const [datos, setDatos] = useState<{ guardada: Guardada; precio: number; por_defecto: Config; efectiva: Config; universales: string[] } | null>(null);
+  const [datos, setDatos] = useState<{ guardada: Guardada; precio: number; cac_negocio: number | null; por_defecto: Config; efectiva: Config; universales: string[] } | null>(null);
   const [f, setF] = useState({ valor_venta: "", cpa_objetivo: "", paginas: "", extra: "", no_negar: "", lcp: "", minimos: {} as Record<string, string> });
   const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -83,8 +85,12 @@ export default function GoogleAdsAjustes() {
               <Campo titulo="Valor de una venta ($)" ayuda={`Vacío = el precio actual ($ ${datos.precio.toLocaleString("es-UY")}).`}>
                 <input inputMode="decimal" className={input} value={f.valor_venta} placeholder={String(pd.valor_venta)} onChange={(e) => setF({ ...f, valor_venta: e.target.value })} />
               </Campo>
-              <Campo titulo="Costo objetivo por venta ($)" ayuda="Lo máximo que aceptás pagar en anuncios por una venta. Vacío = el valor de la venta (no perder plata).">
-                <input inputMode="decimal" className={input} value={f.cpa_objetivo} placeholder={String(datos.efectiva.cpa_objetivo)} onChange={(e) => setF({ ...f, cpa_objetivo: e.target.value })} />
+              {/* Fuente única (2026-11-24): el objetivo se define una sola vez, en Inteligencia comercial. */}
+              <Campo titulo="Costo objetivo por venta ($)" ayuda={datos.cac_negocio ? "Es el CAC objetivo del negocio. Se cambia en Inteligencia comercial → Objetivos y economía." : `Todavía no hay CAC objetivo definido: se usa el valor de la venta. Definilo en Inteligencia comercial → Objetivos y economía.`}>
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2.5">
+                  <span className="text-[15px] tabular-nums text-white">$ {Math.round(datos.efectiva.cpa_objetivo).toLocaleString("es-UY")}</span>
+                  <Link href={"/admin/tarot/inteligencia/economia" as Route} className="text-[13px] text-sky-300 hover:underline">Cambiar →</Link>
+                </div>
               </Campo>
             </div>
           </section>

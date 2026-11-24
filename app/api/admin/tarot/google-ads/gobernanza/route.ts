@@ -5,6 +5,7 @@ import { gobernanzaGoogle } from "@/lib/gobernanzaAds/fuenteGoogle";
 import { aplicarPropuesta, deshacerAccion } from "@/lib/gobernanzaAds/aplicarGoogle";
 import { resumenConIa } from "@/lib/gobernanzaAds/resumenIa";
 import { armarConfig, configPorDefecto, limpiarConfig, NEGATIVAS_UNIVERSALES } from "@/lib/gobernanzaAds/config";
+import { NEGOCIO_POR_DEFECTO } from "@/lib/inteligencia/negocio";
 
 // Módulo de gobernanza de Google Ads (2026-11-14).
 // GET ?dias=14              → salud, KPIs, hallazgos, propuestas (Resumen, Diagnóstico, Cambios).
@@ -39,7 +40,9 @@ export async function GET(req: NextRequest) {
       let guardada: unknown = {};
       try { guardada = m.gobernanza_google_ads ? JSON.parse(m.gobernanza_google_ads) : {}; } catch { guardada = {}; }
       const precio = Number(m.precio_base_uyu) || 0;
-      return NextResponse.json({ ok: true, guardada, precio, por_defecto: configPorDefecto(precio), efectiva: armarConfig(precio, guardada), universales: NEGATIVAS_UNIVERSALES });
+      const neg = (await rest(`ic_negocios?id=eq.${NEGOCIO_POR_DEFECTO}&select=cac_objetivo`).catch(() => [])) as { cac_objetivo: string | null }[];
+      const cacNegocio = Number(neg[0]?.cac_objetivo) || null;
+      return NextResponse.json({ ok: true, guardada, precio, cac_negocio: cacNegocio, por_defecto: configPorDefecto(precio), efectiva: armarConfig(precio, guardada, cacNegocio), universales: NEGATIVAS_UNIVERSALES });
     }
     const dias = Math.min(Math.max(Number(req.nextUrl.searchParams.get("dias")) || 14, 1), 90);
     const r = await gobernanzaGoogle(rest, dias);

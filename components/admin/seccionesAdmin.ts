@@ -12,6 +12,12 @@ export interface Solapa { href: string; label: string; icon: LucideIcon; exact?:
 export interface Seccion { clave: string; label: string; icon: LucideIcon; solapas: Solapa[] }
 
 export const SECCIONES: Seccion[] = [
+  // Inteligencia comercial (2026-11-24, pedido de Manuel): primera opción del
+  // menú. Capa de decisión por encima de los tableros de cada canal.
+  { clave: "inteligencia", label: "Inteligencia comercial", icon: BrainCircuit, solapas: [
+    { href: "/admin/tarot/inteligencia", label: "Centro de control", icon: LayoutDashboard, exact: true },
+    { href: "/admin/tarot/inteligencia/economia", label: "Objetivos y economía", icon: Calculator },
+  ] },
   { clave: "panel", label: "Panel", icon: LayoutDashboard, solapas: [
     { href: "/admin/tarot", label: "Panel", icon: LayoutDashboard, exact: true },
     { href: "/admin/tarot/pendientes", label: "Pendientes", icon: ListTodo },

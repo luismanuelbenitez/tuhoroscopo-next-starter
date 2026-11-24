@@ -80,15 +80,18 @@ export function limpiarConfig(x: unknown): { ok: true; config: ConfigGuardada } 
  * - no_negar: palabras universales que en este negocio SÍ compran (ej. "trabajo"
  *   en tarot: "tarot trabajo" es una consulta, no alguien buscando empleo).
  */
-export function armarConfig(valorVenta: number, guardada: unknown): ConfigGobernanza {
+export function armarConfig(valorVenta: number, guardada: unknown, cacObjetivoNegocio?: number | null): ConfigGobernanza {
   const base = configPorDefecto(valorVenta);
-  if (!guardada || typeof guardada !== "object") return base;
+  // Fuente única (2026-11-24): el CAC objetivo del negocio (Inteligencia
+  // comercial → Objetivos y economía) manda sobre el que se guardaba acá.
+  const cacNegocio = typeof cacObjetivoNegocio === "number" && Number.isFinite(cacObjetivoNegocio) && cacObjetivoNegocio > 0 ? cacObjetivoNegocio : null;
+  if (!guardada || typeof guardada !== "object") return cacNegocio ? { ...base, cpa_objetivo: cacNegocio } : base;
   const g = guardada as Partial<ConfigGobernanza> & { negativas_extra?: string[]; no_negar?: string[] };
   const noNegar = new Set((Array.isArray(g.no_negar) ? g.no_negar : []).map((x) => String(x).toLowerCase().trim()));
   const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : d);
   return {
     valor_venta: num(g.valor_venta, base.valor_venta),
-    cpa_objetivo: num(g.cpa_objetivo, num(g.valor_venta, base.cpa_objetivo)),
+    cpa_objetivo: cacNegocio ?? num(g.cpa_objetivo, num(g.valor_venta, base.cpa_objetivo)),
     paginas_destino: Array.isArray(g.paginas_destino) ? g.paginas_destino.filter((x) => typeof x === "string") : base.paginas_destino,
     negativas_base: [
       ...(Array.isArray(g.negativas_base) ? g.negativas_base : base.negativas_base),

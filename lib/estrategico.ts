@@ -7,7 +7,9 @@
 // las suma). El embudo y el tráfico excluyen siempre los dispositivos propios.
 // Solo lectura y en lote (~9 consultas por carga, sin EFs).
 
-const FUERA = new Set(["formulario_completo", "pago_iniciado", "pago_rechazado", "pago_expirado", "cancelado"]);
+import { gastoPublicitario, type Canal } from "@/lib/inteligencia/gasto";
+
+export const FUERA = new Set(["formulario_completo", "pago_iniciado", "pago_rechazado", "pago_expirado", "cancelado"]);
 const EN_CURSO = new Set(["pago_confirmado", "generando_lectura", "lectura_lista", "generando_pdf", "pdf_listo", "enviando_whatsapp"]);
 const DIA = 86_400_000;
 const DIAS_MES = 30.4375;
@@ -23,7 +25,7 @@ type Costo = {
   id: string; nombre: string; categoria: string; tipo: "fijo" | "puntual"; monto: number | string; moneda: "USD" | "UYU";
   frecuencia: "mensual" | "anual" | null; fecha_desde: string; fecha_hasta: string | null; activo: boolean;
 };
-type Publicidad = { date: string; amount: number | string; currency: string | null; utm_campaign: string | null };
+type Publicidad = { date: string; amount: number | string; currency: string | null; utm_campaign: string | null; canal: Canal };
 type Sesion = { anonymous_id: string; visitor_id: string | null; es_interno: boolean | null; fuente: string | null; checkout: boolean | null; created_at: string };
 
 export type Getter = (q: string) => Promise<unknown>;
@@ -42,7 +44,9 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
       get(`funnel_events?created_at=gte.${desde}&event_name=eq.checkout_started&select=session_id&limit=50000`),
       get(`tarot_configuracion?clave=in.(tipo_cambio_usd_uyu,tts_costo_por_1000_caracteres_usd,whatsapp_costo_por_mensaje_usd)&select=clave,valor`),
       get(`tarot_costos?activo=eq.true&select=id,nombre,categoria,tipo,monto,moneda,frecuencia,fecha_desde,fecha_hasta,activo`),
-      get(`campaign_costs?date=gte.${desde.slice(0, 10)}&select=date,amount,currency,utm_campaign&limit=5000`),
+      // Gasto publicitario de todas las plataformas (2026-11-24: antes faltaba Google Ads).
+      gastoPublicitario(get, desde.slice(0, 10)).then((filas) =>
+        filas.map((f): Publicidad => ({ date: f.fecha, amount: f.monto, currency: f.moneda, utm_campaign: f.campana, canal: f.canal }))),
     ])) as [Orden[], Sesion[], { session_id: string }[], { session_id: string }[], { clave: string; valor: string }[], Costo[], Publicidad[]];
 
     const cfg = new Map(config.map((c) => [c.clave, c.valor]));

@@ -1,6 +1,7 @@
 import type { Rest } from "@/lib/asistenteParte";
 import { leerPanelGoogleAds } from "@/lib/googleAdsApi/panel";
 import { armarConfig } from "./config";
+import { NEGOCIO_POR_DEFECTO } from "@/lib/inteligencia/negocio";
 import { diagnosticar, alertasPrincipales } from "./reglas";
 import { armarPropuestas } from "./propuestas";
 import type { EntradaGobernanza } from "./tipos";
@@ -23,17 +24,19 @@ interface DiaC { fecha: string; impresiones: number; clics: number; costo: numbe
 interface FilaWeb { visitas: number; checkout: number; ventas: number }
 
 export async function gobernanzaGoogle(rest: Rest, dias: number) {
-  const [panel, panel30, conf, rend30, ultimo] = await Promise.all([
+  const [panel, panel30, conf, rend30, ultimo, negocio] = await Promise.all([
     leerPanelGoogleAds(rest, dias),
     dias === 30 ? null : rest("rpc/google_ads_panel", { method: "POST", body: JSON.stringify({ p_dias: 30 }) }),
     rest("tarot_configuracion?clave=in.(gobernanza_google_ads,precio_base_uyu)&select=clave,valor"),
     rest(`google_ads_rendimiento?fecha=gte.${new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10)}&select=conversiones`),
     rest("ads_config_historial?plataforma=eq.google&vigente_hasta=is.null&select=version,vigente_desde&order=vigente_desde.desc&limit=1").catch(() => []),
+    // CAC objetivo del negocio (Inteligencia comercial, fuente única desde 2026-11-24).
+    rest(`ic_negocios?id=eq.${NEGOCIO_POR_DEFECTO}&select=cac_objetivo`).catch(() => []),
   ]);
   const confMap = Object.fromEntries((conf as { clave: string; valor: string }[]).map((x) => [x.clave, x.valor]));
   let guardada: unknown = null;
   try { guardada = confMap.gobernanza_google_ads ? JSON.parse(confMap.gobernanza_google_ads) : null; } catch { guardada = null; }
-  const cfg = armarConfig(Number(confMap.precio_base_uyu) || 0, guardada);
+  const cfg = armarConfig(Number(confMap.precio_base_uyu) || 0, guardada, Number((negocio as { cac_objetivo: string | null }[])[0]?.cac_objetivo) || null);
 
   const p = panel as unknown as {
     cuenta: { conectada: boolean; tipo_cambio?: number; campanas?: CampanaC[]; por_dia?: DiaC[]; terminos?: { filas: { termino: string; impresiones: number; clics: number; costo: number }[] } | null; destino?: { velocidad?: { movil?: { lcp_ms?: number | null } } | null }; ranking?: RankingR | null };
