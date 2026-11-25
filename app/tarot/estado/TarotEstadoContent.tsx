@@ -65,6 +65,10 @@ export default function TarotEstadoContent({ waNumero = "" }: { waNumero?: strin
   const externalReference = sp.get("ref") ?? "";
   // MP también inyecta sus propios parámetros al redirigir
   const mpStatus = (sp.get("status") ?? sp.get("collection_status") ?? "").toLowerCase().trim();
+  // Efectivo (2026-11-25): Mercado Pago vuelve con payment_type=ticket cuando
+  // la persona generó un cupón de Abitab/Redpagos. Ahí el pago no está "en
+  // proceso": tiene que ir a pagarlo. Solo cambian los textos.
+  const esEfectivo = (sp.get("payment_type") ?? "").toLowerCase() === "ticket";
 
   const [uiStatus, setUiStatus] = useState<"idle" | "ok" | "warn" | "error">("idle");
   // Pago confirmado: se borra el formulario que guardó el checkout para
@@ -267,7 +271,31 @@ export default function TarotEstadoContent({ waNumero = "" }: { waNumero?: strin
           </>
         )}
 
-        {uiStatus === "warn" && (
+        {uiStatus === "warn" && esEfectivo && (
+          <>
+            <IconoEstado tipo="espera" />
+            <div className="mt-5"><Pildora>Cupón generado</Pildora></div>
+            <h1 className="gracias-hero mt-4" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: "clamp(30px, 6vw, 44px)", lineHeight: 1.1, color: CREMA }}>
+              Tu cupón de pago está listo
+            </h1>
+            <p className="gracias-hero mt-3 mx-auto max-w-[600px] text-[16px] md:text-[18px] text-white/80 leading-relaxed" style={{ fontFamily: SERIF }}>
+              Pagalo en efectivo en cualquier local de Abitab o Redpagos, antes de la fecha que figura en el cupón. Cuando se acredite, preparamos tu lectura y te llega el acceso por WhatsApp.
+            </p>
+            <div className="mt-7">
+              <ProgresoLectura
+                pasos={[
+                  { titulo: "Pagá el cupón en Abitab o Redpagos", texto: "Con el código que te dio Mercado Pago.", estado: "activo" },
+                  { titulo: "Interpretando tus 5 cartas", texto: "Empieza apenas se acredite el pago.", estado: "pendiente" },
+                  { titulo: "Enviando acceso por WhatsApp", texto: "Te llega al celular: no necesitás volver a esta página.", estado: "pendiente" },
+                ]}
+                pie="Mercado Pago puede tardar un rato en acreditar el pago en efectivo."
+              />
+            </div>
+            <AyudaContacto waNumero={waNumero} texto="Hola! Generé el cupón para pagar mi lectura de Tarot en efectivo y tengo una duda." />
+          </>
+        )}
+
+        {uiStatus === "warn" && !esEfectivo && (
           <>
             <IconoEstado tipo="espera" />
             <div className="mt-5"><Pildora>Pago en proceso</Pildora></div>

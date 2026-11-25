@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, CreditCard, Banknote, Wallet } from 'lucide-react';
 import { GOLD, SERIF, CREMA, CTA_GRADIENT } from '@/components/home/theme';
 import { seccionesTerminos, SECCIONES_PRIVACIDAD, LEGAL_ACTUALIZADO } from '@/lib/textosLegales';
 
@@ -10,12 +10,16 @@ import { seccionesTerminos, SECCIONES_PRIVACIDAD, LEGAL_ACTUALIZADO } from '@/li
 // sube una hoja desde abajo; se cierra con "Volver al pago", la ✕, tocando
 // afuera, Escape o el botón "atrás" del celular, y el formulario queda
 // exactamente como estaba. Menos es más: no marca la casilla por ella.
+// 2026-11-25 (pedido de Manuel): la misma hoja explica los medios de pago
+// ('pago') al tocar la línea "Tarjeta o efectivo…" debajo del botón de pago;
+// el botón de pago no cambia. Nace de una clienta que preguntó por Abitab.
 
-export type DocLegal = 'terminos' | 'privacidad';
+export type DocLegal = 'terminos' | 'privacidad' | 'pago';
 
 const TITULOS: Record<DocLegal, string> = {
   terminos: 'Términos del servicio',
   privacidad: 'Política de privacidad',
+  pago: 'Cómo podés pagar',
 };
 
 export function HojaLegal({ doc, precioTexto, onCerrar }: {
@@ -61,7 +65,7 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
   }
 
   if (!doc) return null;
-  const secciones = doc === 'terminos' ? seccionesTerminos(precioTexto) : SECCIONES_PRIVACIDAD;
+  const secciones = doc === 'terminos' ? seccionesTerminos(precioTexto) : doc === 'privacidad' ? SECCIONES_PRIVACIDAD : [];
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center" role="presentation">
@@ -84,7 +88,7 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
         {/* Encabezado */}
         <div className="shrink-0 flex items-center justify-between gap-3 pl-5 pr-2 pt-3 pb-3 border-b" style={{ borderColor: 'rgba(240,197,90,0.18)' }}>
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Legal</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>{doc === 'pago' ? 'Medios de pago' : 'Legal'}</p>
             <h2 id="hoja-legal-titulo" className="truncate" style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 24, lineHeight: 1.15, color: CREMA }}>
               {TITULOS[doc]}
             </h2>
@@ -102,6 +106,7 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
 
         {/* Texto */}
         <div ref={cuerpoRef} className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-7 py-5" style={{ fontVariantNumeric: 'lining-nums' }}>
+          {doc === 'pago' ? <MediosDePago /> : (<>
           <p className="text-[13px] text-white/55 mb-4">Última actualización: {LEGAL_ACTUALIZADO}</p>
           <div className="space-y-5">
             {secciones.map((s) => (
@@ -114,6 +119,7 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
           <p className="mt-6 text-[14px] text-white/60">
             Consultas: <a href="mailto:hola@tuoraculo.uy" className="underline underline-offset-2" style={{ color: GOLD }}>hola@tuoraculo.uy</a>
           </p>
+          </>)}
         </div>
 
         {/* Volver */}
@@ -128,6 +134,66 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Mini instructivo de medios de pago. Solo lo que Mercado Pago ofrece de
+// verdad en este checkout (verificado 2026-11-25: tarjeta, efectivo en
+// Redpagos y Abitab, y cuenta de Mercado Pago; no hace falta tener cuenta).
+const PASOS_EFECTIVO = [
+  'Tocá el botón «Pagar» de esta página.',
+  'En Mercado Pago elegí «Efectivo» y después Abitab o Redpagos.',
+  'Te da un código de pago. Pagalo en cualquier local antes de la fecha que figura en el cupón: tenés unos días.',
+  'Cuando el pago se acredita, tu lectura se prepara sola y te llega el acceso por WhatsApp.',
+];
+
+function MediosDePago() {
+  const caja = { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(240,197,90,0.22)' };
+  return (
+    <div className="space-y-4">
+      <p className="text-[15px] leading-relaxed text-white/85">
+        Pagás a través de Mercado Pago, de forma segura. No necesitás tener cuenta de Mercado Pago.
+      </p>
+
+      <section className="rounded-2xl px-4 py-4" style={caja}>
+        <h3 className="flex items-center gap-2 text-[16px] font-semibold" style={{ color: CREMA }}>
+          <CreditCard size={18} className="shrink-0" style={{ color: GOLD }} /> Con tarjeta
+        </h3>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-white/85">
+          Crédito, débito o prepaga. El pago se confirma al instante y tu acceso llega por WhatsApp en minutos.
+        </p>
+      </section>
+
+      <section className="rounded-2xl px-4 py-4" style={caja}>
+        <h3 className="flex items-center gap-2 text-[16px] font-semibold" style={{ color: CREMA }}>
+          <Banknote size={18} className="shrink-0" style={{ color: GOLD }} /> En efectivo, en Abitab o Redpagos
+        </h3>
+        <ol className="mt-3 space-y-3">
+          {PASOS_EFECTIVO.map((t, i) => (
+            <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-white/85">
+              <span className="shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-[14px] font-bold" style={{ background: 'rgba(240,197,90,0.16)', color: GOLD }}>{i + 1}</span>
+              <span className="pt-0.5">{t}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-[14px] leading-relaxed text-white/65">
+          Con efectivo, tu lectura empieza cuando Mercado Pago acredita el pago, que puede tardar un rato.
+        </p>
+      </section>
+
+      <section className="rounded-2xl px-4 py-4" style={caja}>
+        <h3 className="flex items-center gap-2 text-[16px] font-semibold" style={{ color: CREMA }}>
+          <Wallet size={18} className="shrink-0" style={{ color: GOLD }} /> Con tu cuenta de Mercado Pago
+        </h3>
+        <p className="mt-1.5 text-[15px] leading-relaxed text-white/85">
+          Si tenés cuenta, podés pagar con tu dinero disponible o tus tarjetas guardadas.
+        </p>
+      </section>
+
+      <p className="text-[14px] leading-relaxed text-white/65">
+        Es un pago único, sin suscripción. Tu Oráculo nunca ve ni guarda los datos de tu tarjeta.
+      </p>
     </div>
   );
 }

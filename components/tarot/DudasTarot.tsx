@@ -28,9 +28,9 @@ const DUDAS: DudaTarot[] = [
   },
   // 2026-11-01: las dos dudas de pago que faltaban antes de comprar.
   {
-    q: "¿Cómo pago?",
-    soloEscritorio: true,
-    a: "Con Mercado Pago: tarjeta de crédito, débito o los medios que te ofrezca al pagar. Es un pago único, sin suscripción ni cobros posteriores, y Tu Oráculo nunca ve ni guarda los datos de tu tarjeta.",
+    // 2026-11-25: se suma el efectivo (Abitab/Redpagos) y se muestra también en celular.
+    q: "¿Cómo pago? ¿Puedo pagar en efectivo?",
+    a: "Con Mercado Pago, sin necesidad de tener cuenta: con tarjeta de crédito, débito o prepaga, o en efectivo en cualquier local de Abitab o Redpagos. Es un pago único, sin suscripción ni cobros posteriores, y Tu Oráculo nunca ve ni guarda los datos de tu tarjeta.",
   },
   {
     q: "¿Y si no me llega o tengo un problema?",

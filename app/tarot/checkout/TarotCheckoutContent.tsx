@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown, Lock, Tag, X, Check, CheckCircle, AlertCircle, MessageCircle,
-  ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2, Plus, ShieldCheck, Receipt, Headphones, FileText, Layers,
+  ArrowLeft, User, Mail, PenLine, Zap, Sparkles, Loader2, Plus, ShieldCheck, Receipt, Headphones, FileText, Layers, Banknote,
 } from 'lucide-react';
 import { cargarDiferidosYa, esperarTerceros } from '@/lib/cargaDiferida';
 import { getStoredAttribution, getOrCreateSessionId, medirFormulario, trackCheckoutPaso, enviarEventosAhora } from '@/lib/analytics';
@@ -1198,6 +1198,16 @@ export default function TarotCheckoutContent({
                         Pago seguro con
                         <LogoMercadoPago alto={16} />
                       </p>
+                      {/* Medios de pago (2026-11-25): al tocar la línea sube la hoja con
+                          el mini instructivo; el botón de pago no cambia. */}
+                      <button
+                        type="button"
+                        onClick={() => { setDocLegal('pago'); trackCheckoutPaso('help_click', 'medios_pago'); }}
+                        className="inline-flex items-center gap-1.5 min-h-[40px] px-1 text-center hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C55A] rounded-lg"
+                      >
+                        <Banknote size={15} className="shrink-0" style={{ color: GOLD }} />
+                        <span className="underline underline-offset-[3px] decoration-white/40">Tarjeta o efectivo en Abitab y Redpagos</span>
+                      </button>
                     </div>
                   )}
 
