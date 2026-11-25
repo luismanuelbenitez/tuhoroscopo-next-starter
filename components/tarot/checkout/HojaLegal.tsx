@@ -141,10 +141,12 @@ export function HojaLegal({ doc, precioTexto, onCerrar }: {
 // Mini instructivo de medios de pago. Solo lo que Mercado Pago ofrece de
 // verdad en este checkout (verificado 2026-11-25: tarjeta, efectivo en
 // Redpagos y Abitab, y cuenta de Mercado Pago; no hace falta tener cuenta).
+// En el local se paga con la cédula cargada en Mercado Pago, no con un código
+// (lo vio Manuel en su prueba del 25/11).
 const PASOS_EFECTIVO = [
   'Tocá el botón «Pagar» de esta página.',
-  'En Mercado Pago elegí «Efectivo» y después Abitab o Redpagos.',
-  'Te da un código de pago. Pagalo en cualquier local antes de la fecha que figura en el cupón: tenés unos días.',
+  'En Mercado Pago elegí «Efectivo», después Abitab o Redpagos, y cargá tu cédula.',
+  'Andá a cualquier local de Abitab o Redpagos y pagá con esa cédula, antes de la fecha límite que te muestra Mercado Pago: tenés unos días.',
   'Cuando el pago se acredita, tu lectura se prepara sola y te llega el acceso por WhatsApp.',
 ];
 
