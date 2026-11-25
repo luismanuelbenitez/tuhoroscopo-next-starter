@@ -192,6 +192,10 @@ async function decidir(rest: RestT, b: Record<string, unknown>) {
     } else if (estado !== "pospuesta") {
       const res = await resolverPropuestaEstratega(rest, r.id, estado === "aceptada" || estado === "hecha" ? "aceptar" : "descartar", "Inteligencia comercial");
       if (!res.ok && !/ya no está abierta/.test(res.motivo)) return mal(res.motivo);
+      // "Ya está hecha": el pendiente que crea la aceptación nace resuelto.
+      if (res.ok && estado === "hecha" && res.pendiente_id) {
+        await rest(`admin_pendientes?id=eq.${res.pendiente_id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ estado: "resuelto", resuelto_at: new Date().toISOString(), updated_at: new Date().toISOString() }) });
+      }
     }
   }
   // 2) Una recomendación hecha que no vino del Analista se anota en la bitácora

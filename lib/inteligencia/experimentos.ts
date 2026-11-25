@@ -148,6 +148,8 @@ export async function medirExperimentos(rest: Rest, experimentos: Experimento[],
         if (t < aplicado || t > finE) continue;
         // La versión de la campaña que registra la aplicación misma (primeras 24 h) no cuenta como "otro".
         if (c.origen === "campana" && c.canal === canal && t - aplicado < DIA) continue;
+        // La nota de la propia aplicación (bitácora) no es "otro" cambio.
+        if (c.origen === "bitacora" && c.detalle?.startsWith(`Experimento ${e.id} aplicado`)) continue;
         const relevante = c.canal === canal || alcance.has(c.canal) || c.origen === "bitacora";
         if (relevante) { otros.push(c); c.experimentos.push(e.id); }
       }
