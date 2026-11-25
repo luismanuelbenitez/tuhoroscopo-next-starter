@@ -8,37 +8,24 @@
 // Reutiliza, no duplica:
 //   - lib/estrategico.ts → la plata del negocio (cobrado, comisiones reales de
 //     Mercado Pago, IA, audio, WhatsApp, cortesías, costos fijos, resultado).
-//   - lib/inteligencia/gasto.ts → gasto publicitario de todos los canales.
+//   - lib/inteligencia/medicion.ts → gasto, visitas, checkout y ventas por
+//     canal (la misma medición que usan los experimentos).
 //   - ic_negocios → objetivos (ganancia mensual, CAC objetivo).
 // Solo lectura. Sin IA (no cuesta nada).
 
-import { calcularEstrategico, FUERA } from "@/lib/estrategico";
-import { gastoPublicitario } from "./gasto";
-import { CANALES, NOMBRE_CANAL, canalDeFuente, type Atribucion, type Canal } from "./canales";
+import { calcularEstrategico } from "@/lib/estrategico";
+import { NOMBRE_CANAL, type Atribucion } from "./canales";
 import { leerNegocio, type Negocio } from "./negocio";
+import { prepararMedicion, DIA, OFFSET_UY, ymd, inicioDia, type FilaCanal } from "./medicion";
 
-const DIA = 86_400_000;
 const SEMANAS = 12;
-const OFFSET_UY = 3 * 3600_000; // Montevideo, UTC−3 todo el año
 /** Con menos ventas que esto, el CAC de un período se muestra como poco confiable. */
 export const VENTAS_MINIMAS_CAC = 3;
 
 type Get = (q: string) => Promise<any>;
-type Orden = { id: string; cliente_id: string | null; tipo_orden: string | null; estado: string; precio_cobrado: number | string | null; funnel_session_id: string | null; created_at: string };
-type Sesion = { anonymous_id: string; visitor_id: string | null; fuente: string | null; es_interno: boolean | null; created_at: string };
+export type { FilaCanal };
 
-export interface FilaCanal {
-  canal: Canal; nombre: string; pago: boolean;
-  inversion: number; impresiones: number | null; clics: number | null; conversiones_plataforma: number | null;
-  visitas: number; checkout: number; ventas: number; ingresos: number; clientes_nuevos: number;
-  cac: number | null; roas: number | null;
-}
-
-export interface Atencion { nivel: "alta" | "media" | "info"; titulo: string; detalle: string; enlace?: string }
-
-const ymd = (t: number) => new Date(t - OFFSET_UY).toISOString().slice(0, 10);
-/** Inicio (UTC) del día de Montevideo que contiene t. */
-const inicioDia = (t: number) => new Date(`${ymd(t)}T00:00:00-03:00`).getTime();
+export interface Atencion { id: string; canal?: string; nivel: "alta" | "media" | "info"; titulo: string; detalle: string; enlace?: string }
 
 export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, opciones: { negocio?: string; dias: number; atribucion: Atribucion; ahora?: number }) {
   const get = getRaw as Get;
@@ -56,95 +43,26 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
   const inicioMes = new Date(`${ymd(ahora).slice(0, 7)}-01T00:00:00-03:00`).getTime();
   const desde = Math.min(iniAnterior, iniSemanas, inicioMes);
 
-  const [est, ref, mes, gasto, ordenes, sesiones, checkouts, pendientes] = await Promise.all([
-    calcularEstrategico(get, dias, false, ahora),
+  const estP = calcularEstrategico(get, dias, false, ahora);
+  const [est, ref, mes, med, pendientes] = await Promise.all([
+    estP,
     // Margen por venta de referencia: 90 días (más ventas, número más estable).
     dias === 90 ? null : calcularEstrategico(get, 90, false, ahora),
     calcularEstrategico(get, (ahora - inicioMes) / DIA, false, ahora),
-    gastoPublicitario(get, ymd(desde)),
-    get(`tarot_ordenes?select=id,cliente_id,tipo_orden,estado,precio_cobrado,funnel_session_id,created_at&order=created_at.asc&limit=10000`) as Promise<Orden[]>,
-    get(`funnel_sessions?created_at=gte.${new Date(desde).toISOString()}&select=anonymous_id,visitor_id,fuente,es_interno,created_at&limit=50000`) as Promise<Sesion[]>,
-    get(`funnel_events?created_at=gte.${new Date(desde).toISOString()}&event_name=eq.checkout_started&select=session_id&limit=50000`) as Promise<{ session_id: string }[]>,
+    prepararMedicion(get, { desde, atribucion, tc: estP.then((e) => e.tipo_cambio.valor) }),
     Promise.all([
+      get(`ic_experimentos?negocio_id=eq.${negocio.id}&estado=in.(planificado,activo)&select=id,nombre,estado,canal,aplicado_desde,fin_previsto&order=id.asc`).catch(() => []),
       get(`tarot_analista_recomendaciones?estado=eq.pendiente&select=id`).catch(() => []),
-      get(`estratega_propuestas?estado=eq.pendiente&select=id`).catch(() => []),
+      // Las propuestas abiertas del Estratega tienen estado "propuesta" (antes
+      // se contaban con "pendiente" y daba siempre 0; corregido 2026-11-25).
+      get(`estratega_propuestas?estado=eq.propuesta&select=id`).catch(() => []),
       get(`admin_pendientes?estado=in.(abierto,esperando)&select=id`).catch(() => []),
     ]),
   ]);
-  const tc = est.tipo_cambio.valor;
+  const { gasto, ventas, esNuevo, enRango, porCanal, tc } = med;
   const aPesos = (monto: number, moneda: string) => monto * (moneda === "USD" ? tc : 1);
-
-  // ── Ventas y su canal (una venta = un canal) ─────────────────────────────
-  const ventaReal = (o: Orden) => !FUERA.has(o.estado) && o.tipo_orden !== "cortesia";
-  const ventas = ordenes.filter(ventaReal);
-  const primeraVenta = new Map<string, string>();
-  for (const o of ventas) if (o.cliente_id && !primeraVenta.has(o.cliente_id)) primeraVenta.set(o.cliente_id, o.id);
-  const esNuevo = (o: Orden) => !!o.cliente_id && primeraVenta.get(o.cliente_id) === o.id;
-
-  const sesionPorId = new Map(sesiones.map((s) => [s.anonymous_id, s]));
-  const faltan = Array.from(new Set(ventas.map((o) => o.funnel_session_id).filter((s): s is string => !!s && !sesionPorId.has(s))));
-  for (let i = 0; i < faltan.length; i += 150) {
-    const lote = faltan.slice(i, i + 150);
-    const filas = (await get(`funnel_sessions?anonymous_id=in.(${lote.map((s) => `"${s}"`).join(",")})&select=anonymous_id,visitor_id,fuente,es_interno,created_at`)) as Sesion[];
-    for (const s of filas) sesionPorId.set(s.anonymous_id, s);
-  }
-  // Primer contacto: la primera visita registrada de cada comprador (por visitor_id).
-  const primeraFuente = new Map<string, string | null>();
-  if (atribucion === "primero") {
-    const visitantes = Array.from(new Set(ventas.map((o) => sesionPorId.get(o.funnel_session_id ?? "")?.visitor_id).filter((v): v is string => !!v)));
-    for (let i = 0; i < visitantes.length; i += 150) {
-      const lote = visitantes.slice(i, i + 150);
-      const filas = (await get(`funnel_sessions?visitor_id=in.(${lote.map((v) => `"${v}"`).join(",")})&select=visitor_id,fuente,created_at&order=created_at.asc&limit=10000`)) as { visitor_id: string; fuente: string | null }[];
-      for (const s of filas) if (!primeraFuente.has(s.visitor_id)) primeraFuente.set(s.visitor_id, s.fuente);
-    }
-  }
-  let sinOrigen = 0;
-  const canalVenta = new Map<string, Canal>();
-  for (const o of ventas) {
-    const s = o.funnel_session_id ? sesionPorId.get(o.funnel_session_id) : undefined;
-    if (!s) { canalVenta.set(o.id, "otro"); continue; }
-    const fuente = atribucion === "primero" && s.visitor_id && primeraFuente.has(s.visitor_id) ? primeraFuente.get(s.visitor_id)! : s.fuente;
-    canalVenta.set(o.id, canalDeFuente(fuente));
-  }
-
-  // ── Visitas y checkout por canal (sin tráfico propio) ───────────────────
-  const conCheckout = new Set(checkouts.map((c) => c.session_id));
-  const externas = sesiones.filter((s) => !s.es_interno);
-
-  const enRango = (iso: string, ini: number, fin: number) => { const t = new Date(iso).getTime(); return t >= ini && t < fin; };
   const fechaEnRango = (f: string, ini: number, fin: number) => { const t = new Date(`${f}T12:00:00-03:00`).getTime(); return t >= ini && t < fin; };
-
-  function porCanal(ini: number, fin: number): FilaCanal[] {
-    const filas = new Map<Canal, FilaCanal>(CANALES.map((c) => [c.id, {
-      canal: c.id, nombre: c.nombre, pago: c.pago, inversion: 0, impresiones: null, clics: null, conversiones_plataforma: null,
-      visitas: 0, checkout: 0, ventas: 0, ingresos: 0, clientes_nuevos: 0, cac: null, roas: null,
-    }]));
-    const suma = (a: number | null, b: number | null) => (b == null ? a : (a ?? 0) + b);
-    for (const g of gasto) {
-      if (!fechaEnRango(g.fecha, ini, fin)) continue;
-      const f = filas.get(g.canal)!;
-      f.inversion += aPesos(g.monto, g.moneda);
-      f.impresiones = suma(f.impresiones, g.impresiones); f.clics = suma(f.clics, g.clics); f.conversiones_plataforma = suma(f.conversiones_plataforma, g.conversiones);
-    }
-    for (const s of externas) {
-      if (!enRango(s.created_at, ini, fin)) continue;
-      const f = filas.get(canalDeFuente(s.fuente))!;
-      f.visitas += 1;
-      if (conCheckout.has(s.anonymous_id)) f.checkout += 1;
-    }
-    for (const o of ventas) {
-      if (!enRango(o.created_at, ini, fin)) continue;
-      const f = filas.get(canalVenta.get(o.id) ?? "otro")!;
-      f.ventas += 1; f.ingresos += Number(o.precio_cobrado ?? 0) || 0;
-      if (esNuevo(o)) f.clientes_nuevos += 1;
-    }
-    for (const f of filas.values()) {
-      f.cac = f.inversion > 0 && f.clientes_nuevos > 0 ? f.inversion / f.clientes_nuevos : null;
-      f.roas = f.inversion > 0 ? f.ingresos / f.inversion : null;
-    }
-    return Array.from(filas.values()).filter((f) => f.inversion > 0 || f.visitas > 0 || f.ventas > 0);
-  }
-  for (const o of ventas) if (enRango(o.created_at, iniActual, ahora + 1) && !(o.funnel_session_id && sesionPorId.has(o.funnel_session_id))) sinOrigen += 1;
+  const sinOrigen = med.sinOrigen(iniActual, ahora + 1);
 
   // ── Consolidado del negocio (plata: lib/estrategico) ─────────────────────
   function consolidado(v: typeof est.actual) {
@@ -197,19 +115,19 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
   const atencion: Atencion[] = [];
   const diasSinVenta = est.ultima_venta_at ? Math.floor((ahora - new Date(est.ultima_venta_at).getTime()) / DIA) : null;
   const $ = (v: number) => `$ ${Math.round(v).toLocaleString("es-UY")}`;
-  if (diasSinVenta != null && diasSinVenta >= 5) atencion.push({ nivel: "alta", titulo: `${diasSinVenta} días sin ventas`, detalle: `La última venta cobrada fue el ${new Date(new Date(est.ultima_venta_at!).getTime() - OFFSET_UY).toISOString().slice(8, 10)}/${new Date(new Date(est.ultima_venta_at!).getTime() - OFFSET_UY).toISOString().slice(5, 7)}.` });
+  if (diasSinVenta != null && diasSinVenta >= 5) atencion.push({ id: "dias_sin_venta", nivel: "alta", titulo: `${diasSinVenta} días sin ventas`, detalle: `La última venta cobrada fue el ${new Date(new Date(est.ultima_venta_at!).getTime() - OFFSET_UY).toISOString().slice(8, 10)}/${new Date(new Date(est.ultima_venta_at!).getTime() - OFFSET_UY).toISOString().slice(5, 7)}.` });
   for (const c of canales) {
     if (!c.pago || c.inversion <= 0 || c.ventas > 0) continue;
-    if (margenVenta != null && c.inversion >= margenVenta) atencion.push({ nivel: "alta", titulo: `${c.nombre}: ${$(c.inversion)} invertidos sin ventas`, detalle: `En el período ya se gastó más de lo que deja una venta (${$(margenVenta)}) y no hubo ninguna.` });
+    if (margenVenta != null && c.inversion >= margenVenta) atencion.push({ id: `gasto_sin_ventas:${c.canal}`, canal: c.canal, nivel: "alta", titulo: `${c.nombre}: ${$(c.inversion)} invertidos sin ventas`, detalle: `En el período ya se gastó más de lo que deja una venta (${$(margenVenta)}) y no hubo ninguna.` });
   }
   if (actual.cac_publicitario != null && margenVenta != null && actual.cac_publicitario > margenVenta) {
-    atencion.push({ nivel: "alta", titulo: "Cada cliente nuevo cuesta más de lo que deja", detalle: `CAC publicitario ${$(actual.cac_publicitario)} contra un máximo rentable de ${$(margenVenta)}: se pierde plata en la primera venta.` });
+    atencion.push({ id: "cac_sobre_margen", nivel: "alta", titulo: "Cada cliente nuevo cuesta más de lo que deja", detalle: `CAC publicitario ${$(actual.cac_publicitario)} contra un máximo rentable de ${$(margenVenta)}: se pierde plata en la primera venta.` });
   }
-  if (actual.ventas > 0 && actual.ventas < VENTAS_MINIMAS_CAC) atencion.push({ nivel: "info", titulo: "Pocas ventas para sacar conclusiones", detalle: `${actual.ventas} ${actual.ventas === 1 ? "venta" : "ventas"} en el período: el CAC puede cambiar mucho con una venta más o menos.` });
-  if (negocio.cac_objetivo == null) atencion.push({ nivel: "media", titulo: "Falta definir el CAC objetivo", detalle: "Sin él no se puede saber cuánto conviene pagar por cliente para llegar a la ganancia deseada.", enlace: "/admin/tarot/inteligencia/economia" });
-  if (sinOrigen > 0) atencion.push({ nivel: "info", titulo: `${sinOrigen} ${sinOrigen === 1 ? "venta" : "ventas"} sin canal de origen`, detalle: "La compra no quedó unida a una visita medida; figura en «Otros»." });
+  if (actual.ventas > 0 && actual.ventas < VENTAS_MINIMAS_CAC) atencion.push({ id: "pocas_ventas", nivel: "info", titulo: "Pocas ventas para sacar conclusiones", detalle: `${actual.ventas} ${actual.ventas === 1 ? "venta" : "ventas"} en el período: el CAC puede cambiar mucho con una venta más o menos.` });
+  if (negocio.cac_objetivo == null) atencion.push({ id: "falta_cac_objetivo", nivel: "media", titulo: "Falta definir el CAC objetivo", detalle: "Sin él no se puede saber cuánto conviene pagar por cliente para llegar a la ganancia deseada.", enlace: "/admin/tarot/inteligencia/economia" });
+  if (sinOrigen > 0) atencion.push({ id: "ventas_sin_origen", nivel: "info", titulo: `${sinOrigen} ${sinOrigen === 1 ? "venta" : "ventas"} sin canal de origen`, detalle: "La compra no quedó unida a una visita medida; figura en «Otros»." });
 
-  const [pAnalista, pEstratega, pAdmin] = pendientes as unknown[][];
+  const [experimentos, pAnalista, pEstratega, pAdmin] = pendientes as unknown[][];
   return {
     ok: true as const,
     negocio: { id: negocio.id, nombre: negocio.nombre, producto: negocio.producto, mercado: negocio.mercado, moneda: negocio.moneda },
@@ -221,6 +139,7 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
     decisiones: {
       analista: pAnalista.length, estratega: pEstratega.length, pendientes: pAdmin.length,
     },
+    experimentos: experimentos as { id: string; nombre: string; estado: string; canal: string; aplicado_desde: string | null; fin_previsto: string | null }[],
     notas: [
       "Ventas = órdenes cobradas por Mercado Pago (sin cortesías). Visitas y checkout: sin tráfico propio.",
       "Inversión: Google Ads según la cuenta (US$ al dólar de Presupuesto) y Meta según su sincronización.",

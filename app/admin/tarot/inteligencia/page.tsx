@@ -113,8 +113,8 @@ function Atencion({ d }: { d: DatosCentro }) {
 
 function Decisiones({ d }: { d: DatosCentro }) {
   const filas = [
-    { n: d.decisiones.analista, t: "recomendaciones del Analista sin revisar", href: "/admin/tarot/analista" },
-    { n: d.decisiones.estratega, t: "propuestas del Estratega sin decidir", href: "/admin/tarot/estratega" },
+    { n: d.decisiones.analista, t: "recomendaciones del Analista sin revisar", href: "/admin/tarot/inteligencia/recomendaciones" },
+    { n: d.decisiones.estratega, t: "propuestas del Estratega sin decidir", href: "/admin/tarot/inteligencia/recomendaciones" },
     { n: d.decisiones.pendientes, t: "pendientes abiertos", href: "/admin/tarot/pendientes" },
   ];
   return (
@@ -122,14 +122,26 @@ function Decisiones({ d }: { d: DatosCentro }) {
       <h2 className="flex items-center gap-2 text-base font-semibold text-white"><ListChecks size={16} className="text-sky-300" /> Decisiones pendientes</h2>
       <div className="rounded-xl border border-gray-800 bg-gray-900/60 divide-y divide-gray-800">
         {filas.map((f) => (
-          <Link key={f.href} href={f.href as Route<string>} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] hover:bg-gray-800/40">
+          <Link key={f.t} href={f.href as Route<string>} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] hover:bg-gray-800/40">
             <span className="text-gray-300"><b className="tabular-nums text-white">{f.n}</b> {f.t}</span><span className="text-sky-300">Ver →</span>
           </Link>
         ))}
       </div>
-      <p className="text-[12px] text-gray-500">En la fase 2 estas tres listas se unen en una sola bandeja de Recomendaciones, sin duplicados y ordenada por impacto en la rentabilidad.</p>
+      <Link href={"/admin/tarot/inteligencia/recomendaciones" as Route<string>} className="flex items-center justify-between gap-3 rounded-xl border border-sky-900/70 bg-sky-950/20 px-3.5 py-2.5 text-[13px] text-sky-100 hover:bg-sky-950/40">
+        <span>Todo junto, sin repetidas y ordenado por plata: <b>Recomendaciones</b></span><span className="text-sky-300">Abrir →</span>
+      </Link>
       <h2 className="flex items-center gap-2 pt-2 text-base font-semibold text-white"><FlaskConical size={16} className="text-violet-300" /> Experimentos activos</h2>
-      <p className="rounded-xl border border-gray-800 bg-gray-900/60 p-3 text-[13px] text-gray-400">Todavía no hay experimentos registrados. La tanda C de Google Ads se carga como <b className="text-gray-200">EXP-001</b> en la fase 2, con sus valores de antes y lo que falte identificado.</p>
+      {d.experimentos.length === 0
+        ? <p className="rounded-xl border border-gray-800 bg-gray-900/60 p-3 text-[13px] text-gray-400">No hay experimentos en curso.</p>
+        : (
+          <div className="divide-y divide-gray-800 rounded-xl border border-gray-800 bg-gray-900/60">
+            {d.experimentos.map((e) => (
+              <Link key={e.id} href={"/admin/tarot/inteligencia/experimentos" as Route<string>} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] hover:bg-gray-800/40">
+                <span className="min-w-0 text-gray-300"><b className="text-violet-200">{e.id}</b> {e.nombre} <span className="text-gray-500">· {e.estado === "activo" ? "en curso" : "planificado, sin aplicar"}</span></span><span className="shrink-0 text-sky-300">Ver →</span>
+              </Link>
+            ))}
+          </div>
+        )}
     </section>
   );
 }

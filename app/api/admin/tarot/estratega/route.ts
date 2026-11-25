@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
 import { MODELOS, claveAnalista, costoReal, type Modelo } from "@/lib/analista/informe";
 import { HERRAMIENTAS, correrHerramienta } from "@/lib/estratega/herramientas";
+import { resolverPropuestaEstratega } from "@/lib/estratega/propuestas";
 import { CONSUMO_TIPICO, MODELO_ESTRATEGA, generarInformeSemanal, lunesDeLaSemana, modeloValido, responderChat } from "@/lib/estratega/motor";
 
 // Estratega de anuncios (2026-11-04). GET: todo lo de la página (documentos,
@@ -17,7 +18,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const UUID = /^[0-9a-f-]{36}$/i;
-const fechaCorta = () => new Date().toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Montevideo" });
 
 export async function GET(req: NextRequest) {
   if (!(await requireAdminSession())) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -129,28 +129,10 @@ export async function POST(req: NextRequest) {
       case "descartar_propuesta": {
         const id = typeof b.id === "string" && UUID.test(b.id) ? b.id : null;
         if (!id) return mal("Falta id.");
-        const [prop] = await rest(`estratega_propuestas?id=eq.${id}&estado=eq.propuesta&select=*`);
-        if (!prop) return mal("La propuesta ya no está abierta.");
-        if (b.accion === "descartar_propuesta") {
-          await rest(`estratega_propuestas?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ estado: "descartada", resuelta_at: ahora }) });
-          return NextResponse.json({ ok: true });
-        }
-        // Aceptada: pasa a Pendientes (de Manuel) y se anota en "Decisiones tomadas".
-        const [pend] = await rest("admin_pendientes", {
-          method: "POST", headers: rep,
-          body: JSON.stringify({
-            titulo: String(prop.titulo).slice(0, 160), detalle: prop.detalle, area: "anuncios", responsable: "manuel",
-            prioridad: prop.prioridad, estado: "abierto", origen: "asistente", origen_ref: `estratega_${id}`, enlace: "/admin/tarot/estratega",
-          }),
-        });
-        const [dec] = await rest("estratega_documentos?clave=eq.decisiones&select=contenido");
-        const linea = `- ${fechaCorta()}: ${prop.titulo} (aceptada desde el Estratega; en Pendientes).`;
-        await rest("estratega_documentos?clave=eq.decisiones", {
-          method: "PATCH", headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ contenido: `${(dec?.contenido ?? "# Decisiones tomadas\n").trimEnd()}\n${linea}\n`, updated_at: ahora, updated_por: "manuel" }),
-        });
-        await rest(`estratega_propuestas?id=eq.${id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ estado: "aceptada", pendiente_id: pend?.id ?? null, resuelta_at: ahora }) });
-        return NextResponse.json({ ok: true, pendiente_id: pend?.id ?? null });
+        // Lógica compartida con la bandeja de Inteligencia comercial.
+        const r = await resolverPropuestaEstratega(rest, id, b.accion === "aceptar_propuesta" ? "aceptar" : "descartar");
+        if (!r.ok) return mal(r.motivo);
+        return NextResponse.json(r);
       }
       case "borrar_conversacion": {
         const id = typeof b.id === "string" && UUID.test(b.id) ? b.id : null;

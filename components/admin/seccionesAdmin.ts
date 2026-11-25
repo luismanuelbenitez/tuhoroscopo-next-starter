@@ -2,7 +2,7 @@ import {
   LayoutDashboard, ListTodo, BrainCircuit, Bell, ShoppingCart, CreditCard, Receipt, TrendingUp, Calculator,
   UserCheck, MessageCircle, Bot, Users, Star, Handshake, Tag, Megaphone, Search, BarChart3, Target, Compass,
   Radar, Telescope, BookOpen, Send, FileText, Sparkles, Settings, Workflow, ScrollText, Scale, Wallet, Gift,
-  Rocket, Wrench, type LucideIcon,
+  Rocket, Wrench, ListChecks, FlaskConical, type LucideIcon,
 } from "lucide-react";
 
 // Menú del Admin Tarot (2026-11-16, pedido de Manuel): 7 secciones con
@@ -16,6 +16,8 @@ export const SECCIONES: Seccion[] = [
   // menú. Capa de decisión por encima de los tableros de cada canal.
   { clave: "inteligencia", label: "Inteligencia comercial", icon: BrainCircuit, solapas: [
     { href: "/admin/tarot/inteligencia", label: "Centro de control", icon: LayoutDashboard, exact: true },
+    { href: "/admin/tarot/inteligencia/recomendaciones", label: "Recomendaciones", icon: ListChecks },
+    { href: "/admin/tarot/inteligencia/experimentos", label: "Acciones y experimentos", icon: FlaskConical },
     { href: "/admin/tarot/inteligencia/economia", label: "Objetivos y economía", icon: Calculator },
   ] },
   { clave: "panel", label: "Panel", icon: LayoutDashboard, solapas: [

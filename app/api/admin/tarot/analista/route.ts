@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
 import { FOCOS, MODELOS, NOMBRE_CLAVE, claveAnalista, generarInforme, type Esfuerzo, type Foco, type Modelo } from "@/lib/analista/informe";
 import { FUENTES_POR_DEFECTO } from "@/lib/analista/datos";
+import { cambiarEstadoRecAnalista } from "@/lib/analista/seguimiento";
 
 // Analista de conversión (2026-11-01). GET: historial de informes (o uno con
 // ?informe=<id>; &datos=1 suma el paquete que vio la IA). POST: generar un
@@ -111,34 +112,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Seguimiento (2026-11-01): Manuel marca cada recomendación. Al marcarla
-// "hecha" se anota en la bitácora (así el próximo informe sabe desde cuándo
-// comparar); si después cambia de estado, esa entrada se borra.
-const ESTADOS_REC = new Set(["pendiente", "en_curso", "hecha", "descartada"]);
-const CATEGORIA_POR_DONDE: Record<string, string> = {
-  meta: "publicidad", pagina_tarot: "web", checkout: "web", medicion: "web", oferta: "precio", postcompra: "producto",
-};
+// Seguimiento: la lógica vive en lib/analista/seguimiento.ts (la usa también
+// la bandeja única de Inteligencia comercial).
 async function cambiarEstadoRecomendacion(rest: NonNullable<ReturnType<typeof restSupabase>>, b: { id?: unknown; estado?: unknown; nota?: unknown }) {
-  if (typeof b.id !== "string" || !ESTADOS_REC.has(String(b.estado))) return NextResponse.json({ ok: false, motivo: "invalido" }, { status: 400 });
-  const [rec] = await rest(`tarot_analista_recomendaciones?id=eq.${encodeURIComponent(b.id)}&select=id,accion,donde,estado,bitacora_id`);
-  if (!rec) return NextResponse.json({ ok: false, motivo: "no_existe" }, { status: 404 });
-  const estado = String(b.estado);
-  const nota = typeof b.nota === "string" ? b.nota.trim().slice(0, 500) || null : null;
-  let bitacoraId: string | null = rec.bitacora_id;
-  if (estado === "hecha" && !bitacoraId) {
-    const hoy = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
-    const [fila] = await rest("tarot_analista_bitacora", {
-      method: "POST", headers: { Prefer: "return=representation" },
-      body: JSON.stringify({ fecha: hoy, categoria: CATEGORIA_POR_DONDE[rec.donde] ?? "otro", descripcion: `Recomendación aplicada: ${rec.accion}${nota ? ` (${nota})` : ""}`.slice(0, 500) }),
-    });
-    bitacoraId = fila?.id ?? null;
-  } else if (estado !== "hecha" && bitacoraId) {
-    await rest(`tarot_analista_bitacora?id=eq.${bitacoraId}`, { method: "DELETE" });
-    bitacoraId = null;
-  }
-  await rest(`tarot_analista_recomendaciones?id=eq.${rec.id}`, {
-    method: "PATCH", headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ estado, nota, estado_at: new Date().toISOString(), bitacora_id: bitacoraId }),
-  });
+  if (typeof b.id !== "string") return NextResponse.json({ ok: false, motivo: "invalido" }, { status: 400 });
+  const r = await cambiarEstadoRecAnalista(rest, b.id, String(b.estado), b.nota);
+  if (!r.ok) return NextResponse.json(r, { status: r.motivo === "no_existe" ? 404 : 400 });
   return NextResponse.json({ ok: true });
 }
