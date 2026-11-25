@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CircleDot, FlaskConical, Info, ListChecks, RefreshCw } from "lucide-react";
 import { MarcoInteligencia, pesos, entero, veces, pct, fechaCorta } from "@/components/admin/inteligencia/Marco";
+import { DiagnosticoIA } from "@/components/admin/inteligencia/DiagnosticoIA";
 import type { DatosCentro, FilaCanal } from "@/lib/inteligencia/centro";
 import { ATRIBUCIONES, type Atribucion } from "@/lib/inteligencia/canales";
 
@@ -370,6 +371,7 @@ export default function CentroDeControl() {
       {d && (
         <div className={`space-y-4 md:space-y-5 ${cargando ? "opacity-60" : ""}`}>
           <Veredicto d={d} />
+          <DiagnosticoIA />
           <Indicadores a={d.actual} b={d.anterior} d={d} />
           <div className="grid gap-4 md:grid-cols-2">
             <Atencion d={d} />

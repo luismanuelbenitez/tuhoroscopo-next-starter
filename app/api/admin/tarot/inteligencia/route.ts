@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
 import { calcularCentro } from "@/lib/inteligencia/centro";
@@ -9,6 +10,10 @@ import { armarBandeja, type Experimento } from "@/lib/inteligencia/recomendacion
 import { medirExperimentos, lineaBaseAlAplicar } from "@/lib/inteligencia/experimentos";
 import { cambiarEstadoRecAnalista } from "@/lib/analista/seguimiento";
 import { resolverPropuestaEstratega } from "@/lib/estratega/propuestas";
+import { leerMemoria, CONFIANZA_DE_NIVEL, type Nivel } from "@/lib/inteligencia/memoria";
+import { crearAprendizaje, editarAprendizaje, bajaAprendizaje } from "@/lib/analista/memoria";
+import { armarPaquete, generarDiagnostico, costoEstimadoDiagnostico, MODELO_DIAGNOSTICO } from "@/lib/inteligencia/diagnostico";
+import { MODELOS, claveAnalista, NOMBRE_CLAVE } from "@/lib/analista/informe";
 
 // Inteligencia comercial (2026-11-24, fase 1; 2026-11-25, fase 2).
 // GET ?vista=centro&dias=30&atribucion=ultimo → Centro de control.
@@ -21,9 +26,15 @@ import { resolverPropuestaEstratega } from "@/lib/estratega/propuestas";
 //                                              recomendación vino del Analista o del Estratega,
 //                                              el mismo estado en su herramienta.
 // POST {accion:"experimento_aplicado"|"experimento_cerrar", id, …} → ciclo del experimento.
+// GET ?vista=aprendizaje / ?vista=diagnosticos  → fase 3 (2026-11-25): resultados, memoria
+//                                              única y diagnósticos IA hechos.
+// POST {accion:"memoria_crear"|"memoria_editar"|"memoria_baja"|"memoria_reactivar"} → memoria única.
+// POST {accion:"diagnosticar"}                 → diagnóstico ejecutivo con IA (solo a pedido;
+//                                              respeta el tope mensual de IA del panel).
 // Nada toca Google, Meta, la web ni clientes: solo datos propios del módulo.
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// El diagnóstico IA corre en segundo plano (waitUntil) dentro de esta función.
+export const maxDuration = 300;
 
 const DIAS = new Set([7, 14, 30, 90]);
 
@@ -62,6 +73,24 @@ export async function GET(req: NextRequest) {
     if (q.get("vista") === "recomendaciones") {
       return NextResponse.json(await armarBandeja(rest, { negocio }));
     }
+    if (q.get("vista") === "aprendizaje") {
+      const [memoria, exps, decisiones] = await Promise.all([
+        leerMemoria(rest, negocio),
+        rest(`ic_experimentos?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=id.asc`) as Promise<Experimento[]>,
+        rest(`ic_decisiones?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=decidida_at.desc&limit=300`),
+      ]);
+      return NextResponse.json({ ok: true, memoria, experimentos: exps, decisiones });
+    }
+    if (q.get("vista") === "diagnosticos") {
+      const [filas, tope, gasto] = await Promise.all([
+        rest(`ic_diagnosticos?negocio_id=eq.${encodeURIComponent(negocio)}&select=id,estado,modelo,texto,tokens_entrada,tokens_salida,costo_usd,duracion_ms,error,created_at&order=created_at.desc&limit=10`),
+        topeIa(rest), gastoIaMes(rest),
+      ]);
+      for (const f of filas as { estado: string; created_at: string; error: string | null }[]) {
+        if (f.estado === "generando" && Date.now() - new Date(f.created_at).getTime() > VENCIDO_DIAG_MS) { f.estado = "error"; f.error = f.error ?? "Se cortó antes de terminar."; }
+      }
+      return NextResponse.json({ ok: true, diagnosticos: filas, modelo: MODELOS[MODELO_DIAGNOSTICO].nombre, costo_estimado_usd: costoEstimadoDiagnostico(), gasto_mes_usd: gasto, tope_mensual_usd: tope, clave_configurada: !!claveAnalista() });
+    }
     if (q.get("vista") === "experimentos") {
       const [exps, aceptadas] = await Promise.all([
         rest(`ic_experimentos?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=id.asc`) as Promise<Experimento[]>,
@@ -87,6 +116,8 @@ export async function POST(req: NextRequest) {
   try {
     if (b.accion === "decidir" || b.accion === "reabrir") return await decidir(rest, b);
     if (b.accion === "experimento_aplicado" || b.accion === "experimento_cerrar") return await cicloExperimento(rest, b);
+    if (typeof b.accion === "string" && b.accion.startsWith("memoria_")) return await accionMemoria(rest, b);
+    if (b.accion === "diagnosticar") return await diagnosticar(rest, b);
   } catch (e) {
     return NextResponse.json({ ok: false, motivo: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
@@ -216,9 +247,71 @@ async function cicloExperimento(rest: RestT, b: Record<string, unknown>) {
   const conclusion = typeof b.conclusion === "string" ? b.conclusion.trim().slice(0, 2000) : "";
   if (!conclusion) return mal("Escribí la conclusión: es lo que queda como aprendizaje.");
   const aprendizaje = typeof b.aprendizaje === "string" ? b.aprendizaje.trim().slice(0, 2000) || null : null;
+  // Nivel de evidencia: solo es "hecho" si se juzgó con el volumen mínimo y dio un resultado claro.
+  let volumenOk = false;
+  if (estado === "cerrado") {
+    const m = await medirExperimentos(rest, [e]);
+    volumenOk = m.experimentos[0]?.evaluacion === "listo_para_juzgar";
+  }
   await rest(`ic_experimentos?id=eq.${id}`, {
     method: "PATCH", headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ estado, resultado, conclusion, aprendizaje, updated_at: ahora }),
   });
+  const nivel: Nivel = estado === "cerrado" && volumenOk && (resultado === "exito" || resultado === "fracaso") ? "hecho" : resultado === "mixto" && volumenOk ? "senal" : "hipotesis";
+  await crearAprendizaje(rest, {
+    texto: `${id}${estado === "cancelado" ? " (cancelado)" : ""}: ${aprendizaje ?? conclusion}`.slice(0, 600),
+    area: /ads/.test(e.canal) ? "trafico" : "otro", confianza: CONFIANZA_DE_NIVEL[nivel],
+    evidencia: `${conclusion}${estado === "cerrado" && !volumenOk ? " (Cerrado sin el volumen mínimo para juzgarlo.)" : ""}`.slice(0, 1000),
+    canal: e.canal, resultado: resultado === "exito" ? "funciono" : resultado === "fracaso" ? "no_funciono" : null, ref: id,
+  }, "experimento");
   return NextResponse.json({ ok: true });
+}
+
+// ── Memoria única (fase 3) ──────────────────────────────────────────────────
+async function accionMemoria(rest: RestT, b: Record<string, unknown>) {
+  const id = typeof b.id === "string" && UUID.test(b.id) ? b.id : null;
+  const nivel = typeof b.nivel === "string" && b.nivel in CONFIANZA_DE_NIVEL ? (b.nivel as Nivel) : null;
+  const entrada = { texto: b.texto, area: b.area, confianza: nivel ? CONFIANZA_DE_NIVEL[nivel] : b.confianza, evidencia: b.evidencia, canal: b.canal ?? null, resultado: b.resultado ?? null, ref: b.ref ?? null };
+  switch (b.accion) {
+    case "memoria_crear": { const r = await crearAprendizaje(rest, entrada); return r.ok ? NextResponse.json({ ok: true }) : mal(r.detalle); }
+    case "memoria_editar": { if (!id) return mal("Falta id."); const r = await editarAprendizaje(rest, id, entrada); return r.ok ? NextResponse.json({ ok: true }) : mal(r.detalle); }
+    case "memoria_baja": if (!id) return mal("Falta id."); if (!String(b.motivo ?? "").trim()) return mal("Contá por qué deja de valer: queda guardado."); await bajaAprendizaje(rest, id, "descartar", b.motivo); return NextResponse.json({ ok: true });
+    case "memoria_reactivar": if (!id) return mal("Falta id."); await bajaAprendizaje(rest, id, "reactivar"); return NextResponse.json({ ok: true });
+    default: return mal("Acción inválida.");
+  }
+}
+
+// ── Diagnóstico ejecutivo con IA (fase 3, solo a pedido) ───────────────────
+const VENCIDO_DIAG_MS = 10 * 60_000;
+const inicioDeMesUY = () => { const d = new Date(Date.now() - 3 * 3600_000); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 3)).toISOString(); };
+/** Tope mensual de IA del panel: el mismo que el del Analista (Admin → Analista → configuración). */
+async function topeIa(rest: RestT): Promise<number | null> {
+  const [cfg] = (await rest("tarot_analista_config?id=eq.1&select=tope_mensual_usd").catch(() => [])) as { tope_mensual_usd: number | null }[];
+  return cfg?.tope_mensual_usd != null ? Number(cfg.tope_mensual_usd) : null;
+}
+/** Gasto de IA del mes en lo que comparte el tope: informes del Analista + diagnósticos. */
+async function gastoIaMes(rest: RestT) {
+  const desde = inicioDeMesUY();
+  const [a, d] = await Promise.all([
+    rest(`tarot_analista_informes?created_at=gte.${desde}&select=costo_usd`).catch(() => []),
+    rest(`ic_diagnosticos?created_at=gte.${desde}&select=costo_usd`).catch(() => []),
+  ]) as { costo_usd: number | null }[][];
+  return [...a, ...d].reduce((t, r) => t + (Number(r.costo_usd) || 0), 0);
+}
+async function diagnosticar(rest: RestT, b: Record<string, unknown>) {
+  if (!claveAnalista()) return mal(`Falta ${NOMBRE_CLAVE} en Vercel.`);
+  const negocio = typeof b.negocio === "string" && b.negocio ? b.negocio : NEGOCIO_POR_DEFECTO;
+  const [enCurso, tope, gasto] = await Promise.all([
+    rest(`ic_diagnosticos?estado=eq.generando&created_at=gte.${new Date(Date.now() - VENCIDO_DIAG_MS).toISOString()}&select=id`),
+    topeIa(rest), gastoIaMes(rest),
+  ]);
+  if ((enCurso as unknown[]).length) return mal("Ya hay un diagnóstico generándose.");
+  if (tope != null && gasto + costoEstimadoDiagnostico() > tope) return mal(`Llegarías al tope mensual de IA del panel (US$ ${tope.toFixed(2)}; gastado US$ ${gasto.toFixed(2)}).`);
+  const paquete = await armarPaquete(rest, negocio);
+  const [fila] = (await rest("ic_diagnosticos", {
+    method: "POST", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ negocio_id: negocio, estado: "generando", modelo: MODELO_DIAGNOSTICO, paquete }),
+  })) as { id: string }[];
+  waitUntil(generarDiagnostico(rest, fila.id, paquete));
+  return NextResponse.json({ ok: true, id: fila.id });
 }

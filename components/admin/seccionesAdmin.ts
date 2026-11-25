@@ -18,6 +18,7 @@ export const SECCIONES: Seccion[] = [
     { href: "/admin/tarot/inteligencia", label: "Centro de control", icon: LayoutDashboard, exact: true },
     { href: "/admin/tarot/inteligencia/recomendaciones", label: "Recomendaciones", icon: ListChecks },
     { href: "/admin/tarot/inteligencia/experimentos", label: "Acciones y experimentos", icon: FlaskConical },
+    { href: "/admin/tarot/inteligencia/aprendizaje", label: "Resultados y aprendizaje", icon: BookOpen },
     { href: "/admin/tarot/inteligencia/economia", label: "Objetivos y economía", icon: Calculator },
   ] },
   { clave: "panel", label: "Panel", icon: LayoutDashboard, solapas: [

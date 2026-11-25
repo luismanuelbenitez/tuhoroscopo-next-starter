@@ -184,6 +184,26 @@ export const HERRAMIENTAS: Herramienta[] = [
     correr: async (rest) => rest("ads_campanas?select=utm_campaign,nombre,plataforma,objetivo,destino_path,presupuesto,moneda,fecha_inicio,fecha_fin,estado,notas&order=fecha_inicio.desc.nullslast"),
   },
   {
+    // Memoria única del negocio (2026-11-25, Inteligencia comercial fase 3).
+    name: "memoria",
+    titulo: "Memoria del negocio",
+    description: "Lo que ya se sabe (hechos comprobados, señales e hipótesis, con lo que funcionó y lo que no), las decisiones de Manuel con su motivo (descartadas, ya no aplica, hechas) y los experimentos con su estado y conclusión. Consultala antes de proponer: no propongas lo que ya se probó sin éxito ni lo que Manuel descartó, salvo que haya un dato nuevo.",
+    input_schema: { type: "object", additionalProperties: false, properties: {} },
+    ejemplo: {},
+    correr: async (rest) => {
+      const [aprendizajes, decisiones, experimentos] = await Promise.all([
+        rest("tarot_analista_aprendizajes?select=texto,confianza,evidencia,activo,motivo_baja,canal,resultado,ref,updated_at&order=activo.desc,updated_at.desc&limit=80"),
+        rest("ic_decisiones?select=titulo,estado,nota,canal,decidida_at&order=decidida_at.desc&limit=60").catch(() => []),
+        rest("ic_experimentos?select=id,nombre,canal,estado,resultado,hipotesis,aplicado_desde,fin_previsto,conclusion,aprendizaje&order=id.asc").catch(() => []),
+      ]);
+      const nivel: Record<string, string> = { alta: "hecho comprobado", media: "señal", baja: "hipótesis" };
+      return {
+        aprendizajes: (aprendizajes as { confianza: string }[]).map((a) => ({ ...a, nivel: nivel[a.confianza] ?? a.confianza })),
+        decisiones, experimentos,
+      };
+    },
+  },
+  {
     name: "pendientes",
     titulo: "Pendientes abiertos",
     description: "Tareas abiertas de Admin → Pendientes (de Manuel, de Claude y de terceros): título, detalle, área, prioridad, estado y vencimiento. Sirve para no proponer algo que ya está anotado y para ver qué falta hacer (ej. pasos de Google Ads).",

@@ -24,6 +24,8 @@ import { gastoPublicitario } from "./gasto";
 import { NOMBRE_CANAL, type Canal } from "./canales";
 import { NEGOCIO_POR_DEFECTO } from "./negocio";
 import { DIA, OFFSET_UY, ymd } from "./medicion";
+import { fichas, parecido, sinTildes } from "./texto";
+import { leerMemoria, relacionados, type Recuerdo } from "./memoria";
 
 export type Area = "publicidad" | "pagina" | "checkout" | "medicion" | "oferta" | "postcompra" | "negocio" | "otro";
 export type CanalRec = Canal | "negocio";
@@ -31,7 +33,7 @@ export type TipoFuente = "regla" | "centro" | "estratega" | "analista" | "experi
 export type EstadoDecision = "aceptada" | "descartada" | "pospuesta" | "hecha" | "no_aplica";
 
 export interface FuenteRec { tipo: TipoFuente; nombre: string; ref: string; fecha: string | null; enlace: string }
-export interface Conflicto { tipo: "interferencia" | "contradiccion" | "esperar"; texto: string }
+export interface Conflicto { tipo: "interferencia" | "contradiccion" | "esperar" | "memoria"; texto: string }
 export interface Decision { estado: EstadoDecision; nota: string | null; posponer_hasta: string | null; decidida_at: string; experimento_id: string | null }
 
 export interface Recomendacion {
@@ -58,6 +60,8 @@ export interface Recomendacion {
   posible_resuelta: string | null;
   conflictos: Conflicto[];
   sube_gasto: boolean;
+  /** Lo que la memoria única ya sabe de este tema (fase 3). */
+  memoria: { id: string; texto: string; nivel: Recuerdo["nivel"]; resultado: Recuerdo["resultado"]; ref: string | null }[];
   decision: Decision | null;
 }
 
@@ -133,18 +137,6 @@ function evidenciaRegla(h: Hallazgo, suficientes: boolean): { evidencia: Recomen
 }
 
 // ── Similitud de textos (para unir recomendaciones repetidas) ──────────────
-const VACIAS = new Set("de la el los las y en a que del con por para un una uno tu tus su sus al lo se si no es mas o e ya hoy cuando sin como cual cada este esta estos estas antes despues solo todo toda todos muy bien".split(" "));
-const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-function fichas(t: string) {
-  return new Set(sinTildes(t).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !VACIAS.has(w)).map((w) => w.slice(0, 6)));
-}
-function parecido(a: Set<string>, b: Set<string>) {
-  const min = Math.min(a.size, b.size);
-  if (min < 3) return 0;
-  let comunes = 0;
-  for (const x of a) if (b.has(x)) comunes += 1;
-  return comunes / min;
-}
 /** Temas reconocibles que unen textos aunque estén escritos distinto. */
 const TEMAS: { id: string; re: RegExp }[] = [
   { id: "primera_pantalla", re: /primera pantalla/ },
@@ -185,13 +177,14 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
   const ahora = opciones.ahora ?? Date.now();
   const hoy = ymd(ahora);
 
-  const [gob, centro, analistas, propuestas, decisionesFilas, experimentos] = await Promise.all([
+  const [gob, centro, analistas, propuestas, decisionesFilas, experimentos, memoria] = await Promise.all([
     gobernanzaGoogle(rest, 30).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) })),
     calcularCentro(get, { negocio, dias: 30, atribucion: "ultimo", ahora }).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) })),
     (get(`tarot_analista_recomendaciones?estado=in.(pendiente,en_curso)&select=id,informe_id,indice,prioridad,accion,donde,impacto,esfuerzo,como_medir,estado,created_at&order=created_at.desc`) as Promise<AnalistaRec[]>).catch(() => null),
     (get(`estratega_propuestas?estado=eq.propuesta&select=id,titulo,detalle,area,prioridad,created_at&order=created_at.desc`) as Promise<Propuesta[]>).catch(() => null),
     get(`ic_decisiones?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=decidida_at.desc`) as Promise<(Decision & { clave: string; titulo: string; canal: string | null; fuentes: { tipo: string; id: string }[] })[]>,
     get(`ic_experimentos?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=id.asc`) as Promise<Experimento[]>,
+    leerMemoria(get, negocio).catch(() => [] as Recuerdo[]),
   ]);
 
   // "Por qué" y "cómo hacerlo" de cada recomendación del Analista, desde su informe.
@@ -211,7 +204,7 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
   const base = (p: Partial<Recomendacion> & Pick<Recomendacion, "clave" | "canal" | "area" | "titulo">): Recomendacion => ({
     tipo: "actuar", que_pasa: "", por_que_importa: IMPORTA[p.area], accion: "", principio: PRINCIPIO[p.area], resultado_esperado: "", como_medir: "",
     evidencia: "senal", evidencia_motivo: "", efecto: EFECTO.otro, prioridad: 40, prioridad_motivo: [], fuentes: [], repeticiones: 1, fecha: null,
-    vieja: false, posible_resuelta: null, conflictos: [], sube_gasto: false, decision: null, ...p,
+    vieja: false, posible_resuelta: null, conflictos: [], sube_gasto: false, decision: null, memoria: [], ...p,
   });
 
   // ── 1. Motor de reglas de Google Ads ─────────────────────────────────────
@@ -398,6 +391,23 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
       r.conflictos.push({ tipo: "esperar", texto: `El motor de Google Ads pide no tocar la campaña todavía: ${esperarGoogle.motivo}` });
     }
   }
+  // ── La memoria, consultada antes de recomendar ───────────────────────────
+  // Lo que ya se sabe del tema, y avisos si algo parecido ya se probó y no
+  // funcionó o si Manuel ya lo descartó con un motivo.
+  const activos = memoria.filter((m) => m.activo);
+  const fracasos = memoria.filter((m) => m.resultado === "no_funciono");
+  const descartadas = decisionesFilas.filter((d) => (d.estado === "descartada" || d.estado === "no_aplica") && d.nota && !/^Vieja \(/.test(d.nota));
+  for (const r of items) {
+    const texto = r.titulo;
+    r.memoria = relacionados(texto, activos, 2).map((m) => ({ id: m.id, texto: m.texto, nivel: m.nivel, resultado: m.resultado, ref: m.ref }));
+    for (const m of relacionados(texto, fracasos, 1, 0.35)) {
+      r.conflictos.push({ tipo: "memoria", texto: `Ya se probó algo parecido y no funcionó${m.ref ? ` (${m.ref})` : ""}: «${m.texto}»${m.evidencia ? ` ${m.evidencia}` : ""}` });
+    }
+    const f = fichas(r.titulo);
+    const previa = descartadas.find((d) => d.clave !== r.clave && parecido(f, fichas(d.titulo)) >= 0.6);
+    if (previa) r.conflictos.push({ tipo: "memoria", texto: `Ya descartaste algo parecido el ${fechaUY(previa.decidida_at)} («${previa.titulo}»): ${previa.nota}` });
+  }
+
   // Escalar (subir inversión) mientras el negocio pierde en cada cliente: contradicción.
   const negocioPierde = items.some((r) => r.clave === "centro:cac_sobre_margen" || r.clave.startsWith("centro:gasto_sin_ventas"));
   for (const r of items.filter((x) => x.sube_gasto)) {

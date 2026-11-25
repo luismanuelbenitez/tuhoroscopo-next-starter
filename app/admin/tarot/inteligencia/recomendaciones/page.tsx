@@ -110,7 +110,7 @@ function Tarjeta({ r, puesto, alListo }: { r: Recomendacion; puesto?: number; al
             {r.repeticiones > 1 && <Chip className="border-sky-900 bg-sky-950/40 text-sky-300"><Layers size={11} /> {r.repeticiones} veces</Chip>}
             {r.vieja && <Chip className="border-gray-700 bg-gray-900 text-gray-400"><Hourglass size={11} /> Vieja ({fecha(r.fecha)})</Chip>}
             {r.posible_resuelta && <Chip className="border-emerald-900 bg-emerald-950/40 text-emerald-300"><Check size={11} /> Quizás ya resuelta</Chip>}
-            {r.conflictos.length > 0 && <Chip className="border-amber-800 bg-amber-950/50 text-amber-300"><AlertTriangle size={11} /> {r.conflictos.some((c) => c.tipo === "contradiccion") ? "Contradicción" : r.conflictos.some((c) => c.tipo === "interferencia") ? "Choca con un experimento" : "Pide esperar"}</Chip>}
+            {r.conflictos.length > 0 && <Chip className="border-amber-800 bg-amber-950/50 text-amber-300"><AlertTriangle size={11} /> {r.conflictos.some((c) => c.tipo === "contradiccion") ? "Contradicción" : r.conflictos.some((c) => c.tipo === "memoria") ? "La memoria advierte" : r.conflictos.some((c) => c.tipo === "interferencia") ? "Choca con un experimento" : "Pide esperar"}</Chip>}
             {r.sube_gasto && <Chip className="border-violet-900 bg-violet-950/40 text-violet-300">Sube el gasto: lo decidís vos</Chip>}
           </span>
         </span>
@@ -130,6 +130,14 @@ function Tarjeta({ r, puesto, alListo }: { r: Recomendacion; puesto?: number; al
             <Campo t="Resultado esperado">{r.resultado_esperado}</Campo>
             <Campo t="Cómo se mide">{r.como_medir}</Campo>
           </div>
+          {r.memoria.length > 0 && (
+            <div className="rounded-lg border border-gray-800 bg-gray-950/40 p-2.5 text-[12.5px]">
+              <p className="font-semibold text-gray-300">Lo que ya sabe el negocio sobre esto</p>
+              <ul className="mt-1 space-y-1 text-gray-400">
+                {r.memoria.map((m) => <li key={m.id}><span className={m.nivel === "hecho" ? "text-emerald-300" : m.nivel === "senal" ? "text-amber-300" : "text-gray-300"}>{m.nivel === "hecho" ? "Hecho" : m.nivel === "senal" ? "Señal" : "Hipótesis"}{m.resultado === "no_funciono" ? " · no funcionó" : m.resultado === "funciono" ? " · funcionó" : ""}:</span> {m.texto}</li>)}
+              </ul>
+            </div>
+          )}
           <div className="grid gap-3 rounded-lg bg-gray-950/50 p-2.5 text-[12.5px] text-gray-400 md:grid-cols-2">
             <p><b className="text-gray-300">Evidencia: {ev.t}.</b> {r.evidencia_motivo}</p>
             <p><b className="text-gray-300">Por qué está en este lugar:</b> {r.prioridad_motivo.join(" · ")}.</p>

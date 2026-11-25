@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/adminSession";
 import { restSupabase } from "@/lib/asistenteParte";
+import { crearAprendizaje, editarAprendizaje, bajaAprendizaje } from "@/lib/analista/memoria";
 
 // Memoria del Analista de conversión (2026-11-01). GET: "lo que ya sabemos"
 // (aprendizajes vigentes y descartados) y el plan de acción (todas las
 // recomendaciones con su estado y evaluación). POST: crear, editar,
-// descartar/reactivar y borrar aprendizajes.
-
-const AREAS = new Set(["trafico", "pagina", "checkout", "pago", "postcompra", "oferta", "medicion", "otro"]);
-const CONFIANZAS = new Set(["alta", "media", "baja"]);
+// descartar/reactivar y borrar aprendizajes. La escritura vive en
+// lib/analista/memoria.ts (la comparte Inteligencia comercial: memoria única).
 
 export async function GET() {
   if (!(await requireAdminSession())) return NextResponse.json({ ok: false, motivo: "unauthorized" }, { status: 401 });
@@ -37,28 +36,16 @@ export async function POST(req: NextRequest) {
     switch (b?.accion) {
       case "crear":
       case "editar": {
-        const texto = String(b.texto ?? "").trim();
-        if (texto.length < 3 || texto.length > 600) return mal("El texto va de 3 a 600 caracteres.");
-        if (!AREAS.has(b.area)) return mal("Área inválida.");
-        if (!CONFIANZAS.has(b.confianza)) return mal("Confianza inválida.");
-        const campos = { texto, area: b.area, confianza: b.confianza, evidencia: String(b.evidencia ?? "").trim().slice(0, 1000) || null, updated_at: new Date().toISOString() };
-        if (b.accion === "crear") await rest("tarot_analista_aprendizajes", { method: "POST", headers: minimal, body: JSON.stringify({ ...campos, origen: "manual" }) });
-        else {
-          if (!id) return mal("Falta id.");
-          // Si Manuel corrige uno de la IA, pasa a ser suyo: la IA ya no lo pisa.
-          await rest(`tarot_analista_aprendizajes?id=eq.${id}`, { method: "PATCH", headers: minimal, body: JSON.stringify({ ...campos, origen: "manual" }) });
-        }
+        const entrada = { texto: b.texto, area: b.area, confianza: b.confianza, evidencia: b.evidencia };
+        if (b.accion === "editar" && !id) return mal("Falta id.");
+        const r = b.accion === "crear" ? await crearAprendizaje(rest, entrada) : await editarAprendizaje(rest, decodeURIComponent(id!), entrada);
+        if (!r.ok) return mal(r.detalle);
         return NextResponse.json({ ok: true });
       }
       case "descartar":
       case "reactivar":
         if (!id) return mal("Falta id.");
-        await rest(`tarot_analista_aprendizajes?id=eq.${id}`, {
-          method: "PATCH", headers: minimal,
-          body: JSON.stringify(b.accion === "descartar"
-            ? { activo: false, motivo_baja: String(b.motivo ?? "Descartado por el dueño").slice(0, 600), updated_at: new Date().toISOString() }
-            : { activo: true, motivo_baja: null, updated_at: new Date().toISOString() }),
-        });
+        await bajaAprendizaje(rest, decodeURIComponent(id), b.accion, b.motivo);
         return NextResponse.json({ ok: true });
       case "borrar":
         if (!id) return mal("Falta id.");
