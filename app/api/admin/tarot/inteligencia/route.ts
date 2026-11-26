@@ -7,7 +7,8 @@ import { leerNegocio, NEGOCIO_POR_DEFECTO } from "@/lib/inteligencia/negocio";
 import { calcularEstrategico } from "@/lib/estrategico";
 import type { Atribucion } from "@/lib/inteligencia/canales";
 import { armarBandeja, type Experimento } from "@/lib/inteligencia/recomendaciones";
-import { medirExperimentos, lineaBaseAlAplicar } from "@/lib/inteligencia/experimentos";
+import { medirExperimentos, lineaBaseAlAplicar, KPIS } from "@/lib/inteligencia/experimentos";
+import { CANALES } from "@/lib/inteligencia/canales";
 import { cambiarEstadoRecAnalista } from "@/lib/analista/seguimiento";
 import { resolverPropuestaEstratega } from "@/lib/estratega/propuestas";
 import { leerMemoria, CONFIANZA_DE_NIVEL, type Nivel } from "@/lib/inteligencia/memoria";
@@ -31,6 +32,10 @@ import { MODELOS, claveAnalista, NOMBRE_CLAVE } from "@/lib/analista/informe";
 // POST {accion:"memoria_crear"|"memoria_editar"|"memoria_baja"|"memoria_reactivar"} → memoria única.
 // POST {accion:"diagnosticar"}                 → diagnóstico ejecutivo con IA (solo a pedido;
 //                                              respeta el tope mensual de IA del panel).
+// Level Up (2026-11-25):
+// GET ?vista=negocio                            → contexto del negocio (nombre, mercado, moneda).
+// POST {accion:"decidir", estado:"revalidada"}  → una vieja confirmada vigente vuelve a la bandeja.
+// POST {accion:"experimento_crear", …}          → convierte una recomendación en experimento planificado.
 // Nada toca Google, Meta, la web ni clientes: solo datos propios del módulo.
 export const dynamic = "force-dynamic";
 // El diagnóstico IA corre en segundo plano (waitUntil) dentro de esta función.
@@ -45,6 +50,11 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const negocio = q.get("negocio") || NEGOCIO_POR_DEFECTO;
   try {
+    if (q.get("vista") === "negocio") {
+      const n = await leerNegocio(rest, negocio);
+      if (!n) return NextResponse.json({ ok: false, motivo: "negocio_inexistente" }, { status: 404 });
+      return NextResponse.json({ ok: true, negocio: { id: n.id, nombre: n.nombre, producto: n.producto, mercado: n.mercado, moneda: n.moneda } });
+    }
     if (q.get("vista") === "economia") {
       const n = await leerNegocio(rest, negocio);
       if (!n) return NextResponse.json({ ok: false, motivo: "negocio_inexistente" }, { status: 404 });
@@ -65,7 +75,12 @@ export async function GET(req: NextRequest) {
           margen_contribucion: v > 0 ? p.queda / v : null,
         },
         fijos_mensuales: e90.fijos_mensuales,
-        costos_fijos: costos,
+        // Mismo criterio de vigencia que el total mensual (lib/estrategico): hora de Uruguay, fecha_hasta incluida.
+        costos_fijos: (costos as { fecha_desde: string; fecha_hasta: string | null }[]).filter((c) => {
+          const ahora = Date.now(), desde = new Date(`${c.fecha_desde}T00:00:00-03:00`).getTime();
+          const hasta = c.fecha_hasta ? new Date(`${c.fecha_hasta}T00:00:00-03:00`).getTime() + 86_400_000 : Infinity;
+          return desde <= ahora && hasta > ahora;
+        }),
         tipo_cambio: e90.tipo_cambio,
         costos_unitarios: e90.costos_unitarios,
       });
@@ -92,12 +107,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: true, diagnosticos: filas, modelo: MODELOS[MODELO_DIAGNOSTICO].nombre, costo_estimado_usd: costoEstimadoDiagnostico(), gasto_mes_usd: gasto, tope_mensual_usd: tope, clave_configurada: !!claveAnalista() });
     }
     if (q.get("vista") === "experimentos") {
-      const [exps, aceptadas] = await Promise.all([
+      const [exps, aceptadas, decisiones] = await Promise.all([
         rest(`ic_experimentos?negocio_id=eq.${encodeURIComponent(negocio)}&select=*&order=id.asc`) as Promise<Experimento[]>,
         rest(`ic_decisiones?negocio_id=eq.${encodeURIComponent(negocio)}&estado=eq.aceptada&select=*&order=decidida_at.desc`),
+        // Decisiones comerciales de los últimos 30 días, para la línea de tiempo de cambios.
+        rest(`ic_decisiones?negocio_id=eq.${encodeURIComponent(negocio)}&decidida_at=gte.${new Date(Date.now() - 30 * 86_400_000).toISOString()}&select=clave,titulo,estado,nota,canal,decidida_at,experimento_id&order=decidida_at.desc&limit=100`),
       ]);
       const r = await medirExperimentos(rest, exps);
-      return NextResponse.json({ ok: true, ...r, aceptadas });
+      return NextResponse.json({ ok: true, ...r, aceptadas, decisiones });
     }
     const dias = DIAS.has(Number(q.get("dias"))) ? Number(q.get("dias")) : 30;
     const atribucion: Atribucion = q.get("atribucion") === "primero" ? "primero" : "ultimo";
@@ -116,6 +133,7 @@ export async function POST(req: NextRequest) {
   try {
     if (b.accion === "decidir" || b.accion === "reabrir") return await decidir(rest, b);
     if (b.accion === "experimento_aplicado" || b.accion === "experimento_cerrar") return await cicloExperimento(rest, b);
+    if (b.accion === "experimento_crear") return await crearExperimento(rest, b);
     if (typeof b.accion === "string" && b.accion.startsWith("memoria_")) return await accionMemoria(rest, b);
     if (b.accion === "diagnosticar") return await diagnosticar(rest, b);
   } catch (e) {
@@ -149,8 +167,8 @@ export async function POST(req: NextRequest) {
 type RestT = NonNullable<ReturnType<typeof restSupabase>>;
 const CLAVE = /^(regla|centro|estratega|analista|experimento):[\w:.\-]{1,200}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
-const ESTADOS = new Set(["aceptada", "descartada", "pospuesta", "hecha", "no_aplica"]);
-const ESTADO_ANALISTA: Record<string, string | null> = { aceptada: "en_curso", hecha: "hecha", descartada: "descartada", no_aplica: "descartada", pospuesta: null };
+const ESTADOS = new Set(["aceptada", "descartada", "pospuesta", "hecha", "no_aplica", "revalidada"]);
+const ESTADO_ANALISTA: Record<string, string | null> = { aceptada: "en_curso", hecha: "hecha", descartada: "descartada", no_aplica: "descartada", pospuesta: null, revalidada: null };
 const mal = (motivo: string) => NextResponse.json({ ok: false, motivo }, { status: 400 });
 const hoyUY = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 
@@ -189,7 +207,7 @@ async function decidir(rest: RestT, b: Record<string, unknown>) {
     if (r.tipo === "analista") {
       const e = ESTADO_ANALISTA[estado];
       if (e) await cambiarEstadoRecAnalista(rest, r.id, e, estado === "no_aplica" ? `Ya no aplica${nota ? `: ${nota}` : ""}` : nota);
-    } else if (estado !== "pospuesta") {
+    } else if (estado !== "pospuesta" && estado !== "revalidada") {
       const res = await resolverPropuestaEstratega(rest, r.id, estado === "aceptada" || estado === "hecha" ? "aceptar" : "descartar", "Inteligencia comercial");
       if (!res.ok && !/ya no está abierta/.test(res.motivo)) return mal(res.motivo);
       // "Ya está hecha": el pendiente que crea la aceptación nace resuelto.
@@ -318,4 +336,52 @@ async function diagnosticar(rest: RestT, b: Record<string, unknown>) {
   })) as { id: string }[];
   waitUntil(generarDiagnostico(rest, fila.id, paquete));
   return NextResponse.json({ ok: true, id: fila.id });
+}
+
+// ── Convertir una recomendación en experimento (Level Up, 2026-11-25) ────────
+// Crea el experimento como "planificado" (no aplica nada) y deja la
+// recomendación aceptada y vinculada. La línea base se congela recién cuando
+// Manuel marca la fecha de aplicación.
+const ALCANCES = new Set(["google_ads", "meta_ads", "pagina", "checkout", "oferta"]);
+const METRICAS_VOLUMEN = new Set(["clics", "visitas", "checkout", "ventas"]);
+async function crearExperimento(rest: RestT, b: Record<string, unknown>) {
+  const negocio = typeof b.negocio === "string" && b.negocio ? b.negocio : NEGOCIO_POR_DEFECTO;
+  const texto = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const nombre = texto(b.nombre, 160), hipotesis = texto(b.hipotesis, 1000);
+  if (nombre.length < 3) return mal("Poné un nombre al experimento.");
+  if (hipotesis.length < 10) return mal("Escribí la hipótesis: qué cambia y qué esperás que pase.");
+  const canal = typeof b.canal === "string" && (CANALES.some((c) => c.id === b.canal) || b.canal === "negocio") ? b.canal : null;
+  if (!canal) return mal("Elegí el canal.");
+  const cambios = (Array.isArray(b.cambios) ? b.cambios : []).map((c) => texto(c, 300)).filter(Boolean).slice(0, 12);
+  if (!cambios.length) return mal("Anotá al menos un cambio concreto.");
+  const kpi = typeof b.kpi === "string" && b.kpi in KPIS ? b.kpi : null;
+  const esperado = texto(b.esperado, 80);
+  const vol = b.volumen_minimo as { metrica?: unknown; valor?: unknown } | null | undefined;
+  const volumen = vol && METRICAS_VOLUMEN.has(String(vol.metrica)) && Number(vol.valor) >= 1 && Number(vol.valor) <= 100000 ? { metrica: String(vol.metrica), valor: Math.round(Number(vol.valor)) } : null;
+  const fin = typeof b.fin_previsto === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.fin_previsto) && b.fin_previsto > hoyUY() ? b.fin_previsto : null;
+  const alcance = Array.from(new Set((Array.isArray(b.alcance) ? b.alcance : []).map(String).filter((a) => ALCANCES.has(a))));
+
+  const existentes = (await rest(`ic_experimentos?select=id`)) as { id: string }[];
+  const n = existentes.reduce((m, e) => Math.max(m, Number(/^EXP-(\d+)$/.exec(e.id)?.[1] ?? 0)), 0) + 1;
+  const id = `EXP-${String(n).padStart(3, "0")}`;
+  await rest("ic_experimentos", {
+    method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      id, negocio_id: negocio, canal, nombre, hipotesis, cambios, estado: "planificado", fin_previsto: fin, volumen_minimo: volumen,
+      kpis: kpi ? [{ clave: kpi, nombre: KPIS[kpi].nombre, antes: "Se mide al aplicar", esperado: esperado || "A definir" }] : [],
+      criterios: [], alcance, referencias: [],
+      faltantes: [
+        "Todavía no está aplicada: falta la fecha efectiva.",
+        ...(kpi ? [] : ["Falta elegir el indicador principal."]),
+        ...(volumen ? [] : ["Falta definir el volumen mínimo para juzgarlo."]),
+        "Faltan los criterios de decisión (qué hacer según el resultado).",
+      ],
+    }),
+  });
+  // La recomendación de origen queda aceptada y vinculada (y su herramienta de origen, al día).
+  if (typeof b.clave === "string" && CLAVE.test(b.clave)) {
+    const r = await decidir(rest, { ...b, accion: "decidir", estado: "aceptada", experimento_id: id, nota: `Convertida en ${id}.`, titulo: b.titulo ?? nombre });
+    if (r.status !== 200) return NextResponse.json({ ok: true, id, aviso: `El experimento ${id} quedó creado, pero no se pudo marcar la recomendación como aceptada.` });
+  }
+  return NextResponse.json({ ok: true, id });
 }

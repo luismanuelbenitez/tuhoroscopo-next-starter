@@ -161,8 +161,12 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
         audio += costoDe.get(o.id)?.audio ?? 0;
         wa += costoDe.get(o.id)?.wa ?? 0;
       }
-      // Costos fijos prorrateados a los días del período; puntuales y publicidad por fecha.
+      // Costos fijos prorrateados a los días del período en que cada uno estuvo
+      // vigente (un mes = 30,4375 días); puntuales y publicidad por fecha.
+      // El detalle por costo (2026-11-26) explica en pantalla por qué los fijos
+      // de un período no son el total mensual (p. ej. un costo que empezó a mitad).
       let fijos = 0, puntuales = 0;
+      const fijosDetalle: { nombre: string; mensual: number; dias: number; imputado: number; desde: string; hasta: string | null }[] = [];
       for (const c of costos) {
         const desdeC = new Date(`${c.fecha_desde}T00:00:00-03:00`).getTime();
         if (c.tipo === "puntual") { if (desdeC >= ini && desdeC < fin) puntuales += aPesos(c.monto, c.moneda); continue; }
@@ -170,6 +174,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
         const dias = Math.max(0, Math.min(fin, hastaC) - Math.max(ini, desdeC)) / DIA;
         const mensual = aPesos(c.monto, c.moneda) / (c.frecuencia === "anual" ? 12 : 1);
         fijos += (mensual * dias) / DIAS_MES;
+        fijosDetalle.push({ nombre: c.nombre, mensual, dias, imputado: (mensual * dias) / DIAS_MES, desde: c.fecha_desde, hasta: c.fecha_hasta });
       }
       let ads = 0;
       const adsPorCampana = new Map<string, number>();
@@ -212,7 +217,7 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
         plata: {
           ventas: ventas.length, bruto, comision, neto, ia, audio, wa, queda,
           cortesias: cortesiasPer.length, costo_cortesias: costoCortesias,
-          fijos, puntuales, publicidad: ads,
+          fijos, puntuales, publicidad: ads, fijos_detalle: fijosDetalle, dias_periodo: (fin - ini) / DIA,
           // Resultado: lo que queda de las ventas menos todo lo demás (las cortesías también cuestan).
           resultado: queda - costoCortesias - fijos - puntuales - ads,
         },
@@ -235,7 +240,8 @@ export async function calcularEstrategico(getRaw: Getter, periodo: number, inclu
     // Lo que deja una venta típica: promedio de los últimos 30 días (o del período si es más largo).
     const ref = periodo >= 30 ? actual : ventana(ahora - 30 * DIA, ahora + 1);
     const margenVenta = ref.plata.ventas > 0 ? ref.plata.queda / ref.plata.ventas : null;
-    const fijosMensuales = costos.filter((c) => c.tipo === "fijo" && (!c.fecha_hasta || new Date(c.fecha_hasta).getTime() >= ahora) && new Date(c.fecha_desde).getTime() <= ahora)
+    // Vigentes hoy, con el mismo criterio de días que el prorrateo (hora de Uruguay; fecha_hasta incluida).
+    const fijosMensuales = costos.filter((c) => c.tipo === "fijo" && (!c.fecha_hasta || new Date(`${c.fecha_hasta}T00:00:00-03:00`).getTime() + DIA > ahora) && new Date(`${c.fecha_desde}T00:00:00-03:00`).getTime() <= ahora)
       .reduce((a, c) => a + aPesos(c.monto, c.moneda) / (c.frecuencia === "anual" ? 12 : 1), 0);
     const anterior = ventana(iniAnterior, iniActual);
 

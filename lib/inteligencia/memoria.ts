@@ -16,12 +16,14 @@ export interface Recuerdo {
   id: string; texto: string; area: string; confianza: string; nivel: Nivel; evidencia: string | null;
   origen: string; activo: boolean; motivo_baja: string | null; canal: string | null; resultado: "funciono" | "no_funciono" | null; ref: string | null;
   created_at: string; updated_at: string;
+  /** Versiones anteriores (más nueva primero): correcciones, bajas y reactivaciones. */
+  historial?: { at: string; evento: "correccion" | "baja" | "reactivacion"; texto: string; confianza: string; evidencia: string | null; motivo?: string | null }[];
 }
 
 type Get = (q: string) => Promise<any>;
 
 export async function leerMemoria(get: Get, negocio: string, soloActivos = false): Promise<Recuerdo[]> {
-  const filas = (await get(`tarot_analista_aprendizajes?negocio_id=eq.${encodeURIComponent(negocio)}${soloActivos ? "&activo=eq.true" : ""}&select=id,texto,area,confianza,evidencia,origen,activo,motivo_baja,canal,resultado,ref,created_at,updated_at&order=activo.desc,updated_at.desc&limit=500`)) as Omit<Recuerdo, "nivel">[];
+  const filas = (await get(`tarot_analista_aprendizajes?negocio_id=eq.${encodeURIComponent(negocio)}${soloActivos ? "&activo=eq.true" : ""}&select=id,texto,area,confianza,evidencia,origen,activo,motivo_baja,canal,resultado,ref,created_at,updated_at,historial&order=activo.desc,updated_at.desc&limit=500`)) as Omit<Recuerdo, "nivel">[];
   return filas.map((f) => ({ ...f, nivel: NIVEL_DE_CONFIANZA[f.confianza] ?? "hipotesis" }));
 }
 

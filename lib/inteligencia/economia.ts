@@ -6,12 +6,17 @@
 //   Margen de contribución por venta = precio − costos variables por venta
 //     (comisión de Mercado Pago, IA, audio, WhatsApp). Es lo que deja una
 //     venta antes de pagar publicidad y costos fijos.
-//   CAC máximo rentable = margen de contribución: pagar más por cliente nuevo
-//     hace perder plata en la primera venta (antes de los costos fijos).
+//   CAC de equilibrio por primera compra = margen de contribución: pagar más
+//     por cliente nuevo hace perder plata en la primera venta (todavía sin
+//     contar los costos fijos; no es un "máximo rentable" del negocio).
 //   CAC objetivo = lo que se decide pagar como máximo para llegar a la
 //     ganancia deseada (lo define el dueño; no se calcula solo).
-//   CAC publicitario = inversión publicitaria ÷ clientes nuevos.
-//   CAC total = (inversión publicitaria + costos fijos y puntuales + cortesías) ÷ clientes nuevos.
+//   CAC combinado = inversión publicitaria ÷ todos los clientes nuevos (de
+//     cualquier canal). CAC de canales pagos = inversión ÷ clientes nuevos
+//     atribuidos a canales pagos. CAC por canal = inversión del canal ÷ sus clientes nuevos.
+//   Costo total por cliente nuevo = (inversión + costos fijos y puntuales +
+//     cortesías) ÷ clientes nuevos. No es un CAC: incluye costos del negocio
+//     que no son de adquisición.
 
 export const DIAS_MES = 30.4375;
 
@@ -21,6 +26,9 @@ export interface EntradaModelo {
   cac: number; // por cliente nuevo
   fijos_mensuales: number;
   ganancia_deseada: number; // por mes
+  /** Parte de las ventas que hay que conseguir con publicidad (0–1). El resto
+   *  (orgánicas, directas, recompras) no paga CAC. Sin dato = 1 (todas). */
+  pct_publicidad?: number;
 }
 
 export interface ResultadoModelo {
@@ -34,14 +42,16 @@ export interface ResultadoModelo {
 
 export function modelo(e: EntradaModelo): ResultadoModelo {
   const margen = e.precio - e.costo_variable;
-  const contribucion = margen - e.cac;
+  const pct = e.pct_publicidad == null ? 1 : Math.min(Math.max(e.pct_publicidad, 0), 1);
+  // Costo de adquisición promedio por venta: solo las ventas que vienen de publicidad pagan CAC.
+  const contribucion = margen - e.cac * pct;
   const necesarias = contribucion > 0 ? Math.ceil((e.fijos_mensuales + e.ganancia_deseada) / contribucion) : null;
   return {
     margen_antes_publicidad: margen,
     contribucion_por_venta: contribucion,
     ventas_necesarias_mes: necesarias,
     ventas_por_dia: necesarias != null ? necesarias / DIAS_MES : null,
-    inversion_publicitaria_mes: necesarias != null ? necesarias * e.cac : null,
+    inversion_publicitaria_mes: necesarias != null ? necesarias * e.cac * pct : null,
     facturacion_mes: necesarias != null ? necesarias * e.precio : null,
   };
 }
@@ -50,4 +60,10 @@ export function modelo(e: EntradaModelo): ResultadoModelo {
 export function cacParaVolumen(margen: number, fijos: number, ganancia: number, ventasMes: number): number | null {
   const v = margen - (fijos + ganancia) / ventasMes;
   return v > 0 ? v : null;
+}
+
+/** Resultado del mes con un volumen dado (escenario, no pronóstico). */
+export function resultadoConVolumen(e: EntradaModelo, ventasMes: number): number {
+  const pct = e.pct_publicidad == null ? 1 : Math.min(Math.max(e.pct_publicidad, 0), 1);
+  return ventasMes * (e.precio - e.costo_variable - e.cac * pct) - e.fijos_mensuales;
 }

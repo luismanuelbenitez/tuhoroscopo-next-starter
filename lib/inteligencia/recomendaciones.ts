@@ -30,10 +30,14 @@ import { leerMemoria, relacionados, type Recuerdo } from "./memoria";
 export type Area = "publicidad" | "pagina" | "checkout" | "medicion" | "oferta" | "postcompra" | "negocio" | "otro";
 export type CanalRec = Canal | "negocio";
 export type TipoFuente = "regla" | "centro" | "estratega" | "analista" | "experimento";
-export type EstadoDecision = "aceptada" | "descartada" | "pospuesta" | "hecha" | "no_aplica";
+/** "revalidada" (Level Up, 2026-11-25): una vieja que Manuel confirmó vigente; vuelve a la bandeja con fecha nueva. */
+export type EstadoDecision = "aceptada" | "descartada" | "pospuesta" | "hecha" | "no_aplica" | "revalidada";
 
 export interface FuenteRec { tipo: TipoFuente; nombre: string; ref: string; fecha: string | null; enlace: string }
-export interface Conflicto { tipo: "interferencia" | "contradiccion" | "esperar" | "memoria"; texto: string }
+/** interferencia = conflicto efectivo con un experimento EN CURSO (bloquea);
+ *  posible_interferencia = toca lo mismo que un experimento PLANIFICADO, todavía
+ *  sin aplicar (no bloquea: avisa para coordinar). 2026-11-26. */
+export interface Conflicto { tipo: "interferencia" | "posible_interferencia" | "contradiccion" | "esperar" | "memoria"; texto: string }
 export interface Decision { estado: EstadoDecision; nota: string | null; posponer_hasta: string | null; decidida_at: string; experimento_id: string | null }
 
 export interface Recomendacion {
@@ -250,7 +254,7 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
   // ── 2. Centro de control ─────────────────────────────────────────────────
   if (centro.ok) {
     const textos: Record<string, Omit<Partial<Recomendacion>, "clave"> & { area: Area; prioridad: number; efecto: string }> = {
-      cac_sobre_margen: { area: "negocio", prioridad: 85, efecto: EFECTO.frena, accion: "No sumar inversión hasta bajar el costo por cliente: cortar lo que no vende y mejorar la conversión del tráfico que ya se paga.", por_que_importa: "Cada cliente nuevo hoy deja menos de lo que costó conseguirlo: más inversión agranda la pérdida.", resultado_esperado: "CAC publicitario por debajo del margen por venta.", como_medir: "CAC semana a semana del Centro de control contra la línea del máximo rentable.", principio: "El costo de conseguir un cliente tiene que quedar por debajo de lo que deja su primera compra (o de lo que deja en total, si vuelve)." },
+      cac_sobre_margen: { area: "negocio", prioridad: 85, efecto: EFECTO.frena, accion: "No sumar inversión hasta bajar el costo por cliente: cortar lo que no vende y mejorar la conversión del tráfico que ya se paga.", por_que_importa: "Cada cliente nuevo hoy deja menos de lo que costó conseguirlo: más inversión agranda la pérdida.", resultado_esperado: "CAC combinado por debajo del CAC de equilibrio (lo que deja la primera compra).", como_medir: "CAC semana a semana del Centro de control contra la línea de equilibrio.", principio: "El costo de conseguir un cliente tiene que quedar por debajo de lo que deja su primera compra (o de lo que deja en total, si vuelve)." },
       falta_cac_objetivo: { area: "negocio", prioridad: 65, efecto: EFECTO.ordena, accion: "Definir el CAC objetivo en Objetivos y economía (la tabla muestra cuánto se puede pagar para cada volumen de ventas).", resultado_esperado: "Todas las herramientas (y el motor de Google Ads) usan el mismo tope de costo por cliente.", como_medir: "Que el Centro de control compare el CAC contra el objetivo." },
       ventas_sin_origen: { area: "medicion", prioridad: 30, efecto: EFECTO.mide, accion: "Revisar en Visitantes por qué esas compras no quedaron unidas a una visita medida.", resultado_esperado: "Todas las ventas con su canal de origen.", como_medir: "Que «Otros» quede en 0 ventas en el Centro de control." },
     };
@@ -383,9 +387,18 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
       const alcance = new Set(e.alcance ?? []);
       const toca = (r.area === "publicidad" && alcance.has(r.canal)) || alcance.has(r.area) || (r.area === "medicion" && alcance.has(r.canal));
       if (!toca) continue;
-      r.conflictos.push({ tipo: "interferencia", texto: `Puede interferir con ${e.id} («${e.nombre}», ${e.estado === "activo" ? "en curso" : "planificado"}): si se cambia ${r.area === "publicidad" ? NOMBRE_CANAL[r.canal as Canal] ?? "el canal" : `la ${NOMBRE_AREA[r.area]}`} mientras corre, no se va a saber qué funcionó. Conviene esperar${e.fin_previsto ? ` al ${fechaUY(`${e.fin_previsto}T12:00:00-03:00`)}` : " a que termine"} o sumarlo al experimento.` });
-      r.prioridad = Math.max(5, r.prioridad - 15);
-      r.prioridad_motivo.push(`choca con ${e.id}`);
+      const que = r.area === "publicidad" ? NOMBRE_CANAL[r.canal as Canal] ?? "el canal" : `la ${NOMBRE_AREA[r.area]}`;
+      if (e.estado === "activo") {
+        // Conflicto efectivo: el experimento ya está midiendo.
+        r.conflictos.push({ tipo: "interferencia", texto: `Choca con ${e.id} («${e.nombre}»), que está en curso: si se cambia ${que} mientras se mide, no se va a saber qué funcionó. Conviene esperar${e.fin_previsto ? ` al ${fechaUY(`${e.fin_previsto}T12:00:00-03:00`)}` : " a que termine"} o sumarlo al experimento.` });
+        r.prioridad = Math.max(5, r.prioridad - 15);
+        r.prioridad_motivo.push(`choca con ${e.id} (en curso)`);
+      } else {
+        // Posible interferencia: el experimento está planificado y todavía no mide nada.
+        r.conflictos.push({ tipo: "posible_interferencia", texto: `Toca lo mismo que ${e.id} («${e.nombre}»), que está planificado y todavía no se aplicó. No bloquea: si se hace antes de aplicarlo, queda en su línea base; si se hace junto con él, conviene sumarlo al plan para no mezclar efectos.` });
+        r.prioridad = Math.max(5, r.prioridad - 3);
+        r.prioridad_motivo.push(`coordinar con ${e.id} (planificado)`);
+      }
     }
     if (esperarGoogle?.esperar && r.canal === "google_ads") {
       r.conflictos.push({ tipo: "esperar", texto: `El motor de Google Ads pide no tocar la campaña todavía: ${esperarGoogle.motivo}` });
@@ -423,6 +436,15 @@ export async function armarBandeja(rest: Rest, opciones: { negocio?: string; aho
     if (d) { vistas.add(r.clave); r.decision = { estado: d.estado, nota: d.nota, posponer_hasta: d.posponer_hasta, decidida_at: d.decidida_at, experimento_id: d.experimento_id }; }
     const est = r.decision?.estado;
     if (est === "descartada" || est === "hecha" || est === "no_aplica") continue;
+    // Revalidada: Manuel confirmó que sigue vigente. Vuelve a competir con fecha nueva
+    // (y vuelve a ser "vieja" si pasan otros 14 días sin decidirla).
+    if (est === "revalidada" && r.decision) {
+      const vieja = ahora - new Date(r.decision.decidida_at).getTime() > DIAS_VIEJA * DIA;
+      if (r.vieja && !vieja) { r.prioridad += 25; r.prioridad_motivo = r.prioridad_motivo.filter((m) => !m.startsWith("vieja")); }
+      r.vieja = vieja;
+      r.fecha = r.decision.decidida_at;
+      r.prioridad_motivo.push(`confirmada vigente el ${fechaUY(r.decision.decidida_at)}`);
+    }
     if (est === "pospuesta" && r.decision?.posponer_hasta && r.decision.posponer_hasta > hoy) { pospuestas.push(r); continue; }
     if (est === "aceptada") { aceptadas.push(r); continue; }
     (r.tipo === "esperar" ? esperando : paraDecidir).push(r);

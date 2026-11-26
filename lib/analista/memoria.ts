@@ -34,20 +34,35 @@ export async function crearAprendizaje(rest: Rest, b: EntradaMemoria, origen = "
   return { ok: true as const };
 }
 
+/** Historial (Level Up, 2026-11-25): cada corrección, baja o reactivación guarda
+ *  la versión anterior, así la memoria conserva cómo cambió lo que se sabía. */
+const MAX_HISTORIAL = 20;
+type Version = { at: string; evento: "correccion" | "baja" | "reactivacion"; texto: string; confianza: string; evidencia: string | null; area: string; canal: string | null; resultado: string | null; origen: string; motivo?: string | null };
+async function conHistorial(rest: Rest, id: string, evento: Version["evento"], motivo?: string | null) {
+  const [prev] = (await rest(`tarot_analista_aprendizajes?id=eq.${encodeURIComponent(id)}&select=texto,confianza,evidencia,area,canal,resultado,origen,historial`)) as (Omit<Version, "at" | "evento"> & { historial: Version[] | null })[];
+  if (!prev) return null;
+  const v: Version = { at: new Date().toISOString(), evento, texto: prev.texto, confianza: prev.confianza, evidencia: prev.evidencia, area: prev.area, canal: prev.canal, resultado: prev.resultado, origen: prev.origen, ...(motivo ? { motivo } : {}) };
+  return [v, ...(prev.historial ?? [])].slice(0, MAX_HISTORIAL);
+}
+
 /** Si Manuel corrige uno de la IA, pasa a ser suyo: la IA ya no lo pisa. */
 export async function editarAprendizaje(rest: Rest, id: string, b: EntradaMemoria) {
   const v = validar(b);
   if (!v.ok) return v;
-  await rest(`tarot_analista_aprendizajes?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...v.campos, origen: "manual" }) });
+  const historial = await conHistorial(rest, id, "correccion");
+  await rest(`tarot_analista_aprendizajes?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...v.campos, origen: "manual", ...(historial ? { historial } : {}) }) });
   return { ok: true as const };
 }
 
 export async function bajaAprendizaje(rest: Rest, id: string, accion: "descartar" | "reactivar", motivo?: unknown) {
+  const texto = String(motivo ?? "Descartado por el dueño").slice(0, 600);
+  const historial = await conHistorial(rest, id, accion === "descartar" ? "baja" : "reactivacion", accion === "descartar" ? texto : null);
   await rest(`tarot_analista_aprendizajes?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH", headers: { Prefer: "return=minimal" },
-    body: JSON.stringify(accion === "descartar"
-      ? { activo: false, motivo_baja: String(motivo ?? "Descartado por el dueño").slice(0, 600), updated_at: new Date().toISOString() }
-      : { activo: true, motivo_baja: null, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({
+      ...(accion === "descartar" ? { activo: false, motivo_baja: texto } : { activo: true, motivo_baja: null }),
+      updated_at: new Date().toISOString(), ...(historial ? { historial } : {}),
+    }),
   });
   return { ok: true as const };
 }

@@ -82,12 +82,19 @@ Reglas:
 - Pensá en plata: CAC contra margen por venta, resultado del mes contra la meta. Primero lo que frena pérdidas.
 - Elegí entre las recomendaciones de la bandeja; no inventes otras salvo que algo muy claro del paquete falte (y marcalo como [Hipótesis]).
 
-Formato (markdown simple, en español rioplatense, sin jerga; si usás CAC o ROAS explicalo la primera vez):
-## En una frase
-## Cómo está el negocio
-(3 a 5 viñetas con números)
-## Qué decidir esta semana
-(máximo 3, en orden; para cada una: qué hacer, por qué, qué número la juzga y cuándo)
+Formato (markdown simple, en español rioplatense, sin jerga; si usás CAC o ROAS explicalo la primera vez). Usá exactamente estos títulos, en este orden (la pantalla los muestra por separado):
+## Situación
+(una o dos frases: si el negocio gana o pierde y por qué)
+## Principal problema u oportunidad
+(una frase)
+## Evidencia
+(3 a 5 viñetas con números del paquete, cada una marcada)
+## Decisión prioritaria
+(una sola: qué hacer, por qué, qué número la juzga y cuándo)
+## Otras decisiones
+(hasta 2 más, en orden; si no hay, escribí "Ninguna por ahora.")
+## Qué observar
+(los números a mirar esta semana)
 ## Qué no tocar todavía
 ## Qué falta saber
 Corto: menos de 450 palabras.`;

@@ -57,9 +57,14 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
       // se contaban con "pendiente" y daba siempre 0; corregido 2026-11-25).
       get(`estratega_propuestas?estado=eq.propuesta&select=id`).catch(() => []),
       get(`admin_pendientes?estado=in.(abierto,esperando)&select=id`).catch(() => []),
+      // Cambios registrados (Level Up, 2026-11-25): para marcarlos en la evolución semanal.
+      get(`ads_config_historial?vigente_desde=gte.${new Date(iniSemanas).toISOString()}&select=plataforma,version,vigente_desde&order=vigente_desde.asc`).catch(() => []),
+      get(`tarot_analista_bitacora?fecha=gte.${ymd(iniSemanas)}&select=fecha,categoria,descripcion&order=fecha.asc`).catch(() => []),
     ]),
   ]);
   const { gasto, ventas, esNuevo, enRango, porCanal, tc } = med;
+  const versiones = ((pendientes as unknown[][])[4] ?? []) as { plataforma: string; version: number; vigente_desde: string }[];
+  const bitacoraSem = ((pendientes as unknown[][])[5] ?? []) as { fecha: string; categoria: string; descripcion: string }[];
   const aPesos = (monto: number, moneda: string) => monto * (moneda === "USD" ? tc : 1);
   const fechaEnRango = (f: string, ini: number, fin: number) => { const t = new Date(`${f}T12:00:00-03:00`).getTime(); return t >= ini && t < fin; };
   const sinOrigen = med.sinOrigen(iniActual, ahora + 1);
@@ -72,6 +77,10 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
       ventas: p.ventas, facturacion: p.bruto, inversion: p.publicidad, clientes_nuevos: nuevos,
       costos_variables: p.bruto - p.queda, margen_contribucion: p.queda,
       costos_fijos: p.fijos + p.puntuales, cortesias: p.costo_cortesias, resultado: p.resultado,
+      fijos_prorrateados: p.fijos, puntuales: p.puntuales,
+      // Por qué los fijos del período no son el total mensual: días de vigencia de cada costo.
+      fijos_detalle: p.fijos_detalle.filter((f) => f.mensual > 0).map((f) => ({ nombre: f.nombre, mensual: f.mensual, dias: Math.round(f.dias * 10) / 10, imputado: f.imputado, desde: f.desde, hasta: f.hasta })),
+      dias_periodo: Math.round(p.dias_periodo * 10) / 10,
       cac_publicitario: nuevos > 0 && p.publicidad > 0 ? p.publicidad / nuevos : null,
       cac_total: nuevos > 0 ? (p.publicidad + otros) / nuevos : null,
       roas: p.publicidad > 0 ? p.bruto / p.publicidad : null,
@@ -105,7 +114,12 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
     for (const g of gasto) if (fechaEnRango(g.fecha, ini, fin)) inv += aPesos(g.monto, g.moneda);
     const nuevos = ventas.filter((o) => enRango(o.created_at, ini, fin) && esNuevo(o)).length;
     const vts = ventas.filter((o) => enRango(o.created_at, ini, fin)).length;
-    return { desde: ymd(ini), hasta: ymd(fin - DIA), en_curso: fin > ahora, inversion: inv, ventas: vts, clientes_nuevos: nuevos, cac: inv > 0 && nuevos > 0 ? inv / nuevos : null };
+    const cambios = [
+      ...versiones.filter((v) => { const t = new Date(v.vigente_desde).getTime(); return t >= ini && t < fin; })
+        .map((v) => `${v.plataforma === "google" ? "Google Ads" : v.plataforma === "meta" ? "Meta Ads" : v.plataforma}: versión ${v.version} de la campaña`),
+      ...bitacoraSem.filter((b) => fechaEnRango(b.fecha, ini, fin)).map((b) => `${b.categoria === "web" ? "Web" : b.categoria === "publicidad" ? "Publicidad" : "Bitácora"}: ${b.descripcion.slice(0, 90)}`),
+    ];
+    return { desde: ymd(ini), hasta: ymd(fin - DIA), en_curso: fin > ahora, inversion: inv, ventas: vts, clientes_nuevos: nuevos, cac: inv > 0 && nuevos > 0 ? inv / nuevos : null, cambios };
   });
 
   const canales = porCanal(iniActual, ahora + 1);
@@ -121,7 +135,7 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
     if (margenVenta != null && c.inversion >= margenVenta) atencion.push({ id: `gasto_sin_ventas:${c.canal}`, canal: c.canal, nivel: "alta", titulo: `${c.nombre}: ${$(c.inversion)} invertidos sin ventas`, detalle: `En el período ya se gastó más de lo que deja una venta (${$(margenVenta)}) y no hubo ninguna.` });
   }
   if (actual.cac_publicitario != null && margenVenta != null && actual.cac_publicitario > margenVenta) {
-    atencion.push({ id: "cac_sobre_margen", nivel: "alta", titulo: "Cada cliente nuevo cuesta más de lo que deja", detalle: `CAC publicitario ${$(actual.cac_publicitario)} contra un máximo rentable de ${$(margenVenta)}: se pierde plata en la primera venta.` });
+    atencion.push({ id: "cac_sobre_margen", nivel: "alta", titulo: "Cada cliente nuevo cuesta más de lo que deja", detalle: `CAC combinado ${$(actual.cac_publicitario)} contra un CAC de equilibrio de ${$(margenVenta)} (lo que deja la primera compra): se pierde plata en la primera venta.` });
   }
   if (actual.ventas > 0 && actual.ventas < VENTAS_MINIMAS_CAC) atencion.push({ id: "pocas_ventas", nivel: "info", titulo: "Pocas ventas para sacar conclusiones", detalle: `${actual.ventas} ${actual.ventas === 1 ? "venta" : "ventas"} en el período: el CAC puede cambiar mucho con una venta más o menos.` });
   if (negocio.cac_objetivo == null) atencion.push({ id: "falta_cac_objetivo", nivel: "media", titulo: "Falta definir el CAC objetivo", detalle: "Sin él no se puede saber cuánto conviene pagar por cliente para llegar a la ganancia deseada.", enlace: "/admin/tarot/inteligencia/economia" });
@@ -131,6 +145,8 @@ export async function calcularCentro(getRaw: (q: string) => Promise<unknown>, op
   return {
     ok: true as const,
     negocio: { id: negocio.id, nombre: negocio.nombre, producto: negocio.producto, mercado: negocio.mercado, moneda: negocio.moneda },
+    /** Días transcurridos y totales del mes en curso (para leer el avance hacia la meta). */
+    dias_mes: new Date(Date.UTC(new Date(ahora - OFFSET_UY).getUTCFullYear(), new Date(ahora - OFFSET_UY).getUTCMonth() + 1, 0)).getUTCDate(),
     dias, atribucion, generado_at: new Date(ahora).toISOString(),
     actual, anterior, economia, mes: mesActual, semanas,
     canales, canales_anterior: canalesAnterior,

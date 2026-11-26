@@ -40,7 +40,20 @@ export const KPIS: Record<string, { nombre: string; calc: (m: Medida) => number 
   pct_checkout: { nombre: "Visitas que llegan al checkout", calc: (m) => (m.visitas > 0 ? (m.checkout / m.visitas) * 100 : null), formato: "pct", mejor: "mas" },
 };
 
-export interface CambioRegistrado { fecha: string; canal: string; origen: "campana" | "bitacora" | "motor" ; titulo: string; detalle: string | null; experimentos: string[] }
+/** tipo y registro (Level Up, 2026-11-25): qué clase de cambio es y si lo detectó el sistema o se anotó a mano. */
+export type TipoCambio = "publicidad" | "web" | "oferta" | "decision" | "experimento" | "otro";
+export interface CambioRegistrado { fecha: string; canal: string; origen: "campana" | "bitacora" | "motor"; tipo: TipoCambio; registro: "automatico" | "manual"; titulo: string; detalle: string | null; experimentos: string[] }
+
+/** Tipo de una nota de la bitácora (categoría + palabras clave). */
+function tipoBitacora(categoria: string, descripcion: string): TipoCambio {
+  if (/^Experimento EXP-\d+ aplicado/.test(descripcion)) return "experimento";
+  if (/^Aplicado \(Inteligencia comercial\)/.test(descripcion)) return "decision";
+  // Solo notas sin categoría web/publicidad: un cambio de diseño que menciona el precio sigue siendo "web".
+  if (/precio|cup[oó]n|descuento|oferta|promo/i.test(descripcion) && categoria !== "publicidad" && categoria !== "web") return "oferta";
+  if (categoria === "web") return "web";
+  if (categoria === "publicidad") return "publicidad";
+  return "otro";
+}
 
 export interface ExperimentoMedido extends Experimento {
   evaluacion: "sin_aplicar" | "juntando_datos" | "listo_para_juzgar" | "cerrado";
@@ -82,16 +95,17 @@ export async function medirExperimentos(rest: Rest, experimentos: Experimento[],
   const canalDePlataforma = (p: string) => (p === "google" ? "google_ads" : p === "meta" ? "meta_ads" : p);
   const cambios: CambioRegistrado[] = [
     ...versiones.filter((v) => new Date(v.vigente_desde).getTime() >= desde30).map((v) => ({
-      fecha: v.vigente_desde, canal: canalDePlataforma(v.plataforma), origen: "campana" as const,
+      fecha: v.vigente_desde, canal: canalDePlataforma(v.plataforma), origen: "campana" as const, tipo: "publicidad" as TipoCambio, registro: "automatico" as const,
       titulo: `${NOMBRE_CANAL[canalDePlataforma(v.plataforma) as Canal] ?? v.plataforma}: versión ${v.version} de la campaña`,
       detalle: v.analisis?.trim() ? v.analisis.trim().slice(0, 280) : `${(v.cambios ?? []).length} ${(v.cambios ?? []).length === 1 ? "cambio detectado" : "cambios detectados"} por la sincronización.`, experimentos: [] as string[],
     })),
     ...bitacora.filter((b) => new Date(`${b.fecha}T12:00:00-03:00`).getTime() >= desde30).map((b) => ({
       fecha: `${b.fecha}T12:00:00-03:00`, canal: b.categoria === "publicidad" ? "publicidad" : "negocio", origen: "bitacora" as const,
+      tipo: tipoBitacora(b.categoria, b.descripcion), registro: "manual" as const,
       titulo: `Bitácora · ${b.categoria}`, detalle: b.descripcion, experimentos: [] as string[],
     })),
     ...acciones.filter((a) => new Date(a.created_at).getTime() >= desde30).map((a) => ({
-      fecha: a.created_at, canal: canalDePlataforma(a.plataforma), origen: "motor" as const,
+      fecha: a.created_at, canal: canalDePlataforma(a.plataforma), origen: "motor" as const, tipo: "publicidad" as TipoCambio, registro: "automatico" as const,
       titulo: `Motor de reglas: ${a.titulo}`, detalle: `Estado: ${a.estado}`, experimentos: [] as string[],
     })),
   ].sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -157,7 +171,7 @@ export async function medirExperimentos(rest: Rest, experimentos: Experimento[],
         if (o.id === e.id || !o.aplicado_desde) continue;
         const t = new Date(o.aplicado_desde).getTime();
         const cruza = t >= aplicado && t <= finE && (o.canal === e.canal || (o.alcance ?? []).some((x) => (e.alcance ?? []).includes(x)));
-        if (cruza) otros.push({ fecha: o.aplicado_desde, canal: o.canal, origen: "bitacora", titulo: `Otro experimento: ${o.id}`, detalle: o.nombre, experimentos: [e.id] });
+        if (cruza) otros.push({ fecha: o.aplicado_desde, canal: o.canal, origen: "bitacora", tipo: "experimento", registro: "manual", titulo: `Otro experimento: ${o.id}`, detalle: o.nombre, experimentos: [e.id] });
       }
     }
     const atribucion = !aplicado
